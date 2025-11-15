@@ -1,98 +1,110 @@
 // app/api/strava/callback/route.ts
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const code = searchParams.get("code");
+import { NextRequest } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
 
-  if (!code) {
-    return new Response("Faltou o parâmetro ?code na URL.", { status: 400 });
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
+  const error = url.searchParams.get("error");
+
+  if (error || !code) {
+    return new Response("Erro na autenticação com Strava.", { status: 400 });
   }
 
-  const client_id = process.env.STRAVA_CLIENT_ID;
-  const client_secret = process.env.STRAVA_CLIENT_SECRET;
+  const clientId = process.env.STRAVA_CLIENT_ID;
+  const clientSecret = process.env.STRAVA_CLIENT_SECRET;
 
-  if (!client_id || !client_secret) {
+  if (!clientId || !clientSecret) {
     return new Response(
-      "Variáveis STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET ausentes.",
+      "STRAVA_CLIENT_ID ou STRAVA_CLIENT_SECRET não configurados.",
       { status: 500 }
     );
   }
 
-  // 1) Trocar o "code" por access_token / refresh_token
+  // Troca o "code" por tokens no Strava
   const tokenRes = await fetch("https://www.strava.com/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id,
-      client_secret,
+      client_id: clientId,
+      client_secret: clientSecret,
       code,
       grant_type: "authorization_code",
     }),
   });
 
-  const tokenJson = await tokenRes.json();
-
   if (!tokenRes.ok) {
-    return new Response(
-      `Erro ao obter token do Strava: ${JSON.stringify(tokenJson)}`,
-      { status: 500 }
-    );
+    const txt = await tokenRes.text();
+    console.error("Erro ao obter token do Strava:", txt);
+    return new Response("Falha ao obter token do Strava.", { status: 500 });
   }
 
-  const accessToken = tokenJson.access_token as string | undefined;
-  const athleteName =
-    tokenJson?.athlete?.firstname ||
-    tokenJson?.athlete?.username ||
-    "atleta";
+  const tokenData = await tokenRes.json();
 
-  if (!accessToken) {
-    return new Response(
-      `Não veio access_token na resposta: ${JSON.stringify(tokenJson)}`,
-      { status: 500 }
-    );
+  const athlete = tokenData.athlete;
+  const athleteId = athlete?.id;
+  const athleteName = `${athlete?.firstname ?? ""} ${athlete?.lastname ?? ""}`.trim();
+
+  if (!athleteId) {
+    return new Response("Não foi possível identificar o atleta do Strava.", {
+      status: 500,
+    });
   }
+  // 👉 Aqui gravamos a conexão no Supabase
+  try {
+    const { error: dbError } = await supabaseAdmin
+      .from("strava_connections")
+      .insert({
+        athlete_id: athleteId,
+        athlete_name: athleteName || null,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: tokenData.expires_at,
+        raw_athlete: athlete,
+      });
 
-  // 2) Buscar últimas atividades do atleta
-  const activitiesRes = await fetch(
-    "https://www.strava.com/api/v3/athlete/activities?per_page=5&page=1",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+    if (dbError) {
+      console.error("Erro ao salvar no Supabase:", dbError);
     }
-  );
-
-  const activitiesJson = await activitiesRes.json();
-
-  if (!activitiesRes.ok) {
-    return new Response(
-      `Erro ao buscar atividades: ${JSON.stringify(activitiesJson)}`,
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error("Exceção ao salvar no Supabase:", e);
   }
 
-  // 3) Montar uma resposta simples em texto
-  const linhas: string[] = [];
-  linhas.push(`Conexão com Strava concluída para ${athleteName}.`);
-  linhas.push("");
-  linhas.push("Últimas atividades:");
+ 
 
-  for (const act of activitiesJson) {
-    const nome = act.name;
-    const tipo = act.sport_type || act.type;
-    const distanciaKm = (act.distance ?? 0) / 1000;
-    const duracaoSeg = act.moving_time ?? 0;
-    const duracaoMin = Math.round(duracaoSeg / 60);
-
-    linhas.push(
-      `- ${nome} (${tipo}) — ${distanciaKm.toFixed(
-        2
-      )} km em ~${duracaoMin} min`
+  // (Opcional) Buscar últimas atividades só para exibir um texto simples
+  let atividadesTexto = "";
+  try {
+    const activitiesRes = await fetch(
+      "https://www.strava.com/api/v3/athlete/activities?per_page=5",
+      {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+        },
+      }
     );
+
+    if (activitiesRes.ok) {
+      const activities = await activitiesRes.json();
+      if (Array.isArray(activities) && activities.length > 0) {
+        atividadesTexto =
+          "\n\nÚltimas atividades:\n" +
+          activities
+            .map((a: any) => `- ${a.name} (${a.distance} m)`)
+            .join("\n");
+      } else {
+        atividadesTexto = "\n\nÚltimas atividades:\n(nenhuma atividade encontrada)";
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao buscar atividades do Strava:", e);
   }
 
-  const body = linhas.join("\n");
+  const mensagemBase = `Conexão com Strava concluída para ${
+    athleteName || "este atleta"
+  }.`;
 
-  return new Response(body, {
+  return new Response(mensagemBase + atividadesTexto, {
     status: 200,
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
