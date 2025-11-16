@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const error = url.searchParams.get("error");
+    const state = url.searchParams.get("state"); // vamos usar como user_id
+    const userId = state && state !== "" ? state : null;
 
     if (error) {
       console.error("Erro retornado pelo Strava:", error);
@@ -92,22 +94,27 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Monta dados para upsert
+    const upsertData: any = {
+      athlete_id: athleteId,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_type: tokenType,
+      expires_at: expiresAt,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Se veio um userId no state, salva junto
+    if (userId) {
+      upsertData.user_id = userId;
+    }
+
     // 🔹 Salvar (ou atualizar) no Supabase: tabela public.strava_tokens
     const { error: dbError } = await supabase
       .from("strava_tokens")
-      .upsert(
-        {
-          athlete_id: athleteId,
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          token_type: tokenType,
-          expires_at: expiresAt,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "athlete_id", // se já existir, atualiza
-        }
-      );
+      .upsert(upsertData, {
+        onConflict: "athlete_id", // se já existir esse athlete_id, atualiza
+      });
 
     if (dbError) {
       console.error("Erro ao salvar tokens do Strava no Supabase:", dbError);
@@ -117,12 +124,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 🔹 Aqui você poderia redirecionar para uma página do app, tipo /integrations/success
-    // Por enquanto vamos só devolver um JSON de confirmação
+    // Resposta de sucesso (por enquanto em JSON)
     return NextResponse.json(
       {
         message: "Conexão com Strava realizada e salva no Supabase com sucesso.",
         athlete_id: athleteId,
+        user_id: userId,
         token_type: tokenType,
         expires_at: expiresAt,
         access_token_last4: String(accessToken).slice(-4),
