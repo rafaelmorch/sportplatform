@@ -1,116 +1,153 @@
-// app/api/strava/import/route.ts
-import { NextRequest } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-export const dynamic = "force-dynamic"; // garante que não fica cacheado
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE;
+
+if (!supabaseUrl || !supabaseServiceRole) {
+  throw new Error("SUPABASE_URL e SUPABASE_SERVICE_ROLE são obrigatórios.");
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceRole);
 
 export async function GET(_req: NextRequest) {
-  // 1) Buscar a conexão Strava mais recente (por enquanto)
-  const { data: conn, error } = await supabaseAdmin
-    .from("strava_connections")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+  try {
+    // 1) Buscar o token do Strava no Supabase (por enquanto pegamos o primeiro registro)
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from("strava_tokens")
+      .select("*")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-  if (error || !conn) {
-    return new Response(
-      "Nenhuma conexão Strava encontrada em strava_connections.",
-      { status: 404 }
+    if (tokenError) {
+      console.error("Erro ao buscar token do Strava no Supabase:", tokenError);
+      return new NextResponse(
+        "Erro ao buscar token do Strava no banco de dados.",
+        { status: 500 }
+      );
+    }
+
+    if (!tokenRow) {
+      return new NextResponse(
+        "Nenhum token do Strava encontrado em strava_tokens.",
+        { status: 400 }
+      );
+    }
+
+    const athleteId = tokenRow.athlete_id as number;
+    const accessToken = tokenRow.access_token as string;
+
+    if (!athleteId || !accessToken) {
+      return new NextResponse(
+        "Registro em strava_tokens incompleto (sem athlete_id ou access_token).",
+        { status: 500 }
+      );
+    }
+
+    console.log("Importando atividades para athlete_id:", athleteId);
+
+    // 2) Buscar atividades no Strava com paginação
+    const perPage = 50;
+    const maxPages = 10; // limite de segurança
+    let page = 1;
+    let totalImported = 0;
+
+    while (page <= maxPages) {
+      const url = new URL("https://www.strava.com/api/v3/athlete/activities");
+      url.searchParams.set("per_page", String(perPage));
+      url.searchParams.set("page", String(page));
+
+      const activitiesResponse = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (!activitiesResponse.ok) {
+        const errorText = await activitiesResponse.text();
+        console.error(
+          `Erro ao buscar atividades do Strava (page=${page}):`,
+          errorText
+        );
+        return new NextResponse(
+          `Erro ao buscar atividades do Strava na página ${page}:\n\n${errorText}`,
+          { status: 500 }
+        );
+      }
+
+      const activities = (await activitiesResponse.json()) as any[];
+
+      if (!activities.length) {
+        console.log("Nenhuma atividade adicional encontrada. Encerrando importação.");
+        break;
+      }
+
+      console.log(
+        `Página ${page} retornou ${activities.length} atividades do Strava.`
+      );
+
+      // 3) Montar os registros para salvar no Supabase
+      const rows = activities.map((a) => ({
+        athlete_id: athleteId,
+        activity_id: a.id,
+        name: a.name,
+        type: a.type,
+        sport_type: a.sport_type,
+        start_date: a.start_date ? new Date(a.start_date).toISOString() : null,
+        start_date_local: a.start_date_local
+          ? new Date(a.start_date_local).toISOString()
+          : null,
+        timezone: a.timezone,
+        distance: a.distance,
+        moving_time: a.moving_time,
+        elapsed_time: a.elapsed_time,
+        total_elevation_gain: a.total_elevation_gain,
+        average_speed: a.average_speed,
+        max_speed: a.max_speed,
+        is_trainer: a.trainer ?? false,
+        is_commute: a.commute ?? false,
+        is_private: a.private ?? false,
+        is_flagged: a.flagged ?? false,
+        map_summary_polyline: a.map?.summary_polyline ?? null,
+        raw: a,
+        updated_at: new Date().toISOString(),
+      }));
+
+      // 4) Upsert no Supabase
+      const { error: upsertError } = await supabase
+        .from("strava_activities")
+        .upsert(rows, {
+          onConflict: "athlete_id,activity_id",
+        });
+
+      if (upsertError) {
+        console.error("Erro ao salvar atividades no Supabase:", upsertError);
+        return new NextResponse(
+          "Falha ao salvar atividades do Strava no banco de dados.",
+          { status: 500 }
+        );
+      }
+
+      totalImported += rows.length;
+      page += 1;
+    }
+
+    // 5) Resumo final
+    return NextResponse.json(
+      {
+        message: "Importação de atividades do Strava concluída.",
+        athlete_id: athleteId,
+        total_imported: totalImported,
+      },
+      { status: 200 }
     );
-  }
-
-  const accessToken = conn.access_token as string | undefined;
-  const athleteId = conn.athlete_id as number | undefined;
-
-  if (!accessToken || !athleteId) {
-    return new Response(
-      "Conexão encontrada, mas sem access_token ou athlete_id.",
+  } catch (err) {
+    console.error("Erro inesperado ao importar atividades do Strava:", err);
+    return new NextResponse(
+      "Erro inesperado ao importar atividades do Strava.",
       { status: 500 }
     );
   }
-
-  const perPage = 100; // até 200 é permitido, 100 é um bom tamanho
-  let page = 1;
-  let totalProcessadas = 0;
-
-  while (true) {
-    const url = `https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}&page=${page}`;
-
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      return new Response(
-        `Erro ao buscar atividades do Strava na página ${page}:\n\n${txt}`,
-        { status: 500 }
-      );
-    }
-
-    const activities: any[] = await res.json();
-
-    // Se não vier nada, acabou o histórico
-    if (!Array.isArray(activities) || activities.length === 0) {
-      break;
-    }
-
-    // 2) Transformar as atividades no formato da tabela "activities"
-    const rows = activities.map((act) => ({
-      athlete_id: athleteId,
-      strava_activity_id: act.id,
-      name: act.name ?? null,
-      sport_type: act.sport_type ?? act.type ?? null,
-      start_date: act.start_date ?? null,
-      distance_m: act.distance ?? null,
-      moving_time_s: act.moving_time ?? null,
-      elapsed_time_s: act.elapsed_time ?? null,
-      elev_gain_m: act.total_elevation_gain ?? null,
-      avg_speed_ms: act.average_speed ?? null,
-      max_speed_ms: act.max_speed ?? null,
-      avg_heartrate: act.average_heartrate ?? null,
-      max_heartrate: act.max_heartrate ?? null,
-      calories: act.calories ?? null,
-      has_heartrate: act.has_heartrate ?? null,
-      commute: act.commute ?? null,
-      trainer: act.trainer ?? null,
-      map_polyline: act.map?.summary_polyline ?? null,
-      raw_activity: act, // objeto completo como backup
-    }));
-
-    // 3) Salvar / atualizar no Supabase (evitando duplicados)
-    const { error: upsertError } = await supabaseAdmin
-      .from("activities")
-      .upsert(rows, { onConflict: "strava_activity_id" });
-
-    if (upsertError) {
-      return new Response(
-        "Erro ao salvar atividades no Supabase: " + upsertError.message,
-        { status: 500 }
-      );
-    }
-
-    totalProcessadas += rows.length;
-
-    // Se veio menos que perPage, essa já era a última página
-    if (activities.length < perPage) {
-      break;
-    }
-
-    page += 1;
-
-    // Segurança: não passar de 20 páginas (~2.000 atividades) num único GET
-    if (page > 20) {
-      break;
-    }
-  }
-
-  return new Response(
-    `Importação concluída para atleta ${athleteId}. Atividades processadas (incluindo já existentes): ${totalProcessadas}.`,
-    { status: 200 }
-  );
 }
-
