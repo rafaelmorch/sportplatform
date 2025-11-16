@@ -21,15 +21,17 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Lê as variáveis de ambiente
+    // Variáveis de ambiente
     const clientId = process.env.STRAVA_CLIENT_ID;
     const clientSecret = process.env.STRAVA_CLIENT_SECRET;
     const redirectUri = process.env.STRAVA_REDIRECT_URI;
 
     if (!clientId || !clientSecret || !redirectUri) {
-      console.error("Variáveis de ambiente STRAVA não configuradas corretamente.");
+      console.error("Variáveis STRAVA não configuradas corretamente:", {
+        clientId, clientSecret, redirectUri
+      });
       return new NextResponse(
-        "Erro de configuração: variáveis STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET ou STRAVA_REDIRECT_URI não definidas.",
+        "Erro: variáveis STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET ou STRAVA_REDIRECT_URI não definidas.",
         { status: 500 }
       );
     }
@@ -43,6 +45,7 @@ export async function GET(req: NextRequest) {
       redirect_uri: redirectUri,
     });
 
+    // POST para o Strava
     const tokenResponse = await fetch("https://www.strava.com/oauth/token", {
       method: "POST",
       headers: {
@@ -51,34 +54,38 @@ export async function GET(req: NextRequest) {
       body: body.toString(),
     });
 
+    // Se o Strava deu erro, mostrar o erro completo
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error("Falha ao trocar code por token no Strava:", errorText);
+      console.error("Erro Strava ao trocar code pelo token:", errorText);
+      
       return new NextResponse(
-        "Erro ao trocar o code pelo token no Strava.",
+        `Erro ao trocar o code pelo token no Strava:\n\n${errorText}`,
         { status: 500 }
       );
     }
 
+    // Se deu certo, pegar o token JSON
     const tokenData = await tokenResponse.json();
 
     console.log("Strava tokenData =>", tokenData);
 
-    // POR ENQUANTO: apenas mostrar o resultado na tela para teste
+    // Retornar resultado simplificado (debug apenas)
     return NextResponse.json(
       {
         message: "Conexão com Strava realizada com sucesso.",
         received_code: code,
-        token_type: tokenData.token_type,
-        access_token_last4: tokenData.access_token?.slice(-4),
         athlete_id: tokenData.athlete?.id,
+        token_type: tokenData.token_type,
         expires_at: tokenData.expires_at,
+        access_token_last4: tokenData.access_token?.slice(-4),
         refresh_token_last4: tokenData.refresh_token?.slice(-4),
-        // Se quiser ver tudo, pode descomentar a linha abaixo (cuidado, mostra o token inteiro):
+        // Para debug completo, descomente:
         // raw: tokenData,
       },
       { status: 200 }
     );
+
   } catch (err) {
     console.error("Erro inesperado no callback do Strava:", err);
     return new NextResponse(
