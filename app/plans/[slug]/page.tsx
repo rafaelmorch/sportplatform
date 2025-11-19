@@ -11,7 +11,7 @@ type PageProps = {
 };
 
 export default async function PlanDetailPage({ params }: PageProps) {
-  const { slug } = await params; // 👈 AQUI
+  const { slug } = await params;
 
   const plan = trainingPlans.find((p) => p.slug === slug);
 
@@ -30,43 +30,78 @@ export default async function PlanDetailPage({ params }: PageProps) {
         background: "#020617",
         color: "#e5e7eb",
         padding: "24px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
       }}
     >
-      <header style={{ marginBottom: "24px" }}>
+      <header style={{ marginBottom: "4px" }}>
         <p
           style={{
             fontSize: "12px",
             color: "#a5b4fc",
             textTransform: "uppercase",
+            letterSpacing: "0.08em",
             marginBottom: "4px",
           }}
         >
           Plano de treino • {plan.level}
         </p>
 
-        <h1 style={{ fontSize: "26px", fontWeight: 700, marginBottom: "4px" }}>
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: 700,
+            marginBottom: "4px",
+          }}
+        >
           {plan.title}
         </h1>
 
-        <p style={{ color: "#94a3b8", marginBottom: "8px" }}>
+        <p
+          style={{
+            color: "#94a3b8",
+            marginBottom: "8px",
+            fontSize: "14px",
+          }}
+        >
           {plan.subtitle}
         </p>
 
         <div
           style={{
             display: "flex",
-            gap: "12px",
             flexWrap: "wrap",
+            gap: "12px",
             alignItems: "center",
             marginTop: "8px",
           }}
         >
-          <p style={{ fontSize: "22px", fontWeight: 700 }}>
+          <p
+            style={{
+              fontSize: "22px",
+              fontWeight: 700,
+            }}
+          >
             ${plan.pricePerMonth}
-            <span style={{ fontSize: "12px", color: "#9ca3af" }}> / mês</span>
+            <span
+              style={{
+                fontSize: "12px",
+                color: "#9ca3af",
+                marginLeft: "4px",
+              }}
+            >
+              {" "}
+              / mês
+            </span>
           </p>
 
-          <p style={{ fontSize: "13px", color: "#9ca3af" }}>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+            }}
+          >
             Duração: {plan.durationWeeks} semanas
           </p>
         </div>
@@ -92,11 +127,23 @@ export default async function PlanDetailPage({ params }: PageProps) {
         </div>
 
         <div style={{ marginTop: "16px" }}>
-          <p style={{ fontSize: "12px", color: "#9ca3af" }}>
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#9ca3af",
+              marginBottom: "4px",
+            }}
+          >
             Indicado para os grupos:
           </p>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "6px",
+            }}
+          >
             {groups.map((g) => (
               <a key={g.slug} href={`/groups/${g.slug}`}>
                 <span
@@ -106,6 +153,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
                     borderRadius: "999px",
                     border: "1px solid #334155",
                     background: "#020617",
+                    textDecoration: "none",
                   }}
                 >
                   {g.title}
@@ -116,38 +164,57 @@ export default async function PlanDetailPage({ params }: PageProps) {
         </div>
       </header>
 
-      <section>
-        <h2 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "8px" }}>
-          O que está incluído
-        </h2>
-
-        <ul
+      <main
+        style={{
+          maxWidth: "800px",
+        }}
+      >
+        <section
           style={{
-            listStyle: "disc",
-            paddingLeft: "18px",
-            fontSize: "13px",
-            color: "#e5e7eb",
+            borderRadius: "14px",
+            border: "1px solid #1e293b",
+            background: "#020617",
+            padding: "16px",
           }}
         >
-          {plan.highlights.map((item, idx) => (
-            <li key={idx} style={{ marginBottom: "4px" }}>
-              {item}
-            </li>
-          ))}
-        </ul>
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginBottom: "8px",
+            }}
+          >
+            O que está incluído
+          </h2>
 
-        <p
-          style={{
-            marginTop: "16px",
-            fontSize: "13px",
-            color: "#cbd5e1",
-            maxWidth: "640px",
-          }}
-        >
-          Após contratar, você recebe o planejamento completo, ajustes semanais
-          e orientações para integrar os treinos com seu calendário de provas.
-        </p>
-      </section>
+          <ul
+            style={{
+              listStyle: "disc",
+              paddingLeft: "18px",
+              fontSize: "13px",
+              color: "#e5e7eb",
+            }}
+          >
+            {plan.highlights.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "4px" }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          <p
+            style={{
+              marginTop: "16px",
+              fontSize: "13px",
+              color: "#cbd5e1",
+              maxWidth: "640px",
+            }}
+          >
+            Após contratar, você recebe recomendações personalizadas, ajustes do
+            treinador e acesso ao planejamento completo semana a semana.
+          </p>
+        </section>
+      </main>
     </div>
   );
 }

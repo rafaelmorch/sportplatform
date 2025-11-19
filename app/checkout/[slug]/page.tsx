@@ -33,7 +33,7 @@ function getPaymentLinkForPlan(slug: string): string {
 }
 
 export default async function CheckoutPage({ params }: PageProps) {
-  const { slug } = await params; // 👈 AQUI
+  const { slug } = await params;
 
   const plan = trainingPlans.find((p) => p.slug === slug);
 
@@ -60,7 +60,7 @@ export default async function CheckoutPage({ params }: PageProps) {
         padding: "24px",
       }}
     >
-      <header style={{ marginBottom: "24px" }}>
+      <header style={{ marginBottom: "20px" }}>
         <p
           style={{
             fontSize: "12px",
@@ -75,7 +75,7 @@ export default async function CheckoutPage({ params }: PageProps) {
 
         <h1
           style={{
-            fontSize: "26px",
+            fontSize: "24px",
             fontWeight: 700,
             marginBottom: "4px",
           }}
@@ -83,7 +83,13 @@ export default async function CheckoutPage({ params }: PageProps) {
           {plan.title}
         </h1>
 
-        <p style={{ color: "#94a3b8", marginBottom: "8px" }}>
+        <p
+          style={{
+            color: "#94a3b8",
+            marginBottom: "8px",
+            fontSize: "14px",
+          }}
+        >
           {plan.subtitle}
         </p>
 
@@ -110,11 +116,17 @@ export default async function CheckoutPage({ params }: PageProps) {
                 marginLeft: "4px",
               }}
             >
+              {" "}
               / mês
             </span>
           </p>
 
-          <p style={{ fontSize: "13px", color: "#9ca3af" }}>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+            }}
+          >
             Duração: {plan.durationWeeks} semanas • Nível: {plan.level}
           </p>
         </div>
@@ -128,19 +140,20 @@ export default async function CheckoutPage({ params }: PageProps) {
           }}
         >
           Este checkout é para contratar o acompanhamento do plano{" "}
-          <strong>{plan.title}</strong>. Após o pagamento, você recebe os
-          próximos passos por WhatsApp ou e-mail.
+          <strong>{plan.title}</strong>. Após o pagamento, você receberá os
+          próximos passos por contato direto (WhatsApp ou e-mail).
         </p>
       </header>
 
-      <div
+      <main
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1.4fr)",
-          gap: "20px",
+          gridTemplateColumns: "1fr",
+          gap: "16px",
         }}
       >
-        <div
+        {/* Coluna 1: como funciona */}
+        <section
           style={{
             borderRadius: "14px",
             border: "1px solid #1e293b",
@@ -166,7 +179,7 @@ export default async function CheckoutPage({ params }: PageProps) {
               color: "#e5e7eb",
               display: "grid",
               gap: "8px",
-              marginBottom: "16px",
+              marginBottom: "12px",
             }}
           >
             <li>
@@ -209,13 +222,20 @@ export default async function CheckoutPage({ params }: PageProps) {
             ))}
           </ul>
 
-          <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "8px" }}>
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#9ca3af",
+              marginTop: "8px",
+            }}
+          >
             Depois podemos integrar com um checkout automatizado (Stripe,
-            PayPal, Pix) e salvar os pedidos no Supabase.
+            PayPal, Pix) e salvar os pedidos direto no Supabase.
           </p>
-        </div>
+        </section>
 
-        <div
+        {/* Coluna 2: para quem é + ações */}
+        <section
           style={{
             borderRadius: "14px",
             border: "1px solid #1e293b",
@@ -243,7 +263,14 @@ export default async function CheckoutPage({ params }: PageProps) {
             Indicado principalmente para atletas dos grupos:
           </p>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "6px",
+              marginBottom: "14px",
+            }}
+          >
             {groups.map((g) => (
               <a key={g.slug} href={`/groups/${g.slug}`}>
                 <span
@@ -254,6 +281,8 @@ export default async function CheckoutPage({ params }: PageProps) {
                     border: "1px solid #334155",
                     background: "#020617",
                     cursor: "pointer",
+                    textDecoration: "none",
+                    color: "#e5e7eb",
                   }}
                 >
                   {g.title}
@@ -264,7 +293,7 @@ export default async function CheckoutPage({ params }: PageProps) {
 
           <div
             style={{
-              marginTop: "16px",
+              marginTop: "8px",
               display: "grid",
               gap: "8px",
             }}
@@ -339,11 +368,11 @@ export default async function CheckoutPage({ params }: PageProps) {
               color: "#64748b",
             }}
           >
-            Assim que tiver os links reais de checkout (PayPal/Stripe/Pix), é só
-            editar <code>getPaymentLinkForPlan</code>.
+            Assim que tiver os links reais de checkout (PayPal/Stripe/Pix), é
+            só editar a função <code>getPaymentLinkForPlan</code>.
           </p>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
