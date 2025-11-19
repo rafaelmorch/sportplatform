@@ -1,10 +1,14 @@
-"use client";
-
 import { notFound } from "next/navigation";
 import { trainingPlans } from "../plans-data";
 import { trainingGroups } from "../../groups/groups-data";
 
-export default function PlanDetailPage({ params }) {
+interface PlanDetailPageProps {
+  params: {
+    slug: string;
+  };
+}
+
+export default function PlanDetailPage({ params }: PlanDetailPageProps) {
   const plan = trainingPlans.find((p) => p.slug === params.slug);
 
   if (!plan) {
