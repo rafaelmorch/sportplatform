@@ -15,25 +15,6 @@ type DayPlan = {
   description: string;
 };
 
-function getGroupImage(slug: string): string {
-  switch (slug) {
-    case "beginners-running":
-      return "/groups/beginners.jpg";
-    case "marathon":
-      return "/groups/marathon.jpg";
-    case "triathlon":
-      return "/groups/triathlon.jpg";
-    case "weight-loss-running":
-      return "/groups/weightloss.jpg";
-    case "performance-5k":
-      return "/groups/performance5k.jpg";
-    case "performance-10k":
-      return "/groups/performance10k.jpg";
-    default:
-      return "/groups/default.jpg";
-  }
-}
-
 function generate30DayPlan(group: TrainingGroup): DayPlan[] {
   const plans: DayPlan[] = [];
 
@@ -186,7 +167,6 @@ export default async function GroupDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const heroImage = getGroupImage(group.slug);
   const plan = generate30DayPlan(group);
 
   return (
@@ -197,10 +177,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
         color: "#e5e7eb",
       }}
     >
-      {/* HERO */}
+      {/* HERO SEM IMAGEM – GRADIENTE */}
       <div
         style={{
-          position: "relative",
           width: "100%",
           maxWidth: "1024px",
           margin: "0 auto",
@@ -209,71 +188,41 @@ export default async function GroupDetailPage({ params }: PageProps) {
       >
         <div
           style={{
-            position: "relative",
             borderRadius: "20px",
-            overflow: "hidden",
-            height: "220px",
+            padding: "18px 16px 20px 16px",
+            background:
+              "linear-gradient(135deg, #0f172a 0%, #1d4ed8 40%, #22c55e 100%)",
           }}
         >
-          <img
-            src={heroImage}
-            alt={group.title}
+          <p
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-            }}
-          />
-          {/* Overlay */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(to top, rgba(15,23,42,0.9), rgba(15,23,42,0.2))",
-            }}
-          />
-
-          {/* Texto sobre a imagem */}
-          <div
-            style={{
-              position: "absolute",
-              left: "16px",
-              right: "16px",
-              bottom: "16px",
+              fontSize: "11px",
+              color: "#e0f2fe",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "4px",
             }}
           >
-            <p
-              style={{
-                fontSize: "11px",
-                color: "#a5b4fc",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: "4px",
-              }}
-            >
-              {group.level}
-            </p>
-            <h1
-              style={{
-                fontSize: "22px",
-                fontWeight: 800,
-                marginBottom: "4px",
-              }}
-            >
-              {group.title}
-            </h1>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#e5e7eb",
-                maxWidth: "520px",
-              }}
-            >
-              {group.subtitle}
-            </p>
-          </div>
+            {group.level}
+          </p>
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: 800,
+              marginBottom: "4px",
+            }}
+          >
+            {group.title}
+          </h1>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#e5e7eb",
+              maxWidth: "520px",
+            }}
+          >
+            {group.subtitle}
+          </p>
         </div>
       </div>
 
@@ -362,8 +311,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
               }}
             >
               Use este plano como base automática para seus treinos diários. A
-              sequência foi pensada para equilibrar estímulos, recuperação e
-              progresso ao longo do mês.
+              sequência equilibra estímulos, recuperação e progresso ao longo
+              do mês.
             </p>
           </div>
 
