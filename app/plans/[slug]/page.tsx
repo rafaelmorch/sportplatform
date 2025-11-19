@@ -11,7 +11,7 @@ type PageProps = {
 };
 
 export default async function PlanDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug } = await params; // 👈 AQUI
 
   const plan = trainingPlans.find((p) => p.slug === slug);
 
@@ -144,8 +144,8 @@ export default async function PlanDetailPage({ params }: PageProps) {
             maxWidth: "640px",
           }}
         >
-          Após contratar, você recebe recomendações personalizadas, ajustes do
-          treinador e acesso ao planejamento completo semana a semana.
+          Após contratar, você recebe o planejamento completo, ajustes semanais
+          e orientações para integrar os treinos com seu calendário de provas.
         </p>
       </section>
     </div>

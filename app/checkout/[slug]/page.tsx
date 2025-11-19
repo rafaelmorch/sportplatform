@@ -22,22 +22,18 @@ function buildContactMessage(planTitle: string) {
 function getPaymentLinkForPlan(slug: string): string {
   switch (slug) {
     case "starter-5k":
-      return "#";
     case "premium-10k":
-      return "#";
     case "marathon-pro":
-      return "#";
     case "triathlon-complete":
-      return "#";
     case "weight-loss-plus":
-      return "#";
+      return "#"; // placeholder
     default:
       return "#";
   }
 }
 
 export default async function CheckoutPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug } = await params; // 👈 AQUI
 
   const plan = trainingPlans.find((p) => p.slug === slug);
 
@@ -132,8 +128,8 @@ export default async function CheckoutPage({ params }: PageProps) {
           }}
         >
           Este checkout é para contratar o acompanhamento do plano{" "}
-          <strong>{plan.title}</strong>. Após o pagamento, você receberá os
-          próximos passos por contato direto (WhatsApp ou e-mail).
+          <strong>{plan.title}</strong>. Após o pagamento, você recebe os
+          próximos passos por WhatsApp ou e-mail.
         </p>
       </header>
 
@@ -174,17 +170,16 @@ export default async function CheckoutPage({ params }: PageProps) {
             }}
           >
             <li>
-              <strong>Confirme se o plano é ideal para você.</strong> Veja os
-              grupos indicados, duração e o nível do plano.
+              Confirme se o plano é ideal para você (grupo indicado, duração,
+              nível).
             </li>
             <li>
-              <strong>Realize o pagamento.</strong> Você será direcionado para
-              uma página externa de pagamento (quando os links estiverem ativos).
+              Realize o pagamento no link (quando estiver ativo) ou combine
+              diretamente comigo.
             </li>
             <li>
-              <strong>Envie o comprovante e seus dados básicos.</strong> Após o
-              pagamento, fale comigo via WhatsApp ou e-mail para combinarmos
-              histórico, rotina e início dos treinos.
+              Envie comprovante e dados básicos para montar a melhor estratégia
+              de treino.
             </li>
           </ol>
 
@@ -195,7 +190,7 @@ export default async function CheckoutPage({ params }: PageProps) {
               fontWeight: 600,
             }}
           >
-            O que está incluído neste plano
+            O que está incluído
           </h3>
 
           <ul
@@ -215,9 +210,8 @@ export default async function CheckoutPage({ params }: PageProps) {
           </ul>
 
           <p style={{ fontSize: "12px", color: "#9ca3af", marginTop: "8px" }}>
-            Observação: este fluxo ainda é simples e manual. No futuro, você
-            pode integrar com um checkout automatizado (Stripe, PayPal, Pix,
-            etc.) e salvar os pedidos direto no Supabase.
+            Depois podemos integrar com um checkout automatizado (Stripe,
+            PayPal, Pix) e salvar os pedidos no Supabase.
           </p>
         </div>
 
@@ -236,7 +230,7 @@ export default async function CheckoutPage({ params }: PageProps) {
               fontWeight: 600,
             }}
           >
-            Para quem este treino é indicado
+            Para quem é esse plano
           </h2>
 
           <p
@@ -246,8 +240,7 @@ export default async function CheckoutPage({ params }: PageProps) {
               marginBottom: "8px",
             }}
           >
-            Este plano foi pensado principalmente para atletas dos seguintes
-            grupos:
+            Indicado principalmente para atletas dos grupos:
           </p>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -346,8 +339,8 @@ export default async function CheckoutPage({ params }: PageProps) {
               color: "#64748b",
             }}
           >
-            Dica: assim que tiver os links reais de checkout (ex.: PayPal /
-            Stripe), basta editar a função <code>getPaymentLinkForPlan</code>.
+            Assim que tiver os links reais de checkout (PayPal/Stripe/Pix), é só
+            editar <code>getPaymentLinkForPlan</code>.
           </p>
         </div>
       </div>
