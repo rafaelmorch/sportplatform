@@ -1,59 +1,44 @@
 // app/feed/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type Post = {
-  id: number;
-  athleteName: string;
-  avatarInitials: string;
-  timeAgo: string;
-  text: string;
-  imageUrl?: string;
+  id: string;
+  created_at: string;
+  author_name: string | null;
+  content: string;
+  image_url: string | null;
   likes: number;
-  comments: number;
+  comments_count: number;
 };
 
-const initialPosts: Post[] = [
-  {
-    id: 1,
-    athleteName: "Rafael Morch",
-    avatarInitials: "RM",
-    timeAgo: "2h",
-    text: "Primeiro treino do bloco de maratona concluído. Ritmo controlado e sensação ótima nas pernas.",
-    imageUrl:
-      "https://images.pexels.com/photos/2402777/pexels-photo-2402777.jpeg?auto=compress&cs=tinysrgb&w=800",
-    likes: 28,
-    comments: 6,
-  },
-  {
-    id: 2,
-    athleteName: "Enzo Maia",
-    avatarInitials: "EM",
-    timeAgo: "5h",
-    text: "Transição de bike para corrida do triathlon muito mais fluida hoje. Ajustando hidratação e cadência.",
-    imageUrl:
-      "https://images.pexels.com/photos/3996349/pexels-photo-3996349.jpeg?auto=compress&cs=tinysrgb&w=800",
-    likes: 42,
-    comments: 9,
-  },
-  {
-    id: 3,
-    athleteName: "Ana Souza",
-    avatarInitials: "AS",
-    timeAgo: "1d",
-    text: "Sessão leve de recuperação. Foco em manter a consistência diária e respeitar os dias regenerativos.",
-    imageUrl:
-      "https://images.pexels.com/photos/1552103/pexels-photo-1552103.jpeg?auto=compress&cs=tinysrgb&w=800",
-    likes: 19,
-    comments: 3,
-  },
-];
-
 export default function FeedPage() {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  function handleLike(postId: number) {
+  async function loadPosts() {
+    setLoading(true);
+
+    const { data, error } = await supabaseBrowser
+      .from("feed_posts")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setPosts(data as Post[]);
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  async function handleLike(postId: string) {
+    // Para demo: incrementa apenas no front e não grava no Supabase
     setPosts((current) =>
       current.map((post) =>
         post.id === postId ? { ...post, likes: post.likes + 1 } : post
@@ -61,12 +46,12 @@ export default function FeedPage() {
     );
   }
 
-  function handleComment(postId: number) {
-    // Para apresentação: apenas incrementa o contador de comentários.
+  async function handleComment(postId: string) {
+    // Para demo: incrementa apenas no front
     setPosts((current) =>
       current.map((post) =>
         post.id === postId
-          ? { ...post, comments: post.comments + 1 }
+          ? { ...post, comments_count: post.comments_count + 1 }
           : post
       )
     );
@@ -113,7 +98,7 @@ export default function FeedPage() {
                 color: "#94a3b8",
               }}
             >
-              Compartilhe seus treinos, fotos e conquistas com o grupo.
+              Registros em tempo real das sessões de treino dos atletas.
             </p>
           </div>
 
@@ -134,9 +119,35 @@ export default function FeedPage() {
           </a>
         </header>
 
+        {/* ESTADO DE CARREGAMENTO */}
+        {loading && (
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#64748b",
+              marginTop: "8px",
+            }}
+          >
+            Carregando postagens…
+          </p>
+        )}
+
         {/* LISTA DE POSTS */}
+        {!loading && posts.length === 0 && (
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#64748b",
+              marginTop: "8px",
+            }}
+          >
+            Nenhuma postagem ainda. Seja o primeiro a registrar seu treino.
+          </p>
+        )}
+
         <div
           style={{
+            marginTop: posts.length > 0 ? "4px" : "0",
             display: "flex",
             flexDirection: "column",
             gap: "16px",
@@ -176,7 +187,12 @@ export default function FeedPage() {
                     color: "#0b1120",
                   }}
                 >
-                  {post.avatarInitials}
+                  {(post.author_name || "AT")
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
                 </div>
                 <div
                   style={{
@@ -191,7 +207,7 @@ export default function FeedPage() {
                       fontWeight: 600,
                     }}
                   >
-                    {post.athleteName}
+                    {post.author_name || "Atleta"}
                   </span>
                   <span
                     style={{
@@ -199,7 +215,7 @@ export default function FeedPage() {
                       color: "#64748b",
                     }}
                   >
-                    {post.timeAgo} · Treino publicado
+                    {new Date(post.created_at).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -209,15 +225,15 @@ export default function FeedPage() {
                 style={{
                   fontSize: "13px",
                   color: "#e5e7eb",
-                  marginBottom: post.imageUrl ? "10px" : "8px",
+                  marginBottom: post.image_url ? "10px" : "8px",
                   lineHeight: 1.5,
                 }}
               >
-                {post.text}
+                {post.content}
               </p>
 
               {/* Imagem, se existir */}
-              {post.imageUrl && (
+              {post.image_url && (
                 <div
                   style={{
                     borderRadius: "14px",
@@ -227,7 +243,7 @@ export default function FeedPage() {
                   }}
                 >
                   <img
-                    src={post.imageUrl}
+                    src={post.image_url}
                     alt="Foto do treino"
                     style={{
                       width: "100%",
@@ -317,7 +333,7 @@ export default function FeedPage() {
                   }}
                 >
                   <span>{post.likes} curtidas</span>
-                  <span>{post.comments} comentários</span>
+                  <span>{post.comments_count} comentários</span>
                 </div>
               </div>
             </article>

@@ -3,19 +3,83 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export default function NewPostPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [text, setText] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const isValid = text.trim().length > 0;
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setImageFile(file);
+
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Para a apresentação, só redireciona de volta para o feed
-    router.push("/feed");
+    if (!isValid || loading) return;
+
+    setLoading(true);
+
+    let imageUrl: string | null = null;
+
+    try {
+      // 1) Se tiver imagem, faz upload para o bucket feed-images
+      if (imageFile) {
+        const fileExt = imageFile.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${fileExt}`;
+        const filePath = `posts/${fileName}`;
+
+        const { error: uploadError } = await supabaseBrowser.storage
+          .from("feed-images")
+          .upload(filePath, imageFile, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error("Erro ao fazer upload:", uploadError.message);
+        } else {
+          const { data: publicData } = supabaseBrowser.storage
+            .from("feed-images")
+            .getPublicUrl(filePath);
+
+          imageUrl = publicData.publicUrl;
+        }
+      }
+
+      // 2) Inserir o post na tabela feed_posts
+      const { error: insertError } = await supabaseBrowser
+        .from("feed_posts")
+        .insert({
+          author_name: name || null,
+          content: text,
+          image_url: imageUrl,
+        });
+
+      if (insertError) {
+        console.error("Erro ao salvar post:", insertError.message);
+      } else {
+        // Volta para o feed
+        router.push("/feed");
+      }
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -133,49 +197,45 @@ export default function NewPostPage() {
             />
           </div>
 
+          {/* UPLOAD DE IMAGEM */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label
               style={{ fontSize: "13px", color: "#cbd5e1", fontWeight: 500 }}
             >
-              URL da imagem (opcional)
+              Foto do treino (opcional)
             </label>
             <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="Cole aqui o link de uma foto do treino"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
               style={{
-                padding: "9px 10px",
-                borderRadius: "10px",
-                border: "1px solid #1e293b",
-                background: "#020617",
-                color: "#e5e7eb",
                 fontSize: "13px",
+                color: "#e5e7eb",
               }}
             />
           </div>
 
           <button
             type="submit"
-            disabled={!isValid}
+            disabled={!isValid || loading}
             style={{
               marginTop: "4px",
               padding: "10px 14px",
               borderRadius: "999px",
               border: "none",
-              background: isValid ? "#22c55e" : "#1f2937",
-              color: isValid ? "#020617" : "#6b7280",
+              background: isValid && !loading ? "#22c55e" : "#1f2937",
+              color: isValid && !loading ? "#020617" : "#6b7280",
               fontSize: "14px",
               fontWeight: 700,
-              cursor: isValid ? "pointer" : "not-allowed",
+              cursor: isValid && !loading ? "pointer" : "not-allowed",
             }}
           >
-            Publicar no feed
+            {loading ? "Publicando..." : "Publicar no feed"}
           </button>
         </form>
 
         {/* PRÉVIA RÁPIDA */}
-        {text.trim().length > 0 && (
+        {(text.trim().length > 0 || previewUrl) && (
           <div
             style={{
               marginTop: "18px",
@@ -203,16 +263,18 @@ export default function NewPostPage() {
             >
               {name || "Atleta"}
             </p>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#e5e7eb",
-                marginBottom: imageUrl ? "8px" : 0,
-              }}
-            >
-              {text}
-            </p>
-            {imageUrl && (
+            {text.trim().length > 0 && (
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#e5e7eb",
+                  marginBottom: previewUrl ? "8px" : 0,
+                }}
+              >
+                {text}
+              </p>
+            )}
+            {previewUrl && (
               <div
                 style={{
                   borderRadius: "12px",
@@ -221,7 +283,7 @@ export default function NewPostPage() {
                 }}
               >
                 <img
-                  src={imageUrl}
+                  src={previewUrl}
                   alt="Prévia do treino"
                   style={{
                     width: "100%",
