@@ -1,8 +1,7 @@
 // app/groups/[slug]/page.tsx
-"use client";
 
 import { notFound } from "next/navigation";
-import { getGroupBySlug, TrainingGroup, TrainingGroupSlug } from "../groups-data";
+import { getGroupBySlug, type TrainingGroup } from "../groups-data";
 
 type DayPlan = {
   day: number;
@@ -18,8 +17,12 @@ function generate30DayPlan(group: TrainingGroup): DayPlan[] {
     let description = "";
 
     const isRecoveryDay = i % 7 === 0; // a cada 7 dias, regenerativo
-    const isLongRunDay = (group.slug === "marathon" || group.slug === "performance-10k") && (i % 7 === 6);
-    const isSpeedDay = (group.slug === "performance-5k" || group.slug === "performance-10k") && (i % 5 === 3);
+    const isLongRunDay =
+      (group.slug === "marathon" || group.slug === "performance-10k") &&
+      i % 7 === 6;
+    const isSpeedDay =
+      (group.slug === "performance-5k" || group.slug === "performance-10k") &&
+      i % 5 === 3;
 
     switch (group.slug) {
       case "beginners-running":
@@ -151,7 +154,7 @@ function generate30DayPlan(group: TrainingGroup): DayPlan[] {
 }
 
 interface GroupPageProps {
-  params: { slug: TrainingGroupSlug };
+  params: { slug: string };
 }
 
 export default function GroupDetailPage({ params }: GroupPageProps) {
@@ -223,6 +226,7 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
         >
           Desafios – 30 dias
         </h2>
+
         <div
           style={{
             display: "grid",
