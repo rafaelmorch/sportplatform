@@ -4,14 +4,16 @@ import { notFound } from "next/navigation";
 import { trainingPlans } from "../plans-data";
 import { trainingGroups } from "../../groups/groups-data";
 
-interface PlanDetailPageProps {
-  params: {
+type PageProps = {
+  params: Promise<{
     slug: string;
-  };
-}
+  }>;
+};
 
-export default function PlanDetailPage({ params }: PlanDetailPageProps) {
-  const plan = trainingPlans.find((p) => p.slug === params.slug);
+export default async function PlanDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+
+  const plan = trainingPlans.find((p) => p.slug === slug);
 
   if (!plan) {
     notFound();

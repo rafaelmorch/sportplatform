@@ -5,9 +5,9 @@ import { trainingPlans } from "../../plans/plans-data";
 import { trainingGroups } from "../../groups/groups-data";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 };
 
 const CONTACT_WHATSAPP_BASE = "https://wa.me/14070000000?text=";
@@ -36,8 +36,10 @@ function getPaymentLinkForPlan(slug: string): string {
   }
 }
 
-export default function CheckoutPage({ params }: PageProps) {
-  const plan = trainingPlans.find((p) => p.slug === params.slug);
+export default async function CheckoutPage({ params }: PageProps) {
+  const { slug } = await params;
+
+  const plan = trainingPlans.find((p) => p.slug === slug);
 
   if (!plan) {
     notFound();
@@ -227,127 +229,126 @@ export default function CheckoutPage({ params }: PageProps) {
             padding: "16px",
           }}
         >
-            <h2
-              style={{
-                fontSize: "16px",
-                marginBottom: "8px",
-                fontWeight: 600,
-              }}
-            >
-              Para quem este treino é indicado
-            </h2>
+          <h2
+            style={{
+              fontSize: "16px",
+              marginBottom: "8px",
+              fontWeight: 600,
+            }}
+          >
+            Para quem este treino é indicado
+          </h2>
 
-            <p
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#cbd5e1",
+              marginBottom: "8px",
+            }}
+          >
+            Este plano foi pensado principalmente para atletas dos seguintes
+            grupos:
+          </p>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {groups.map((g) => (
+              <a key={g.slug} href={`/groups/${g.slug}`}>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    borderRadius: "999px",
+                    border: "1px solid #334155",
+                    background: "#020617",
+                    cursor: "pointer",
+                  }}
+                >
+                  {g.title}
+                </span>
+              </a>
+            ))}
+          </div>
+
+          <div
+            style={{
+              marginTop: "16px",
+              display: "grid",
+              gap: "8px",
+            }}
+          >
+            <a
+              href={paymentLink}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
+                display: "inline-block",
+                padding: "9px 14px",
+                borderRadius: "999px",
+                border: "none",
+                background: paymentLink === "#" ? "#6b7280" : "#22c55e",
+                color: "#020617",
                 fontSize: "13px",
-                color: "#cbd5e1",
-                marginBottom: "8px",
+                fontWeight: 700,
+                textDecoration: "none",
+                textAlign: "center",
+                cursor: paymentLink === "#" ? "not-allowed" : "pointer",
+                opacity: paymentLink === "#" ? 0.7 : 1,
               }}
             >
-              Este plano foi pensado principalmente para atletas dos seguintes
-              grupos:
-            </p>
+              {paymentLink === "#" ? "Pagamento em breve" : "Ir para pagamento"}
+            </a>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {groups.map((g) => (
-                <a key={g.slug} href={`/groups/${g.slug}`}>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      padding: "4px 8px",
-                      borderRadius: "999px",
-                      border: "1px solid #334155",
-                      background: "#020617",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {g.title}
-                  </span>
-                </a>
-              ))}
-            </div>
-
-            <div
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
-                marginTop: "16px",
-                display: "grid",
-                gap: "8px",
+                display: "inline-block",
+                padding: "8px 14px",
+                borderRadius: "999px",
+                border: "1px solid #334155",
+                background: "transparent",
+                color: "#e5e7eb",
+                fontSize: "13px",
+                fontWeight: 500,
+                textDecoration: "none",
+                textAlign: "center",
+                cursor: "pointer",
               }}
             >
-              <a
-                href={paymentLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "9px 14px",
-                  borderRadius: "999px",
-                  border: "none",
-                  background:
-                    paymentLink === "#" ? "#6b7280" : "#22c55e",
-                  color: "#020617",
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  textDecoration: "none",
-                  textAlign: "center",
-                  cursor: paymentLink === "#" ? "not-allowed" : "pointer",
-                  opacity: paymentLink === "#" ? 0.7 : 1,
-                }}
-              >
-                {paymentLink === "#" ? "Pagamento em breve" : "Ir para pagamento"}
-              </a>
+              Falar com treinador no WhatsApp
+            </a>
 
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "8px 14px",
-                  borderRadius: "999px",
-                  border: "1px solid #334155",
-                  background: "transparent",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  textAlign: "center",
-                  cursor: "pointer",
-                }}
-              >
-                Falar com treinador no WhatsApp
-              </a>
-
-              <a
-                href={`mailto:${CONTACT_EMAIL}?subject=${emailSubject}&body=${emailBody}`}
-                style={{
-                  display: "inline-block",
-                  padding: "8px 14px",
-                  borderRadius: "999px",
-                  border: "1px solid #334155",
-                  background: "transparent",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
-                  fontWeight: 500,
-                  textDecoration: "none",
-                  textAlign: "center",
-                  cursor: "pointer",
-                }}
-              >
-                Falar por e-mail
-              </a>
-            </div>
-
-            <p
+            <a
+              href={`mailto:${CONTACT_EMAIL}?subject=${emailSubject}&body=${emailBody}`}
               style={{
-                marginTop: "10px",
-                fontSize: "11px",
-                color: "#64748b",
+                display: "inline-block",
+                padding: "8px 14px",
+                borderRadius: "999px",
+                border: "1px solid #334155",
+                background: "transparent",
+                color: "#e5e7eb",
+                fontSize: "13px",
+                fontWeight: 500,
+                textDecoration: "none",
+                textAlign: "center",
+                cursor: "pointer",
               }}
             >
-              Dica: assim que tiver os links reais de checkout (ex.: PayPal /
-              Stripe), basta editar a função <code>getPaymentLinkForPlan</code>.
-            </p>
+              Falar por e-mail
+            </a>
+          </div>
+
+          <p
+            style={{
+              marginTop: "10px",
+              fontSize: "11px",
+              color: "#64748b",
+            }}
+          >
+            Dica: assim que tiver os links reais de checkout (ex.: PayPal /
+            Stripe), basta editar a função <code>getPaymentLinkForPlan</code>.
+          </p>
         </div>
       </div>
     </div>

@@ -3,6 +3,12 @@
 import { notFound } from "next/navigation";
 import { getGroupBySlug, type TrainingGroup } from "../groups-data";
 
+type PageProps = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
 type DayPlan = {
   day: number;
   title: string;
@@ -153,14 +159,9 @@ function generate30DayPlan(group: TrainingGroup): DayPlan[] {
   return plans;
 }
 
-interface GroupPageProps {
-  params: {
-    slug: string;
-  };
-}
-
-export default function GroupDetailPage({ params }: GroupPageProps) {
-  const group = getGroupBySlug(params.slug);
+export default async function GroupDetailPage({ params }: PageProps) {
+  const { slug } = await params;
+  const group = getGroupBySlug(slug);
 
   if (!group) {
     notFound();
