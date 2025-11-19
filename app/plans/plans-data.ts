@@ -1,4 +1,5 @@
 // app/plans/plans-data.ts
+
 import type { TrainingGroupSlug } from "../groups/groups-data";
 
 export type TrainingPlanSlug =

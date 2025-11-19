@@ -16,7 +16,7 @@ function generate30DayPlan(group: TrainingGroup): DayPlan[] {
     let title = "";
     let description = "";
 
-    const isRecoveryDay = i % 7 === 0; // a cada 7 dias, regenerativo
+    const isRecoveryDay = i % 7 === 0;
     const isLongRunDay =
       (group.slug === "marathon" || group.slug === "performance-10k") &&
       i % 7 === 6;
@@ -154,7 +154,9 @@ function generate30DayPlan(group: TrainingGroup): DayPlan[] {
 }
 
 interface GroupPageProps {
-  params: { slug: string };
+  params: {
+    slug: string;
+  };
 }
 
 export default function GroupDetailPage({ params }: GroupPageProps) {
@@ -208,7 +210,6 @@ export default function GroupDetailPage({ params }: GroupPageProps) {
         </p>
       </header>
 
-      {/* Lista de 30 dias */}
       <div
         style={{
           borderRadius: "14px",

@@ -1,3 +1,5 @@
+// app/plans/[slug]/page.tsx
+
 import { notFound } from "next/navigation";
 import { trainingPlans } from "../plans-data";
 import { trainingGroups } from "../../groups/groups-data";
@@ -28,7 +30,6 @@ export default function PlanDetailPage({ params }: PlanDetailPageProps) {
         padding: "24px",
       }}
     >
-      {/* Cabeçalho */}
       <header style={{ marginBottom: "24px" }}>
         <p
           style={{
@@ -68,7 +69,6 @@ export default function PlanDetailPage({ params }: PlanDetailPageProps) {
           </p>
         </div>
 
-        {/* BOTÃO → CHECKOUT */}
         <div style={{ marginTop: "14px" }}>
           <a
             href={`/checkout/${plan.slug}`}
@@ -89,7 +89,6 @@ export default function PlanDetailPage({ params }: PlanDetailPageProps) {
           </a>
         </div>
 
-        {/* Grupos recomendados */}
         <div style={{ marginTop: "16px" }}>
           <p style={{ fontSize: "12px", color: "#9ca3af" }}>
             Indicado para os grupos:
@@ -115,7 +114,6 @@ export default function PlanDetailPage({ params }: PlanDetailPageProps) {
         </div>
       </header>
 
-      {/* Conteúdo do plano */}
       <section>
         <h2 style={{ fontSize: "18px", fontWeight: 600, marginBottom: "8px" }}>
           O que está incluído
