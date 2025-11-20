@@ -1,23 +1,85 @@
 // app/plans/[slug]/page.tsx
-import { notFound } from "next/navigation";
+import BottomNavbar from "@/components/BottomNavbar";
 import { trainingPlans } from "../plans-data";
 import { trainingGroups } from "../../groups/groups-data";
-import BottomNavbar from "@/components/BottomNavbar";
 
 type PageProps = {
   params: { slug: string };
 };
 
 export default function PlanDetailPage({ params }: PageProps) {
-  // usar any pra não brigar com o TypeScript
-  const plan = trainingPlans.find((p: any) => p.slug === params.slug) as any;
+  const plansArray = trainingPlans as any[];
+  const groupsArray = trainingGroups as any[];
+
+  const plan = plansArray.find((p) => p.slug === params.slug);
 
   if (!plan) {
-    notFound();
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <main
+          style={{
+            flex: 1,
+            padding: "16px",
+            paddingBottom: "72px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "720px",
+              margin: "0 auto",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: "20px",
+                fontWeight: 800,
+                marginBottom: "8px",
+              }}
+            >
+              Plano não encontrado
+            </h1>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#94a3b8",
+                marginBottom: "12px",
+              }}
+            >
+              Não encontramos este plano de treino. Verifique o link ou volte
+              para a lista de planos.
+            </p>
+            <a
+              href="/plans"
+              style={{
+                fontSize: "13px",
+                padding: "8px 16px",
+                borderRadius: "999px",
+                background: "#22c55e",
+                color: "#020617",
+                textDecoration: "none",
+                fontWeight: 600,
+                display: "inline-block",
+              }}
+            >
+              Voltar para planos
+            </a>
+          </div>
+        </main>
+
+        <BottomNavbar />
+      </div>
+    );
   }
 
-  // também vamos tratar grupos como any aqui
-  const relatedGroups = trainingGroups.filter((group: any) =>
+  const relatedGroups = groupsArray.filter((group) =>
     Array.isArray(plan.recommendedFor)
       ? plan.recommendedFor.includes(group.title)
       : false
@@ -125,7 +187,7 @@ export default function PlanDetailPage({ params }: PageProps) {
             </div>
           </section>
 
-          {/* Recomendações */}
+          {/* Indicado para */}
           <section
             style={{
               borderRadius: "16px",
@@ -182,7 +244,7 @@ export default function PlanDetailPage({ params }: PageProps) {
             </p>
           </section>
 
-          {/* Conexão com grupos */}
+          {/* Grupos conectados */}
           {relatedGroups.length > 0 && (
             <section
               style={{
@@ -209,9 +271,8 @@ export default function PlanDetailPage({ params }: PageProps) {
                   marginBottom: "8px",
                 }}
               >
-                Combine o plano de treino com um grupo de atletas com objetivos
-                semelhantes para acompanhar evolução, comparativos e desafios
-                semanais.
+                Combine o plano de treino com grupos de atletas com objetivos
+                semelhantes para acompanhar evolução e desafios.
               </p>
               <ul
                 style={{
@@ -241,7 +302,7 @@ export default function PlanDetailPage({ params }: PageProps) {
             </section>
           )}
 
-          {/* Call to action checkout (visual) */}
+          {/* CTA checkout (visual) */}
           <section
             style={{
               borderRadius: "16px",

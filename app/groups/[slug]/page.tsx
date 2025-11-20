@@ -1,18 +1,79 @@
 // app/groups/[slug]/page.tsx
-import { notFound } from "next/navigation";
-import { getGroupBySlug } from "../groups-data";
 import BottomNavbar from "@/components/BottomNavbar";
+import { trainingGroups } from "../groups-data";
 
 type PageProps = {
   params: { slug: string };
 };
 
 export default function GroupDetailPage({ params }: PageProps) {
-  // usar any aqui para não brigar com o TypeScript
-  const group = getGroupBySlug(params.slug) as any;
+  const groupsArray = trainingGroups as any[];
+  const group = groupsArray.find((g) => g.slug === params.slug);
 
   if (!group) {
-    notFound();
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <main
+          style={{
+            flex: 1,
+            padding: "16px",
+            paddingBottom: "72px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "720px",
+              margin: "0 auto",
+            }}
+          >
+            <h1
+              style={{
+                fontSize: "20px",
+                fontWeight: 800,
+                marginBottom: "8px",
+              }}
+            >
+              Grupo não encontrado
+            </h1>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#94a3b8",
+                marginBottom: "12px",
+              }}
+            >
+              Não encontramos este grupo. Verifique o link ou volte para a lista
+              de grupos.
+            </p>
+            <a
+              href="/groups"
+              style={{
+                fontSize: "13px",
+                padding: "8px 16px",
+                borderRadius: "999px",
+                background: "#22c55e",
+                color: "#020617",
+                textDecoration: "none",
+                fontWeight: 600,
+                display: "inline-block",
+              }}
+            >
+              Voltar para grupos
+            </a>
+          </div>
+        </main>
+
+        <BottomNavbar />
+      </div>
+    );
   }
 
   return (
@@ -175,7 +236,7 @@ export default function GroupDetailPage({ params }: PageProps) {
             )}
           </section>
 
-          {/* Desafio de 30 dias */}
+          {/* Desafio */}
           {group.challenge && (
             <section
               style={{
@@ -241,10 +302,8 @@ export default function GroupDetailPage({ params }: PageProps) {
                 marginBottom: "8px",
               }}
             >
-              Os planos de treino da plataforma podem ser configurados para
-              acompanhar exatamente a sua evolução neste grupo. Você pode
-              combinar a participação no grupo com planos específicos de 5K,
-              10K, maratona ou triathlon.
+              Os planos podem ser configurados para acompanhar sua evolução
+              neste grupo, com progressão de volume e intensidade.
             </p>
             <a
               href="/plans"
