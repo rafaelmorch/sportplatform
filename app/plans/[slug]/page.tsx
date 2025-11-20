@@ -16,48 +16,43 @@ type PlanContent = {
   recommendedFor: string[];
 };
 
+// planos “oficiais”
 const PLANS: Record<string, PlanContent> = {
   "starter-5k": {
     slug: "starter-5k",
     title: "Starter 5K",
-    shortDescription: "Plano de 8 semanas para sair do zero e completar 5K com segurança.",
+    shortDescription:
+      "Plano de 8 semanas para sair do zero e completar 5K com segurança.",
     description:
       "O Starter 5K foi pensado para quem está começando e quer completar seus primeiros 5 quilômetros correndo, sem pressa e sem se machucar. Volume progressivo, treinos curtos e orientação clara em cada semana.",
     durationLabel: "8 semanas",
     weeklyLoadLabel: "3 a 4 sessões por semana",
     priceLabel: "US$ 29",
-    recommendedFor: [
-      "Beginners Running",
-      "Running for Weight Loss",
-    ],
+    recommendedFor: ["Beginners Running", "Running for Weight Loss"],
   },
   "premium-10k": {
     slug: "premium-10k",
     title: "Premium 10K Performance",
-    shortDescription: "Plano para baixar tempo nos 10K com controle de ritmo e intensidade.",
+    shortDescription:
+      "Plano para baixar tempo nos 10K com controle de ritmo e intensidade.",
     description:
       "Focado em atletas que já correm 5K ou 10K e querem melhorar tempo. Estrutura com treinos intervalados, tempo run e rodagem controlada, sempre com foco em performance e recuperação.",
     durationLabel: "10 semanas",
     weeklyLoadLabel: "4 a 5 sessões por semana",
     priceLabel: "US$ 39",
-    recommendedFor: [
-      "Performance 5K",
-      "Performance 10K",
-    ],
+    recommendedFor: ["Performance 5K", "Performance 10K"],
   },
   "marathon-pro": {
     slug: "marathon-pro",
     title: "Marathon Pro",
-    shortDescription: "Preparação completa para maratona com foco em resistência e consistência.",
+    shortDescription:
+      "Preparação completa para maratona com foco em resistência e consistência.",
     description:
       "Plano voltado para atletas que querem completar ou melhorar o tempo em uma maratona. Inclui longões progressivos, blocos de força na corrida e semanas de descarga para absorver o treinamento.",
     durationLabel: "16 semanas",
     weeklyLoadLabel: "4 a 6 sessões por semana",
     priceLabel: "US$ 59",
-    recommendedFor: [
-      "Maratona",
-      "Performance 10K",
-    ],
+    recommendedFor: ["Maratona", "Performance 10K"],
   },
   "triathlon-complete": {
     slug: "triathlon-complete",
@@ -69,9 +64,7 @@ const PLANS: Record<string, PlanContent> = {
     durationLabel: "12 semanas",
     weeklyLoadLabel: "5 a 7 sessões por semana (multi-esporte)",
     priceLabel: "US$ 69",
-    recommendedFor: [
-      "Triathlon",
-    ],
+    recommendedFor: ["Triathlon"],
   },
   "weight-loss-plus": {
     slug: "weight-loss-plus",
@@ -83,75 +76,38 @@ const PLANS: Record<string, PlanContent> = {
     durationLabel: "10 semanas",
     weeklyLoadLabel: "3 a 5 sessões por semana",
     priceLabel: "US$ 34",
-    recommendedFor: [
-      "Running for Weight Loss",
-      "Beginners Running",
-    ],
+    recommendedFor: ["Running for Weight Loss", "Beginners Running"],
   },
 };
 
-export default function PlanDetailPage({ params }: PlanPageProps) {
-  const plan = PLANS[params.slug];
+// transformar slug em título amigável
+function formatSlugTitle(slug: string) {
+  return slug
+    .replace(/[-_]+/g, " ")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
-  if (!plan) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#020617",
-          color: "#e5e7eb",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <main
-          style={{
-            flex: 1,
-            padding: "16px",
-            paddingBottom: "72px",
-          }}
-        >
-          <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-            <h1
-              style={{
-                fontSize: "20px",
-                fontWeight: 800,
-                marginBottom: "8px",
-              }}
-            >
-              Plano não encontrado
-            </h1>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#94a3b8",
-                marginBottom: "12px",
-              }}
-            >
-              Não encontramos este plano de treino. Verifique o link ou volte
-              para a lista de planos.
-            </p>
-            <a
-              href="/plans"
-              style={{
-                fontSize: "13px",
-                padding: "8px 16px",
-                borderRadius: "999px",
-                background: "#22c55e",
-                color: "#020617",
-                textDecoration: "none",
-                fontWeight: 600,
-                display: "inline-block",
-              }}
-            >
-              Voltar para planos
-            </a>
-          </div>
-        </main>
-        <BottomNavbar />
-      </div>
-    );
-  }
+export default function PlanDetailPage({ params }: PlanPageProps) {
+  const { slug } = params;
+
+  const existing = PLANS[slug];
+
+  const plan: PlanContent =
+    existing ??
+    {
+      slug,
+      title: formatSlugTitle(slug),
+      shortDescription:
+        "Plano de treino configurado automaticamente a partir do seu objetivo.",
+      description:
+        "Este plano foi gerado a partir do link acessado. Ele representa um programa estruturado de corrida com foco em progressão segura, controle de carga semanal e acompanhamento dos principais indicadores do atleta.",
+      durationLabel: "8 a 12 semanas",
+      weeklyLoadLabel: "3 a 5 sessões por semana",
+      priceLabel: "Plano sob consulta",
+      recommendedFor: ["Atletas conectados ao SportPlatform"],
+    };
 
   return (
     <div

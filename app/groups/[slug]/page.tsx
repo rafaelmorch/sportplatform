@@ -64,7 +64,8 @@ const GROUPS: Record<string, GroupContent> = {
   "weight-loss-running": {
     slug: "weight-loss-running",
     title: "Running for Weight Loss",
-    shortDescription: "Foco em perda de peso com corrida e caminhada estruturadas.",
+    shortDescription:
+      "Foco em perda de peso com corrida e caminhada estruturadas.",
     description:
       "Grupo para quem quer usar a corrida (e caminhada) como ferramenta de controle de peso, com abordagem cuidadosa de carga, recuperação e acompanhamento de evolução sem extremos.",
     levelLabel: "Todos os níveis",
@@ -105,68 +106,36 @@ const GROUPS: Record<string, GroupContent> = {
   },
 };
 
-export default function GroupDetailPage({ params }: GroupPageProps) {
-  const group = GROUPS[params.slug];
+function formatSlugTitle(slug: string) {
+  return slug
+    .replace(/[-_]+/g, " ")
+    .split(" ")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
-  if (!group) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#020617",
-          color: "#e5e7eb",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <main
-          style={{
-            flex: 1,
-            padding: "16px",
-            paddingBottom: "72px",
-          }}
-        >
-          <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-            <h1
-              style={{
-                fontSize: "20px",
-                fontWeight: 800,
-                marginBottom: "8px",
-              }}
-            >
-              Grupo não encontrado
-            </h1>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#94a3b8",
-                marginBottom: "12px",
-              }}
-            >
-              Não encontramos este grupo. Verifique o link ou volte para a lista
-              de grupos.
-            </p>
-            <a
-              href="/groups"
-              style={{
-                fontSize: "13px",
-                padding: "8px 16px",
-                borderRadius: "999px",
-                background: "#22c55e",
-                color: "#020617",
-                textDecoration: "none",
-                fontWeight: 600,
-                display: "inline-block",
-              }}
-            >
-              Voltar para grupos
-            </a>
-          </div>
-        </main>
-        <BottomNavbar />
-      </div>
-    );
-  }
+export default function GroupDetailPage({ params }: GroupPageProps) {
+  const { slug } = params;
+
+  const existing = GROUPS[slug];
+
+  const group: GroupContent =
+    existing ??
+    {
+      slug,
+      title: formatSlugTitle(slug),
+      shortDescription:
+        "Grupo configurado automaticamente a partir do seu objetivo.",
+      description:
+        "Este grupo foi gerado a partir do link acessado. Ele representa uma comunidade de atletas com objetivos parecidos, compartilhando métricas, desafios mensais e evolução dentro da SportPlatform.",
+      levelLabel: "Todos os níveis",
+      tags: ["Comunidade", "Evolução contínua"],
+      challenge: {
+        description:
+          "Participar ativamente por 30 dias registrando treinos e interagindo com os desafios propostos.",
+        mainMetric: "Dias ativos no grupo",
+      },
+    };
 
   return (
     <div
