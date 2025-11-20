@@ -3,11 +3,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  Home,
+  UsersRound,
+  FileText,
+  BarChart3,
+  UserRound,
+} from "lucide-react";
 
 type NavItem = {
   href?: string;
   label: string;
-  icon: string;
+  Icon: LucideIcon;
   matchPrefix?: string;
   disabled?: boolean;
 };
@@ -16,30 +24,30 @@ const navItems: NavItem[] = [
   {
     href: "/feed",
     label: "Feed",
-    icon: "🏠",
+    Icon: Home,
     matchPrefix: "/feed",
   },
   {
     href: "/groups",
     label: "Grupos",
-    icon: "👟",
+    Icon: UsersRound,
     matchPrefix: "/groups",
   },
   {
     href: "/plans",
     label: "Planos",
-    icon: "📋",
+    Icon: FileText,
     matchPrefix: "/plans",
   },
   {
     href: "/public-dashboard",
     label: "Insights",
-    icon: "📊",
+    Icon: BarChart3,
     matchPrefix: "/public-dashboard",
   },
   {
     label: "Login",
-    icon: "🔒",
+    Icon: UserRound,
     disabled: true, // por enquanto desligado
   },
 ];
@@ -85,6 +93,7 @@ export default function BottomNavbar() {
 
           // Aba desabilitada (Login)
           if (item.disabled) {
+            const DisabledIcon = item.Icon;
             return (
               <div
                 key={item.label}
@@ -101,39 +110,19 @@ export default function BottomNavbar() {
                   padding: "4px 2px",
                 }}
               >
-                <span
+                <DisabledIcon
                   style={{
-                    fontSize: "16px",
-                    lineHeight: 1,
+                    width: 20,
+                    height: 20,
+                    strokeWidth: 2,
                   }}
-                >
-                  {item.icon}
-                </span>
+                />
                 <span>{item.label}</span>
               </div>
             );
           }
 
-          const content = (
-            <>
-              <span
-                style={{
-                  fontSize: "16px",
-                  lineHeight: 1,
-                }}
-              >
-                {item.icon}
-              </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: active ? 700 : 500,
-                }}
-              >
-                {item.label}
-              </span>
-            </>
-          );
+          const IconComp = item.Icon;
 
           return (
             <Link
@@ -157,7 +146,21 @@ export default function BottomNavbar() {
                   color: active ? "#e5e7eb" : "#9ca3af",
                 }}
               >
-                {content}
+                <IconComp
+                  style={{
+                    width: 20,
+                    height: 20,
+                    strokeWidth: 2.1,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: active ? 700 : 500,
+                  }}
+                >
+                  {item.label}
+                </span>
               </div>
             </Link>
           );
