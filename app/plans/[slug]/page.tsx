@@ -1,17 +1,97 @@
 // app/plans/[slug]/page.tsx
 import BottomNavbar from "@/components/BottomNavbar";
-import { trainingPlans } from "../plans-data";
-import { trainingGroups } from "../../groups/groups-data";
 
-type PageProps = {
+type PlanPageProps = {
   params: { slug: string };
 };
 
-export default function PlanDetailPage({ params }: PageProps) {
-  const plansArray = trainingPlans as any[];
-  const groupsArray = trainingGroups as any[];
+type PlanContent = {
+  slug: string;
+  title: string;
+  shortDescription: string;
+  description: string;
+  durationLabel: string;
+  weeklyLoadLabel: string;
+  priceLabel: string;
+  recommendedFor: string[];
+};
 
-  const plan = plansArray.find((p) => p.slug === params.slug);
+const PLANS: Record<string, PlanContent> = {
+  "starter-5k": {
+    slug: "starter-5k",
+    title: "Starter 5K",
+    shortDescription: "Plano de 8 semanas para sair do zero e completar 5K com segurança.",
+    description:
+      "O Starter 5K foi pensado para quem está começando e quer completar seus primeiros 5 quilômetros correndo, sem pressa e sem se machucar. Volume progressivo, treinos curtos e orientação clara em cada semana.",
+    durationLabel: "8 semanas",
+    weeklyLoadLabel: "3 a 4 sessões por semana",
+    priceLabel: "US$ 29",
+    recommendedFor: [
+      "Beginners Running",
+      "Running for Weight Loss",
+    ],
+  },
+  "premium-10k": {
+    slug: "premium-10k",
+    title: "Premium 10K Performance",
+    shortDescription: "Plano para baixar tempo nos 10K com controle de ritmo e intensidade.",
+    description:
+      "Focado em atletas que já correm 5K ou 10K e querem melhorar tempo. Estrutura com treinos intervalados, tempo run e rodagem controlada, sempre com foco em performance e recuperação.",
+    durationLabel: "10 semanas",
+    weeklyLoadLabel: "4 a 5 sessões por semana",
+    priceLabel: "US$ 39",
+    recommendedFor: [
+      "Performance 5K",
+      "Performance 10K",
+    ],
+  },
+  "marathon-pro": {
+    slug: "marathon-pro",
+    title: "Marathon Pro",
+    shortDescription: "Preparação completa para maratona com foco em resistência e consistência.",
+    description:
+      "Plano voltado para atletas que querem completar ou melhorar o tempo em uma maratona. Inclui longões progressivos, blocos de força na corrida e semanas de descarga para absorver o treinamento.",
+    durationLabel: "16 semanas",
+    weeklyLoadLabel: "4 a 6 sessões por semana",
+    priceLabel: "US$ 59",
+    recommendedFor: [
+      "Maratona",
+      "Performance 10K",
+    ],
+  },
+  "triathlon-complete": {
+    slug: "triathlon-complete",
+    title: "Triathlon Complete",
+    shortDescription:
+      "Estrutura integrada de natação, ciclismo e corrida para provas short ou olímpico.",
+    description:
+      "Plano pensado para quem quer organizar a rotina de treinos das três modalidades sem excesso de carga. Distribui sessões ao longo da semana com foco em consistência, técnica e transições.",
+    durationLabel: "12 semanas",
+    weeklyLoadLabel: "5 a 7 sessões por semana (multi-esporte)",
+    priceLabel: "US$ 69",
+    recommendedFor: [
+      "Triathlon",
+    ],
+  },
+  "weight-loss-plus": {
+    slug: "weight-loss-plus",
+    title: "Weight Loss Plus",
+    shortDescription:
+      "Plano de corrida e caminhada para quem quer perder peso com segurança e controle.",
+    description:
+      "Combina treinos de baixa e moderada intensidade com dias de caminhada ativa. Ideal para quem quer reduzir peso, melhorar condicionamento geral e criar hábito consistente de movimento.",
+    durationLabel: "10 semanas",
+    weeklyLoadLabel: "3 a 5 sessões por semana",
+    priceLabel: "US$ 34",
+    recommendedFor: [
+      "Running for Weight Loss",
+      "Beginners Running",
+    ],
+  },
+};
+
+export default function PlanDetailPage({ params }: PlanPageProps) {
+  const plan = PLANS[params.slug];
 
   if (!plan) {
     return (
@@ -31,12 +111,7 @@ export default function PlanDetailPage({ params }: PageProps) {
             paddingBottom: "72px",
           }}
         >
-          <div
-            style={{
-              maxWidth: "720px",
-              margin: "0 auto",
-            }}
-          >
+          <div style={{ maxWidth: "720px", margin: "0 auto" }}>
             <h1
               style={{
                 fontSize: "20px",
@@ -73,17 +148,10 @@ export default function PlanDetailPage({ params }: PageProps) {
             </a>
           </div>
         </main>
-
         <BottomNavbar />
       </div>
     );
   }
-
-  const relatedGroups = groupsArray.filter((group) =>
-    Array.isArray(plan.recommendedFor)
-      ? plan.recommendedFor.includes(group.title)
-      : false
-  );
 
   return (
     <div
@@ -102,12 +170,7 @@ export default function PlanDetailPage({ params }: PageProps) {
           paddingBottom: "72px",
         }}
       >
-        <div
-          style={{
-            maxWidth: "720px",
-            margin: "0 auto",
-          }}
-        >
+        <div style={{ maxWidth: "720px", margin: "0 auto" }}>
           {/* Header */}
           <header
             style={{
@@ -134,10 +197,9 @@ export default function PlanDetailPage({ params }: PageProps) {
                   color: "#94a3b8",
                 }}
               >
-                {plan.shortDescription || plan.description}
+                {plan.shortDescription}
               </p>
             </div>
-
             <a
               href="/plans"
               style={{
@@ -167,7 +229,7 @@ export default function PlanDetailPage({ params }: PageProps) {
                 marginBottom: "8px",
               }}
             >
-              {plan.longDescription || plan.description}
+              {plan.description}
             </p>
 
             <div
@@ -180,10 +242,8 @@ export default function PlanDetailPage({ params }: PageProps) {
                 marginTop: "4px",
               }}
             >
-              {plan.durationLabel && <span>Duração: {plan.durationLabel}</span>}
-              {plan.weeklyLoadLabel && (
-                <span>Carga semanal: {plan.weeklyLoadLabel}</span>
-              )}
+              <span>Duração: {plan.durationLabel}</span>
+              <span>Carga semanal: {plan.weeklyLoadLabel}</span>
             </div>
           </section>
 
@@ -207,32 +267,32 @@ export default function PlanDetailPage({ params }: PageProps) {
             >
               Indicado para
             </h2>
-            {Array.isArray(plan.recommendedFor) && (
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "6px",
-                  marginBottom: "6px",
-                }}
-              >
-                {plan.recommendedFor.map((g: string) => (
-                  <span
-                    key={g}
-                    style={{
-                      fontSize: "11px",
-                      padding: "3px 8px",
-                      borderRadius: "999px",
-                      background: "#020617",
-                      border: "1px solid #1f2937",
-                      color: "#9ca3af",
-                    }}
-                  >
-                    {g}
-                  </span>
-                ))}
-              </div>
-            )}
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "6px",
+                marginBottom: "6px",
+              }}
+            >
+              {plan.recommendedFor.map((g) => (
+                <span
+                  key={g}
+                  style={{
+                    fontSize: "11px",
+                    padding: "3px 8px",
+                    borderRadius: "999px",
+                    background: "#020617",
+                    border: "1px solid #1f2937",
+                    color: "#9ca3af",
+                  }}
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+
             <p
               style={{
                 fontSize: "12px",
@@ -244,65 +304,7 @@ export default function PlanDetailPage({ params }: PageProps) {
             </p>
           </section>
 
-          {/* Grupos conectados */}
-          {relatedGroups.length > 0 && (
-            <section
-              style={{
-                borderRadius: "16px",
-                border: "1px solid #1e293b",
-                background: "#020617",
-                padding: "14px",
-                marginBottom: "14px",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  marginBottom: "6px",
-                }}
-              >
-                Grupos conectados a este plano
-              </h2>
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "#94a3b8",
-                  marginBottom: "8px",
-                }}
-              >
-                Combine o plano de treino com grupos de atletas com objetivos
-                semelhantes para acompanhar evolução e desafios.
-              </p>
-              <ul
-                style={{
-                  listStyle: "none",
-                  padding: 0,
-                  margin: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "6px",
-                }}
-              >
-                {relatedGroups.map((group: any) => (
-                  <li key={group.slug}>
-                    <a
-                      href={`/groups/${group.slug}`}
-                      style={{
-                        fontSize: "13px",
-                        color: "#bfdbfe",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {group.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* CTA checkout (visual) */}
+          {/* Bloco de preço / CTA */}
           <section
             style={{
               borderRadius: "16px",
