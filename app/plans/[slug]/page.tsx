@@ -1,26 +1,26 @@
 // app/plans/[slug]/page.tsx
-
 import { notFound } from "next/navigation";
 import { trainingPlans } from "../plans-data";
 import { trainingGroups } from "../../groups/groups-data";
+import BottomNavbar from "@/components/BottomNavbar";
 
 type PageProps = {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: { slug: string };
 };
 
-export default async function PlanDetailPage({ params }: PageProps) {
-  const { slug } = await params;
-
-  const plan = trainingPlans.find((p) => p.slug === slug);
+export default function PlanDetailPage({ params }: PageProps) {
+  // usar any pra não brigar com o TypeScript
+  const plan = trainingPlans.find((p: any) => p.slug === params.slug) as any;
 
   if (!plan) {
     notFound();
   }
 
-  const groups = trainingGroups.filter((g) =>
-    plan.recommendedGroups.includes(g.slug)
+  // também vamos tratar grupos como any aqui
+  const relatedGroups = trainingGroups.filter((group: any) =>
+    Array.isArray(plan.recommendedFor)
+      ? plan.recommendedFor.includes(group.title)
+      : false
   );
 
   return (
@@ -29,192 +29,275 @@ export default async function PlanDetailPage({ params }: PageProps) {
         minHeight: "100vh",
         background: "#020617",
         color: "#e5e7eb",
-        padding: "24px",
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
       }}
     >
-      <header style={{ marginBottom: "4px" }}>
-        <p
-          style={{
-            fontSize: "12px",
-            color: "#a5b4fc",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            marginBottom: "4px",
-          }}
-        >
-          Plano de treino • {plan.level}
-        </p>
-
-        <h1
-          style={{
-            fontSize: "24px",
-            fontWeight: 700,
-            marginBottom: "4px",
-          }}
-        >
-          {plan.title}
-        </h1>
-
-        <p
-          style={{
-            color: "#94a3b8",
-            marginBottom: "8px",
-            fontSize: "14px",
-          }}
-        >
-          {plan.subtitle}
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "12px",
-            alignItems: "center",
-            marginTop: "8px",
-          }}
-        >
-          <p
-            style={{
-              fontSize: "22px",
-              fontWeight: 700,
-            }}
-          >
-            ${plan.pricePerMonth}
-            <span
-              style={{
-                fontSize: "12px",
-                color: "#9ca3af",
-                marginLeft: "4px",
-              }}
-            >
-              {" "}
-              / mês
-            </span>
-          </p>
-
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#9ca3af",
-            }}
-          >
-            Duração: {plan.durationWeeks} semanas
-          </p>
-        </div>
-
-        <div style={{ marginTop: "14px" }}>
-          <a
-            href={`/checkout/${plan.slug}`}
-            style={{
-              display: "inline-block",
-              padding: "9px 16px",
-              borderRadius: "999px",
-              border: "none",
-              background: "#22c55e",
-              color: "#020617",
-              fontSize: "13px",
-              fontWeight: 700,
-              textDecoration: "none",
-              cursor: "pointer",
-            }}
-          >
-            Contratar este treino
-          </a>
-        </div>
-
-        <div style={{ marginTop: "16px" }}>
-          <p
-            style={{
-              fontSize: "12px",
-              color: "#9ca3af",
-              marginBottom: "4px",
-            }}
-          >
-            Indicado para os grupos:
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "6px",
-            }}
-          >
-            {groups.map((g) => (
-              <a key={g.slug} href={`/groups/${g.slug}`}>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    padding: "4px 8px",
-                    borderRadius: "999px",
-                    border: "1px solid #334155",
-                    background: "#020617",
-                    textDecoration: "none",
-                  }}
-                >
-                  {g.title}
-                </span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </header>
-
       <main
         style={{
-          maxWidth: "800px",
+          flex: 1,
+          padding: "16px",
+          paddingBottom: "72px",
         }}
       >
-        <section
+        <div
           style={{
-            borderRadius: "14px",
-            border: "1px solid #1e293b",
-            background: "#020617",
-            padding: "16px",
+            maxWidth: "720px",
+            margin: "0 auto",
           }}
         >
-          <h2
+          {/* Header */}
+          <header
             style={{
-              fontSize: "18px",
-              fontWeight: 600,
-              marginBottom: "8px",
+              marginBottom: "16px",
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              alignItems: "center",
             }}
           >
-            O que está incluído
-          </h2>
+            <div>
+              <h1
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 800,
+                  marginBottom: "4px",
+                }}
+              >
+                {plan.title}
+              </h1>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#94a3b8",
+                }}
+              >
+                {plan.shortDescription || plan.description}
+              </p>
+            </div>
 
-          <ul
-            style={{
-              listStyle: "disc",
-              paddingLeft: "18px",
-              fontSize: "13px",
-              color: "#e5e7eb",
-            }}
-          >
-            {plan.highlights.map((item, idx) => (
-              <li key={idx} style={{ marginBottom: "4px" }}>
-                {item}
-              </li>
-            ))}
-          </ul>
+            <a
+              href="/plans"
+              style={{
+                fontSize: "12px",
+                color: "#e5e7eb",
+                textDecoration: "none",
+              }}
+            >
+              Ver todos os planos
+            </a>
+          </header>
 
-          <p
+          {/* Info principal */}
+          <section
             style={{
-              marginTop: "16px",
-              fontSize: "13px",
-              color: "#cbd5e1",
-              maxWidth: "640px",
+              borderRadius: "16px",
+              border: "1px solid #1e293b",
+              background: "#020617",
+              padding: "14px",
+              marginBottom: "14px",
             }}
           >
-            Após contratar, você recebe recomendações personalizadas, ajustes do
-            treinador e acesso ao planejamento completo semana a semana.
-          </p>
-        </section>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#cbd5e1",
+                marginBottom: "8px",
+              }}
+            >
+              {plan.longDescription || plan.description}
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "10px",
+                fontSize: "12px",
+                color: "#94a3b8",
+                marginTop: "4px",
+              }}
+            >
+              {plan.durationLabel && <span>Duração: {plan.durationLabel}</span>}
+              {plan.weeklyLoadLabel && (
+                <span>Carga semanal: {plan.weeklyLoadLabel}</span>
+              )}
+            </div>
+          </section>
+
+          {/* Recomendações */}
+          <section
+            style={{
+              borderRadius: "16px",
+              border: "1px solid #1e293b",
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              padding: "14px",
+              marginBottom: "14px",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "14px",
+                fontWeight: 700,
+                marginBottom: "6px",
+              }}
+            >
+              Indicado para
+            </h2>
+            {Array.isArray(plan.recommendedFor) && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  marginBottom: "6px",
+                }}
+              >
+                {plan.recommendedFor.map((g: string) => (
+                  <span
+                    key={g}
+                    style={{
+                      fontSize: "11px",
+                      padding: "3px 8px",
+                      borderRadius: "999px",
+                      background: "#020617",
+                      border: "1px solid #1f2937",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    {g}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p
+              style={{
+                fontSize: "12px",
+                color: "#94a3b8",
+              }}
+            >
+              O plano foi estruturado para encaixar com diferentes perfis de
+              atleta e níveis de experiência, sempre com progressão controlada.
+            </p>
+          </section>
+
+          {/* Conexão com grupos */}
+          {relatedGroups.length > 0 && (
+            <section
+              style={{
+                borderRadius: "16px",
+                border: "1px solid #1e293b",
+                background: "#020617",
+                padding: "14px",
+                marginBottom: "14px",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  marginBottom: "6px",
+                }}
+              >
+                Grupos conectados a este plano
+              </h2>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#94a3b8",
+                  marginBottom: "8px",
+                }}
+              >
+                Combine o plano de treino com um grupo de atletas com objetivos
+                semelhantes para acompanhar evolução, comparativos e desafios
+                semanais.
+              </p>
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                }}
+              >
+                {relatedGroups.map((group: any) => (
+                  <li key={group.slug}>
+                    <a
+                      href={`/groups/${group.slug}`}
+                      style={{
+                        fontSize: "13px",
+                        color: "#bfdbfe",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {group.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Call to action checkout (visual) */}
+          <section
+            style={{
+              borderRadius: "16px",
+              border: "1px solid #1e293b",
+              background: "#020617",
+              padding: "14px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <div>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#cbd5e1",
+                  }}
+                >
+                  Investimento
+                </p>
+                <p
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 800,
+                    color: "#4ade80",
+                  }}
+                >
+                  {plan.priceLabel}
+                </p>
+              </div>
+              <a
+                href={`/checkout/${plan.slug}`}
+                style={{
+                  fontSize: "13px",
+                  padding: "8px 16px",
+                  borderRadius: "999px",
+                  background: "#22c55e",
+                  color: "#020617",
+                  textDecoration: "none",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Continuar para checkout
+              </a>
+            </div>
+          </section>
+        </div>
       </main>
+
+      <BottomNavbar />
     </div>
   );
 }

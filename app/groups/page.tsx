@@ -1,7 +1,7 @@
 // app/groups/page.tsx
-
 import Link from "next/link";
 import { trainingGroups } from "./groups-data";
+import BottomNavbar from "@/components/BottomNavbar";
 
 export default function GroupsPage() {
   return (
@@ -9,149 +9,173 @@ export default function GroupsPage() {
       style={{
         minHeight: "100vh",
         background: "#020617",
-        color: "#f8fafc",
-        padding: "24px",
-        maxWidth: "900px",
-        margin: "0 auto",
+        color: "#e5e7eb",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {/* HEADER */}
-      <div style={{ marginBottom: "28px" }}>
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: 800,
-            marginBottom: "6px",
-            lineHeight: 1.2,
-          }}
-        >
-          Escolha seu Grupo de Treino
-        </h1>
-
-        <p
-          style={{
-            fontSize: "14px",
-            color: "#94a3b8",
-            lineHeight: 1.5,
-            maxWidth: "650px",
-          }}
-        >
-          Cada grupo possui um programa estruturado automaticamente, baseado no
-          seu objetivo — iniciantes, maratona, perda de peso, performance e
-          triathlon. Comece agora mesmo seu desafio.
-        </p>
-      </div>
-
-      {/* GRID DE GRUPOS */}
-      <div
+      <main
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: "16px",
+          flex: 1,
+          padding: "16px",
+          paddingBottom: "72px", // espaço para a bottom navbar
         }}
       >
-        {trainingGroups.map((group) => (
-          <Link key={group.slug} href={`/groups/${group.slug}`}>
-            <div
-              style={{
-                padding: "20px",
-                borderRadius: "16px",
-                background:
-                  "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-                border: "1px solid #1e293b",
-                cursor: "pointer",
-                transition: "transform 0.15s ease",
-              }}
-            >
-              {/* TEXTO SUPERIOR */}
-              <p
+        <div
+          style={{
+            maxWidth: "1024px",
+            margin: "0 auto",
+          }}
+        >
+          <header
+            style={{
+              marginBottom: "16px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <h1
                 style={{
-                  fontSize: "11px",
-                  color: "#38bdf8",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
+                  fontSize: "20px",
+                  fontWeight: 800,
                   marginBottom: "4px",
                 }}
               >
-                {group.level}
-              </p>
-
-              {/* TÍTULO */}
-              <h2
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 700,
-                  marginBottom: "6px",
-                  lineHeight: 1.2,
-                }}
-              >
-                {group.title}
-              </h2>
-
-              {/* SUBTÍTULO */}
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#cbd5e1",
-                  marginBottom: "12px",
-                }}
-              >
-                {group.subtitle}
-              </p>
-
-              {/* DESCRIÇÃO */}
+                Grupos de treino
+              </h1>
               <p
                 style={{
                   fontSize: "13px",
                   color: "#94a3b8",
-                  lineHeight: 1.5,
-                  marginBottom: "14px",
                 }}
               >
-                {group.description}
+                Escolha o grupo que melhor se conecta com o seu momento de
+                treino.
               </p>
+            </div>
+          </header>
 
-              {/* BOTÃO */}
-              <div
-                style={{
-                  marginTop: "8px",
-                }}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: "14px",
+            }}
+          >
+            {trainingGroups.map((group: any) => (
+              <Link
+                key={group.slug}
+                href={`/groups/${group.slug}`}
+                style={{ textDecoration: "none" }}
               >
-                <span
+                <article
                   style={{
-                    display: "inline-block",
-                    padding: "10px 16px",
-                    borderRadius: "999px",
-                    background: "#22c55e",
-                    color: "#0f172a",
-                    fontSize: "13px",
-                    fontWeight: 700,
+                    borderRadius: "16px",
+                    border: "1px solid #1e293b",
+                    background:
+                      "radial-gradient(circle at top left, #0f172a, #020617)",
+                    padding: "14px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    height: "100%",
                   }}
                 >
-                  Acessar Programa →
-                </span>
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "8px",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <h2
+                        style={{
+                          fontSize: "16px",
+                          fontWeight: 700,
+                          marginBottom: "4px",
+                          color: "#e5e7eb",
+                        }}
+                      >
+                        {group.title}
+                      </h2>
+                      <p
+                        style={{
+                          fontSize: "13px",
+                          color: "#cbd5e1",
+                        }}
+                      >
+                        {group.shortDescription || group.description}
+                      </p>
+                    </div>
+                    {group.levelLabel && (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          padding: "4px 8px",
+                          borderRadius: "999px",
+                          border: "1px solid #1e293b",
+                          color: "#a5b4fc",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {group.levelLabel}
+                      </span>
+                    )}
+                  </div>
 
-      {/* RESPONSIVIDADE */}
-      <style>
-        {`
-          @media (min-width: 640px) {
-            div[data-grid] {
-              grid-template-columns: repeat(2, 1fr);
-            }
-          }
+                  {Array.isArray(group.tags) && group.tags.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "6px",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {group.tags.map((tag: string) => (
+                        <span
+                          key={tag}
+                          style={{
+                            fontSize: "11px",
+                            padding: "3px 8px",
+                            borderRadius: "999px",
+                            background: "#020617",
+                            border: "1px solid #1f2937",
+                            color: "#9ca3af",
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-          @media (min-width: 900px) {
-            div[data-grid] {
-              grid-template-columns: repeat(3, 1fr);
-            }
-          }
-        `}
-      </style>
+                  <div
+                    style={{
+                      marginTop: "6px",
+                      fontSize: "11px",
+                      color: "#64748b",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span>Desafio de 30 dias incluso</span>
+                    <span>Ver detalhes ⟶</span>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      <BottomNavbar />
     </div>
   );
 }
