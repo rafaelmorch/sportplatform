@@ -7,28 +7,29 @@ import { usePathname } from "next/navigation";
 type NavItem = {
   label: string;
   href: string;
+  icon?: string;
 };
 
 const navItems: NavItem[] = [
   {
-    label: "Performance", // antes era Insights
-    href: "/dashboard",   // agora aponta para o dashboard
+    label: "Performance",
+    href: "/dashboard",
+    icon: "📊",
   },
   {
     label: "Feed",
     href: "/feed",
+    icon: "🖼️",
   },
   {
-    label: "Eventos",
-    href: "/events",
+    label: "Grupos",
+    href: "/groups",
+    icon: "👥",
   },
   {
-    label: "Integrações",
-    href: "/integrations",
-  },
-  {
-    label: "Perfil",
-    href: "/profile",
+    label: "Planos",
+    href: "/plans",
+    icon: "📋",
   },
 ];
 
@@ -91,6 +92,16 @@ export default function BottomNavbar() {
                 whiteSpace: "nowrap",
               }}
             >
+              {item.icon && (
+                <span
+                  style={{
+                    fontSize: 14,
+                    marginRight: 2,
+                  }}
+                >
+                  {item.icon}
+                </span>
+              )}
               <span>{item.label}</span>
             </Link>
           );
