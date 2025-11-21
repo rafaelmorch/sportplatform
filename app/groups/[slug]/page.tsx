@@ -1,294 +1,218 @@
 // app/groups/[slug]/page.tsx
+import { notFound } from "next/navigation";
 import Link from "next/link";
-import { trainingGroups } from "../groups-data";
-import { trainingPlans } from "../../plans/plans-data";
 import BottomNavbar from "@/components/BottomNavbar";
+import { trainingGroups } from "../groups-data";
 
-type GroupPageProps = {
+type PageProps = {
   params: { slug: string };
 };
 
-// Mapa de planos recomendados por grupo (slug → slugs de planos)
-const groupToPlansMap: Record<string, string[]> = {
-  "beginners-running": ["starter-5k", "weight-loss-plus"],
-  marathon: ["marathon-pro", "premium-10k"],
-  triathlon: ["triathlon-complete", "marathon-pro"],
-  "weight-loss-running": ["weight-loss-plus", "starter-5k"],
-  "performance-5k": ["starter-5k", "premium-10k"],
-  "performance-10k": ["premium-10k", "marathon-pro"],
-};
-
-function humanizeSlug(slug: string | undefined): string {
-  if (!slug) return "Grupo de treino";
-  return slug
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-export default function GroupDetailPage({ params }: GroupPageProps) {
-  const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
-
-  const group = trainingGroups.find((g) => g.slug === slug);
+export default function GroupDetailPage({ params }: PageProps) {
+  // Usamos any aqui para não brigar com TypeScript por causa de campos opcionais
+  const group = trainingGroups.find((g: any) => g.slug === params.slug) as
+    | any
+    | undefined;
 
   if (!group) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          padding: "24px 16px 90px",
-          background: "radial-gradient(circle at top, #020617, #000000 55%)",
-          color: "white",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: 800,
-            marginBottom: "12px",
-            letterSpacing: "-0.03em",
-          }}
-        >
-          Grupo não encontrado
-        </h1>
-        <p
-          style={{
-            opacity: 0.8,
-            maxWidth: "520px",
-            marginBottom: "24px",
-          }}
-        >
-          Não encontramos este grupo. Verifique o link ou volte para a lista de
-          grupos.
-        </p>
-        <Link
-          href="/groups"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "10px 18px",
-            borderRadius: "999px",
-            background: "#22c55e",
-            color: "#020617",
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          Voltar para grupos
-        </Link>
-
-        <BottomNavbar />
-      </main>
-    );
+    notFound();
   }
 
-  const pageTitle = group.title || humanizeSlug(slug);
-
-  const relatedPlanSlugs = groupToPlansMap[slug] ?? [];
-  const relatedPlans = trainingPlans.filter((plan) =>
-    relatedPlanSlugs.includes(plan.slug)
-  );
+  const title: string = group.title ?? "Grupo sem título";
+  const description: string =
+    group.description ??
+    group.shortDescription ??
+    "Descrição em breve para este grupo.";
+  const level: string | undefined = group.level;
+  const focus: string | undefined = group.focus;
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        padding: "24px 16px 90px",
-        background:
-          "radial-gradient(circle at top, #020617, #020617 40%, #000000 100%)",
-        color: "white",
+        background: "#020617",
+        color: "#e5e7eb",
+        padding: "16px",
+        paddingBottom: "80px", // espaço pro BottomNavbar
       }}
     >
-      {/* Cabeçalho */}
-      <header
+      <div
         style={{
-          marginBottom: "20px",
+          maxWidth: "900px",
+          margin: "0 auto",
         }}
       >
-        <Link
-          href="/groups"
+        {/* Header */}
+        <header
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "8px",
-            fontSize: "14px",
-            color: "#9ca3af",
-            textDecoration: "none",
-            marginBottom: "12px",
-          }}
-        >
-          ← Voltar para grupos
-        </Link>
-
-        <div
-          style={{
+            marginBottom: "20px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
           }}
         >
-          <span
+          <p
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "4px 10px",
-              borderRadius: "999px",
-              border: "1px solid rgba(148, 163, 184, 0.4)",
-              fontSize: "11px",
-              color: "#e5e7eb",
-              width: "fit-content",
-              background:
-                "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.5))",
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              margin: 0,
             }}
           >
             Grupo de treino
-          </span>
-
+          </p>
           <h1
             style={{
-              fontSize: "28px",
-              fontWeight: 800,
-              letterSpacing: "-0.04em",
-              lineHeight: 1.05,
+              fontSize: 24,
+              fontWeight: 700,
+              margin: 0,
             }}
           >
-            {pageTitle}
+            {title}
           </h1>
+          {(level || focus) && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#9ca3af",
+                margin: 0,
+              }}
+            >
+              {level && <span>Nível: {level}</span>}
+              {level && focus && <span> · </span>}
+              {focus && <span>Foco: {focus}</span>}
+            </p>
+          )}
+        </header>
 
-          <p
-            style={{
-              marginTop: "4px",
-              fontSize: "14px",
-              color: "#cbd5f5",
-              maxWidth: "580px",
-            }}
-          >
-            {group.description}
-          </p>
-        </div>
-      </header>
-
-      {/* Card principal do grupo */}
-      <section
-        style={{
-          marginBottom: "20px",
-        }}
-      >
-        <div
+        {/* Card principal */}
+        <section
           style={{
             borderRadius: "20px",
-            padding: "16px",
+            border: "1px solid rgba(148,163,184,0.35)",
             background:
-              "radial-gradient(circle at top left, #0f172a, #020617 70%)",
-            border: "1px solid rgba(31, 41, 55, 0.9)",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.45)",
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: "18px",
           }}
         >
-          <p
+          <h2
             style={{
-              fontSize: "13px",
-              color: "#e5e7eb",
-              marginBottom: "8px",
+              fontSize: 16,
+              fontWeight: 600,
+              marginTop: 0,
+              marginBottom: 8,
             }}
           >
-            Este grupo conecta atletas com objetivos similares, compartilhando
-            métricas, desafios mensais e evolução dentro da SportPlatform.
-          </p>
-
+            Sobre o grupo
+          </h2>
           <p
             style={{
-              fontSize: "12px",
-              color: "#9ca3af",
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: "#d1d5db",
+              margin: 0,
             }}
           >
-            Use este grupo como base para acompanhar seus treinos de corrida,
-            comparar progresso e manter a consistência ao longo das semanas.
+            {description}
           </p>
-        </div>
-      </section>
+        </section>
 
-      {/* Planos conectados */}
-      <section>
-        <h2
+        {/* Seção de chamada para ação / ligação com planos */}
+        <section
           style={{
-            fontSize: "16px",
-            fontWeight: 700,
-            marginBottom: "10px",
+            borderRadius: "18px",
+            border: "1px solid rgba(55,65,81,0.9)",
+            background:
+              "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: "20px",
           }}
         >
-          Planos ideais para quem está neste grupo
-        </h2>
-
-        {relatedPlans.length === 0 ? (
+          <h3
+            style={{
+              fontSize: 15,
+              fontWeight: 600,
+              marginTop: 0,
+              marginBottom: 6,
+            }}
+          >
+            Como este grupo funciona
+          </h3>
           <p
             style={{
-              fontSize: "13px",
+              fontSize: 13,
               color: "#9ca3af",
+              marginTop: 0,
+              marginBottom: 10,
             }}
           >
-            Em breve vamos liberar recomendações automáticas de plano para cada
-            grupo.
+            Os treinos deste grupo são organizados em sessões progressivas, com
+            foco em constância, segurança e evolução de performance ao longo do
+            tempo. A ideia é que o atleta consiga enxergar claramente a
+            evolução nas próximas semanas.
           </p>
-        ) : (
-          <div
+          <p
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: 0,
             }}
           >
-            {relatedPlans.map((plan) => (
-              <Link
-                key={plan.slug}
-                href={`/plans/${plan.slug}`}
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: "10px 12px",
-                  borderRadius: "14px",
-                  background:
-                    "linear-gradient(135deg, #020617, #020617, #020617)",
-                  border: "1px solid rgba(30,64,175,0.7)",
-                  textDecoration: "none",
-                  color: "white",
-                }}
-              >
-                <div>
-                  <p
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 600,
-                    }}
-                  >
-                    {plan.title}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "#9ca3af",
-                      marginTop: "2px",
-                    }}
-                  >
-                    {plan.description}
-                  </p>
-                </div>
-                <span
-                  style={{
-                    fontSize: "20px",
-                    color: "#4ade80",
-                    marginLeft: "12px",
-                  }}
-                >
-                  →
-                </span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+            Em breve, este grupo estará conectado diretamente a planos de treino
+            personalizados dentro do SportPlatform, combinando dados do Strava
+            com metas específicas de performance.
+          </p>
+        </section>
+
+        {/* Link de navegação */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            marginBottom: "12px",
+          }}
+        >
+          <Link
+            href="/groups"
+            style={{
+              display: "inline-flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: 44,
+              borderRadius: "999px",
+              border: "1px solid rgba(148,163,184,0.5)",
+              textDecoration: "none",
+              color: "#e5e7eb",
+              fontSize: 13,
+              fontWeight: 500,
+            }}
+          >
+            Voltar para lista de grupos
+          </Link>
+          <Link
+            href="/plans"
+            style={{
+              display: "inline-flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: 44,
+              borderRadius: "999px",
+              background:
+                "linear-gradient(135deg, #22c55e, #16a34a, #22c55e)",
+              color: "#020617",
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: "none",
+              border: "1px solid rgba(248,250,252,0.1)",
+            }}
+          >
+            Ver planos de treino recomendados
+          </Link>
+        </div>
+      </div>
 
       <BottomNavbar />
     </main>
