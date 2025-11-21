@@ -19,6 +19,11 @@ export default function NewFeedPostPage() {
   const router = useRouter();
   const [content, setContent] = useState("");
   const [authorName, setAuthorName] = useState<string | null>(null);
+  const [loadingAuthor, setLoadingAuthor] = useState(true);
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -26,6 +31,8 @@ export default function NewFeedPostPage() {
   useEffect(() => {
     const loadProfile = async () => {
       try {
+        setErrorMsg(null);
+
         const {
           data: { user },
           error: userError,
@@ -34,15 +41,16 @@ export default function NewFeedPostPage() {
         if (userError) {
           console.error("Erro ao buscar usuário:", userError);
           setErrorMsg("Erro ao carregar usuário.");
+          setLoadingAuthor(false);
           return;
         }
 
         if (!user) {
           setErrorMsg("Você precisa estar logado para postar.");
+          setLoadingAuthor(false);
           return;
         }
 
-        // 1) tenta na tabela profiles
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("full_name")
@@ -64,11 +72,50 @@ export default function NewFeedPostPage() {
       } catch (err) {
         console.error("Erro inesperado ao carregar perfil:", err);
         setErrorMsg("Erro inesperado ao carregar perfil.");
+      } finally {
+        setLoadingAuthor(false);
       }
     };
 
     loadProfile();
   }, []);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setImageFile(file);
+
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
+  const uploadImageIfNeeded = async (
+    userId: string
+  ): Promise<string | null> => {
+    if (!imageFile) return null;
+
+    const fileExt = imageFile.name.split(".").pop() || "jpg";
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = fileName;
+
+    const { error: uploadError } = await supabase.storage
+      .from("feed-images") // <- bucket no Supabase
+      .upload(filePath, imageFile);
+
+    if (uploadError) {
+      console.error("Erro ao fazer upload da imagem:", uploadError);
+      throw new Error("Não foi possível enviar a imagem.");
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("feed-images")
+      .getPublicUrl(filePath);
+
+    return publicData?.publicUrl ?? null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,8 +126,8 @@ export default function NewFeedPostPage() {
       return;
     }
 
-    if (!content.trim()) {
-      setErrorMsg("Escreva alguma coisa antes de postar.");
+    if (!content.trim() && !imageFile) {
+      setErrorMsg("Escreva algo ou selecione uma imagem para postar.");
       return;
     }
 
@@ -98,11 +145,18 @@ export default function NewFeedPostPage() {
         return;
       }
 
-      // ⚠️ Ajuste o nome da tabela se o seu não for "feed_posts"
+      // Upload da imagem (se tiver)
+      let imageUrl: string | null = null;
+      if (imageFile) {
+        imageUrl = await uploadImageIfNeeded(user.id);
+      }
+
+      // ⚠️ Ajuste o nome da tabela se a sua não for "feed_posts"
       const { error: insertError } = await supabase.from("feed_posts").insert({
-        content: content.trim(),
+        content: content.trim() || null,
         author_id: user.id,
-        author_name: authorName, // vem do perfil, não de input livre
+        author_name: authorName,
+        image_url: imageUrl, // novo campo para guardar URL da imagem
       });
 
       if (insertError) {
@@ -114,9 +168,9 @@ export default function NewFeedPostPage() {
 
       setLoading(false);
       router.push("/feed");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro inesperado ao salvar post:", err);
-      setErrorMsg("Erro inesperado ao salvar a postagem.");
+      setErrorMsg(err.message || "Erro inesperado ao salvar a postagem.");
       setLoading(false);
     }
   };
@@ -177,7 +231,7 @@ export default function NewFeedPostPage() {
               fontWeight: 600,
             }}
           >
-            {authorName ?? "carregando..."}
+            {loadingAuthor ? "carregando..." : authorName ?? "—"}
           </span>
         </div>
 
@@ -189,11 +243,12 @@ export default function NewFeedPostPage() {
             gap: 12,
           }}
         >
+          {/* Texto da postagem */}
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Escreva sua postagem..."
-            rows={5}
+            rows={4}
             style={{
               width: "100%",
               borderRadius: 12,
@@ -205,6 +260,67 @@ export default function NewFeedPostPage() {
               resize: "vertical",
             }}
           />
+
+          {/* Upload de imagem */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            <label
+              htmlFor="image"
+              style={{
+                fontSize: 12,
+                color: "#d1d5db",
+              }}
+            >
+              Imagem (opcional)
+            </label>
+            <input
+              id="image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              style={{
+                fontSize: 12,
+                color: "#e5e7eb",
+              }}
+            />
+            {imagePreview && (
+              <div
+                style={{
+                  marginTop: 6,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  border: "1px solid rgba(55,65,81,0.9)",
+                  maxHeight: 260,
+                }}
+              >
+                <img
+                  src={imagePreview}
+                  alt="Pré-visualização"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              </div>
+            )}
+            <p
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+                margin: 0,
+              }}
+            >
+              Formatos suportados: JPG, PNG, etc. A imagem será exibida junto
+              com sua postagem no feed.
+            </p>
+          </div>
 
           {errorMsg && (
             <p
@@ -220,7 +336,7 @@ export default function NewFeedPostPage() {
 
           <button
             type="submit"
-            disabled={loading || !authorName}
+            disabled={loading || loadingAuthor}
             style={{
               marginTop: 4,
               borderRadius: 999,
@@ -231,8 +347,8 @@ export default function NewFeedPostPage() {
               background:
                 "linear-gradient(to right, #22c55e, #16a34a, #15803d)",
               color: "#0b1120",
-              cursor: loading || !authorName ? "not-allowed" : "pointer",
-              opacity: loading || !authorName ? 0.6 : 1,
+              cursor: loading || loadingAuthor ? "not-allowed" : "pointer",
+              opacity: loading || loadingAuthor ? 0.6 : 1,
               transition: "opacity 0.15s ease-out",
             }}
           >

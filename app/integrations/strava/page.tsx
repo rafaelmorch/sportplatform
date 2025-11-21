@@ -1,19 +1,74 @@
 // app/integrations/strava/page.tsx
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportplatform.app";
-const clientId = process.env.STRAVA_CLIENT_ID;
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportplatform.app";
+const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID!;
 
-const redirectUri = `${siteUrl}/api/strava/callback`;
-
-const authorizeUrl = `https://www.strava.com/oauth/authorize` +
-  `?client_id=${clientId}` +
-  `&response_type=code` +
-  `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-  `&approval_prompt=auto` +
-  `&scope=read,activity:read_all`;
+// Supabase browser client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function StravaIntegrationPage() {
+  const [authorizeUrl, setAuthorizeUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const setupUrl = async () => {
+      try {
+        setErrorMsg(null);
+        setLoading(true);
+
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error) {
+          console.error("Erro ao carregar usuário:", error);
+          setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
+          setLoading(false);
+          return;
+        }
+
+        if (!user) {
+          setErrorMsg("Você precisa estar logado para conectar o Strava.");
+          setLoading(false);
+          return;
+        }
+
+        const redirectUri = `${siteUrl}/api/strava/callback`;
+
+        const params = new URLSearchParams({
+          client_id: stravaClientId,
+          response_type: "code",
+          redirect_uri: redirectUri,
+          approval_prompt: "auto",
+          scope: "read,activity:read_all",
+          state: user.id, // 👈 aqui vai o UUID do usuário logado
+        });
+
+        const url = `https://www.strava.com/oauth/authorize?${params.toString()}`;
+        setAuthorizeUrl(url);
+        setLoading(false);
+      } catch (err) {
+        console.error("Erro inesperado ao montar URL do Strava:", err);
+        setErrorMsg("Erro inesperado ao preparar a conexão com o Strava.");
+        setLoading(false);
+      }
+    };
+
+    setupUrl();
+  }, []);
+
+  const disabled = loading || !authorizeUrl;
+
   return (
     <main
       style={{
@@ -122,7 +177,7 @@ export default function StravaIntegrationPage() {
                 width: 20,
                 height: 20,
                 borderRadius: "999px",
-                border: "1px solid rgba(34,197,94,0.6)",
+                border: "1px solid rgba(34, 197, 94, 0.6)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -132,7 +187,9 @@ export default function StravaIntegrationPage() {
             >
               1
             </span>
-            <span>Você será redirecionado para o Strava para autorizar o acesso.</span>
+            <span>
+              Você será redirecionado para o Strava para autorizar o acesso.
+            </span>
           </div>
 
           <div
@@ -149,7 +206,7 @@ export default function StravaIntegrationPage() {
                 width: 20,
                 height: 20,
                 borderRadius: "999px",
-                border: "1px solid rgba(34,197,94,0.6)",
+                border: "1px solid rgba(34, 197, 94, 0.6)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -159,12 +216,26 @@ export default function StravaIntegrationPage() {
             >
               2
             </span>
-            <span>Após autorizar, voltará automaticamente para o SportPlatform.</span>
+            <span>
+              Após autorizar, voltará automaticamente para o SportPlatform.
+            </span>
           </div>
         </div>
 
+        {errorMsg && (
+          <p
+            style={{
+              fontSize: 13,
+              color: "#fca5a5",
+              marginBottom: 12,
+            }}
+          >
+            {errorMsg}
+          </p>
+        )}
+
         <a
-          href={authorizeUrl}
+          href={authorizeUrl ?? "#"}
           style={{
             display: "inline-flex",
             width: "100%",
@@ -172,18 +243,21 @@ export default function StravaIntegrationPage() {
             alignItems: "center",
             height: 48,
             borderRadius: "999px",
-            background:
-              "linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)",
-            color: "#0b1120",
+            background: disabled
+              ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
+              : "linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)",
+            color: disabled ? "#9ca3af" : "#0b1120",
             fontWeight: 600,
             fontSize: "15px",
             border: "1px solid rgba(248, 250, 252, 0.08)",
             textDecoration: "none",
-            boxShadow:
-              "0 12px 35px rgba(15, 23, 42, 0.8), 0 0 0 1px rgba(15, 23, 42, 0.9)",
+            boxShadow: disabled
+              ? "none"
+              : "0 12px 35px rgba(15, 23, 42, 0.8), 0 0 0 1px rgba(15, 23, 42, 0.9)",
+            pointerEvents: disabled ? "none" : "auto",
           }}
         >
-          Conectar com Strava
+          {loading ? "Preparando conexão..." : "Conectar com Strava"}
         </a>
 
         <div

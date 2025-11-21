@@ -17,6 +17,9 @@ export async function GET(req: NextRequest) {
     const code = searchParams.get("code");
     const error = searchParams.get("error");
 
+    // ⚠️ aqui vamos receber o user_id via "state"
+    const state = searchParams.get("state"); // opcional
+
     if (error) {
       return NextResponse.json(
         { message: "Erro retornado pelo Strava.", error },
@@ -71,11 +74,13 @@ export async function GET(req: NextRequest) {
       access_token,
       refresh_token,
       expires_at,
+      token_type,
       athlete,
     }: {
       access_token: string;
       refresh_token: string;
-      expires_at: number;
+      expires_at: number; // unix (segundos)
+      token_type?: string;
       athlete: { id: number; firstname?: string; lastname?: string };
     } = tokenJson;
 
@@ -88,20 +93,34 @@ export async function GET(req: NextRequest) {
 
     const athleteId = athlete.id;
 
-    // por enquanto, não estamos ligando ao user logado
-    const userId: string | null = null;
+    // 2) Descobrir user_id a partir do "state" (enviado pelo front)
+    let userId: string | null = null;
 
-    // 2) Salvar / atualizar tokens no Supabase
-    const { error: dbError } = await supabaseAdmin.from("strava_tokens").upsert(
-      {
-        athlete_id: athleteId,
-        access_token,
-        refresh_token,
-        expires_at: new Date(expires_at * 1000).toISOString(),
-        user_id: userId,
-      },
-      { onConflict: "athlete_id" }
-    );
+    // se vier algo que pareça um uuid, usamos como user_id
+    if (state && /^[0-9a-fA-F-]{36}$/.test(state)) {
+      userId = state;
+    }
+
+    const nowIso = new Date().toISOString();
+    const expiresIso = new Date(expires_at * 1000).toISOString();
+
+    // 3) Salvar / atualizar tokens no Supabase
+    const { error: dbError } = await supabaseAdmin
+      .from("strava_tokens")
+      .upsert(
+        {
+          athlete_id: athleteId,
+          access_token,
+          refresh_token,
+          token_type: token_type ?? "Bearer",
+          expires_at: expiresIso,
+          user_id: userId, // 🔥 agora liga ao usuário
+          updated_at: nowIso,
+        },
+        {
+          onConflict: "athlete_id",
+        }
+      );
 
     if (dbError) {
       console.error("Erro ao salvar tokens no Supabase:", dbError);
@@ -115,7 +134,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 3) Redirecionar para página de sincronização (UI amigável)
+    // 4) Redirecionar para página de sucesso
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
