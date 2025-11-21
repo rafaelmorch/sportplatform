@@ -19,6 +19,11 @@ type StravaActivity = {
   total_elevation_gain: number | null;
 };
 
+type EventsSummary = {
+  availableEvents: number;
+  userEvents: number;
+};
+
 async function getActivities(): Promise<StravaActivity[]> {
   try {
     const { data, error } = await supabaseAdmin
@@ -48,6 +53,43 @@ async function getActivities(): Promise<StravaActivity[]> {
   } catch (err) {
     console.error("Erro inesperado ao buscar atividades:", err);
     return [];
+  }
+}
+
+async function getEventsSummary(): Promise<EventsSummary> {
+  try {
+    // Eventos disponíveis (ex: tabela "events" com status = 'active')
+    const { count: availableCount, error: availableError } = await supabaseAdmin
+      .from("events")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active");
+
+    if (availableError) {
+      console.error("Erro ao contar eventos disponíveis:", availableError);
+    }
+
+    // Eventos cadastrados pelo usuário
+    // ⚠️ Por enquanto, contando todos na tabela user_events.
+    // Quando tiver user_id, basta adicionar .eq("user_id", userId)
+    const { count: userEventsCount, error: userEventsError } =
+      await supabaseAdmin
+        .from("user_events")
+        .select("id", { count: "exact", head: true });
+
+    if (userEventsError) {
+      console.error("Erro ao contar eventos do usuário:", userEventsError);
+    }
+
+    return {
+      availableEvents: availableCount ?? 0,
+      userEvents: userEventsCount ?? 0,
+    };
+  } catch (err) {
+    console.error("Erro ao buscar resumo de eventos:", err);
+    return {
+      availableEvents: 0,
+      userEvents: 0,
+    };
   }
 }
 
@@ -101,23 +143,45 @@ function formatDate(dateStr: string | null | undefined): string {
 
 export default async function DashboardPage() {
   const activities = await getActivities();
+  const eventsSummary = await getEventsSummary();
 
-  const totalDistance = activities.reduce(
+  // Se tiver mais de um atleta, pegamos o da atividade mais recente
+  const currentAthleteId = activities[0]?.athlete_id;
+  const athleteActivities = currentAthleteId
+    ? activities.filter((a) => a.athlete_id === currentAthleteId)
+    : activities;
+
+  const groupActivities = activities;
+
+  // --- Métricas do atleta ---
+  const athleteDistance = athleteActivities.reduce(
     (sum, a) => sum + metersToKm(a.distance),
     0
   );
-
-  const totalMovingTime = activities.reduce(
+  const athleteMovingTime = athleteActivities.reduce(
     (sum, a) => sum + (a.moving_time ?? 0),
     0
   );
-
-  const totalElevation = activities.reduce(
+  const athleteElevation = athleteActivities.reduce(
     (sum, a) => sum + (a.total_elevation_gain ?? 0),
     0
   );
+  const athleteActivitiesCount = athleteActivities.length;
 
-  const totalActivities = activities.length;
+  // --- Métricas do grupo ---
+  const groupDistance = groupActivities.reduce(
+    (sum, a) => sum + metersToKm(a.distance),
+    0
+  );
+  const groupMovingTime = groupActivities.reduce(
+    (sum, a) => sum + (a.moving_time ?? 0),
+    0
+  );
+  const groupElevation = groupActivities.reduce(
+    (sum, a) => sum + (a.total_elevation_gain ?? 0),
+    0
+  );
+  const groupActivitiesCount = groupActivities.length;
 
   const lastActivities = activities.slice(0, 10);
 
@@ -200,20 +264,21 @@ export default async function DashboardPage() {
               margin: 0,
             }}
           >
-            Visão geral das atividades sincronizadas com o Strava. Distâncias,
-            tempo em movimento, ritmo médio e elevação total em um único lugar.
+            Visão geral do atleta, do grupo e dos eventos conectados ao
+            SportPlatform.
           </p>
         </header>
 
-        {/* Cards principais */}
+        {/* Linha 1: Atleta x Grupo */}
         <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: "12px",
             marginBottom: "20px",
           }}
         >
+          {/* Card Atleta */}
           <div
             style={{
               borderRadius: "18px",
@@ -228,9 +293,10 @@ export default async function DashboardPage() {
                 fontSize: 11,
                 color: "#86efac",
                 marginBottom: 4,
+                textTransform: "uppercase",
               }}
             >
-              Distância total
+              Atleta (logado)
             </p>
             <p
               style={{
@@ -239,24 +305,73 @@ export default async function DashboardPage() {
                 marginBottom: 2,
               }}
             >
-              {totalDistance.toFixed(1)} km
+              {athleteDistance.toFixed(1)} km
             </p>
             <p
               style={{
                 fontSize: 11,
                 color: "#6b7280",
+                marginBottom: 8,
               }}
             >
-              Soma de todas as atividades importadas.
+              Distância total em todas as atividades deste atleta.
             </p>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                fontSize: 11,
+                color: "#9ca3af",
+              }}
+            >
+              <div>
+                <div>Tempo em movimento</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                  }}
+                >
+                  {formatDuration(athleteMovingTime)}
+                </div>
+              </div>
+              <div>
+                <div>Elevação acumulada</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                  }}
+                >
+                  {Math.round(athleteElevation)} m
+                </div>
+              </div>
+              <div>
+                <div>Atividades</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                  }}
+                >
+                  {athleteActivitiesCount}
+                </div>
+              </div>
+            </div>
           </div>
 
+          {/* Card Grupo */}
           <div
             style={{
               borderRadius: "18px",
               padding: "14px 14px",
               background:
-                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+                "radial-gradient(circle at top, #0b1120, #020617 60%)",
               border: "1px solid rgba(59,130,246,0.35)",
             }}
           >
@@ -265,9 +380,10 @@ export default async function DashboardPage() {
                 fontSize: 11,
                 color: "#93c5fd",
                 marginBottom: 4,
+                textTransform: "uppercase",
               }}
             >
-              Tempo em movimento
+              Grupo
             </p>
             <p
               style={{
@@ -276,16 +392,138 @@ export default async function DashboardPage() {
                 marginBottom: 2,
               }}
             >
-              {formatDuration(totalMovingTime)}
+              {groupDistance.toFixed(1)} km
             </p>
             <p
               style={{
                 fontSize: 11,
                 color: "#6b7280",
+                marginBottom: 8,
               }}
             >
-              Total de horas em treino registrado.
+              Distância total somando todos os atletas do grupo (todas as
+              atividades sincronizadas).
             </p>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                fontSize: 11,
+                color: "#9ca3af",
+              }}
+            >
+              <div>
+                <div>Tempo em movimento</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                  }}
+                >
+                  {formatDuration(groupMovingTime)}
+                </div>
+              </div>
+              <div>
+                <div>Elevação acumulada</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                  }}
+                >
+                  {Math.round(groupElevation)} m
+                </div>
+              </div>
+              <div>
+                <div>Atividades</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#e5e7eb",
+                  }}
+                >
+                  {groupActivitiesCount}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Linha 2: Eventos disponíveis / cadastrados */}
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "12px",
+            marginBottom: "20px",
+          }}
+        >
+          <div
+            style={{
+              borderRadius: "18px",
+              padding: "14px 14px",
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              border: "1px solid rgba(34,197,94,0.35)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#bbf7d0",
+                  marginBottom: 4,
+                  textTransform: "uppercase",
+                }}
+              >
+                Eventos disponíveis
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  margin: 0,
+                }}
+              >
+                Provas abertas para inscrição no SportPlatform.
+              </p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                }}
+              >
+                {eventsSummary.availableEvents}
+              </div>
+              <a
+                href="/events"
+                style={{
+                  display: "inline-block",
+                  marginTop: 6,
+                  fontSize: 11,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(34,197,94,0.7)",
+                  background: "transparent",
+                  color: "#bbf7d0",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Ver eventos
+              </a>
+            </div>
           </div>
 
           <div
@@ -293,73 +531,62 @@ export default async function DashboardPage() {
               borderRadius: "18px",
               padding: "14px 14px",
               background:
-                "radial-gradient(circle at top, #0f172a, #020617 60%)",
-              border: "1px solid rgba(248,113,113,0.35)",
+                "radial-gradient(circle at top, #020617, #020617 60%)",
+              border: "1px solid rgba(56,189,248,0.5)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
             }}
           >
-            <p
-              style={{
-                fontSize: 11,
-                color: "#fca5a5",
-                marginBottom: 4,
-              }}
-            >
-              Elevação acumulada
-            </p>
-            <p
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                marginBottom: 2,
-              }}
-            >
-              {Math.round(totalElevation)} m
-            </p>
-            <p
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-              }}
-            >
-              Ganho de altitude em todas as atividades.
-            </p>
-          </div>
-
-          <div
-            style={{
-              borderRadius: "18px",
-              padding: "14px 14px",
-              background:
-                "radial-gradient(circle at top, #0f172a, #020617 60%)",
-              border: "1px solid rgba(148,163,184,0.35)",
-            }}
-          >
-            <p
-              style={{
-                fontSize: 11,
-                color: "#e5e7eb",
-                marginBottom: 4,
-              }}
-            >
-              Atividades importadas
-            </p>
-            <p
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                marginBottom: 2,
-              }}
-            >
-              {totalActivities}
-            </p>
-            <p
-              style={{
-                fontSize: 11,
-                color: "#6b7280",
-              }}
-            >
-              Registros sincronizados com o Strava.
-            </p>
+            <div>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#7dd3fc",
+                  marginBottom: 4,
+                  textTransform: "uppercase",
+                }}
+              >
+                Eventos cadastrados
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  margin: 0,
+                }}
+              >
+                Eventos que você criou ou em que está inscrito.
+              </p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                }}
+              >
+                {eventsSummary.userEvents}
+              </div>
+              <a
+                href="/my-events"
+                style={{
+                  display: "inline-block",
+                  marginTop: 6,
+                  fontSize: 11,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(56,189,248,0.6)",
+                  background: "transparent",
+                  color: "#7dd3fc",
+                  textDecoration: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Meus eventos
+              </a>
+            </div>
           </div>
         </section>
 
