@@ -1,23 +1,17 @@
 // app/api/strava/callback/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
+const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
+const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
+const STRAVA_REDIRECT_URL = process.env.STRAVA_REDIRECT_URL;
 
-// Supabase (SERVER) – usa SERVICE_ROLE para poder inserir na tabela
-function createServiceClient() {
-  const url = process.env.SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE;
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
 
-  if (!url || !serviceRoleKey) {
-    throw new Error("SUPABASE_URL ou SUPABASE_SERVICE_ROLE não configurados.");
-  }
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
-  // import dinâmico para evitar problemas em edge runtimes
-  const { createClient } = require("@supabase/supabase-js");
-  return createClient(url, serviceRoleKey);
-}
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
@@ -25,7 +19,7 @@ export async function GET(req: Request) {
 
     if (error) {
       return NextResponse.json(
-        { message: "Erro retornado pelo Strava", error },
+        { message: "Erro retornado pelo Strava.", error },
         { status: 400 }
       );
     }
@@ -37,11 +31,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const clientId = process.env.STRAVA_CLIENT_ID;
-    const clientSecret = process.env.STRAVA_CLIENT_SECRET;
-    const redirectUri = process.env.STRAVA_REDIRECT_URL;
-
-    if (!clientId || !clientSecret || !redirectUri) {
+    if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET || !STRAVA_REDIRECT_URL) {
       return NextResponse.json(
         {
           message:
@@ -51,28 +41,27 @@ export async function GET(req: Request) {
       );
     }
 
-    // 1) Trocar o code pelo access_token no Strava
-    const tokenResponse = await fetch(STRAVA_TOKEN_URL, {
+    // 1) Trocar o "code" pelo access_token / refresh_token
+    const tokenRes = await fetch("https://www.strava.com/api/v3/oauth/token", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: STRAVA_CLIENT_ID,
+        client_secret: STRAVA_CLIENT_SECRET,
         code,
         grant_type: "authorization_code",
-        redirect_uri: redirectUri,
+        redirect_uri: STRAVA_REDIRECT_URL,
       }),
     });
 
-    const tokenData = await tokenResponse.json();
+    const tokenJson = await tokenRes.json();
 
-    if (!tokenResponse.ok) {
+    if (!tokenRes.ok) {
+      console.error("Erro Strava /oauth/token:", tokenJson);
       return NextResponse.json(
         {
           message: "Erro ao trocar o code pelo token no Strava.",
-          stravaError: tokenData,
+          strava_error: tokenJson,
         },
         { status: 400 }
       );
@@ -82,65 +71,73 @@ export async function GET(req: Request) {
       access_token,
       refresh_token,
       expires_at,
-      token_type,
       athlete,
-    } = tokenData;
+    }: {
+      access_token: string;
+      refresh_token: string;
+      expires_at: number;
+      athlete: { id: number; firstname?: string; lastname?: string };
+    } = tokenJson;
 
-    const athlete_id = athlete?.id;
-
-    if (!athlete_id || !access_token || !refresh_token) {
+    if (!athlete?.id) {
       return NextResponse.json(
-        {
-          message: "Resposta do Strava incompleta.",
-          tokenData,
-        },
-        { status: 500 }
+        { message: "Resposta do Strava sem athlete.id." },
+        { status: 400 }
       );
     }
 
-    // 2) Salvar / atualizar no Supabase (tabela: strava_tokens)
-    const supabase = createServiceClient();
+    const athleteId = athlete.id;
 
-    const { error: dbError } = await supabase.from("strava_tokens").upsert(
-      {
-        athlete_id,
-        access_token,
-        refresh_token,
-        expires_at,
-        token_type,
-        // user_id: podemos ligar depois ao usuário logado
-      },
-      {
-        onConflict: "athlete_id",
-      }
-    );
+    // 2) Tentar pegar o usuário logado no Supabase (se tiver cookie de sessão)
+    // Caso não haja sessão, vamos salvar com user_id = null por enquanto.
+    let userId: string | null = null;
+    try {
+      // se no futuro você quiser vincular ao usuário logado,
+      // podemos usar o supabase-js com a cookie da request.
+      userId = null;
+    } catch (e) {
+      console.warn("Não foi possível obter o user_id da sessão:", e);
+      userId = null;
+    }
+
+    // 3) Salvar / atualizar tokens no Supabase
+    const { data, error: dbError } = await supabaseAdmin
+      .from("strava_tokens")
+      .upsert(
+        {
+          athlete_id: athleteId,
+          access_token,
+          refresh_token,
+          expires_at: new Date(expires_at * 1000).toISOString(),
+          user_id: userId,
+        },
+        { onConflict: "athlete_id" }
+      )
+      .select();
 
     if (dbError) {
+      console.error("Erro ao salvar tokens no Supabase:", dbError);
       return NextResponse.json(
         {
-          message: "Erro ao salvar tokens no Supabase.",
-          supabaseError: dbError.message,
+          message:
+            "Conexão com Strava feita, mas houve erro ao salvar os tokens no Supabase.",
+          dbError,
         },
         { status: 500 }
       );
     }
 
-    // 3) Resposta amigável
     return NextResponse.json({
-      message: "Conexão com Strava realizada e salva no Supabase com sucesso.",
-      athlete_id,
-      token_type,
-      expires_at,
+      message: "Conexão com Strava concluída e tokens salvos no Supabase.",
+      athlete_id: athleteId,
+      user_id: userId,
       access_token_last4: access_token.slice(-4),
       refresh_token_last4: refresh_token.slice(-4),
     });
-  } catch (err: any) {
-    console.error("Erro geral no callback do Strava:", err);
+  } catch (err) {
+    console.error("Erro inesperado no callback do Strava:", err);
     return NextResponse.json(
-      {
-        message: "Erro inesperado no callback do Strava.",
-        error: String(err?.message ?? err),
-      },
+      { message: "Erro inesperado no callback do Strava." },
       { status: 500 }
     );
   }
