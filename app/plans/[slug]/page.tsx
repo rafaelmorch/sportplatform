@@ -5,13 +5,14 @@ import BottomNavbar from "@/components/BottomNavbar";
 import { trainingPlans } from "../plans-data";
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
-export default function PlanDetailPage({ params }: PageProps) {
-  const plan = trainingPlans.find((p: any) => p.slug === params.slug) as
-    | any
-    | undefined;
+export default async function PlanDetailPage({ params }: PageProps) {
+  // Next 16: params é Promise
+  const { slug } = await params;
+
+  const plan = trainingPlans.find((p: any) => p.slug === slug) as any | undefined;
 
   if (!plan) {
     notFound();
@@ -23,7 +24,7 @@ export default function PlanDetailPage({ params }: PageProps) {
     plan.shortDescription ??
     "Descrição em breve para este plano.";
   const level: string | undefined = plan.level;
-  const price: string | undefined = plan.price; // se existir no data, mostramos; senão, ignorado
+  const price: string | undefined = plan.price;
 
   return (
     <main
@@ -118,7 +119,7 @@ export default function PlanDetailPage({ params }: PageProps) {
           </p>
         </section>
 
-        {/* Seção de destaque / integração futura */}
+        {/* Integração com plataforma */}
         <section
           style={{
             borderRadius: "18px",
@@ -158,9 +159,9 @@ export default function PlanDetailPage({ params }: PageProps) {
               margin: 0,
             }}
           >
-            Na versão completa do SportPlatform, cada sessão de treino será
-            monitorada automaticamente, com alertas de consistência, cargas
-            semanais e comparação com a meta definida no início do plano.
+            Na versão completa, cada sessão será monitorada automaticamente,
+            com alertas de consistência, cargas semanais e comparação com as
+            metas definidas.
           </p>
         </section>
 

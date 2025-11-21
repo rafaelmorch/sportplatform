@@ -5,14 +5,15 @@ import BottomNavbar from "@/components/BottomNavbar";
 import { trainingGroups } from "../groups-data";
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
-export default function GroupDetailPage({ params }: PageProps) {
-  // Usamos any aqui para não brigar com TypeScript por causa de campos opcionais
-  const group = trainingGroups.find((g: any) => g.slug === params.slug) as
-    | any
-    | undefined;
+export default async function GroupDetailPage({ params }: PageProps) {
+  // Next 16: params é uma Promise → precisamos dar await
+  const { slug } = await params;
+
+  // Usamos any pra não brigar com TS por causa de campos opcionais
+  const group = trainingGroups.find((g: any) => g.slug === slug) as any | undefined;
 
   if (!group) {
     notFound();
@@ -119,7 +120,7 @@ export default function GroupDetailPage({ params }: PageProps) {
           </p>
         </section>
 
-        {/* Seção de chamada para ação / ligação com planos */}
+        {/* Seção de explicação */}
         <section
           style={{
             borderRadius: "18px",
@@ -160,13 +161,12 @@ export default function GroupDetailPage({ params }: PageProps) {
               margin: 0,
             }}
           >
-            Em breve, este grupo estará conectado diretamente a planos de treino
-            personalizados dentro do SportPlatform, combinando dados do Strava
-            com metas específicas de performance.
+            Na versão completa do SportPlatform, este grupo será conectado a
+            planos de treino personalizados e métricas em tempo real.
           </p>
         </section>
 
-        {/* Link de navegação */}
+        {/* Navegação */}
         <div
           style={{
             display: "flex",
