@@ -1,7 +1,8 @@
 // components/DashboardClient.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import DashboardCharts from "@/components/DashboardCharts";
 
 type StravaActivity = {
@@ -39,6 +40,11 @@ type DashboardClientProps = {
   activities: StravaActivity[];
   eventsSummary: EventsSummary;
 };
+
+// Supabase client no navegador (chave pública)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function metersToKm(distance: number | null | undefined): number {
   if (!distance || distance <= 0) return 0;
@@ -118,21 +124,89 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const [range, setRange] = useState<RangeKey>("30d");
 
+  // infos do usuário logado
+  const [userAthleteId, setUserAthleteId] = useState<number | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userLoaded, setUserLoaded] = useState(false);
+
   const now = new Date();
 
-  const currentAthleteId = activities[0]?.athlete_id;
-  const athleteLabel = currentAthleteId
-    ? `Atleta ${currentAthleteId}`
-    : "Atleta";
+  // Carrega perfil do usuário no Supabase (para pegar nome + strava_athlete_id)
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
+        if (userError) {
+          console.error("Erro ao buscar usuário:", userError);
+          setUserLoaded(true);
+          return;
+        }
+
+        if (!user) {
+          setUserLoaded(true);
+          return;
+        }
+
+        // Tenta buscar no perfil
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name, strava_athlete_id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error("Erro ao buscar perfil:", profileError);
+        }
+
+        const meta: any = user.user_metadata || {};
+        const nameFromProfile = profile?.full_name || null;
+        const nameFromMeta = meta.full_name || meta.name || null;
+
+        const finalName =
+          nameFromProfile || nameFromMeta || user.email || "Seu desempenho";
+
+        setUserName(finalName);
+
+        // se o perfil tiver strava_athlete_id, usamos para filtrar
+        if (profile && typeof profile.strava_athlete_id === "number") {
+          setUserAthleteId(profile.strava_athlete_id);
+        } else {
+          setUserAthleteId(null);
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao carregar perfil:", err);
+      } finally {
+        setUserLoaded(true);
+      }
+    };
+
+    loadUserProfile();
+  }, []);
+
+  // Se já temos o atleta do usuário, usamos ele.
+  // Se não, caímos no primeiro atleta da lista como fallback.
+  const fallbackAthleteId = activities[0]?.athlete_id ?? null;
+  const currentAthleteId = userAthleteId ?? fallbackAthleteId;
+
+  const athleteLabel =
+    userName ??
+    (currentAthleteId ? `Seu desempenho` : "Seu desempenho");
+
+  // Filtro de período em cima de TODAS as atividades
   const activitiesInRange = activities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
 
+  // Atleta: apenas atividades do athlete_id vinculado ao usuário (se existir)
   const athleteActivities = currentAthleteId
     ? activitiesInRange.filter((a) => a.athlete_id === currentAthleteId)
     : activitiesInRange;
 
+  // Grupo: todas as atividades no período
   const groupActivities = activitiesInRange;
 
   // Métricas atleta
@@ -165,7 +239,7 @@ export default function DashboardClient({
   );
   const groupActivitiesCount = groupActivities.length;
 
-  // Últimas atividades
+  // Últimas atividades (grupo)
   const lastActivities = [...groupActivities]
     .sort((a, b) => {
       const da = a.start_date ? new Date(a.start_date).getTime() : 0;
