@@ -1,6 +1,7 @@
 // app/dashboard/page.tsx
 import { createClient } from "@supabase/supabase-js";
 import BottomNavbar from "@/components/BottomNavbar";
+import DashboardCharts from "@/components/DashboardCharts";
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
@@ -22,6 +23,17 @@ type StravaActivity = {
 type EventsSummary = {
   availableEvents: number;
   userEvents: number;
+};
+
+type DailyPoint = {
+  label: string;        // "12/11"
+  distanceKm: number;
+  movingTimeMin: number;
+};
+
+type SportPoint = {
+  sport: string;
+  distanceKm: number;
 };
 
 async function getActivities(): Promise<StravaActivity[]> {
@@ -56,41 +68,12 @@ async function getActivities(): Promise<StravaActivity[]> {
   }
 }
 
+// Por enquanto, fixo com 3 eventos (igual à página /events hoje)
 async function getEventsSummary(): Promise<EventsSummary> {
-  try {
-    // Eventos disponíveis (ex: tabela "events" com status = 'active')
-    const { count: availableCount, error: availableError } = await supabaseAdmin
-      .from("events")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "active");
-
-    if (availableError) {
-      console.error("Erro ao contar eventos disponíveis:", availableError);
-    }
-
-    // Eventos cadastrados pelo usuário
-    // ⚠️ Por enquanto, contando todos na tabela user_events.
-    // Quando tiver user_id, basta adicionar .eq("user_id", userId)
-    const { count: userEventsCount, error: userEventsError } =
-      await supabaseAdmin
-        .from("user_events")
-        .select("id", { count: "exact", head: true });
-
-    if (userEventsError) {
-      console.error("Erro ao contar eventos do usuário:", userEventsError);
-    }
-
-    return {
-      availableEvents: availableCount ?? 0,
-      userEvents: userEventsCount ?? 0,
-    };
-  } catch (err) {
-    console.error("Erro ao buscar resumo de eventos:", err);
-    return {
-      availableEvents: 0,
-      userEvents: 0,
-    };
-  }
+  return {
+    availableEvents: 3, // número de eventos que você tem em /events
+    userEvents: 0,      // depois a gente conecta com inscrições/cadastro real
+  };
 }
 
 function metersToKm(distance: number | null | undefined): number {
@@ -184,6 +167,59 @@ export default async function DashboardPage() {
   const groupActivitiesCount = groupActivities.length;
 
   const lastActivities = activities.slice(0, 10);
+
+  // --- Dados para os gráficos (atleta individual) ---
+  const dailyMap = new Map<
+    string,
+    { label: string; distanceKm: number; movingTimeMin: number }
+  >();
+
+  for (const a of athleteActivities) {
+    if (!a.start_date) continue;
+    const d = new Date(a.start_date);
+    if (Number.isNaN(d.getTime())) continue;
+
+    const key = d.toISOString().slice(0, 10); // yyyy-mm-dd
+    const label = d.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+
+    const prev = dailyMap.get(key) ?? {
+      label,
+      distanceKm: 0,
+      movingTimeMin: 0,
+    };
+
+    dailyMap.set(key, {
+      label,
+      distanceKm: prev.distanceKm + metersToKm(a.distance),
+      movingTimeMin:
+        prev.movingTimeMin + (a.moving_time ? a.moving_time / 60 : 0),
+    });
+  }
+
+  const dailyData: DailyPoint[] = Array.from(dailyMap.entries())
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([, v]) => ({
+      label: v.label,
+      distanceKm: Number(v.distanceKm.toFixed(2)),
+      movingTimeMin: Number(v.movingTimeMin.toFixed(1)),
+    }));
+
+  const sportMap = new Map<string, number>();
+  for (const a of athleteActivities) {
+    const sport = a.sport_type || a.type || "Outro";
+    const prev = sportMap.get(sport) ?? 0;
+    sportMap.set(sport, prev + metersToKm(a.distance));
+  }
+
+  const sportData: SportPoint[] = Array.from(sportMap.entries()).map(
+    ([sport, distanceKm]) => ({
+      sport,
+      distanceKm: Number(distanceKm.toFixed(2)),
+    })
+  );
 
   return (
     <main
@@ -588,6 +624,20 @@ export default async function DashboardPage() {
               </a>
             </div>
           </div>
+        </section>
+
+        {/* Linha 3: Gráficos */}
+        <section
+          style={{
+            borderRadius: "20px",
+            border: "1px solid rgba(148,163,184,0.35)",
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: "24px",
+          }}
+        >
+          <DashboardCharts dailyData={dailyData} sportData={sportData} />
         </section>
 
         {/* Últimas atividades */}
