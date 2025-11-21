@@ -1,378 +1,247 @@
 // app/feed/new/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase-browser";
+import { createClient } from "@supabase/supabase-js";
 import BottomNavbar from "@/components/BottomNavbar";
 
-export default function NewPostPage() {
+// Cliente Supabase para o navegador usando as envs públicas
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+type Profile = {
+  full_name: string | null;
+};
+
+export default function NewFeedPostPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [text, setText] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [content, setContent] = useState("");
+  const [authorName, setAuthorName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const isValid = text.trim().length > 0;
-
-  // 🔹 Preencher automaticamente o campo Nome com o usuário logado
+  // Busca o nome do usuário logado ao carregar a página
   useEffect(() => {
-    async function loadUserName() {
-      const {
-        data: { user },
-        error,
-      } = await supabaseBrowser.auth.getUser();
+    const loadProfile = async () => {
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (error) {
-        console.error("Erro ao buscar usuário do Supabase:", error.message);
-        return;
+        if (userError) {
+          console.error("Erro ao buscar usuário:", userError);
+          setErrorMsg("Erro ao carregar usuário.");
+          return;
+        }
+
+        if (!user) {
+          setErrorMsg("Você precisa estar logado para postar.");
+          return;
+        }
+
+        // 1) tenta na tabela profiles
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle<Profile>();
+
+        if (profileError) {
+          console.error("Erro ao buscar perfil:", profileError);
+        }
+
+        const nameFromProfile = profile?.full_name || null;
+        const meta: any = user.user_metadata || {};
+        const nameFromMeta = meta.full_name || meta.name || null;
+
+        const finalName =
+          nameFromProfile || nameFromMeta || user.email || "Atleta";
+
+        setAuthorName(finalName);
+      } catch (err) {
+        console.error("Erro inesperado ao carregar perfil:", err);
+        setErrorMsg("Erro inesperado ao carregar perfil.");
       }
+    };
 
-      if (!user) {
-        // não logado → deixa o campo vazio
-        return;
-      }
-
-      const meta = user.user_metadata || {};
-
-      const fullName =
-        meta.full_name ||
-        meta.name ||
-        meta.nome ||
-        (user.email ? user.email.split("@")[0] : "");
-
-      if (fullName) {
-        setName(fullName);
-      }
-    }
-
-    loadUserName();
+    loadProfile();
   }, []);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setImageFile(file);
-
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-    } else {
-      setPreviewUrl(null);
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isValid || loading) return;
+    setErrorMsg(null);
 
-    setLoading(true);
+    if (!authorName) {
+      setErrorMsg("Não foi possível carregar o nome do perfil.");
+      return;
+    }
 
-    let imageUrl: string | null = null;
+    if (!content.trim()) {
+      setErrorMsg("Escreva alguma coisa antes de postar.");
+      return;
+    }
 
     try {
-      // 1) Upload da imagem, se existir
-      if (imageFile) {
-        const fileExt = imageFile.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2)}.${fileExt}`;
-        const filePath = `posts/${fileName}`;
+      setLoading(true);
 
-        const { error: uploadError } = await supabaseBrowser.storage
-          .from("feed-images")
-          .upload(filePath, imageFile, {
-            cacheControl: "3600",
-            upsert: false,
-          });
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-        if (uploadError) {
-          console.error("Erro ao fazer upload:", uploadError.message);
-        } else {
-          const { data: publicData } = supabaseBrowser.storage
-            .from("feed-images")
-            .getPublicUrl(filePath);
-
-          imageUrl = publicData.publicUrl;
-        }
+      if (userError || !user) {
+        setErrorMsg("Você precisa estar logado para postar.");
+        setLoading(false);
+        return;
       }
 
-      // 2) Inserir o post no feed
-      const { error: insertError } = await supabaseBrowser
-        .from("feed_posts")
-        .insert({
-          author_name: name || null,
-          content: text,
-          image_url: imageUrl,
-        });
+      // ⚠️ Ajuste o nome da tabela se o seu não for "feed_posts"
+      const { error: insertError } = await supabase.from("feed_posts").insert({
+        content: content.trim(),
+        author_id: user.id,
+        author_name: authorName, // vem do perfil, não de input livre
+      });
 
       if (insertError) {
-        console.error("Erro ao salvar post:", insertError.message);
-      } else {
-        router.push("/feed");
+        console.error("Erro ao salvar post:", insertError);
+        setErrorMsg("Erro ao salvar a postagem.");
+        setLoading(false);
+        return;
       }
-    } finally {
+
+      setLoading(false);
+      router.push("/feed");
+    } catch (err) {
+      console.error("Erro inesperado ao salvar post:", err);
+      setErrorMsg("Erro inesperado ao salvar a postagem.");
       setLoading(false);
     }
-  }
+  };
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100vh",
         background: "#020617",
         color: "#e5e7eb",
-        display: "flex",
-        flexDirection: "column",
+        padding: "16px",
+        paddingBottom: "80px",
       }}
     >
-      <main
+      <div
         style={{
-          flex: 1,
-          padding: "16px",
-          paddingBottom: "72px", // espaço para a bottom navbar
+          maxWidth: 600,
+          margin: "0 auto",
         }}
       >
-        <div
+        <header
           style={{
-            maxWidth: "720px",
-            margin: "0 auto",
+            marginBottom: 16,
           }}
         >
-          {/* TÍTULO */}
-          <div
+          <h1
             style={{
-              marginBottom: "16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "12px",
+              fontSize: 20,
+              fontWeight: 700,
+              margin: 0,
             }}
           >
-            <div>
-              <h1
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 800,
-                  marginBottom: "4px",
-                }}
-              >
-                Nova postagem
-              </h1>
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#94a3b8",
-                }}
-              >
-                Publique um registro do seu treino com foto e mensagem.
-              </p>
-            </div>
-
-            <a
-              href="/feed"
-              style={{
-                fontSize: "12px",
-                color: "#e5e7eb",
-                textDecoration: "none",
-              }}
-            >
-              Voltar ao feed
-            </a>
-          </div>
-
-          {/* FORM */}
-          <form
-            onSubmit={handleSubmit}
+            Nova postagem
+          </h1>
+          <p
             style={{
-              borderRadius: "16px",
-              border: "1px solid #1e293b",
-              background: "#020617",
-              padding: "16px",
-              display: "flex",
-              flexDirection: "column",
-              gap: "14px",
+              fontSize: 12,
+              color: "#9ca3af",
+              marginTop: 4,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "13px",
-                  color: "#cbd5e1",
-                  fontWeight: 500,
-                }}
-              >
-                Nome
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Como o seu nome aparecerá no feed"
-                style={{
-                  padding: "9px 10px",
-                  borderRadius: "10px",
-                  border: "1px solid #1e293b",
-                  background: "#020617",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
-                }}
-              />
-            </div>
+            Compartilhe um treino, uma conquista ou um recado com o seu grupo.
+          </p>
+        </header>
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "13px",
-                  color: "#cbd5e1",
-                  fontWeight: 500,
-                }}
-              >
-                Mensagem do treino
-              </label>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Descreva como foi o treino, sensações, ritmo, distância…"
-                rows={4}
-                style={{
-                  padding: "9px 10px",
-                  borderRadius: "10px",
-                  border: "1px solid #1e293b",
-                  background: "#020617",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
-                  resize: "vertical",
-                }}
-              />
-            </div>
-
-            {/* UPLOAD DE IMAGEM */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "13px",
-                  color: "#cbd5e1",
-                  fontWeight: 500,
-                }}
-              >
-                Foto do treino (opcional)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                style={{
-                  fontSize: "13px",
-                  color: "#e5e7eb",
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={!isValid || loading}
-              style={{
-                marginTop: "4px",
-                padding: "10px 14px",
-                borderRadius: "999px",
-                border: "none",
-                background: isValid && !loading ? "#22c55e" : "#1f2937",
-                color: isValid && !loading ? "#020617" : "#6b7280",
-                fontSize: "14px",
-                fontWeight: 700,
-                cursor: isValid && !loading ? "pointer" : "not-allowed",
-              }}
-            >
-              {loading ? "Publicando..." : "Publicar no feed"}
-            </button>
-          </form>
-
-          {/* PRÉVIA */}
-          {(text.trim().length > 0 || previewUrl) && (
-            <div
-              style={{
-                marginTop: "18px",
-                borderRadius: "16px",
-                border: "1px solid #1e293b",
-                background: "#020617",
-                padding: "14px",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "#64748b",
-                  marginBottom: "6px",
-                }}
-              >
-                Prévia da postagem
-              </p>
-              <p
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  marginBottom: "4px",
-                }}
-              >
-                {name || "Atleta"}
-              </p>
-              {text.trim().length > 0 && (
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#e5e7eb",
-                    marginBottom: previewUrl ? "8px" : 0,
-                  }}
-                >
-                  {text}
-                </p>
-              )}
-              {previewUrl && (
-                <div
-                  style={{
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    border: "1px solid #1e293b",
-                  }}
-                >
-                  <img
-                    src={previewUrl}
-                    alt="Prévia do treino"
-                    style={{
-                      width: "100%",
-                      height: "200px",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
+        {/* Nome do autor (somente leitura) */}
+        <div
+          style={{
+            marginBottom: 12,
+            fontSize: 13,
+            color: "#9ca3af",
+          }}
+        >
+          Publicando como{" "}
+          <span
+            style={{
+              color: "#e5e7eb",
+              fontWeight: 600,
+            }}
+          >
+            {authorName ?? "carregando..."}
+          </span>
         </div>
-      </main>
 
-      {/* NAV INFERIOR */}
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Escreva sua postagem..."
+            rows={5}
+            style={{
+              width: "100%",
+              borderRadius: 12,
+              padding: 10,
+              border: "1px solid rgba(55,65,81,0.9)",
+              backgroundColor: "#020617",
+              color: "#e5e7eb",
+              fontSize: 13,
+              resize: "vertical",
+            }}
+          />
+
+          {errorMsg && (
+            <p
+              style={{
+                fontSize: 12,
+                color: "#fca5a5",
+                margin: 0,
+              }}
+            >
+              {errorMsg}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !authorName}
+            style={{
+              marginTop: 4,
+              borderRadius: 999,
+              padding: "10px 16px",
+              border: "none",
+              fontSize: 14,
+              fontWeight: 600,
+              background:
+                "linear-gradient(to right, #22c55e, #16a34a, #15803d)",
+              color: "#0b1120",
+              cursor: loading || !authorName ? "not-allowed" : "pointer",
+              opacity: loading || !authorName ? 0.6 : 1,
+              transition: "opacity 0.15s ease-out",
+            }}
+          >
+            {loading ? "Publicando..." : "Publicar"}
+          </button>
+        </form>
+      </div>
+
       <BottomNavbar />
-    </div>
+    </main>
   );
 }
