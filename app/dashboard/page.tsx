@@ -1,463 +1,513 @@
-"use client";
+// app/dashboard/page.tsx
+import { createClient } from "@supabase/supabase-js";
 
-import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase-browser";
-import { useRouter } from "next/navigation";
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
 
-type Period = "all_time" | "last_30d" | "last_7d";
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
-interface Stats {
-  total_activities: number;
-  total_distance_m: number;
-  total_moving_time_s: number;
-  avg_distance_m: number;
-  by_sport_type: Record<
-    string,
-    { count: number; distance: number; moving_time: number }
-  >;
-}
+type StravaActivity = {
+  id: string;
+  athlete_id: number;
+  name: string | null;
+  type: string | null;
+  sport_type: string | null;
+  start_date: string | null;
+  distance: number | null;
+  moving_time: number | null;
+  total_elevation_gain: number | null;
+};
 
-interface SummaryResponse {
-  connected: boolean;
-  athlete_id?: number;
-  has_activities?: boolean;
-  last_activity?: {
-    name: string;
-    start_date: string;
-    distance_m: number;
-    sport_type: string;
-  } | null;
-  all_time?: Stats;
-  last_30d?: Stats;
-  last_7d?: Stats;
-  message?: string;
-}
+async function getActivities(): Promise<StravaActivity[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("strava_activities")
+      .select(
+        `
+        id,
+        athlete_id,
+        name,
+        type,
+        sport_type,
+        start_date,
+        distance,
+        moving_time,
+        total_elevation_gain
+      `
+      )
+      .order("start_date", { ascending: false })
+      .limit(1000);
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const [loadingSummary, setLoadingSummary] = useState(false);
-  const [summary, setSummary] = useState<SummaryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const [period, setPeriod] = useState<Period>("all_time");
-
-  useEffect(() => {
-    async function loadUser() {
-      const { data, error } = await supabaseBrowser.auth.getUser();
-      if (error) {
-        console.error(error);
-        setError("Erro ao carregar usuário. Faça login novamente.");
-        setLoadingUser(false);
-        return;
-      }
-      if (!data.user) {
-        router.push("/login");
-        return;
-      }
-      setUserId(data.user.id);
-      setLoadingUser(false);
+    if (error) {
+      console.error("Erro ao buscar atividades do Supabase:", error);
+      return [];
     }
 
-    loadUser();
-  }, [router]);
-
-  useEffect(() => {
-    async function loadSummary() {
-      if (!userId) return;
-      setLoadingSummary(true);
-      setError(null);
-
-      try {
-        const res = await fetch(
-          `/api/strava/summary?user_id=${encodeURIComponent(userId)}`
-        );
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || "Erro ao carregar resumo.");
-        }
-        const json: SummaryResponse = await res.json();
-        setSummary(json);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message ?? "Erro ao carregar resumo.");
-      } finally {
-        setLoadingSummary(false);
-      }
-    }
-
-    loadSummary();
-  }, [userId]);
-
-  function formatKm(meters: number | undefined) {
-    if (!meters || meters <= 0) return "0 km";
-    return (meters / 1000).toFixed(1) + " km";
+    return (data ?? []) as StravaActivity[];
+  } catch (err) {
+    console.error("Erro inesperado ao buscar atividades:", err);
+    return [];
   }
+}
 
-  function formatTime(seconds: number | undefined) {
-    if (!seconds || seconds <= 0) return "0h";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h === 0) return `${m} min`;
-    return `${h}h ${m}min`;
-  }
+function metersToKm(distance: number | null | undefined): number {
+  if (!distance || distance <= 0) return 0;
+  return distance / 1000;
+}
 
-  function getActiveStats(): Stats | null {
-    if (!summary) return null;
-    if (period === "all_time") return summary.all_time ?? null;
-    if (period === "last_30d") return summary.last_30d ?? null;
-    if (period === "last_7d") return summary.last_7d ?? null;
-    return null;
-  }
+function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds || seconds <= 0) return "0:00:00";
 
-  const activeStats = getActiveStats();
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
 
-  if (loadingUser || loadingSummary) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#0f172a",
-          color: "#e5e7eb",
-        }}
-      >
-        Carregando dashboard...
-      </div>
-    );
-  }
+  const hh = h.toString();
+  const mm = m.toString().padStart(2, "0");
+  const ss = s.toString().padStart(2, "0");
 
-  if (error) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#0f172a",
-          color: "#e5e7eb",
-          padding: "16px",
-        }}
-      >
-        {error}
-      </div>
-    );
-  }
+  return `${hh}:${mm}:${ss}`;
+}
 
-  if (!summary) {
-    return null;
-  }
+function formatPace(movingTime: number | null | undefined, distance: number | null | undefined): string {
+  if (!movingTime || !distance || distance <= 0) return "-";
 
-  if (!summary.connected) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#0f172a",
-          color: "#e5e7eb",
-          padding: "16px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "420px",
-            width: "100%",
-            background: "#020617",
-            padding: "24px",
-            borderRadius: "16px",
-            border: "1px solid #1e293b",
-          }}
-        >
-          <h1 style={{ fontSize: "24px", marginBottom: "8px" }}>
-            Conecte seu Strava
-          </h1>
-          <p style={{ color: "#94a3b8", marginBottom: "16px" }}>
-            {summary.message ??
-              "Nenhum Strava conectado. Vá para a página de integrações para conectar sua conta."}
-          </p>
-          <button
-            onClick={() => router.push("/integrations/strava")}
-            style={{
-              padding: "10px",
-              borderRadius: "999px",
-              border: "none",
-              background: "#fc4c02",
-              color: "#020617",
-              fontWeight: 700,
-              cursor: "pointer",
-              width: "100%",
-            }}
-          >
-            Conectar Strava
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const km = distance / 1000;
+  if (km <= 0) return "-";
 
-  if (!summary.has_activities) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#0f172a",
-          color: "#e5e7eb",
-          padding: "16px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "420px",
-            width: "100%",
-            background: "#020617",
-            padding: "24px",
-            borderRadius: "16px",
-            border: "1px solid #1e293b",
-          }}
-        >
-          <h1 style={{ fontSize: "24px", marginBottom: "8px" }}>
-            Nenhuma atividade ainda
-          </h1>
-          <p style={{ color: "#94a3b8" }}>
-            Sua conta Strava está conectada, mas nenhuma atividade foi importada.
-            Rode a rota de importação ou faça um treino novo.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const paceSeconds = movingTime / km;
+  const min = Math.floor(paceSeconds / 60);
+  const sec = Math.round(paceSeconds % 60);
 
-  // Dashboard normal
-  const lastActivity = summary.last_activity;
+  return `${min}:${sec.toString().padStart(2, "0")} /km`;
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "-";
+
+  return d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+  });
+}
+
+export default async function DashboardPage() {
+  const activities = await getActivities();
+
+  const totalDistance = activities.reduce(
+    (sum, a) => sum + metersToKm(a.distance),
+    0
+  );
+
+  const totalMovingTime = activities.reduce(
+    (sum, a) => sum + (a.moving_time ?? 0),
+    0
+  );
+
+  const totalElevation = activities.reduce(
+    (sum, a) => sum + (a.total_elevation_gain ?? 0),
+    0
+  );
+
+  const totalActivities = activities.length;
+
+  const lastActivities = activities.slice(0, 10);
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100vh",
         background: "#020617",
         color: "#e5e7eb",
-        padding: "24px",
+        padding: "16px",
       }}
     >
-      <header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: "26px", fontWeight: 700 }}>
-            SportPlatform – Dashboard
-          </h1>
-          <p style={{ color: "#94a3b8", marginTop: "4px" }}>
-            Resumo das atividades do Strava (athlete {summary.athlete_id}).
-          </p>
-        </div>
-        <button
-          onClick={() => router.push("/integrations/strava")}
-          style={{
-            padding: "8px 14px",
-            borderRadius: "999px",
-            border: "1px solid #334155",
-            background: "transparent",
-            color: "#e5e7eb",
-            cursor: "pointer",
-            fontSize: "14px",
-          }}
-        >
-          Gerenciar integração Strava
-        </button>
-      </header>
-
-      {/* Botões de período */}
-      <div style={{ marginBottom: "20px", display: "flex", gap: "8px" }}>
-        <PeriodButton
-          label="All time"
-          active={period === "all_time"}
-          onClick={() => setPeriod("all_time")}
-        />
-        <PeriodButton
-          label="Últimos 30 dias"
-          active={period === "last_30d"}
-          onClick={() => setPeriod("last_30d")}
-        />
-        <PeriodButton
-          label="Últimos 7 dias"
-          active={period === "last_7d"}
-          onClick={() => setPeriod("last_7d")}
-        />
-      </div>
-
-      {/* Cards principais */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "16px",
-          marginBottom: "24px",
+          maxWidth: "1100px",
+          margin: "0 auto",
         }}
       >
-        <Card
-          title="Atividades"
-          value={activeStats?.total_activities ?? 0}
-          subtitle={
-            period === "all_time"
-              ? "Total de atividades"
-              : "Atividades no período selecionado"
-          }
-        />
-        <Card
-          title="Distância"
-          value={formatKm(activeStats?.total_distance_m)}
-          subtitle="Distância total"
-        />
-        <Card
-          title="Tempo em movimento"
-          value={formatTime(activeStats?.total_moving_time_s)}
-          subtitle="Tempo total em treino"
-        />
-        <Card
-          title="Distância média"
-          value={formatKm(activeStats?.avg_distance_m)}
-          subtitle="Por atividade"
-        />
-      </div>
-
-      {/* Última atividade */}
-      {lastActivity && (
-        <div
+        {/* Header */}
+        <header
           style={{
-            marginBottom: "24px",
-            padding: "16px",
-            borderRadius: "12px",
-            border: "1px solid #1e293b",
-            background: "#020617",
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            marginBottom: "20px",
           }}
         >
-          <h2 style={{ fontSize: "18px", marginBottom: "8px" }}>
-            Última atividade
-          </h2>
-          <p style={{ marginBottom: "4px" }}>
-            <strong>{lastActivity.name}</strong>
-          </p>
-          <p style={{ marginBottom: "2px", color: "#94a3b8" }}>
-            {lastActivity.sport_type} • {formatKm(lastActivity.distance_m)}
-          </p>
-          <p style={{ fontSize: "12px", color: "#64748b" }}>
-            Início: {new Date(lastActivity.start_date).toLocaleString()}
-          </p>
-        </div>
-      )}
-
-      {/* Por tipo de esporte (all time) */}
-      {summary.all_time && (
-        <div
-          style={{
-            padding: "16px",
-            borderRadius: "12px",
-            border: "1px solid #1e293b",
-            background: "#020617",
-          }}
-        >
-          <h2 style={{ fontSize: "18px", marginBottom: "8px" }}>
-            Distribuição por esporte (All time)
-          </h2>
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: "12px",
+              display: "flex",
+              gap: "8px",
+              alignItems: "center",
             }}
           >
-            {Object.entries(summary.all_time.by_sport_type).map(
-              ([sport, stats]) => (
-                <div
-                  key={sport}
-                  style={{
-                    padding: "12px",
-                    borderRadius: "10px",
-                    border: "1px solid #1e293b",
-                    background: "#020617",
-                  }}
-                >
-                  <p style={{ fontWeight: 600, marginBottom: "4px" }}>
-                    {sport}
-                  </p>
-                  <p style={{ fontSize: "14px", color: "#cbd5e1" }}>
-                    {stats.count} atividades
-                  </p>
-                  <p style={{ fontSize: "12px", color: "#94a3b8" }}>
-                    {formatKm(stats.distance)} • {formatTime(stats.moving_time)}
-                  </p>
-                </div>
-              )
-            )}
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: "999px",
+                background:
+                  "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 16,
+                fontWeight: 700,
+                color: "#0b1120",
+              }}
+            >
+              SP
+            </div>
+            <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  margin: 0,
+                }}
+              >
+                SportPlatform
+              </p>
+              <h1
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  margin: 0,
+                }}
+              >
+                Dashboard de Performance
+              </h1>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: 0,
+            }}
+          >
+            Visão geral das atividades sincronizadas com o Strava. Distâncias,
+            tempo em movimento, ritmo médio e elevação total em um único lugar.
+          </p>
+        </header>
 
-function Card(props: {
-  title: string;
-  value: string | number;
-  subtitle?: string;
-}) {
-  return (
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "12px",
-        border: "1px solid #1e293b",
-        background: "#020617",
-      }}
-    >
-      <p style={{ fontSize: "13px", color: "#9ca3af", marginBottom: "6px" }}>
-        {props.title}
-      </p>
-      <p style={{ fontSize: "22px", fontWeight: 700 }}>{props.value}</p>
-      {props.subtitle && (
-        <p style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>
-          {props.subtitle}
-        </p>
-      )}
-    </div>
-  );
-}
+        {/* Cards principais */}
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: "12px",
+            marginBottom: "20px",
+          }}
+        >
+          <div
+            style={{
+              borderRadius: "18px",
+              padding: "14px 14px",
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              border: "1px solid rgba(34,197,94,0.35)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                color: "#86efac",
+                marginBottom: 4,
+              }}
+            >
+              Distância total
+            </p>
+            <p
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                marginBottom: 2,
+              }}
+            >
+              {totalDistance.toFixed(1)} km
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+              }}
+            >
+              Soma de todas as atividades importadas.
+            </p>
+          </div>
 
-function PeriodButton(props: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={props.onClick}
-      style={{
-        padding: "6px 12px",
-        borderRadius: "999px",
-        border: props.active ? "1px solid #22c55e" : "1px solid #334155",
-        background: props.active ? "#16a34a" : "transparent",
-        color: props.active ? "#0f172a" : "#e5e7eb",
-        fontSize: "13px",
-        cursor: "pointer",
-      }}
-    >
-      {props.label}
-    </button>
+          <div
+            style={{
+              borderRadius: "18px",
+              padding: "14px 14px",
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              border: "1px solid rgba(59,130,246,0.35)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                color: "#93c5fd",
+                marginBottom: 4,
+              }}
+            >
+              Tempo em movimento
+            </p>
+            <p
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                marginBottom: 2,
+              }}
+            >
+              {formatDuration(totalMovingTime)}
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+              }}
+            >
+              Total de horas em treino registrado.
+            </p>
+          </div>
+
+          <div
+            style={{
+              borderRadius: "18px",
+              padding: "14px 14px",
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              border: "1px solid rgba(248,113,113,0.35)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                color: "#fca5a5",
+                marginBottom: 4,
+              }}
+            >
+              Elevação acumulada
+            </p>
+            <p
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                marginBottom: 2,
+              }}
+            >
+              {Math.round(totalElevation)} m
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+              }}
+            >
+              Ganho de altitude em todas as atividades.
+            </p>
+          </div>
+
+          <div
+            style={{
+              borderRadius: "18px",
+              padding: "14px 14px",
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              border: "1px solid rgba(148,163,184,0.35)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: 11,
+                color: "#e5e7eb",
+                marginBottom: 4,
+              }}
+            >
+              Atividades importadas
+            </p>
+            <p
+              style={{
+                fontSize: 22,
+                fontWeight: 700,
+                marginBottom: 2,
+              }}
+            >
+              {totalActivities}
+            </p>
+            <p
+              style={{
+                fontSize: 11,
+                color: "#6b7280",
+              }}
+            >
+              Registros sincronizados com o Strava.
+            </p>
+          </div>
+        </section>
+
+        {/* Últimas atividades */}
+        <section
+          style={{
+            borderRadius: "20px",
+            border: "1px solid rgba(148,163,184,0.35)",
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: "24px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "8px",
+              alignItems: "baseline",
+              marginBottom: "10px",
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                Últimas atividades
+              </h2>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#9ca3af",
+                  margin: 0,
+                }}
+              >
+                As 10 atividades mais recentes importadas do Strava.
+              </p>
+            </div>
+          </div>
+
+          {lastActivities.length === 0 ? (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#9ca3af",
+                marginTop: 8,
+              }}
+            >
+              Nenhuma atividade encontrada. Conecte o Strava e sincronize seus
+              treinos.
+            </p>
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                overflowX: "auto",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 12,
+                  minWidth: 520,
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom: "1px solid rgba(55,65,81,0.8)",
+                      color: "#9ca3af",
+                      textAlign: "left",
+                    }}
+                  >
+                    <th style={{ padding: "8px 4px" }}>Data</th>
+                    <th style={{ padding: "8px 4px" }}>Atividade</th>
+                    <th style={{ padding: "8px 4px" }}>Tipo</th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                      Distância
+                    </th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                      Tempo
+                    </th>
+                    <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                      Ritmo
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lastActivities.map((a) => (
+                    <tr
+                      key={a.id}
+                      style={{
+                        borderBottom: "1px solid rgba(31,41,55,0.7)",
+                      }}
+                    >
+                      <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>
+                        {formatDate(a.start_date)}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          maxWidth: 220,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {a.name ?? "-"}
+                      </td>
+                      <td style={{ padding: "8px 4px" }}>
+                        {a.sport_type ?? a.type ?? "-"}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          textAlign: "right",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {metersToKm(a.distance).toFixed(2)} km
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          textAlign: "right",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {formatDuration(a.moving_time)}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          textAlign: "right",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {formatPace(a.moving_time, a.distance)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }
