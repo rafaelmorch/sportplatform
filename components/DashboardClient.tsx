@@ -24,7 +24,7 @@ type EventsSummary = {
   userEvents: number;
 };
 
-type RangeKey = "today" | "7d" | "30d" | "6m";
+type RangeKey = "all" | "today" | "7d" | "30d" | "6m";
 
 function metersToKm(distance: number | null | undefined): number {
   if (!distance || distance <= 0) return 0;
@@ -75,6 +75,8 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean {
+  if (range === "all") return true; // Tudo = sem filtro
+
   if (!dateStr) return false;
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return false;
@@ -218,6 +220,7 @@ export default function DashboardClient({
   );
 
   const ranges: { key: RangeKey; label: string }[] = [
+    { key: "all", label: "Tudo" },
     { key: "today", label: "Hoje" },
     { key: "7d", label: "7 dias" },
     { key: "30d", label: "30 dias" },
@@ -358,7 +361,8 @@ export default function DashboardClient({
               textTransform: "uppercase",
             }}
           >
-            {athleteLabel} · período selecionado
+            {athleteLabel}
+            {range === "all" ? " · todo período" : " · período selecionado"}
           </p>
           <p
             style={{
@@ -445,7 +449,8 @@ export default function DashboardClient({
               textTransform: "uppercase",
             }}
           >
-            Grupo · período selecionado
+            Grupo
+            {range === "all" ? " · todo período" : " · período selecionado"}
           </p>
           <p
             style={{
@@ -516,7 +521,7 @@ export default function DashboardClient({
         </div>
       </section>
 
-      {/* Linha 2: Eventos disponíveis / cadastrados (não filtrados por período de treino) */}
+      {/* Linha 2: Eventos disponíveis / cadastrados */}
       <section
         style={{
           display: "grid",
@@ -692,7 +697,10 @@ export default function DashboardClient({
                 margin: 0,
               }}
             >
-              Últimas atividades (período selecionado)
+              Últimas atividades
+              {range === "all"
+                ? " (todo período)"
+                : " (dentro do período selecionado)"}
             </h2>
             <p
               style={{
