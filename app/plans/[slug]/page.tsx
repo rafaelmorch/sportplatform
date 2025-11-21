@@ -1,322 +1,356 @@
 // app/plans/[slug]/page.tsx
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { trainingPlans } from "../plans-data";
 import BottomNavbar from "@/components/BottomNavbar";
 
-type PlanPageProps = {
+type PageProps = {
   params: { slug: string };
 };
 
-type PlanContent = {
-  slug: string;
-  title: string;
-  shortDescription: string;
-  description: string;
-  durationLabel: string;
-  weeklyLoadLabel: string;
-  priceLabel: string;
-  recommendedFor: string[];
-};
+export default function PlanDetailPage({ params }: PageProps) {
+  const plan = trainingPlans.find((p) => p.slug === params.slug);
 
-// planos “oficiais”
-const PLANS: Record<string, PlanContent> = {
-  "starter-5k": {
-    slug: "starter-5k",
-    title: "Starter 5K",
-    shortDescription:
-      "Plano de 8 semanas para sair do zero e completar 5K com segurança.",
-    description:
-      "O Starter 5K foi pensado para quem está começando e quer completar seus primeiros 5 quilômetros correndo, sem pressa e sem se machucar. Volume progressivo, treinos curtos e orientação clara em cada semana.",
-    durationLabel: "8 semanas",
-    weeklyLoadLabel: "3 a 4 sessões por semana",
-    priceLabel: "US$ 29",
-    recommendedFor: ["Beginners Running", "Running for Weight Loss"],
-  },
-  "premium-10k": {
-    slug: "premium-10k",
-    title: "Premium 10K Performance",
-    shortDescription:
-      "Plano para baixar tempo nos 10K com controle de ritmo e intensidade.",
-    description:
-      "Focado em atletas que já correm 5K ou 10K e querem melhorar tempo. Estrutura com treinos intervalados, tempo run e rodagem controlada, sempre com foco em performance e recuperação.",
-    durationLabel: "10 semanas",
-    weeklyLoadLabel: "4 a 5 sessões por semana",
-    priceLabel: "US$ 39",
-    recommendedFor: ["Performance 5K", "Performance 10K"],
-  },
-  "marathon-pro": {
-    slug: "marathon-pro",
-    title: "Marathon Pro",
-    shortDescription:
-      "Preparação completa para maratona com foco em resistência e consistência.",
-    description:
-      "Plano voltado para atletas que querem completar ou melhorar o tempo em uma maratona. Inclui longões progressivos, blocos de força na corrida e semanas de descarga para absorver o treinamento.",
-    durationLabel: "16 semanas",
-    weeklyLoadLabel: "4 a 6 sessões por semana",
-    priceLabel: "US$ 59",
-    recommendedFor: ["Maratona", "Performance 10K"],
-  },
-  "triathlon-complete": {
-    slug: "triathlon-complete",
-    title: "Triathlon Complete",
-    shortDescription:
-      "Estrutura integrada de natação, ciclismo e corrida para provas short ou olímpico.",
-    description:
-      "Plano pensado para quem quer organizar a rotina de treinos das três modalidades sem excesso de carga. Distribui sessões ao longo da semana com foco em consistência, técnica e transições.",
-    durationLabel: "12 semanas",
-    weeklyLoadLabel: "5 a 7 sessões por semana (multi-esporte)",
-    priceLabel: "US$ 69",
-    recommendedFor: ["Triathlon"],
-  },
-  "weight-loss-plus": {
-    slug: "weight-loss-plus",
-    title: "Weight Loss Plus",
-    shortDescription:
-      "Plano de corrida e caminhada para quem quer perder peso com segurança e controle.",
-    description:
-      "Combina treinos de baixa e moderada intensidade com dias de caminhada ativa. Ideal para quem quer reduzir peso, melhorar condicionamento geral e criar hábito consistente de movimento.",
-    durationLabel: "10 semanas",
-    weeklyLoadLabel: "3 a 5 sessões por semana",
-    priceLabel: "US$ 34",
-    recommendedFor: ["Running for Weight Loss", "Beginners Running"],
-  },
-};
-
-// transformar slug em título amigável
-function formatSlugTitle(slug: string) {
-  return slug
-    .replace(/[-_]+/g, " ")
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
-export default function PlanDetailPage({ params }: PlanPageProps) {
-  const { slug } = params;
-
-  const existing = PLANS[slug];
-
-  const plan: PlanContent =
-    existing ??
-    {
-      slug,
-      title: formatSlugTitle(slug),
-      shortDescription:
-        "Plano de treino configurado automaticamente a partir do seu objetivo.",
-      description:
-        "Este plano foi gerado a partir do link acessado. Ele representa um programa estruturado de corrida com foco em progressão segura, controle de carga semanal e acompanhamento dos principais indicadores do atleta.",
-      durationLabel: "8 a 12 semanas",
-      weeklyLoadLabel: "3 a 5 sessões por semana",
-      priceLabel: "Plano sob consulta",
-      recommendedFor: ["Atletas conectados ao SportPlatform"],
-    };
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+  if (!plan) {
+    return (
       <main
         style={{
-          flex: 1,
-          padding: "16px",
-          paddingBottom: "72px",
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          padding: "24px 16px 80px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "flex-start",
         }}
       >
-        <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-          {/* Header */}
-          <header
+        <h1
+          style={{
+            fontSize: "24px",
+            fontWeight: 700,
+            marginBottom: "8px",
+          }}
+        >
+          Plano não encontrado
+        </h1>
+        <p
+          style={{
+            marginBottom: "24px",
+            fontSize: "14px",
+            color: "#9ca3af",
+          }}
+        >
+          Não encontramos este plano de treino. Verifique o link ou volte para a
+          lista de planos.
+        </p>
+
+        <Link
+          href="/plans"
+          style={{
+            background:
+              "linear-gradient(135deg, #22c55e, #16a34a)",
+            color: "#020617",
+            padding: "10px 18px",
+            borderRadius: "999px",
+            fontSize: "14px",
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Voltar para planos
+        </Link>
+
+        <BottomNavbar />
+      </main>
+    );
+  }
+
+  return (
+    <>
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          padding: "24px 16px 80px",
+          maxWidth: "800px",
+          margin: "0 auto",
+        }}
+      >
+        {/* Breadcrumb / voltar */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "16px",
+            fontSize: "13px",
+            color: "#9ca3af",
+          }}
+        >
+          <Link
+            href="/plans"
             style={{
-              marginBottom: "16px",
+              textDecoration: "none",
+              color: "#9ca3af",
+            }}
+          >
+            Planos
+          </Link>
+          <span>/</span>
+          <span style={{ color: "#e5e7eb" }}>{plan.title}</span>
+        </div>
+
+        {/* “badge” topo */}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "11px",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "#a5b4fc",
+            background: "rgba(79, 70, 229, 0.18)",
+            borderRadius: "999px",
+            padding: "4px 10px",
+            marginBottom: "12px",
+          }}
+        >
+          Plano de treino • Nível {plan.level}
+        </span>
+
+        {/* Título principal */}
+        <h1
+          style={{
+            fontSize: "26px",
+            lineHeight: 1.2,
+            fontWeight: 700,
+            marginBottom: "12px",
+          }}
+        >
+          {plan.title}
+        </h1>
+
+        {/* Subtítulo / resumo curto */}
+        <p
+          style={{
+            fontSize: "14px",
+            color: "#9ca3af",
+            marginBottom: "20px",
+          }}
+        >
+          Plano estruturado para evoluir com consistência, usando os dados do
+          Strava para ajustar intensidade e volume semana a semana.
+        </p>
+
+        {/* Cartão principal do plano */}
+        <section
+          style={{
+            borderRadius: "18px",
+            border: "1px solid #1f2937",
+            background:
+              "radial-gradient(circle at top, #111827, #020617 65%)",
+            padding: "18px 16px 16px",
+            marginBottom: "18px",
+          }}
+        >
+          {/* “preço fake” só como visual – sem usar plan.price */}
+          <div
+            style={{
               display: "flex",
               justifyContent: "space-between",
-              gap: "12px",
-              alignItems: "center",
+              alignItems: "baseline",
+              marginBottom: "10px",
+              gap: "8px",
             }}
           >
             <div>
-              <h1
+              <div
                 style={{
-                  fontSize: "20px",
-                  fontWeight: 800,
+                  fontSize: "13px",
+                  color: "#9ca3af",
                   marginBottom: "4px",
                 }}
               >
-                {plan.title}
-              </h1>
-              <p
+                Investimento mensal
+              </div>
+              <div
                 style={{
-                  fontSize: "13px",
-                  color: "#94a3b8",
+                  fontSize: "24px",
+                  fontWeight: 700,
+                  color: "#22c55e",
                 }}
               >
-                {plan.shortDescription}
-              </p>
+                R$ 197
+                <span
+                  style={{
+                    fontSize: "12px",
+                    color: "#6b7280",
+                    marginLeft: "4px",
+                    fontWeight: 400,
+                  }}
+                >
+                  /mês
+                </span>
+              </div>
             </div>
-            <a
-              href="/plans"
+
+            <span
               style={{
-                fontSize: "12px",
-                color: "#e5e7eb",
+                fontSize: "11px",
+                padding: "4px 10px",
+                borderRadius: "999px",
+                background: "#111827",
+                color: "#9ca3af",
+                border: "1px solid #1f2937",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Estrutura pronta para dashboard
+            </span>
+          </div>
+
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+              marginBottom: "14px",
+            }}
+          >
+            Ideal para atletas que já usam Strava e querem acompanhar evolução
+            de ritmo, volume semanal e performance em treinos chave.
+          </p>
+
+          {/* Botões principais */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
+            <Link
+              href={`/checkout/${plan.slug}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "10px 14px",
+                borderRadius: "999px",
+                background:
+                  "linear-gradient(135deg, #22c55e, #16a34a)",
+                color: "#020617",
+                fontSize: "14px",
+                fontWeight: 600,
                 textDecoration: "none",
               }}
             >
-              Ver todos os planos
-            </a>
-          </header>
+              Contratar este plano
+            </Link>
 
-          {/* Info principal */}
-          <section
-            style={{
-              borderRadius: "16px",
-              border: "1px solid #1e293b",
-              background: "#020617",
-              padding: "14px",
-              marginBottom: "14px",
-            }}
-          >
-            <p
+            <Link
+              href="/groups"
               style={{
-                fontSize: "13px",
-                color: "#cbd5e1",
-                marginBottom: "8px",
-              }}
-            >
-              {plan.description}
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "10px",
-                fontSize: "12px",
-                color: "#94a3b8",
-                marginTop: "4px",
-              }}
-            >
-              <span>Duração: {plan.durationLabel}</span>
-              <span>Carga semanal: {plan.weeklyLoadLabel}</span>
-            </div>
-          </section>
-
-          {/* Indicado para */}
-          <section
-            style={{
-              borderRadius: "16px",
-              border: "1px solid #1e293b",
-              background:
-                "radial-gradient(circle at top, #0f172a, #020617 60%)",
-              padding: "14px",
-              marginBottom: "14px",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                marginBottom: "6px",
-              }}
-            >
-              Indicado para
-            </h2>
-
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "6px",
-                marginBottom: "6px",
-              }}
-            >
-              {plan.recommendedFor.map((g) => (
-                <span
-                  key={g}
-                  style={{
-                    fontSize: "11px",
-                    padding: "3px 8px",
-                    borderRadius: "999px",
-                    background: "#020617",
-                    border: "1px solid #1f2937",
-                    color: "#9ca3af",
-                  }}
-                >
-                  {g}
-                </span>
-              ))}
-            </div>
-
-            <p
-              style={{
-                fontSize: "12px",
-                color: "#94a3b8",
-              }}
-            >
-              O plano foi estruturado para encaixar com diferentes perfis de
-              atleta e níveis de experiência, sempre com progressão controlada.
-            </p>
-          </section>
-
-          {/* Bloco de preço / CTA */}
-          <section
-            style={{
-              borderRadius: "16px",
-              border: "1px solid #1e293b",
-              background: "#020617",
-              padding: "14px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: "12px",
+                justifyContent: "center",
+                padding: "9px 14px",
+                borderRadius: "999px",
+                border: "1px solid #374151",
+                background: "transparent",
+                color: "#e5e7eb",
+                fontSize: "13px",
+                textDecoration: "none",
               }}
             >
-              <div>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#cbd5e1",
-                  }}
-                >
-                  Investimento
-                </p>
-                <p
-                  style={{
-                    fontSize: "18px",
-                    fontWeight: 800,
-                    color: "#4ade80",
-                  }}
-                >
-                  {plan.priceLabel}
-                </p>
-              </div>
-              <a
-                href={`/checkout/${plan.slug}`}
-                style={{
-                  fontSize: "13px",
-                  padding: "8px 16px",
-                  borderRadius: "999px",
-                  background: "#22c55e",
-                  color: "#020617",
-                  textDecoration: "none",
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Continuar para checkout
-              </a>
-            </div>
-          </section>
-        </div>
+              Ver grupos indicados para este plano
+            </Link>
+          </div>
+        </section>
+
+        {/* Descrição principal do plano (usa só plan.description) */}
+        <section
+          style={{
+            borderRadius: "14px",
+            border: "1px solid #111827",
+            background: "#020617",
+            padding: "14px 12px",
+            marginBottom: "16px",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "15px",
+              fontWeight: 600,
+              marginBottom: "8px",
+            }}
+          >
+            Como funciona o plano
+          </h2>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+              marginBottom: "10px",
+            }}
+          >
+            {plan.description}
+          </p>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+            }}
+          >
+            A estrutura foi pensada para integrar métricas do Strava (tempo,
+            distância, altimetria e esforço percebido) em um painel simples de
+            acompanhamento de performance.
+          </p>
+        </section>
+
+        {/* Sessão de highlights fixos – sem depender de campos extras */}
+        <section
+          style={{
+            borderRadius: "14px",
+            border: "1px solid #111827",
+            background: "#020617",
+            padding: "14px 12px",
+            marginBottom: "24px",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "15px",
+              fontWeight: 600,
+              marginBottom: "10px",
+            }}
+          >
+            O que você acompanha no SportPlatform
+          </h2>
+
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              fontSize: "13px",
+              color: "#9ca3af",
+            }}
+          >
+            <li>• Volume semanal de quilômetros sincronizado via Strava</li>
+            <li>• Ritmo médio por treino e por semana</li>
+            <li>• Comparação entre treinos-chave (ex: tempo de 5K / 10K)</li>
+            <li>• Visualização simples para apresentar em dashboards</li>
+          </ul>
+        </section>
       </main>
 
       <BottomNavbar />
-    </div>
+    </>
   );
 }
