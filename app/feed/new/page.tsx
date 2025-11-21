@@ -1,7 +1,7 @@
 // app/feed/new/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import BottomNavbar from "@/components/BottomNavbar";
@@ -15,6 +15,40 @@ export default function NewPostPage() {
   const [loading, setLoading] = useState(false);
 
   const isValid = text.trim().length > 0;
+
+  // 🔹 Preencher automaticamente o campo Nome com o usuário logado
+  useEffect(() => {
+    async function loadUserName() {
+      const {
+        data: { user },
+        error,
+      } = await supabaseBrowser.auth.getUser();
+
+      if (error) {
+        console.error("Erro ao buscar usuário do Supabase:", error.message);
+        return;
+      }
+
+      if (!user) {
+        // não logado → deixa o campo vazio
+        return;
+      }
+
+      const meta = user.user_metadata || {};
+
+      const fullName =
+        meta.full_name ||
+        meta.name ||
+        meta.nome ||
+        (user.email ? user.email.split("@")[0] : "");
+
+      if (fullName) {
+        setName(fullName);
+      }
+    }
+
+    loadUserName();
+  }, []);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -174,7 +208,7 @@ export default function NewPostPage() {
                   fontWeight: 500,
                 }}
               >
-                Nome (opcional)
+                Nome
               </label>
               <input
                 type="text"
