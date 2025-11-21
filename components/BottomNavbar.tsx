@@ -7,29 +7,28 @@ import { usePathname } from "next/navigation";
 type NavItem = {
   label: string;
   href: string;
-  icon?: string;
 };
 
 const navItems: NavItem[] = [
   {
     label: "Performance",
     href: "/dashboard",
-    icon: "📊",
   },
   {
     label: "Feed",
     href: "/feed",
-    icon: "🖼️",
   },
   {
     label: "Grupos",
     href: "/groups",
-    icon: "👥",
   },
   {
     label: "Planos",
     href: "/plans",
-    icon: "📋",
+  },
+  {
+    label: "Perfil",
+    href: "/profile",
   },
 ];
 
@@ -72,8 +71,8 @@ export default function BottomNavbar() {
               style={{
                 flex: 1,
                 textAlign: "center",
-                fontSize: 11,
-                padding: "6px 4px",
+                fontSize: 12,
+                padding: "8px 4px",
                 borderRadius: 999,
                 textDecoration: "none",
                 border: isActive
@@ -88,21 +87,10 @@ export default function BottomNavbar() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
                 whiteSpace: "nowrap",
               }}
             >
-              {item.icon && (
-                <span
-                  style={{
-                    fontSize: 14,
-                    marginRight: 2,
-                  }}
-                >
-                  {item.icon}
-                </span>
-              )}
-              <span>{item.label}</span>
+              {item.label}
             </Link>
           );
         })}
