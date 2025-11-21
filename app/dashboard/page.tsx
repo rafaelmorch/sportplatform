@@ -26,7 +26,8 @@ type EventsSummary = {
 };
 
 type DailyPoint = {
-  label: string;        // "12/11"
+  date: string; // "2025-11-21"
+  label: string; // "21/11"
   distanceKm: number;
   movingTimeMin: number;
 };
@@ -72,7 +73,7 @@ async function getActivities(): Promise<StravaActivity[]> {
 async function getEventsSummary(): Promise<EventsSummary> {
   return {
     availableEvents: 3, // número de eventos que você tem em /events
-    userEvents: 0,      // depois a gente conecta com inscrições/cadastro real
+    userEvents: 0, // depois a gente conecta com inscrições/cadastro real
   };
 }
 
@@ -135,6 +136,10 @@ export default async function DashboardPage() {
     : activities;
 
   const groupActivities = activities;
+
+  const athleteLabel = currentAthleteId
+    ? `Atleta ${currentAthleteId}`
+    : "Atleta";
 
   // --- Métricas do atleta ---
   const athleteDistance = athleteActivities.reduce(
@@ -201,7 +206,8 @@ export default async function DashboardPage() {
 
   const dailyData: DailyPoint[] = Array.from(dailyMap.entries())
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([, v]) => ({
+    .map(([key, v]) => ({
+      date: key,
       label: v.label,
       distanceKm: Number(v.distanceKm.toFixed(2)),
       movingTimeMin: Number(v.movingTimeMin.toFixed(1)),
@@ -332,7 +338,7 @@ export default async function DashboardPage() {
                 textTransform: "uppercase",
               }}
             >
-              Atleta (logado)
+              {athleteLabel}
             </p>
             <p
               style={{
