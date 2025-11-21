@@ -1,367 +1,296 @@
 // app/groups/[slug]/page.tsx
+import Link from "next/link";
+import { trainingGroups } from "../groups-data";
+import { trainingPlans } from "../../plans/plans-data";
 import BottomNavbar from "@/components/BottomNavbar";
 
 type GroupPageProps = {
   params: { slug: string };
 };
 
-type GroupContent = {
-  slug: string;
-  title: string;
-  shortDescription: string;
-  description: string;
-  levelLabel: string;
-  tags: string[];
-  challenge?: {
-    description: string;
-    mainMetric: string;
-  };
+// Mapa de planos recomendados por grupo (slug → slugs de planos)
+const groupToPlansMap: Record<string, string[]> = {
+  "beginners-running": ["starter-5k", "weight-loss-plus"],
+  marathon: ["marathon-pro", "premium-10k"],
+  triathlon: ["triathlon-complete", "marathon-pro"],
+  "weight-loss-running": ["weight-loss-plus", "starter-5k"],
+  "performance-5k": ["starter-5k", "premium-10k"],
+  "performance-10k": ["premium-10k", "marathon-pro"],
 };
 
-const GROUPS: Record<string, GroupContent> = {
-  "beginners-running": {
-    slug: "beginners-running",
-    title: "Beginners Running",
-    shortDescription: "Grupo para quem está começando agora na corrida.",
-    description:
-      "Foco em criar base sólida de corrida e caminhada, com muita orientação de ritmo leve, progressão suave e atenção total à consistência. Ideal para quem está dando os primeiros passos ou voltando depois de um tempo parado.",
-    levelLabel: "Iniciante",
-    tags: ["Base aeróbia", "Corrida + caminhada", "Hábito diário"],
-    challenge: {
-      description:
-        "Completar 30 dias de movimento (corrida ou caminhada) com pelo menos 20 minutos de atividade.",
-      mainMetric: "Dias ativos em 30 dias",
-    },
-  },
-  marathon: {
-    slug: "marathon",
-    title: "Maratona",
-    shortDescription: "Comunidade focada em preparação para maratonas.",
-    description:
-      "Espaço para quem está treinando para sua primeira maratona ou buscando melhorar tempo. Troca de experiências sobre longões, nutrição de prova, recuperação e estratégias de ritmo.",
-    levelLabel: "Intermediário / Avançado",
-    tags: ["Longão", "Endurance", "Prova-alvo"],
-    challenge: {
-      description:
-        "Completar 4 longões em 30 dias, com progressão de distância ou tempo.",
-      mainMetric: "Longões concluídos",
-    },
-  },
-  triathlon: {
-    slug: "triathlon",
-    title: "Triathlon",
-    shortDescription: "Grupo para quem treina natação, ciclismo e corrida.",
-    description:
-      "Organização de rotina multi-esporte, com foco em encaixar natação, bike e corrida dentro da semana. Espaço para discutir transições, treinos brick e estratégias de prova em diferentes distâncias.",
-    levelLabel: "Intermediário",
-    tags: ["Multiesporte", "Transições", "Brick sessions"],
-    challenge: {
-      description:
-        "Realizar pelo menos 2 treinos combinados (brick) por semana ao longo de 4 semanas.",
-      mainMetric: "Treinos combinados",
-    },
-  },
-  "weight-loss-running": {
-    slug: "weight-loss-running",
-    title: "Running for Weight Loss",
-    shortDescription:
-      "Foco em perda de peso com corrida e caminhada estruturadas.",
-    description:
-      "Grupo para quem quer usar a corrida (e caminhada) como ferramenta de controle de peso, com abordagem cuidadosa de carga, recuperação e acompanhamento de evolução sem extremos.",
-    levelLabel: "Todos os níveis",
-    tags: ["Perda de peso", "Baixa intensidade", "Consistência"],
-    challenge: {
-      description:
-        "Acumular pelo menos 10 horas de movimento leve/moderado ao longo de 30 dias.",
-      mainMetric: "Tempo em movimento",
-    },
-  },
-  "performance-5k": {
-    slug: "performance-5k",
-    title: "Performance 5K",
-    shortDescription: "Comunidade focada em baixar tempo nos 5 km.",
-    description:
-      "Aqui o foco é velocidade controlada, treinos intervalados bem desenhados e estratégias para provas de 5K. Ideal para quem já corre e quer ver o cronômetro descer.",
-    levelLabel: "Intermediário",
-    tags: ["Velocidade", "Intervalado", "Controle de ritmo"],
-    challenge: {
-      description:
-        "Executar 2 sessões de treino de ritmo/intervalado por semana durante 4 semanas.",
-      mainMetric: "Sessões de intensidade concluídas",
-    },
-  },
-  "performance-10k": {
-    slug: "performance-10k",
-    title: "Performance 10K",
-    shortDescription: "Foco em performance e controle de ritmo em 10K.",
-    description:
-      "Grupo para atletas que já correm com regularidade e querem trabalhar resistência em ritmo forte, controle de pace e estratégia de prova em 10 quilômetros.",
-    levelLabel: "Intermediário / Avançado",
-    tags: ["Tempo run", "Progressivo", "Controle de carga"],
-    challenge: {
-      description:
-        "Finalizar pelo menos 3 treinos tempo run ou progressivos em 4 semanas.",
-      mainMetric: "Sessões chave concluídas",
-    },
-  },
-};
-
-function formatSlugTitle(slug: string) {
+function humanizeSlug(slug: string | undefined): string {
+  if (!slug) return "Grupo de treino";
   return slug
-    .replace(/[-_]+/g, " ")
-    .split(" ")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 }
 
 export default function GroupDetailPage({ params }: GroupPageProps) {
-  const { slug } = params;
+  const slug = Array.isArray(params.slug) ? params.slug[0] : params.slug;
 
-  const existing = GROUPS[slug];
+  const group = trainingGroups.find((g) => g.slug === slug);
 
-  const group: GroupContent =
-    existing ??
-    {
-      slug,
-      title: formatSlugTitle(slug),
-      shortDescription:
-        "Grupo configurado automaticamente a partir do seu objetivo.",
-      description:
-        "Este grupo foi gerado a partir do link acessado. Ele representa uma comunidade de atletas com objetivos parecidos, compartilhando métricas, desafios mensais e evolução dentro da SportPlatform.",
-      levelLabel: "Todos os níveis",
-      tags: ["Comunidade", "Evolução contínua"],
-      challenge: {
-        description:
-          "Participar ativamente por 30 dias registrando treinos e interagindo com os desafios propostos.",
-        mainMetric: "Dias ativos no grupo",
-      },
-    };
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+  if (!group) {
+    return (
       <main
         style={{
-          flex: 1,
-          padding: "16px",
-          paddingBottom: "72px",
+          minHeight: "100vh",
+          padding: "24px 16px 90px",
+          background: "radial-gradient(circle at top, #020617, #000000 55%)",
+          color: "white",
         }}
       >
-        <div style={{ maxWidth: "720px", margin: "0 auto" }}>
-          {/* Header */}
-          <header
+        <h1
+          style={{
+            fontSize: "28px",
+            fontWeight: 800,
+            marginBottom: "12px",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          Grupo não encontrado
+        </h1>
+        <p
+          style={{
+            opacity: 0.8,
+            maxWidth: "520px",
+            marginBottom: "24px",
+          }}
+        >
+          Não encontramos este grupo. Verifique o link ou volte para a lista de
+          grupos.
+        </p>
+        <Link
+          href="/groups"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "10px 18px",
+            borderRadius: "999px",
+            background: "#22c55e",
+            color: "#020617",
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Voltar para grupos
+        </Link>
+
+        <BottomNavbar />
+      </main>
+    );
+  }
+
+  const pageTitle = group.title || humanizeSlug(slug);
+
+  const relatedPlanSlugs = groupToPlansMap[slug] ?? [];
+  const relatedPlans = trainingPlans.filter((plan) =>
+    relatedPlanSlugs.includes(plan.slug)
+  );
+
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        padding: "24px 16px 90px",
+        background:
+          "radial-gradient(circle at top, #020617, #020617 40%, #000000 100%)",
+        color: "white",
+      }}
+    >
+      {/* Cabeçalho */}
+      <header
+        style={{
+          marginBottom: "20px",
+        }}
+      >
+        <Link
+          href="/groups"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "14px",
+            color: "#9ca3af",
+            textDecoration: "none",
+            marginBottom: "12px",
+          }}
+        >
+          ← Voltar para grupos
+        </Link>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          <span
             style={{
-              marginBottom: "16px",
-              display: "flex",
-              justifyContent: "space-between",
-              gap: "12px",
+              display: "inline-flex",
               alignItems: "center",
+              padding: "4px 10px",
+              borderRadius: "999px",
+              border: "1px solid rgba(148, 163, 184, 0.4)",
+              fontSize: "11px",
+              color: "#e5e7eb",
+              width: "fit-content",
+              background:
+                "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,23,42,0.5))",
             }}
           >
-            <div>
-              <h1
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 800,
-                  marginBottom: "4px",
-                }}
-              >
-                {group.title}
-              </h1>
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#94a3b8",
-                }}
-              >
-                {group.shortDescription}
-              </p>
-            </div>
+            Grupo de treino
+          </span>
 
-            <a
-              href="/groups"
-              style={{
-                fontSize: "12px",
-                color: "#e5e7eb",
-                textDecoration: "none",
-              }}
-            >
-              Ver todos os grupos
-            </a>
-          </header>
-
-          {/* Tags / nível */}
-          <section
+          <h1
             style={{
-              marginBottom: "14px",
+              fontSize: "28px",
+              fontWeight: 800,
+              letterSpacing: "-0.04em",
+              lineHeight: 1.05,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "6px",
-                marginBottom: "6px",
-              }}
-            >
-              <span
+            {pageTitle}
+          </h1>
+
+          <p
+            style={{
+              marginTop: "4px",
+              fontSize: "14px",
+              color: "#cbd5f5",
+              maxWidth: "580px",
+            }}
+          >
+            {group.description}
+          </p>
+        </div>
+      </header>
+
+      {/* Card principal do grupo */}
+      <section
+        style={{
+          marginBottom: "20px",
+        }}
+      >
+        <div
+          style={{
+            borderRadius: "20px",
+            padding: "16px",
+            background:
+              "radial-gradient(circle at top left, #0f172a, #020617 70%)",
+            border: "1px solid rgba(31, 41, 55, 0.9)",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.45)",
+          }}
+        >
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#e5e7eb",
+              marginBottom: "8px",
+            }}
+          >
+            Este grupo conecta atletas com objetivos similares, compartilhando
+            métricas, desafios mensais e evolução dentro da SportPlatform.
+          </p>
+
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#9ca3af",
+            }}
+          >
+            Use este grupo como base para acompanhar seus treinos de corrida,
+            comparar progresso e manter a consistência ao longo das semanas.
+          </p>
+        </div>
+      </section>
+
+      {/* Planos conectados */}
+      <section>
+        <h2
+          style={{
+            fontSize: "16px",
+            fontWeight: 700,
+            marginBottom: "10px",
+          }}
+        >
+          Planos ideais para quem está neste grupo
+        </h2>
+
+        {relatedPlans.length === 0 ? (
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+            }}
+          >
+            Em breve vamos liberar recomendações automáticas de plano para cada
+            grupo.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
+            {relatedPlans.map((plan) => (
+              <Link
+                key={plan.slug}
+                href={`/plans/${plan.slug}`}
                 style={{
-                  fontSize: "11px",
-                  padding: "4px 8px",
-                  borderRadius: "999px",
-                  border: "1px solid #1e293b",
-                  color: "#a5b4fc",
+                  display: "flex",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 12px",
+                  borderRadius: "14px",
+                  background:
+                    "linear-gradient(135deg, #020617, #020617, #020617)",
+                  border: "1px solid rgba(30,64,175,0.7)",
+                  textDecoration: "none",
+                  color: "white",
                 }}
               >
-                {group.levelLabel}
-              </span>
-
-              {group.tags.map((tag) => (
+                <div>
+                  <p
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {plan.title}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#9ca3af",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {plan.description}
+                  </p>
+                </div>
                 <span
-                  key={tag}
                   style={{
-                    fontSize: "11px",
-                    padding: "3px 8px",
-                    borderRadius: "999px",
-                    background: "#020617",
-                    border: "1px solid #1f2937",
-                    color: "#9ca3af",
+                    fontSize: "20px",
+                    color: "#4ade80",
+                    marginLeft: "12px",
                   }}
                 >
-                  {tag}
+                  →
                 </span>
-              ))}
-            </div>
-          </section>
-
-          {/* Objetivo + foco */}
-          <section
-            style={{
-              borderRadius: "16px",
-              border: "1px solid #1e293b",
-              background: "#020617",
-              padding: "14px",
-              marginBottom: "14px",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                marginBottom: "6px",
-              }}
-            >
-              Objetivo do grupo
-            </h2>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#cbd5e1",
-                marginBottom: "8px",
-              }}
-            >
-              {group.description}
-            </p>
-          </section>
-
-          {/* Desafio */}
-          {group.challenge && (
-            <section
-              style={{
-                borderRadius: "16px",
-                border: "1px solid #1e293b",
-                background:
-                  "radial-gradient(circle at top, #0f172a, #020617 60%)",
-                padding: "14px",
-                marginBottom: "14px",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "14px",
-                  fontWeight: 700,
-                  marginBottom: "6px",
-                }}
-              >
-                Desafio de 30 dias
-              </h2>
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#cbd5e1",
-                  marginBottom: "8px",
-                }}
-              >
-                {group.challenge.description}
-              </p>
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "#94a3b8",
-                }}
-              >
-                Foco principal: {group.challenge.mainMetric}
-              </p>
-            </section>
-          )}
-
-          {/* Conexão com planos */}
-          <section
-            style={{
-              borderRadius: "16px",
-              border: "1px solid #1e293b",
-              background: "#020617",
-              padding: "14px",
-            }}
-          >
-            <h2
-              style={{
-                fontSize: "14px",
-                fontWeight: 700,
-                marginBottom: "6px",
-              }}
-            >
-              Como o treino entra na rotina
-            </h2>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#cbd5e1",
-                marginBottom: "8px",
-              }}
-            >
-              Cada atleta pode conectar seu plano de treino favorito com este
-              grupo, acompanhar evolução e comparar métricas com pessoas com
-              objetivos semelhantes.
-            </p>
-            <a
-              href="/plans"
-              style={{
-                display: "inline-block",
-                marginTop: "4px",
-                fontSize: "13px",
-                padding: "8px 14px",
-                borderRadius: "999px",
-                background: "#22c55e",
-                color: "#020617",
-                textDecoration: "none",
-                fontWeight: 600,
-              }}
-            >
-              Ver planos disponíveis
-            </a>
-          </section>
-        </div>
-      </main>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
 
       <BottomNavbar />
-    </div>
+    </main>
   );
 }
