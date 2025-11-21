@@ -151,12 +151,13 @@ export default function NewFeedPostPage() {
         imageUrl = await uploadImageIfNeeded(user.id);
       }
 
-      // ⚠️ Ajuste o nome da tabela se a sua não for "feed_posts"
+      // INSERT na tabela feed_posts – sem o campo author_id (a coluna não existe)
       const { error: insertError } = await supabase.from("feed_posts").insert({
         content: content.trim() || null,
-        author_id: user.id,
         author_name: authorName,
-        image_url: imageUrl, // novo campo para guardar URL da imagem
+        image_url: imageUrl, // URL pública da imagem
+        // se no futuro você criar uma coluna user_id na tabela,
+        // pode adicionar aqui: user_id: user.id,
       });
 
       if (insertError) {
