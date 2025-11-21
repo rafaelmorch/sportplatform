@@ -9,18 +9,26 @@ const STRAVA_REDIRECT_URL = process.env.STRAVA_REDIRECT_URL;
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
 
+// Cliente ADMIN (server-side) – pode escrever em qualquer tabela
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+
+type StravaTokenResponse = {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number; // unix (segundos)
+  token_type?: string;
+  athlete: { id: number; firstname?: string; lastname?: string };
+};
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const error = searchParams.get("error");
-
-    // ⚠️ aqui vamos receber o user_id via "state"
-    const state = searchParams.get("state"); // opcional
+    const state = searchParams.get("state"); // usado para receber o user_id
 
     if (error) {
+      console.error("Erro retornado pelo Strava:", error);
       return NextResponse.json(
         { message: "Erro retornado pelo Strava.", error },
         { status: 400 }
@@ -35,6 +43,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!STRAVA_CLIENT_ID || !STRAVA_CLIENT_SECRET || !STRAVA_REDIRECT_URL) {
+      console.error("Variáveis STRAVA não configuradas corretamente.");
       return NextResponse.json(
         {
           message:
@@ -57,7 +66,9 @@ export async function GET(req: NextRequest) {
       }),
     });
 
-    const tokenJson = await tokenRes.json();
+    const tokenJson = (await tokenRes.json()) as StravaTokenResponse & {
+      [key: string]: any;
+    };
 
     if (!tokenRes.ok) {
       console.error("Erro Strava /oauth/token:", tokenJson);
@@ -70,21 +81,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const {
-      access_token,
-      refresh_token,
-      expires_at,
-      token_type,
-      athlete,
-    }: {
-      access_token: string;
-      refresh_token: string;
-      expires_at: number; // unix (segundos)
-      token_type?: string;
-      athlete: { id: number; firstname?: string; lastname?: string };
-    } = tokenJson;
+    const { access_token, refresh_token, expires_at, token_type, athlete } =
+      tokenJson;
 
     if (!athlete?.id) {
+      console.error("Resposta do Strava sem athlete.id:", tokenJson);
       return NextResponse.json(
         { message: "Resposta do Strava sem athlete.id." },
         { status: 400 }
@@ -93,18 +94,22 @@ export async function GET(req: NextRequest) {
 
     const athleteId = athlete.id;
 
-    // 2) Descobrir user_id a partir do "state" (enviado pelo front)
+    // 2) Tentar extrair user_id do state (vem da tela de integração)
     let userId: string | null = null;
-
-    // se vier algo que pareça um uuid, usamos como user_id
     if (state && /^[0-9a-fA-F-]{36}$/.test(state)) {
       userId = state;
+    } else {
+      console.warn(
+        "State ausente ou não é um UUID válido. Nenhum user_id será associado:",
+        state
+      );
     }
 
     const nowIso = new Date().toISOString();
     const expiresIso = new Date(expires_at * 1000).toISOString();
 
     // 3) Salvar / atualizar tokens no Supabase
+    //    Aqui estamos usando athlete_id como chave única (onConflict)
     const { error: dbError } = await supabaseAdmin
       .from("strava_tokens")
       .upsert(
@@ -114,7 +119,7 @@ export async function GET(req: NextRequest) {
           refresh_token,
           token_type: token_type ?? "Bearer",
           expires_at: expiresIso,
-          user_id: userId, // 🔥 agora liga ao usuário
+          user_id: userId,
           updated_at: nowIso,
         },
         {
@@ -134,7 +139,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 4) Redirecionar para página de sucesso
+    // 4) Redirecionar para página de sucesso (ou dashboard)
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
