@@ -2,10 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import DashboardCharts, {
-  DailyPoint,
-  SportPoint,
-} from "@/components/DashboardCharts";
+import DashboardCharts from "@/components/DashboardCharts";
 
 type StravaActivity = {
   id: string;
@@ -25,6 +22,23 @@ type EventsSummary = {
 };
 
 type RangeKey = "all" | "today" | "7d" | "30d" | "6m";
+
+type DailyPoint = {
+  date: string;
+  label: string;
+  distanceKm: number;
+  movingTimeMin: number;
+};
+
+type SportPoint = {
+  sport: string;
+  distanceKm: number;
+};
+
+type DashboardClientProps = {
+  activities: StravaActivity[];
+  eventsSummary: EventsSummary;
+};
 
 function metersToKm(distance: number | null | undefined): number {
   if (!distance || distance <= 0) return 0;
@@ -75,7 +89,7 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean {
-  if (range === "all") return true; // Tudo = sem filtro
+  if (range === "all") return true;
 
   if (!dateStr) return false;
   const d = new Date(dateStr);
@@ -93,7 +107,7 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
 
   if (range === "7d") return diffDays <= 7;
   if (range === "30d") return diffDays <= 30;
-  if (range === "6m") return diffDays <= 180; // ~6 meses
+  if (range === "6m") return diffDays <= 180;
 
   return true;
 }
@@ -101,21 +115,16 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
 export default function DashboardClient({
   activities,
   eventsSummary,
-}: {
-  activities: StravaActivity[];
-  eventsSummary: EventsSummary;
-}) {
+}: DashboardClientProps) {
   const [range, setRange] = useState<RangeKey>("30d");
 
   const now = new Date();
 
-  // Atleta atual = atleta da atividade mais recente
   const currentAthleteId = activities[0]?.athlete_id;
   const athleteLabel = currentAthleteId
     ? `Atleta ${currentAthleteId}`
     : "Atleta";
 
-  // Filtra atividades pelo período
   const activitiesInRange = activities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
@@ -126,7 +135,7 @@ export default function DashboardClient({
 
   const groupActivities = activitiesInRange;
 
-  // --- Métricas do atleta (período) ---
+  // Métricas atleta
   const athleteDistance = athleteActivities.reduce(
     (sum, a) => sum + metersToKm(a.distance),
     0
@@ -141,7 +150,7 @@ export default function DashboardClient({
   );
   const athleteActivitiesCount = athleteActivities.length;
 
-  // --- Métricas do grupo (período) ---
+  // Métricas grupo
   const groupDistance = groupActivities.reduce(
     (sum, a) => sum + metersToKm(a.distance),
     0
@@ -156,7 +165,7 @@ export default function DashboardClient({
   );
   const groupActivitiesCount = groupActivities.length;
 
-  // Últimas atividades no período
+  // Últimas atividades
   const lastActivities = [...groupActivities]
     .sort((a, b) => {
       const da = a.start_date ? new Date(a.start_date).getTime() : 0;
@@ -165,7 +174,7 @@ export default function DashboardClient({
     })
     .slice(0, 10);
 
-  // --- Dados para gráficos (atleta individual, período) ---
+  // Dados para gráficos – atleta
   const dailyMap = new Map<
     string,
     { label: string; distanceKm: number; movingTimeMin: number }
@@ -176,7 +185,7 @@ export default function DashboardClient({
     const d = new Date(a.start_date);
     if (Number.isNaN(d.getTime())) continue;
 
-    const key = d.toISOString().slice(0, 10); // yyyy-mm-dd
+    const key = d.toISOString().slice(0, 10);
     const label = d.toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
@@ -234,14 +243,14 @@ export default function DashboardClient({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
-          marginBottom: "12px",
+          gap: 8,
+          marginBottom: 12,
         }}
       >
         <div
           style={{
             display: "flex",
-            gap: "8px",
+            gap: 8,
             alignItems: "center",
           }}
         >
@@ -297,7 +306,7 @@ export default function DashboardClient({
         </p>
       </header>
 
-      {/* Filtro de período - afeta todos os cards de treino */}
+      {/* Filtro de período */}
       <div
         style={{
           display: "flex",
@@ -335,19 +344,19 @@ export default function DashboardClient({
         })}
       </div>
 
-      {/* Linha 1: Atleta x Grupo (período selecionado) */}
+      {/* Linha 1: Atleta x Grupo */}
       <section
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "12px",
-          marginBottom: "20px",
+          gap: 12,
+          marginBottom: 20,
         }}
       >
-        {/* Card Atleta */}
+        {/* Atleta */}
         <div
           style={{
-            borderRadius: "18px",
+            borderRadius: 18,
             padding: "14px 14px",
             background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
             border: "1px solid rgba(34,197,94,0.35)",
@@ -432,10 +441,10 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {/* Card Grupo */}
+        {/* Grupo */}
         <div
           style={{
-            borderRadius: "18px",
+            borderRadius: 18,
             padding: "14px 14px",
             background: "radial-gradient(circle at top, #0b1120, #020617 60%)",
             border: "1px solid rgba(59,130,246,0.35)",
@@ -521,18 +530,18 @@ export default function DashboardClient({
         </div>
       </section>
 
-      {/* Linha 2: Eventos disponíveis / cadastrados */}
+      {/* Linha 2: Eventos */}
       <section
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "12px",
-          marginBottom: "20px",
+          gap: 12,
+          marginBottom: 20,
         }}
       >
         <div
           style={{
-            borderRadius: "18px",
+            borderRadius: 18,
             padding: "14px 14px",
             background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
             border: "1px solid rgba(34,197,94,0.35)",
@@ -594,7 +603,7 @@ export default function DashboardClient({
 
         <div
           style={{
-            borderRadius: "18px",
+            borderRadius: 18,
             padding: "14px 14px",
             background: "radial-gradient(circle at top, #020617, #020617 60%)",
             border: "1px solid rgba(56,189,248,0.5)",
@@ -655,38 +664,38 @@ export default function DashboardClient({
         </div>
       </section>
 
-      {/* Linha 3: Gráficos */}
+      {/* Gráficos */}
       <section
         style={{
-          borderRadius: "20px",
+          borderRadius: 20,
           border: "1px solid rgba(148,163,184,0.35)",
           background:
             "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
           padding: "16px 14px",
-          marginBottom: "24px",
+          marginBottom: 24,
         }}
       >
         <DashboardCharts dailyData={dailyData} sportData={sportData} />
       </section>
 
-      {/* Últimas atividades (período selecionado) */}
+      {/* Últimas atividades */}
       <section
         style={{
-          borderRadius: "20px",
+          borderRadius: 20,
           border: "1px solid rgba(148,163,184,0.35)",
           background:
             "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
           padding: "16px 14px",
-          marginBottom: "24px",
+          marginBottom: 24,
         }}
       >
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            gap: "8px",
+            gap: 8,
             alignItems: "baseline",
-            marginBottom: "10px",
+            marginBottom: 10,
           }}
         >
           <div>

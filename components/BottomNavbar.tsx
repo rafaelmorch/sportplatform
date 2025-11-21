@@ -1,25 +1,39 @@
+// components/BottomNavbar.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  UsersRound,
-  FileText,
-  BarChart3,
-  UserRound,
-} from "lucide-react";
+
+type NavItem = {
+  label: string;
+  href: string;
+};
+
+const navItems: NavItem[] = [
+  {
+    label: "Performance", // antes era Insights
+    href: "/dashboard",   // agora aponta para o dashboard
+  },
+  {
+    label: "Feed",
+    href: "/feed",
+  },
+  {
+    label: "Eventos",
+    href: "/events",
+  },
+  {
+    label: "Integrações",
+    href: "/integrations",
+  },
+  {
+    label: "Perfil",
+    href: "/profile",
+  },
+];
 
 export default function BottomNavbar() {
   const pathname = usePathname();
-
-  const navItems = [
-    { href: "/dashboard", label: "Início", icon: <Home size={22} /> },
-    { href: "/groups", label: "Grupos", icon: <UsersRound size={22} /> },
-    { href: "/plans", label: "Planos", icon: <FileText size={22} /> },
-    { href: "/feed", label: "Feed", icon: <BarChart3 size={22} /> },
-    { href: "/profile", label: "Perfil", icon: <UserRound size={22} /> },
-  ];
 
   return (
     <nav
@@ -28,38 +42,60 @@ export default function BottomNavbar() {
         bottom: 0,
         left: 0,
         right: 0,
-        background: "#0F172A", // dark azul sportplatform
-        borderTop: "1px solid #1e293b",
-        padding: "10px 0",
-        display: "flex",
-        justifyContent: "space-around",
-        zIndex: 999, // garantir que sempre fica acima
+        zIndex: 50,
+        borderTop: "1px solid rgba(31,41,55,0.9)",
+        background:
+          "linear-gradient(to top, rgba(15,23,42,0.98), rgba(15,23,42,0.95))",
+        backdropFilter: "blur(10px)",
       }}
     >
-      {navItems.map((item) => {
-        const isActive = pathname === item.href;
+      <div
+        style={{
+          maxWidth: 1100,
+          margin: "0 auto",
+          padding: "8px 16px 10px 16px",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 8,
+        }}
+      >
+        {navItems.map((item) => {
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/" && pathname?.startsWith(item.href));
 
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              color: isActive ? "#22c55e" : "#94a3b8",
-              textDecoration: "none",
-              fontSize: "12px",
-              fontWeight: isActive ? 700 : 500,
-              gap: "4px",
-              width: "20%",
-            }}
-          >
-            <div>{item.icon}</div>
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontSize: 11,
+                padding: "6px 4px",
+                borderRadius: 999,
+                textDecoration: "none",
+                border: isActive
+                  ? "1px solid rgba(34,197,94,0.7)"
+                  : "1px solid transparent",
+                background: isActive
+                  ? "radial-gradient(circle at top, #22c55e25, transparent)"
+                  : "transparent",
+                color: isActive ? "#bbf7d0" : "#e5e7eb",
+                cursor: "pointer",
+                transition: "all 0.15s ease-out",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 4,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
