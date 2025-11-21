@@ -2,8 +2,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import DashboardCharts from "@/components/DashboardCharts";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
+// usamos o client já criado em lib/supabase-browser.ts
+const supabase = supabaseBrowser;
 
 type StravaActivity = {
   id: string;
@@ -40,11 +43,6 @@ type DashboardClientProps = {
   activities: StravaActivity[];
   eventsSummary: EventsSummary;
 };
-
-// Supabase client no navegador (chave pública)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function metersToKm(distance: number | null | undefined): number {
   if (!distance || distance <= 0) return 0;
@@ -123,93 +121,95 @@ export default function DashboardClient({
   eventsSummary,
 }: DashboardClientProps) {
   const [range, setRange] = useState<RangeKey>("30d");
+  const [currentAthleteId, setCurrentAthleteId] = useState<number | null>(null);
+  const [athleteName, setAthleteName] = useState<string | null>(null);
+  const [loadingAthlete, setLoadingAthlete] = useState(true);
 
-  // infos do usuário logado
-  const [userAthleteId, setUserAthleteId] = useState<number | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
-  const [userLoaded, setUserLoaded] = useState(false);
-
-  const now = new Date();
-
-  // Carrega perfil do usuário no Supabase (para pegar nome + strava_athlete_id)
   useEffect(() => {
-    const loadUserProfile = async () => {
+    const loadAthleteForUser = async () => {
       try {
+        setLoadingAthlete(true);
+
+        // 1) pega usuário logado
         const {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
 
         if (userError) {
-          console.error("Erro ao buscar usuário:", userError);
-          setUserLoaded(true);
-          return;
+          console.error("Erro ao carregar usuário:", userError);
         }
 
         if (!user) {
-          setUserLoaded(true);
+          // se não tiver usuário (não deveria acontecer aqui), usa fallback
+          const firstAthlete = activities[0]?.athlete_id ?? null;
+          setCurrentAthleteId(firstAthlete);
+          setLoadingAthlete(false);
           return;
         }
 
-        // Tenta buscar no perfil
+        // 2) busca nome de perfil
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("full_name, strava_athlete_id")
+          .select("full_name")
           .eq("id", user.id)
           .maybeSingle();
 
         if (profileError) {
-          console.error("Erro ao buscar perfil:", profileError);
+          console.error("Erro ao carregar profile:", profileError);
         }
 
-        const meta: any = user.user_metadata || {};
-        const nameFromProfile = profile?.full_name || null;
-        const nameFromMeta = meta.full_name || meta.name || null;
+        if (profile?.full_name) {
+          setAthleteName(profile.full_name);
+        }
 
-        const finalName =
-          nameFromProfile || nameFromMeta || user.email || "Seu desempenho";
+        // 3) acha o athlete_id desse usuário na tabela strava_tokens
+        const { data: tokenRow, error: tokenError } = await supabase
+          .from("strava_tokens")
+          .select("athlete_id")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        setUserName(finalName);
+        if (tokenError) {
+          console.error("Erro ao carregar strava_tokens:", tokenError);
+        }
 
-        // se o perfil tiver strava_athlete_id, usamos para filtrar
-        if (profile && typeof profile.strava_athlete_id === "number") {
-          setUserAthleteId(profile.strava_athlete_id);
+        if (tokenRow?.athlete_id) {
+          setCurrentAthleteId(tokenRow.athlete_id);
         } else {
-          setUserAthleteId(null);
+          // fallback: usa o primeiro atleta que aparecer nas atividades
+          const firstAthlete = activities[0]?.athlete_id ?? null;
+          setCurrentAthleteId(firstAthlete);
         }
       } catch (err) {
-        console.error("Erro inesperado ao carregar perfil:", err);
+        console.error("Erro inesperado ao definir atleta do dashboard:", err);
+        const firstAthlete = activities[0]?.athlete_id ?? null;
+        setCurrentAthleteId(firstAthlete);
       } finally {
-        setUserLoaded(true);
+        setLoadingAthlete(false);
       }
     };
 
-    loadUserProfile();
+    loadAthleteForUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Se já temos o atleta do usuário, usamos ele.
-  // Se não, caímos no primeiro atleta da lista como fallback.
-  const fallbackAthleteId = activities[0]?.athlete_id ?? null;
-  const currentAthleteId = userAthleteId ?? fallbackAthleteId;
+  const now = new Date();
 
-  const athleteLabel =
-    userName ??
-    (currentAthleteId ? `Seu desempenho` : "Seu desempenho");
-
-  // Filtro de período em cima de TODAS as atividades
   const activitiesInRange = activities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
 
-  // Atleta: apenas atividades do athlete_id vinculado ao usuário (se existir)
-  const athleteActivities = currentAthleteId
-    ? activitiesInRange.filter((a) => a.athlete_id === currentAthleteId)
-    : activitiesInRange;
+  // Se ainda não descobrimos o atleta, por enquanto usa tudo
+  const athleteActivities =
+    currentAthleteId != null
+      ? activitiesInRange.filter((a) => a.athlete_id === currentAthleteId)
+      : activitiesInRange;
 
-  // Grupo: todas as atividades no período
   const groupActivities = activitiesInRange;
 
-  // Métricas atleta
   const athleteDistance = athleteActivities.reduce(
     (sum, a) => sum + metersToKm(a.distance),
     0
@@ -224,7 +224,6 @@ export default function DashboardClient({
   );
   const athleteActivitiesCount = athleteActivities.length;
 
-  // Métricas grupo
   const groupDistance = groupActivities.reduce(
     (sum, a) => sum + metersToKm(a.distance),
     0
@@ -239,7 +238,6 @@ export default function DashboardClient({
   );
   const groupActivitiesCount = groupActivities.length;
 
-  // Últimas atividades (grupo)
   const lastActivities = [...groupActivities]
     .sort((a, b) => {
       const da = a.start_date ? new Date(a.start_date).getTime() : 0;
@@ -248,7 +246,6 @@ export default function DashboardClient({
     })
     .slice(0, 10);
 
-  // Dados para gráficos – atleta
   const dailyMap = new Map<
     string,
     { label: string; distanceKm: number; movingTimeMin: number }
@@ -309,6 +306,10 @@ export default function DashboardClient({
     { key: "30d", label: "30 dias" },
     { key: "6m", label: "6 meses" },
   ];
+
+  const athleteLabel =
+    athleteName ??
+    (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
 
   return (
     <>
@@ -446,6 +447,7 @@ export default function DashboardClient({
           >
             {athleteLabel}
             {range === "all" ? " · todo período" : " · período selecionado"}
+            {loadingAthlete ? " (carregando...)" : ""}
           </p>
           <p
             style={{
