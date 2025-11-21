@@ -1,5 +1,6 @@
 // app/public-dashboard/page.tsx
 import { createClient } from "@supabase/supabase-js";
+import BottomNavbar from "@/components/BottomNavbar";
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
@@ -109,6 +110,7 @@ export default async function PublicDashboardPage() {
         background: "#020617",
         color: "#e5e7eb",
         padding: "16px",
+        paddingBottom: "80px", // espaço pro bottom navbar
       }}
     >
       <div
@@ -455,6 +457,9 @@ export default async function PublicDashboardPage() {
           )}
         </section>
       </div>
+
+      {/* Bottom Navbar fixo */}
+      <BottomNavbar />
     </main>
   );
 }

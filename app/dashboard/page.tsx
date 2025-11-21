@@ -1,5 +1,6 @@
 // app/dashboard/page.tsx
 import { createClient } from "@supabase/supabase-js";
+import BottomNavbar from "@/components/BottomNavbar";
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
@@ -70,7 +71,10 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-function formatPace(movingTime: number | null | undefined, distance: number | null | undefined): string {
+function formatPace(
+  movingTime: number | null | undefined,
+  distance: number | null | undefined
+): string {
   if (!movingTime || !distance || distance <= 0) return "-";
 
   const km = distance / 1000;
@@ -124,6 +128,7 @@ export default async function DashboardPage() {
         background: "#020617",
         color: "#e5e7eb",
         padding: "16px",
+        paddingBottom: "80px", // espaço pro bottom navbar
       }}
     >
       <div
@@ -508,6 +513,9 @@ export default async function DashboardPage() {
           )}
         </section>
       </div>
+
+      {/* Bottom Navbar fixo */}
+      <BottomNavbar />
     </main>
   );
 }
