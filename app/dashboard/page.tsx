@@ -1,97 +1,414 @@
-// app/dashboard/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import BottomNavbar from "@/components/BottomNavbar";
-import DashboardClient from "@/components/DashboardClient";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+type Profile = {
+  full_name: string | null;
+  plan: string | null;
+};
 
-type StravaActivity = {
+type Activity = {
+  id: number;
+  type: string;
+  minutes: number;
+  points: number;
+  start_date: string;
+};
+
+type Challenge = {
   id: string;
-  athlete_id: number;
-  name: string | null;
-  type: string | null;
-  sport_type: string | null;
-  start_date: string | null;
-  distance: number | null;
-  moving_time: number | null;
-  total_elevation_gain: number | null;
+  title: string;
+  description: string | null;
+  start_date: string;
+  end_date: string;
 };
 
-type EventsSummary = {
-  availableEvents: number;
-  userEvents: number;
+type GroupStats = {
+  participants: number;
+  challengeTotalMinutes: number;
+  challengeAverageMinutes: number;
+  userMinutesInChallenge: number;
 };
 
-async function getActivities(): Promise<StravaActivity[]> {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("strava_activities")
-      .select(
-        `
-        id,
-        athlete_id,
-        name,
-        type,
-        sport_type,
-        start_date,
-        distance,
-        moving_time,
-        total_elevation_gain
-      `
-      )
-      .order("start_date", { ascending: false })
-      .limit(1000);
+export default function DashboardPage() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [totalMinutes, setTotalMinutes] = useState(0);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [last7DaysMinutes, setLast7DaysMinutes] = useState(0);
+  const [last30DaysMinutes, setLast30DaysMinutes] = useState(0);
+  const [activeChallenge, setActiveChallenge] = useState<Challenge | null>(
+    null
+  );
+  const [groupStats, setGroupStats] = useState<GroupStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    if (error) {
-      console.error("Erro ao buscar atividades do Supabase:", error);
-      return [];
-    }
+  useEffect(() => {
+    const loadDashboard = async () => {
+      setLoading(true);
+      setErrorMsg(null);
 
-    return (data ?? []) as StravaActivity[];
-  } catch (err) {
-    console.error("Erro inesperado ao buscar atividades:", err);
-    return [];
-  }
-}
+      // 1) Pegar usuário logado
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-// Por enquanto fixo com 4 eventos (igual à página /events hoje)
-async function getEventsSummary(): Promise<EventsSummary> {
-  return {
-    availableEvents: 4, // você comentou que agora são 4
-    userEvents: 0, // depois conectamos com eventos do usuário
-  };
-}
+      if (userError || !user) {
+        console.error(userError);
+        setErrorMsg(
+          "Não foi possível carregar seus dados. Faça login novamente."
+        );
+        setLoading(false);
+        return;
+      }
 
-export default async function DashboardPage() {
-  const activities = await getActivities();
-  const eventsSummary = await getEventsSummary();
+      const userId = user.id;
+
+      // 2) Carregar profile (nome + plano)
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("full_name, plan")
+        .eq("id", userId)
+        .single();
+
+      if (profileError) {
+        console.error(profileError);
+      } else {
+        setProfile(profileData as Profile);
+      }
+
+      // 3) Carregar atividades do usuário (ordenadas por data)
+      const { data: activitiesData, error: activitiesError } = await supabase
+        .from("user_activities")
+        .select("id, type, minutes, points, start_date")
+        .eq("user_id", userId)
+        .order("start_date", { ascending: false });
+
+      if (activitiesError) {
+        console.error(activitiesError);
+        setErrorMsg("Erro ao carregar atividades.");
+        setLoading(false);
+        return;
+      }
+
+      const acts = (activitiesData || []) as Activity[];
+      setActivities(acts);
+
+      // 3.1) Calcular stats pessoais
+      let totalMin = 0;
+      let totalPts = 0;
+      let last7 = 0;
+      let last30 = 0;
+
+      const now = new Date();
+      const msInDay = 24 * 60 * 60 * 1000;
+
+      acts.forEach((a) => {
+        totalMin += a.minutes;
+        totalPts += a.points;
+
+        const d = new Date(a.start_date);
+        const diffDays = (now.getTime() - d.getTime()) / msInDay;
+
+        if (diffDays <= 7) {
+          last7 += a.minutes;
+        }
+        if (diffDays <= 30) {
+          last30 += a.minutes;
+        }
+      });
+
+      setTotalMinutes(totalMin);
+      setTotalPoints(totalPts);
+      setLast7DaysMinutes(last7);
+      setLast30DaysMinutes(last30);
+
+      // 4) Carregar desafio ativo (se existir)
+      const todayIso = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+      const { data: challengeData, error: challengeError } = await supabase
+        .from("challenges")
+        .select("id, title, description, start_date, end_date")
+        .lte("start_date", todayIso)
+        .gte("end_date", todayIso)
+        .order("start_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (challengeError) {
+        console.error(challengeError);
+      }
+
+      if (challengeData) {
+        const challenge = challengeData as Challenge;
+        setActiveChallenge(challenge);
+
+        // 4.1) Participantes do desafio
+        const { data: participantsData, error: participantsError } =
+          await supabase
+            .from("challenge_participants")
+            .select("user_id")
+            .eq("challenge_id", challenge.id);
+
+        if (participantsError) {
+          console.error(participantsError);
+          setLoading(false);
+          return;
+        }
+
+        const participants = participantsData || [];
+        const participantIds = participants.map((p: any) => p.user_id);
+
+        if (participantIds.length === 0) {
+          setGroupStats({
+            participants: 0,
+            challengeTotalMinutes: 0,
+            challengeAverageMinutes: 0,
+            userMinutesInChallenge: 0,
+          });
+          setLoading(false);
+          return;
+        }
+
+        // 4.2) Atividades de todos participantes dentro do período do desafio
+        const {
+          data: challengeActivities,
+          error: challengeActivitiesError,
+        } = await supabase
+          .from("user_activities")
+          .select("user_id, minutes, start_date")
+          .in("user_id", participantIds)
+          .gte("start_date", challenge.start_date)
+          .lte("start_date", challenge.end_date);
+
+        if (challengeActivitiesError) {
+          console.error(challengeActivitiesError);
+          setLoading(false);
+          return;
+        }
+
+        const byUser: Record<string, number> = {};
+        let totalChallengeMinutes = 0;
+
+        (challengeActivities || []).forEach((a: any) => {
+          const uid = a.user_id as string;
+          const mins = a.minutes as number;
+          byUser[uid] = (byUser[uid] || 0) + mins;
+          totalChallengeMinutes += mins;
+        });
+
+        const participantsCount = participantIds.length;
+        const avg =
+          participantsCount > 0
+            ? Math.round(totalChallengeMinutes / participantsCount)
+            : 0;
+
+        const userMinutesInChallenge = byUser[userId] || 0;
+
+        setGroupStats({
+          participants: participantsCount,
+          challengeTotalMinutes: totalChallengeMinutes,
+          challengeAverageMinutes: avg,
+          userMinutesInChallenge,
+        });
+      }
+
+      setLoading(false);
+    };
+
+    loadDashboard();
+  }, []);
+
+  const firstName = profile?.full_name
+    ? profile.full_name.split(" ")[0]
+    : "Atleta";
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        padding: "16px",
-        paddingBottom: "80px", // espaço pro bottom navbar
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-        }}
-      >
-        <DashboardClient
-          activities={activities}
-          eventsSummary={eventsSummary}
-        />
-      </div>
+    <div className="min-h-screen flex flex-col bg-slate-950 text-white">
+      <main className="flex-1 pb-20 px-4 pt-6 max-w-3xl w-full mx-auto">
+        {/* Cabeçalho */}
+        <header className="mb-6">
+          <p className="text-sm text-slate-400">Dashboard</p>
+          <h1 className="text-2xl font-semibold">
+            Olá, <span className="text-emerald-400">{firstName}</span>
+          </h1>
+          {profile?.plan === "coach" && (
+            <span className="inline-flex mt-2 items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
+              Coach
+            </span>
+          )}
+        </header>
+
+        {/* Mensagens de loading/erro */}
+        {loading && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+            Carregando seus dados...
+          </div>
+        )}
+
+        {errorMsg && !loading && (
+          <div className="rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200 mb-4">
+            {errorMsg}
+          </div>
+        )}
+
+        {/* Conteúdo principal */}
+        {!loading && !errorMsg && (
+          <div className="space-y-6">
+            {/* Bloco: seus números */}
+            <section className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
+                <p className="text-xs text-slate-400">Minutos totais</p>
+                <p className="mt-1 text-2xl font-semibold">{totalMinutes}</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  Desde o início (sem caminhada)
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
+                <p className="text-xs text-slate-400">Pontos</p>
+                <p className="mt-1 text-2xl font-semibold">{totalPoints}</p>
+                <p className="mt-1 text-[11px] text-slate-500">
+                  1 ponto = 1 minuto
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
+                <p className="text-xs text-slate-400">Últimos 7 dias</p>
+                <p className="mt-1 text-xl font-semibold">
+                  {last7DaysMinutes} min
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
+                <p className="text-xs text-slate-400">Últimos 30 dias</p>
+                <p className="mt-1 text-xl font-semibold">
+                  {last30DaysMinutes} min
+                </p>
+              </div>
+            </section>
+
+            {/* Bloco: desafio ativo + grupo */}
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h2 className="text-sm font-semibold text-slate-100">
+                  Desafio ativo
+                </h2>
+              </div>
+
+              {activeChallenge ? (
+                <>
+                  <p className="text-sm font-medium text-emerald-300">
+                    {activeChallenge.title}
+                  </p>
+                  {activeChallenge.description && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      {activeChallenge.description}
+                    </p>
+                  )}
+
+                  {groupStats && (
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                      <div className="rounded-xl bg-slate-950/60 px-3 py-2 border border-slate-800/60">
+                        <p className="text-slate-400 text-[11px]">
+                          Seus minutos no desafio
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-emerald-300">
+                          {groupStats.userMinutesInChallenge} min
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-950/60 px-3 py-2 border border-slate-800/60">
+                        <p className="text-slate-400 text-[11px]">
+                          Média do grupo
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-sky-300">
+                          {groupStats.challengeAverageMinutes} min
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-slate-950/60 px-3 py-2 border border-slate-800/60 col-span-2">
+                        <p className="text-slate-400 text-[11px]">
+                          Participantes
+                        </p>
+                        <p className="mt-1 text-base font-medium text-slate-100">
+                          {groupStats.participants} atleta
+                          {groupStats.participants === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  Nenhum desafio ativo no momento. Em breve você verá aqui os
+                  desafios em que estiver participando.
+                </p>
+              )}
+            </section>
+
+            {/* Bloco: últimas atividades */}
+            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold text-slate-100">
+                  Últimas atividades
+                </h2>
+              </div>
+
+              {activities.length === 0 ? (
+                <p className="text-xs text-slate-400">
+                  Ainda não há atividades registradas. Conecte seu Strava e
+                  volte aqui depois dos primeiros treinos.
+                </p>
+              ) : (
+                <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {activities.slice(0, 10).map((a) => {
+                    const date = new Date(a.start_date);
+                    const dateLabel = date.toLocaleDateString(undefined, {
+                      day: "2-digit",
+                      month: "2-digit",
+                    });
+
+                    return (
+                      <li
+                        key={a.id}
+                        className="flex items-center justify-between rounded-xl bg-slate-950/70 border border-slate-800/60 px-3 py-2"
+                      >
+                        <div>
+                          <p className="text-xs font-medium text-slate-100">
+                            {a.type}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {dateLabel}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-emerald-300">
+                            {a.minutes} min
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            {a.points} pts
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+        )}
+      </main>
 
       <BottomNavbar />
-    </main>
+    </div>
   );
 }
