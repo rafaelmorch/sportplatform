@@ -8,7 +8,7 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-// Cliente Supabase para rodar no servidor (usando as envs públicas)
+// Cliente Supabase para rodar no servidor
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -27,9 +27,9 @@ type Training = {
 
 function formatPrice(price_cents: number | null, currency: string | null) {
   if (!price_cents || price_cents <= 0) return undefined;
-  const curr = (currency || "BRL").toUpperCase();
+  const curr = (currency || "USD").toUpperCase();
 
-  return new Intl.NumberFormat("pt-BR", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: curr,
   }).format(price_cents / 100);
@@ -43,7 +43,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
   const { data, error } = await supabase
     .from("trainings")
     .select(
-      "id, title, description, level, duration_weeks, price_cents, currency, slug"
+      "id, title, description, level, duration_weeks, price_cents, currency, slug, visibility, is_active"
     )
     .eq("slug", slug)
     .eq("visibility", "platform")
