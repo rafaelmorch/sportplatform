@@ -1,7 +1,7 @@
 // app/groups/page.tsx
 import Link from "next/link";
-import BottomNavbar from "@/components/BottomNavbar";
 import { trainingGroups } from "./groups-data";
+import BottomNavbar from "@/components/BottomNavbar";
 
 export default function GroupsPage() {
   return (
@@ -11,118 +11,72 @@ export default function GroupsPage() {
         background: "#020617",
         color: "#e5e7eb",
         padding: "16px",
-        paddingBottom: "80px"
+        paddingBottom: "80px",
       }}
     >
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 20 }}>
+        Grupos de Treinamento
+      </h1>
+
       <div
         style={{
-          maxWidth: "1100px",
-          margin: "0 auto"
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 16,
         }}
       >
-        <header
-          style={{
-            marginBottom: "24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8
-          }}
-        >
-          <h1
+        {trainingGroups.map((group) => (
+          <Link
+            key={group.slug}
+            href={`/groups/${group.slug}`}
             style={{
-              fontSize: 28,
-              fontWeight: 700,
-              margin: 0
+              textDecoration: "none",
+              color: "inherit",
             }}
           >
-            Grupos de treino
-          </h1>
-          <p
-            style={{
-              fontSize: 14,
-              color: "#9ca3af",
-              margin: 0
-            }}
-          >
-            Escolha o grupo que melhor se conecta com o seu momento de treino.
-          </p>
-        </header>
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 18
-          }}
-        >
-          {trainingGroups.map((group) => (
-            <article
-              key={group.slug}
+            <div
               style={{
-                borderRadius: 24,
-                padding: "18px 18px",
-                background:
-                  "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
-                border: "1px solid rgba(55,65,81,0.9)",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                minHeight: 180
+                borderRadius: 16,
+                padding: "14px",
+                background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
+                border: "1px solid rgba(148,163,184,0.35)",
+                cursor: "pointer",
+                transition: "transform 0.15s ease, border-color 0.15s ease",
               }}
             >
-              <div
+              <h2
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6
+                  fontSize: 16,
+                  fontWeight: 700,
+                  marginBottom: 6,
+                  color: "#e2e8f0",
                 }}
               >
-                <h2
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                    margin: 0
-                  }}
-                >
-                  {group.title}
-                </h2>
-                <p
-                  style={{
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                    color: "#d1d5db",
-                    margin: 0
-                  }}
-                >
-                  {group.shortDescription}
-                </p>
-              </div>
+                {group.title}
+              </h2>
 
-              <div
+              <p
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 14,
-                  fontSize: 12,
-                  color: "#9ca3af"
+                  fontSize: 13,
+                  color: "#94a3b8",
+                  marginBottom: 10,
                 }}
               >
-                <span>{group.includedChallengeSummary}</span>
-                <Link
-                  href={`/groups/${group.slug}`}
-                  style={{
-                    textDecoration: "none",
-                    color: "#93c5fd",
-                    fontWeight: 500
-                  }}
-                >
-                  Ver detalhes →
-                </Link>
-              </div>
-            </article>
-          ))}
-        </section>
+                {group.shortDescription}
+              </p>
+
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#64748b",
+                  margin: 0,
+                }}
+              >
+                {group.members} participantes
+              </p>
+            </div>
+          </Link>
+        ))}
       </div>
 
       <BottomNavbar />
