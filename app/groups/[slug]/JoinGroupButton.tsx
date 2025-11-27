@@ -1,58 +1,116 @@
 "use client";
 
-import { useState } from "react";
-import type { TrainingGroupSlug } from "../groups-data";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type JoinGroupButtonProps = {
-  slug: TrainingGroupSlug;
+  // aceito tanto groupSlug quanto slug para não quebrar usos antigos
+  groupSlug?: string;
+  slug?: string;
 };
 
-export default function JoinGroupButton({ slug }: JoinGroupButtonProps) {
-  const [loading, setLoading] = useState(false);
-  const [joined, setJoined] = useState(false);
+export default function JoinGroupButton(props: JoinGroupButtonProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  async function handleJoin() {
-    if (loading) return;
-    setLoading(true);
+  const groupSlug = props.groupSlug ?? props.slug;
 
-    try {
-      // 🚧 Aqui no futuro vamos conectar com o Supabase:
-      // - pegar o usuário logado
-      // - inserir na tabela de participantes do grupo / desafio
-      // Por enquanto, só simulamos:
-      console.log("Entrar no grupo:", slug);
-      setJoined(true);
-    } catch (error) {
-      console.error("Erro ao entrar no grupo:", error);
-      alert("Em breve você poderá entrar automaticamente no grupo pela plataforma.");
-    } finally {
-      setLoading(false);
-    }
+  // Se por algum motivo vier sem slug, mostra botão desabilitado
+  if (!groupSlug) {
+    return (
+      <button
+        type="button"
+        disabled
+        style={{
+          padding: "10px 18px",
+          borderRadius: 999,
+          border: "1px solid rgba(148,163,184,0.6)",
+          backgroundColor: "transparent",
+          color: "#9ca3af",
+          fontSize: 13,
+          cursor: "not-allowed",
+          opacity: 0.7,
+        }}
+      >
+        Participar do grupo
+      </button>
+    );
+  }
+
+  function handleClick() {
+    setErrorMsg(null);
+
+    startTransition(async () => {
+      const supabase = supabaseBrowser;
+
+      // garante que o usuário está logado
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setErrorMsg("Faça login para participar do grupo.");
+        return;
+      }
+
+      const { error } = await supabase.from("group_members").insert({
+        group_slug: groupSlug,
+        user_id: user.id,
+      });
+
+      if (error) {
+        console.error("Erro ao entrar no grupo:", error);
+        setErrorMsg("Não foi possível entrar no grupo. Tente novamente.");
+        return;
+      }
+
+      // força refresh da página de detalhes
+      router.refresh();
+    });
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleJoin}
-      disabled={loading}
+    <div
       style={{
-        fontSize: 13,
-        padding: "8px 16px",
-        borderRadius: 999,
-        border: "1px solid rgba(34,197,94,0.8)",
-        background:
-          "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(21,128,61,0.2))",
-        color: "#bbf7d0",
-        cursor: loading ? "default" : "pointer",
-        opacity: loading ? 0.7 : 1,
-        whiteSpace: "nowrap",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
       }}
     >
-      {joined
-        ? "Você está no grupo"
-        : loading
-        ? "Entrando..."
-        : "Participar do grupo"}
-    </button>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isPending}
+        style={{
+          padding: "10px 18px",
+          borderRadius: 999,
+          border: "1px solid rgba(34,197,94,0.7)",
+          background:
+            "linear-gradient(135deg, #22c55e, #16a34a, #22c55e)",
+          color: "#020617",
+          fontSize: 14,
+          fontWeight: 600,
+          cursor: isPending ? "wait" : "pointer",
+          opacity: isPending ? 0.8 : 1,
+        }}
+      >
+        {isPending ? "Entrando..." : "Participar do grupo"}
+      </button>
+
+      {errorMsg && (
+        <p
+          style={{
+            fontSize: 11,
+            color: "#fca5a5",
+            margin: 0,
+          }}
+        >
+          {errorMsg}
+        </p>
+      )}
+    </div>
   );
 }
