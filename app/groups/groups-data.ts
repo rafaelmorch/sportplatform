@@ -14,9 +14,9 @@ export type TrainingGroup = {
   shortDescription: string;
   longDescription: string;
   includedChallengeSummary: string;
-  // no futuro, se quiser, podemos ligar com outras tabelas
   weeklyPlan: string[];
   levelHint?: string;
+  members?: number; // ⬅ ADICIONADO AQUI
 };
 
 export const trainingGroups: TrainingGroup[] = [
@@ -35,7 +35,8 @@ export const trainingGroups: TrainingGroup[] = [
       "Semanas 10–11: Redução gradual do volume, mantendo intensidade moderada para chegar descansado.",
       "Semana 12: Taper final, treinos leves, ajuste de estratégia de prova e foco total em recuperação."
     ],
-    levelHint: "Corre 3–4x por semana e já fez longões de 15–20 km."
+    levelHint: "Corre 3–4x por semana e já fez longões de 15–20 km.",
+    members: 12,
   },
   {
     slug: "triathlon-endurance",
@@ -53,7 +54,8 @@ export const trainingGroups: TrainingGroup[] = [
       "Semanas 10–11: Redução de volume, mantendo algumas passadas em ritmo de prova.",
       "Semana 12: Semana de prova, treinos leves, ajustes finos de transições e logística."
     ],
-    levelHint: "Já treina pelo menos 2 das 3 modalidades semanalmente."
+    levelHint: "Já treina pelo menos 2 das 3 modalidades semanalmente.",
+    members: 8,
   },
   {
     slug: "corrida-beginners",
@@ -71,7 +73,8 @@ export const trainingGroups: TrainingGroup[] = [
       "Semanas 10–11: Corridas contínuas entre 25–35 minutos, ajustes de ritmo e respiração.",
       "Semana 12: Semana de consolidação com um treino alvo de 5 km contínuos."
     ],
-    levelHint: "Consegue caminhar 20–30 min, mas ainda não corre 5 km direto."
+    levelHint: "Consegue caminhar 20–30 min, mas ainda não corre 5 km direto.",
+    members: 20,
   },
   {
     slug: "running-weight-loss",
@@ -89,7 +92,8 @@ export const trainingGroups: TrainingGroup[] = [
       "Semanas 10–11: Mantém volume, melhora ligeiramente a intensidade para elevar o gasto calórico.",
       "Semana 12: Consolidação, mantendo rotina estável e preparando o próximo ciclo."
     ],
-    levelHint: "Quer usar a corrida como ferramenta de emagrecimento com segurança."
+    levelHint: "Quer usar a corrida como ferramenta de emagrecimento com segurança.",
+    members: 15,
   },
   {
     slug: "performance-5k",
@@ -107,7 +111,8 @@ export const trainingGroups: TrainingGroup[] = [
       "Semanas 10–11: Redução leve de volume, mantendo estímulo de velocidade.",
       "Semana 12: Afinar para a prova alvo, com 1 ou 2 treinos curtos em ritmo forte e muito descanso."
     ],
-    levelHint: "Corre 5 km contínuos pelo menos 1 vez por semana."
+    levelHint: "Corre 5 km contínuos pelo menos 1 vez por semana.",
+    members: 10,
   },
   {
     slug: "performance-10k",
@@ -125,6 +130,7 @@ export const trainingGroups: TrainingGroup[] = [
       "Semanas 10–11: Redução de volume, mantendo intensidade em menor quantidade.",
       "Semana 12: Semana de prova com treinos curtos, leves e alguns estímulos rápidos."
     ],
-    levelHint: "Já corre 8–10 km e quer melhorar performance."
-  }
+    levelHint: "Já corre 8–10 km e quer melhorar performance.",
+    members: 9,
+  },
 ];
