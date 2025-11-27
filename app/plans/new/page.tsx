@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-type LevelOption = "Iniciante" | "Intermediário" | "Avançado";
+type Challenge = {
+  id: string;
+  title: string;
+};
 
 function slugify(text: string): string {
   return text
@@ -19,16 +22,50 @@ function slugify(text: string): string {
 
 export default function NewTrainingPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser; // ✅ AQUI, sem "()"
+  const supabase = supabaseBrowser;
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [level, setLevel] = useState<LevelOption | "">("");
   const [durationWeeks, setDurationWeeks] = useState<string>("");
   const [price, setPrice] = useState<string>(""); // em dólar (ex: 199.99)
+
+  // >>> NOVOS ESTADOS PARA GRUPOS <<<
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [selectedChallengeIds, setSelectedChallengeIds] = useState<string[]>(
+    []
+  );
+  const [isGeneric, setIsGeneric] = useState(false);
+
   const [loading, setLoading] = useState(false);
+  const [loadingChallenges, setLoadingChallenges] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Carrega os grupos (desafios) existentes
+  useEffect(() => {
+    async function fetchChallenges() {
+      setLoadingChallenges(true);
+      const { data, error } = await supabase
+        .from("challenges")
+        .select("id, title")
+        .order("start_date", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar grupos/desafios:", error);
+      } else {
+        setChallenges(data ?? []);
+      }
+      setLoadingChallenges(false);
+    }
+
+    fetchChallenges();
+  }, [supabase]);
+
+  function toggleChallengeSelection(id: string) {
+    setSelectedChallengeIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -80,27 +117,29 @@ export default function NewTrainingPage() {
       const duration =
         durationWeeks.trim() === "" ? null : Number(durationWeeks);
 
-      // 5) Insert no Supabase
+      // 5) Insert no Supabase (treinamento)
       const { data, error } = await supabase
         .from("trainings")
         .insert({
           title: title.trim(),
           description: description.trim() || null,
-          level: level || null,
+          level: null, // não usamos mais nível
           duration_weeks: isNaN(duration as number) ? null : duration,
           visibility: "platform",
           created_by: userId,
           price_cents: priceCents,
           currency: "USD",
           slug: finalSlug,
+          is_generic: isGeneric,
         })
-        .select("slug")
+        .select("id, slug")
         .single();
 
-      if (error) {
+      if (error || !data) {
         console.error("Erro ao criar treinamento:", error);
         // slug único pode dar conflito
-        if ((error as any).code === "23505") {
+        const pgError = error as any;
+        if (pgError?.code === "23505") {
           setErrorMsg(
             "Já existe um treinamento com um slug gerado parecido. Tente ajustar o título."
           );
@@ -111,7 +150,31 @@ export default function NewTrainingPage() {
         return;
       }
 
-      const createdSlug = (data as any)?.slug ?? finalSlug;
+      const trainingId = (data as any).id as string;
+      const createdSlug = (data as any).slug ?? finalSlug;
+
+      // 6) Cria vínculos treinamento <-> grupos selecionados
+      if (selectedChallengeIds.length > 0) {
+        const rows = selectedChallengeIds.map((challengeId) => ({
+          training_id: trainingId,
+          challenge_id: challengeId,
+        }));
+
+        const { error: relError } = await supabase
+          .from("training_challenges")
+          .insert(rows);
+
+        if (relError) {
+          console.error(
+            "Erro ao vincular treinamento aos grupos/desafios:",
+            relError
+          );
+          // Não vamos travar o fluxo por isso, só avisar
+          setErrorMsg(
+            "Treinamento criado, mas houve um problema ao vincular aos grupos."
+          );
+        }
+      }
 
       setSuccessMsg("Treinamento criado com sucesso!");
       setTimeout(() => {
@@ -278,7 +341,7 @@ export default function NewTrainingPage() {
             />
           </div>
 
-          {/* Linha: nível + duração + preço */}
+          {/* Duração + Preço */}
           <div
             style={{
               display: "grid",
@@ -286,35 +349,6 @@ export default function NewTrainingPage() {
               gap: 10,
             }}
           >
-            {/* Nível */}
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: 4 }}
-            >
-              <label
-                style={{ fontSize: 13, fontWeight: 500, color: "#e5e7eb" }}
-              >
-                Nível
-              </label>
-              <select
-                value={level}
-                onChange={(e) => setLevel(e.target.value as LevelOption | "")}
-                style={{
-                  height: 40,
-                  borderRadius: 12,
-                  border: "1px solid rgba(55,65,81,0.9)",
-                  padding: "0 10px",
-                  fontSize: 14,
-                  backgroundColor: "#020617",
-                  color: level ? "#e5e7eb" : "#6b7280",
-                }}
-              >
-                <option value="">Selecione</option>
-                <option value="Iniciante">Iniciante</option>
-                <option value="Intermediário">Intermediário</option>
-                <option value="Avançado">Avançado</option>
-              </select>
-            </div>
-
             {/* Duração */}
             <div
               style={{ display: "flex", flexDirection: "column", gap: 4 }}
@@ -370,12 +404,98 @@ export default function NewTrainingPage() {
             </div>
           </div>
 
+          {/* Apropriado para o grupo */}
+          <div
+            style={{
+              marginTop: 4,
+              paddingTop: 10,
+              borderTop: "1px solid rgba(31,41,55,0.9)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <label
+              style={{ fontSize: 13, fontWeight: 500, color: "#e5e7eb" }}
+            >
+              Apropriado para o grupo
+            </label>
+
+            {loadingChallenges ? (
+              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                Carregando grupos...
+              </p>
+            ) : challenges.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                Ainda não há grupos cadastrados. Você pode marcar o
+                treinamento como genérico.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                }}
+              >
+                {challenges.map((ch) => (
+                  <label
+                    key={ch.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 13,
+                      color: "#e5e7eb",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedChallengeIds.includes(ch.id)}
+                      onChange={() => toggleChallengeSelection(ch.id)}
+                      style={{
+                        width: 16,
+                        height: 16,
+                      }}
+                    />
+                    <span>{ch.title}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Opção genérica */}
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                color: "#e5e7eb",
+                marginTop: 4,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isGeneric}
+                onChange={(e) => setIsGeneric(e.target.checked)}
+                style={{
+                  width: 16,
+                  height: 16,
+                }}
+              />
+              <span>
+                Treinamento genérico (não vinculado a um grupo específico)
+              </span>
+            </label>
+          </div>
+
           {/* Botão salvar */}
           <button
             type="submit"
             disabled={loading}
             style={{
-              marginTop: 4,
+              marginTop: 10,
               height: 46,
               borderRadius: 999,
               border: "1px solid rgba(34,197,94,0.9)",
