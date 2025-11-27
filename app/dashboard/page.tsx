@@ -76,9 +76,8 @@ export default function DashboardPage() {
         .eq("id", userId)
         .single();
 
-      // 👉 AQUI É A MUDANÇA IMPORTANTE:
-      // Se der erro, em vez de travar o dashboard, usamos um perfil padrão.
       if (profileError) {
+        // fallback: usa e-mail como nome e plano free
         console.warn("Perfil não encontrado, usando padrão:", profileError);
         setProfile({
           full_name: session.user.email ?? "Atleta",
@@ -214,115 +213,281 @@ export default function DashboardPage() {
     ? profile.full_name.split(" ")[0]
     : "Atleta";
 
+  // ---------- estilos básicos ----------
+  const pageStyle: React.CSSProperties = {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    background: "#020617",
+    color: "#e5e7eb",
+  };
+
+  const mainStyle: React.CSSProperties = {
+    flex: 1,
+    padding: "16px 16px 80px",
+    maxWidth: 960,
+    margin: "0 auto",
+  };
+
+  const sectionGridStyle: React.CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 12,
+    marginBottom: 20,
+  };
+
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 18,
+    padding: "12px 14px",
+    background:
+      "radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(15,23,42,0.9))",
+    border: "1px solid rgba(30,64,175,0.6)",
+  };
+
+  const smallLabel: React.CSSProperties = {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginBottom: 4,
+  };
+
+  const bigNumber: React.CSSProperties = {
+    fontSize: 22,
+    fontWeight: 700,
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-white">
-      <main className="flex-1 pb-20 px-4 pt-6 max-w-3xl w-full mx-auto">
+    <div style={pageStyle}>
+      <main style={mainStyle}>
         {/* Cabeçalho */}
-        <header className="mb-6">
-          <p className="text-sm text-slate-400">Dashboard</p>
-          <h1 className="text-2xl font-semibold">
-            Olá, <span className="text-emerald-400">{firstName}</span>
-          </h1>
-          {profile?.plan === "coach" && (
-            <span className="inline-flex mt-2 items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
-              Coach
-            </span>
-          )}
+        <header style={{ marginBottom: 16 }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "#64748b",
+              marginBottom: 2,
+              textTransform: "uppercase",
+              letterSpacing: "0.16em",
+            }}
+          >
+            Dashboard
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <h1
+              style={{
+                fontSize: 24,
+                fontWeight: 700,
+                margin: 0,
+              }}
+            >
+              Olá,{" "}
+              <span style={{ color: "#4ade80" }}>
+                {firstName || "Atleta"}
+              </span>
+            </h1>
+            {profile?.plan === "coach" && (
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(74,222,128,0.6)",
+                  background: "rgba(22,163,74,0.15)",
+                  color: "#bbf7d0",
+                }}
+              >
+                Coach
+              </span>
+            )}
+          </div>
         </header>
 
         {/* Mensagens de loading/erro */}
         {loading && (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
-            Carregando seus dados...
+          <div
+            style={{
+              ...cardStyle,
+              background:
+                "radial-gradient(circle at top, #0f172a, #020617 70%)",
+              border: "1px solid rgba(148,163,184,0.4)",
+              marginBottom: 16,
+            }}
+          >
+            <p style={{ fontSize: 13, margin: 0 }}>Carregando seus dados...</p>
           </div>
         )}
 
         {errorMsg && !loading && (
-          <div className="rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-sm text-red-200 mb-4">
-            {errorMsg}
+          <div
+            style={{
+              ...cardStyle,
+              background:
+                "radial-gradient(circle at top, rgba(127,29,29,0.9), #111827 80%)",
+              border: "1px solid rgba(248,113,113,0.7)",
+              marginBottom: 16,
+            }}
+          >
+            <p style={{ fontSize: 13, margin: 0 }}>{errorMsg}</p>
           </div>
         )}
 
         {/* Conteúdo principal */}
         {!loading && !errorMsg && (
-          <div className="space-y-6">
+          <>
             {/* Seus números */}
-            <section className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
-                <p className="text-xs text-slate-400">Minutos totais</p>
-                <p className="mt-1 text-2xl font-semibold">{totalMinutes}</p>
-                <p className="mt-1 text-[11px] text-slate-500">
+            <section style={sectionGridStyle}>
+              <div style={cardStyle}>
+                <p style={smallLabel}>Minutos totais</p>
+                <p style={bigNumber}>{totalMinutes}</p>
+                <p style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
                   Desde o início (sem caminhada)
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
-                <p className="text-xs text-slate-400">Pontos</p>
-                <p className="mt-1 text-2xl font-semibold">{totalPoints}</p>
-                <p className="mt-1 text-[11px] text-slate-500">
+              <div style={cardStyle}>
+                <p style={smallLabel}>Pontos</p>
+                <p style={bigNumber}>{totalPoints}</p>
+                <p style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
                   1 ponto = 1 minuto
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
-                <p className="text-xs text-slate-400">Últimos 7 dias</p>
-                <p className="mt-1 text-xl font-semibold">
-                  {last7DaysMinutes} min
-                </p>
+              <div style={cardStyle}>
+                <p style={smallLabel}>Últimos 7 dias</p>
+                <p style={bigNumber}>{last7DaysMinutes} min</p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
-                <p className="text-xs text-slate-400">Últimos 30 dias</p>
-                <p className="mt-1 text-xl font-semibold">
-                  {last30DaysMinutes} min
-                </p>
+              <div style={cardStyle}>
+                <p style={smallLabel}>Últimos 30 dias</p>
+                <p style={bigNumber}>{last30DaysMinutes} min</p>
               </div>
             </section>
 
             {/* Desafio + grupo */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <h2 className="text-sm font-semibold text-slate-100">
+            <section
+              style={{
+                ...cardStyle,
+                marginBottom: 20,
+                background:
+                  "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  marginBottom: 8,
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    margin: 0,
+                  }}
+                >
                   Desafio ativo
                 </h2>
               </div>
 
               {activeChallenge ? (
                 <>
-                  <p className="text-sm font-medium text-emerald-300">
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#6ee7b7",
+                      marginBottom: 4,
+                    }}
+                  >
                     {activeChallenge.title}
                   </p>
                   {activeChallenge.description && (
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        marginTop: 0,
+                        marginBottom: 10,
+                      }}
+                    >
                       {activeChallenge.description}
                     </p>
                   )}
 
                   {groupStats && (
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                      <div className="rounded-xl bg-slate-950/60 px-3 py-2 border border-slate-800/60">
-                        <p className="text-slate-400 text-[11px]">
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))",
+                        gap: 10,
+                        fontSize: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          borderRadius: 14,
+                          padding: "10px 12px",
+                          background: "#020617",
+                          border: "1px solid rgba(34,197,94,0.5)",
+                        }}
+                      >
+                        <p style={{ ...smallLabel, marginBottom: 2 }}>
                           Seus minutos no desafio
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-emerald-300">
+                        <p
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 700,
+                            color: "#4ade80",
+                            margin: 0,
+                          }}
+                        >
                           {groupStats.userMinutesInChallenge} min
                         </p>
                       </div>
 
-                      <div className="rounded-xl bg-slate-950/60 px-3 py-2 border border-slate-800/60">
-                        <p className="text-slate-400 text-[11px]">
+                      <div
+                        style={{
+                          borderRadius: 14,
+                          padding: "10px 12px",
+                          background: "#020617",
+                          border: "1px solid rgba(59,130,246,0.6)",
+                        }}
+                      >
+                        <p style={{ ...smallLabel, marginBottom: 2 }}>
                           Média do grupo
                         </p>
-                        <p className="mt-1 text-lg font-semibold text-sky-300">
+                        <p
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 700,
+                            color: "#93c5fd",
+                            margin: 0,
+                          }}
+                        >
                           {groupStats.challengeAverageMinutes} min
                         </p>
                       </div>
 
-                      <div className="rounded-xl bg-slate-950/60 px-3 py-2 border border-slate-800/60 col-span-2">
-                        <p className="text-slate-400 text-[11px]">
+                      <div
+                        style={{
+                          borderRadius: 14,
+                          padding: "10px 12px",
+                          background: "#020617",
+                          border: "1px solid rgba(148,163,184,0.6)",
+                        }}
+                      >
+                        <p style={{ ...smallLabel, marginBottom: 2 }}>
                           Participantes
                         </p>
-                        <p className="mt-1 text-base font-medium text-slate-100">
+                        <p
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 600,
+                            margin: 0,
+                          }}
+                        >
                           {groupStats.participants} atleta
                           {groupStats.participants === 1 ? "" : "s"}
                         </p>
@@ -331,7 +496,7 @@ export default function DashboardPage() {
                   )}
                 </>
               ) : (
-                <p className="text-xs text-slate-400">
+                <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 4 }}>
                   Nenhum desafio ativo no momento. Em breve você verá aqui os
                   desafios em que estiver participando.
                 </p>
@@ -339,23 +504,61 @@ export default function DashboardPage() {
             </section>
 
             {/* Últimas atividades */}
-            <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-semibold text-slate-100">
+            <section
+              style={{
+                ...cardStyle,
+                marginBottom: 24,
+                background:
+                  "radial-gradient(circle at top left, #020617, #020617 60%, #000000 100%)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  marginBottom: 10,
+                }}
+              >
+                <h2
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    margin: 0,
+                  }}
+                >
                   Últimas atividades
                 </h2>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "#9ca3af",
+                  }}
+                >
+                  {activities.length === 0
+                    ? "Sem atividades registradas"
+                    : "As 10 atividades mais recentes"}
+                </span>
               </div>
 
               {activities.length === 0 ? (
-                <p className="text-xs text-slate-400">
+                <p style={{ fontSize: 12, color: "#9ca3af" }}>
                   Ainda não há atividades registradas. Conecte seu Strava e
                   volte aqui depois dos primeiros treinos.
                 </p>
               ) : (
-                <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <ul
+                  style={{
+                    listStyle: "none",
+                    padding: 0,
+                    margin: 0,
+                    maxHeight: 260,
+                    overflowY: "auto",
+                  }}
+                >
                   {activities.slice(0, 10).map((a) => {
-                    const date = new Date(a.start_date);
-                    const dateLabel = date.toLocaleDateString(undefined, {
+                    const d = new Date(a.start_date);
+                    const dateLabel = d.toLocaleDateString("pt-BR", {
                       day: "2-digit",
                       month: "2-digit",
                     });
@@ -363,23 +566,51 @@ export default function DashboardPage() {
                     return (
                       <li
                         key={a.id}
-                        className="flex items-center justify-between rounded-xl bg-slate-950/70 border border-slate-800/60 px-3 py-2"
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "8px 4px",
+                          borderTop: "1px solid rgba(31,41,55,0.8)",
+                          fontSize: 12,
+                        }}
                       >
                         <div>
-                          <p className="text-xs font-medium text-slate-100">
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                          >
                             {a.type}
-                          </p>
-                          <p className="text-[11px] text-slate-500">
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#9ca3af",
+                            }}
+                          >
                             {dateLabel}
-                          </p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-emerald-300">
+                        <div style={{ textAlign: "right" }}>
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#4ade80",
+                            }}
+                          >
                             {a.minutes} min
-                          </p>
-                          <p className="text-[11px] text-slate-500">
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#9ca3af",
+                            }}
+                          >
                             {a.points} pts
-                          </p>
+                          </div>
                         </div>
                       </li>
                     );
@@ -387,7 +618,7 @@ export default function DashboardPage() {
                 </ul>
               )}
             </section>
-          </div>
+          </>
         )}
       </main>
 
