@@ -36,7 +36,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
   }
 
   const memberCount = await getMemberCount(group);
-  const plan = group.twelveWeekPlan;
+  // 👇 aqui é onde o TS estava reclamando
+  const plan = (group as any).twelveWeekPlan;
 
   return (
     <main
@@ -236,7 +237,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 marginTop: 10,
               }}
             >
-              {plan.weeks.map((w) => (
+              {plan.weeks.map((w: any) => (
                 <div
                   key={w.week}
                   style={{
