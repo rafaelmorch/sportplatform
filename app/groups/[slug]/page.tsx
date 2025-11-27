@@ -1,15 +1,32 @@
 // app/groups/[slug]/page.tsx
-import { notFound } from "next/navigation";
 import Link from "next/link";
+import { notFound } from "next/navigation";
+
 import { trainingGroups } from "../groups-data";
 import JoinGroupButton from "./JoinGroupButton";
+import { supabaseAdmin } from "@/lib/supabase";
 
+// Tipo do params (Next 16 envia como Promise)
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+async function getMemberCount(groupSlug: string): Promise<number> {
+  // conta quantos usuários estão no grupo (tabela group_members)
+  const { count, error } = await supabaseAdmin
+    .from("group_members")
+    .select("*", { head: true, count: "exact" })
+    .eq("group_slug", groupSlug);
+
+  if (error) {
+    console.error("Erro ao buscar membros do grupo:", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
 export default async function GroupDetailPage({ params }: PageProps) {
-  // Next 16: params é Promise
   const { slug } = await params;
 
   const group = trainingGroups.find((g) => g.slug === slug);
@@ -18,7 +35,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const participants = group.members ?? 0;
+  const memberCount = await getMemberCount(group.slug);
+
+  const hasPlan = !!group.twelveWeekPlan;
+  const weeks = group.twelveWeekPlan?.weeks ?? [];
 
   return (
     <main
@@ -27,44 +47,57 @@ export default async function GroupDetailPage({ params }: PageProps) {
         background: "#020617",
         color: "#e5e7eb",
         padding: "16px",
-        paddingBottom: "16px", // sem BottomNavbar aqui
+        paddingBottom: "40px",
       }}
     >
-      {/* TOPO: botão voltar + título */}
-      <header
+      <div
         style={{
-          maxWidth: "900px",
-          margin: "0 auto 20px auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
+          maxWidth: "960px",
+          margin: "0 auto",
         }}
       >
-        {/* Botão de voltar */}
-        <div>
+        {/* Topo: botão voltar */}
+        <div
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+          }}
+        >
           <Link
             href="/groups"
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6,
-              fontSize: 12,
+              gap: 8,
               padding: "6px 12px",
               borderRadius: 999,
-              border: "1px solid rgba(148,163,184,0.4)",
+              border: "1px solid rgba(148,163,184,0.5)",
+              fontSize: 13,
               textDecoration: "none",
               color: "#e5e7eb",
               background:
-                "radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,0.6))",
+                "radial-gradient(circle at top left, #020617, #020617 60%, #000000 100%)",
             }}
           >
-            <span style={{ fontSize: 14 }}>←</span>
+            <span style={{ fontSize: 16 }}>←</span>
             <span>Voltar para grupos</span>
           </Link>
         </div>
 
-        {/* Título e descrição do grupo */}
-        <div>
+        {/* Header do grupo */}
+        <header
+          style={{
+            borderRadius: 24,
+            padding: "18px 18px",
+            marginBottom: 18,
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 40%, #000000 100%)",
+            border: "1px solid rgba(55,65,81,0.9)",
+          }}
+        >
           <p
             style={{
               fontSize: 11,
@@ -72,104 +105,173 @@ export default async function GroupDetailPage({ params }: PageProps) {
               textTransform: "uppercase",
               color: "#64748b",
               margin: 0,
+              marginBottom: 6,
             }}
           >
-            Grupo de treinamento
+            Grupo de treino
           </p>
-          <h1
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              margin: "4px 0 6px 0",
-            }}
-          >
-            {group.title}
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              margin: 0,
-            }}
-          >
-            {group.shortDescription}
-          </p>
-        </div>
-      </header>
 
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        {/* Card principal: visão geral do grupo */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <div>
+              <h1
+                style={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  margin: 0,
+                  marginBottom: 4,
+                }}
+              >
+                {group.name}
+              </h1>
+              {group.tagline && (
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
+                  {group.tagline}
+                </p>
+              )}
+            </div>
+
+            {/* chips à direita */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                justifyContent: "flex-end",
+              }}
+            >
+              <span
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(34,197,94,0.6)",
+                  fontSize: 11,
+                  color: "#bbf7d0",
+                  background:
+                    "radial-gradient(circle at top, #022c22, #022c22 40%, transparent)",
+                }}
+              >
+                {memberCount} participante
+                {memberCount === 1 ? "" : "s"}
+              </span>
+
+              {group.recommendedLevel && (
+                <span
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(59,130,246,0.65)",
+                    fontSize: 11,
+                    color: "#bfdbfe",
+                    background:
+                      "radial-gradient(circle at top, #0b1120, #020617 60%)",
+                  }}
+                >
+                  Nível sugerido: {group.recommendedLevel}
+                </span>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Descrição longa + botões de ação */}
         <section
           style={{
             borderRadius: 20,
-            border: "1px solid rgba(148,163,184,0.35)",
+            border: "1px solid rgba(75,85,99,0.9)",
             background:
               "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "16px 14px",
+            padding: "16px 16px 14px",
+            marginBottom: 18,
           }}
         >
-          <h2
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              marginTop: 0,
-              marginBottom: 8,
-            }}
-          >
-            Sobre o grupo
-          </h2>
           <p
             style={{
               fontSize: 14,
+              lineHeight: 1.7,
               color: "#d1d5db",
-              lineHeight: 1.6,
-              margin: 0,
+              marginTop: 0,
+              marginBottom: 14,
             }}
           >
             {group.longDescription}
           </p>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
+            {/* Botão principal: Participar do grupo (client component) */}
+            <JoinGroupButton groupSlug={group.slug} />
+
+            {/* Botão menor – ainda sem ação (sem onClick) */}
+            <button
+              type="button"
+              disabled
+              style={{
+                padding: "8px 14px",
+                borderRadius: 999,
+                border: "1px solid rgba(148,163,184,0.6)",
+                backgroundColor: "transparent",
+                color: "#9ca3af",
+                fontSize: 12,
+                cursor: "not-allowed",
+                opacity: 0.7,
+              }}
+            >
+              Sair do grupo (em breve)
+            </button>
+          </div>
         </section>
 
-        {/* Comunidade + botões de ação */}
+        {/* Plano de 12 semanas */}
         <section
           style={{
-            borderRadius: 18,
-            border: "1px solid rgba(55,65,81,0.9)",
+            borderRadius: 22,
+            border: "1px solid rgba(148,163,184,0.35)",
             background:
-              "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
-            padding: "16px 14px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
+              "radial-gradient(circle at top left, #020617, #020617 40%, #000000 100%)",
+            padding: "18px 16px 18px",
+            marginBottom: 20,
           }}
         >
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              gap: 12,
               flexWrap: "wrap",
+              gap: 8,
+              marginBottom: 12,
             }}
           >
             <div>
-              <h3
+              <h2
                 style={{
-                  fontSize: 15,
+                  fontSize: 18,
                   fontWeight: 600,
                   margin: 0,
                   marginBottom: 4,
                 }}
               >
-                Comunidade do grupo
-              </h3>
+                Plano de 12 semanas
+              </h2>
               <p
                 style={{
                   fontSize: 13,
@@ -177,106 +279,101 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   margin: 0,
                 }}
               >
-                {participants}{" "}
-                {participants === 1 ? "atleta participando" : "atletas participando"}.
+                Estrutura progressiva pensada para o objetivo principal do
+                grupo.
               </p>
-              {group.levelHint && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#6b7280",
-                    marginTop: 6,
-                    marginBottom: 0,
-                  }}
-                >
-                  Nível sugerido: {group.levelHint}
-                </p>
-              )}
             </div>
 
-            {/* Botões: participar + sair */}
-            <div
+            <p
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                alignItems: "flex-end",
-                minWidth: 180,
+                fontSize: 13,
+                color: "#a5b4fc",
+                margin: 0,
               }}
             >
-              {/* Botão principal – já existe no projeto */}
-              <JoinGroupButton slug={group.slug} />
-
-              {/* Botão menor Sair do grupo (visual por enquanto) */}
-              <button
-                type="button"
-                style={{
-                  fontSize: 11,
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(148,163,184,0.6)",
-                  background: "transparent",
-                  color: "#9ca3af",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  // TODO: no futuro, conectar com Supabase para remover participação
-                  alert("Em breve você poderá sair do grupo pela plataforma.");
-                }}
-              >
-                Sair do grupo
-              </button>
-            </div>
+              Volume alvo: {group.targetVolumeDescription ?? "adaptado ao grupo"}
+            </p>
           </div>
-        </section>
 
-        {/* Plano de 12 semanas */}
-        <section
-          style={{
-            borderRadius: 20,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background:
-              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "16px 14px",
-            marginBottom: 8,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              marginTop: 0,
-              marginBottom: 6,
-            }}
-          >
-            Plano de 12 semanas
-          </h2>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              marginTop: 0,
-              marginBottom: 10,
-            }}
-          >
-            {group.includedChallengeSummary}
-          </p>
-
-          <ul
-            style={{
-              paddingLeft: "18px",
-              margin: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-              fontSize: 13,
-              color: "#d1d5db",
-            }}
-          >
-            {group.weeklyPlan.map((line, index) => (
-              <li key={index}>{line}</li>
-            ))}
-          </ul>
+          {hasPlan && weeks.length > 0 ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {weeks.map((week, index) => (
+                <div
+                  key={week.title ?? index}
+                  style={{
+                    borderRadius: 16,
+                    padding: "10px 10px",
+                    border: "1px solid rgba(55,65,81,0.9)",
+                    background:
+                      "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      color: "#64748b",
+                      margin: 0,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Semana {index + 1}
+                  </p>
+                  <h3
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      margin: 0,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {week.title}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#9ca3af",
+                      margin: 0,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {week.focus}
+                  </p>
+                  {week.keyWorkouts && week.keyWorkouts.length > 0 && (
+                    <ul
+                      style={{
+                        margin: 0,
+                        paddingLeft: 16,
+                        fontSize: 12,
+                        color: "#e5e7eb",
+                      }}
+                    >
+                      {week.keyWorkouts.map((w, i) => (
+                        <li key={i}>{w}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#9ca3af",
+                margin: 0,
+              }}
+            >
+              Em breve você verá aqui o detalhamento semana a semana deste
+              grupo.
+            </p>
+          )}
         </section>
       </div>
     </main>
