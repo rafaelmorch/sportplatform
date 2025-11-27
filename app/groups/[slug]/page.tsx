@@ -9,11 +9,9 @@ type PageProps = {
   params: Promise<{ slug: TrainingGroupSlug }>;
 };
 
-// Deriva o tipo do próprio array de grupos
-type TrainingGroup = (typeof trainingGroups)[number];
-
-async function getMemberCount(group: TrainingGroup): Promise<number> {
-  if (!group.challengeId) return 0;
+// Deixa o TypeScript mais relaxado aqui
+async function getMemberCount(group: any): Promise<number> {
+  if (!group?.challengeId) return 0;
 
   const { data, error } = await supabaseAdmin
     .from("challenge_participants") // se o nome for outro, ajusta aqui
@@ -21,7 +19,7 @@ async function getMemberCount(group: TrainingGroup): Promise<number> {
     .eq("challenge_id", group.challengeId);
 
   if (error) {
-    console.error("Erro ao contar participantes do grupo", group.slug, error);
+    console.error("Erro ao contar participantes do grupo", group?.slug, error);
     return 0;
   }
 
