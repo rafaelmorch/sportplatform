@@ -19,7 +19,7 @@ function slugify(text: string): string {
 
 export default function NewTrainingPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser();
+  const supabase = supabaseBrowser; // ✅ AQUI, sem "()"
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
