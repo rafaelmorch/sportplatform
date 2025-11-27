@@ -1,31 +1,63 @@
 // app/groups/[slug]/page.tsx
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
-import { trainingGroups } from "../groups-data";
+import { supabaseAdmin } from "@/lib/supabase";
+import JoinGroupButton from "./JoinGroupButton";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+type TrainingGroupRow = {
+  id: string;
+  slug: string;
+  title: string;
+  short_description: string | null;
+  long_description: string | null;
+  level_hint: string | null;
+};
+
+type GroupWeekRow = {
+  week_number: number;
+  focus: string;
+  summary: string | null;
+  mileage_hint: string | null;
+  key_workouts: string | null;
+};
+
 export default async function GroupDetailPage({ params }: PageProps) {
-  // Next 16: params é uma Promise → precisamos dar await
   const { slug } = await params;
 
-  // Usamos any pra não brigar com TS por causa de campos opcionais
-  const group = trainingGroups.find((g: any) => g.slug === slug) as any | undefined;
+  // 1) Carrega o grupo pelo slug
+  const { data: group, error: groupError } = await supabaseAdmin
+    .from("training_groups")
+    .select(
+      "id, slug, title, short_description, long_description, level_hint"
+    )
+    .eq("slug", slug)
+    .maybeSingle<TrainingGroupRow>();
 
-  if (!group) {
+  if (!group || groupError) {
     notFound();
   }
 
-  const title: string = group.title ?? "Grupo sem título";
-  const description: string =
-    group.description ??
-    group.shortDescription ??
-    "Descrição em breve para este grupo.";
-  const level: string | undefined = group.level;
-  const focus: string | undefined = group.focus;
+  // 2) Carrega plano de 12 semanas
+  const { data: weeks } = await supabaseAdmin
+    .from("training_group_weeks")
+    .select(
+      "week_number, focus, summary, mileage_hint, key_workouts"
+    )
+    .eq("group_id", group.id)
+    .order("week_number", { ascending: true })
+    .returns<GroupWeekRow[]>();
+
+  // 3) Conta participantes da comunidade
+  const { count: membersCount } = await supabaseAdmin
+    .from("training_group_members")
+    .select("*", { head: true, count: "exact" })
+    .eq("group_id", group.id);
+
+  const totalMembers = membersCount ?? 0;
 
   return (
     <main
@@ -34,7 +66,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
         background: "#020617",
         color: "#e5e7eb",
         padding: "16px",
-        paddingBottom: "80px", // espaço pro BottomNavbar
+        paddingBottom: "80px",
       }}
     >
       <div
@@ -43,13 +75,13 @@ export default async function GroupDetailPage({ params }: PageProps) {
           margin: "0 auto",
         }}
       >
-        {/* Header */}
+        {/* HEADER */}
         <header
           style={{
-            marginBottom: "20px",
+            marginBottom: 20,
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: 6,
           }}
         >
           <p
@@ -70,32 +102,150 @@ export default async function GroupDetailPage({ params }: PageProps) {
               margin: 0,
             }}
           >
-            {title}
+            {group.title}
           </h1>
-          {(level || focus) && (
+
+          {group.short_description && (
             <p
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 color: "#9ca3af",
                 margin: 0,
               }}
             >
-              {level && <span>Nível: {level}</span>}
-              {level && focus && <span> · </span>}
-              {focus && <span>Foco: {focus}</span>}
+              {group.short_description}
+            </p>
+          )}
+
+          {group.level_hint && (
+            <p
+              style={{
+                fontSize: 12,
+                color: "#6b7280",
+                margin: 0,
+                marginTop: 4,
+              }}
+            >
+              Apropriado para: {group.level_hint}
             </p>
           )}
         </header>
 
-        {/* Card principal */}
+        {/* BLOCO COMUNIDADE + BOTÃO PARTICIPAR */}
         <section
           style={{
-            borderRadius: "20px",
+            borderRadius: 20,
+            border: "1px solid rgba(59,130,246,0.6)",
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: 18,
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "baseline",
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                Comunidade do grupo
+              </h2>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  margin: 0,
+                }}
+              >
+                Ao participar, você entra no ranking de minutos/pontos deste
+                grupo dentro do SportPlatform.
+              </p>
+            </div>
+
+            <div
+              style={{
+                textAlign: "right",
+                fontSize: 12,
+                color: "#9ca3af",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: "#bfdbfe",
+                }}
+              >
+                {totalMembers}
+              </div>
+              <div>atleta(s) no grupo</div>
+            </div>
+          </div>
+
+          <JoinGroupButton
+            groupId={group.id}
+            groupSlug={group.slug}
+            initialMembersCount={totalMembers}
+          />
+        </section>
+
+        {/* DESCRIÇÃO LONGA */}
+        {group.long_description && (
+          <section
+            style={{
+              borderRadius: 20,
+              border: "1px solid rgba(148,163,184,0.35)",
+              background:
+                "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+              padding: "16px 14px",
+              marginBottom: 18,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                marginTop: 0,
+                marginBottom: 8,
+              }}
+            >
+              Sobre o grupo
+            </h2>
+            <p
+              style={{
+                fontSize: 14,
+                lineHeight: 1.6,
+                color: "#d1d5db",
+                margin: 0,
+              }}
+            >
+              {group.long_description}
+            </p>
+          </section>
+        )}
+
+        {/* PLANO DE 12 SEMANAS */}
+        <section
+          style={{
+            borderRadius: 20,
             border: "1px solid rgba(148,163,184,0.35)",
             background:
               "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
             padding: "16px 14px",
-            marginBottom: "18px",
+            marginBottom: 24,
           }}
         >
           <h2
@@ -106,41 +256,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
               marginBottom: 8,
             }}
           >
-            Sobre o grupo
+            Treinamento de 12 semanas
           </h2>
-          <p
-            style={{
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: "#d1d5db",
-              margin: 0,
-            }}
-          >
-            {description}
-          </p>
-        </section>
-
-        {/* Seção de explicação */}
-        <section
-          style={{
-            borderRadius: "18px",
-            border: "1px solid rgba(55,65,81,0.9)",
-            background:
-              "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
-            padding: "16px 14px",
-            marginBottom: "20px",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              marginTop: 0,
-              marginBottom: 6,
-            }}
-          >
-            Como este grupo funciona
-          </h3>
           <p
             style={{
               fontSize: 13,
@@ -149,69 +266,97 @@ export default async function GroupDetailPage({ params }: PageProps) {
               marginBottom: 10,
             }}
           >
-            Os treinos deste grupo são organizados em sessões progressivas, com
-            foco em constância, segurança e evolução de performance ao longo do
-            tempo. A ideia é que o atleta consiga enxergar claramente a
-            evolução nas próximas semanas.
+            Plano progressivo pensado para evoluir semana a semana, sempre
+            respeitando o momento do atleta.
           </p>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              margin: 0,
-            }}
-          >
-            Na versão completa do SportPlatform, este grupo será conectado a
-            planos de treino personalizados e métricas em tempo real.
-          </p>
-        </section>
 
-        {/* Navegação */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            marginBottom: "12px",
-          }}
-        >
-          <Link
-            href="/groups"
-            style={{
-              display: "inline-flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: 44,
-              borderRadius: "999px",
-              border: "1px solid rgba(148,163,184,0.5)",
-              textDecoration: "none",
-              color: "#e5e7eb",
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            Voltar para lista de grupos
-          </Link>
-          <Link
-            href="/plans"
-            style={{
-              display: "inline-flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: 44,
-              borderRadius: "999px",
-              background:
-                "linear-gradient(135deg, #22c55e, #16a34a, #22c55e)",
-              color: "#020617",
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: "none",
-              border: "1px solid rgba(248,250,252,0.1)",
-            }}
-          >
-            Ver planos de treino recomendados
-          </Link>
-        </div>
+          {weeks && weeks.length > 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              {weeks.map((w) => (
+                <div
+                  key={w.week_number}
+                  style={{
+                    borderRadius: 14,
+                    border: "1px solid rgba(55,65,81,0.9)",
+                    padding: "10px 12px",
+                    background:
+                      "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <strong
+                      style={{
+                        fontSize: 13,
+                      }}
+                    >
+                      Semana {w.week_number} – {w.focus}
+                    </strong>
+                    {w.mileage_hint && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#9ca3af",
+                        }}
+                      >
+                        Volume alvo: {w.mileage_hint}
+                      </span>
+                    )}
+                  </div>
+
+                  {w.summary && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#d1d5db",
+                        margin: 0,
+                        marginBottom: w.key_workouts ? 4 : 0,
+                      }}
+                    >
+                      {w.summary}
+                    </p>
+                  )}
+
+                  {w.key_workouts && (
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#9ca3af",
+                        margin: 0,
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>Treinos-chave:</span>{" "}
+                      {w.key_workouts}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#9ca3af",
+                margin: 0,
+              }}
+            >
+              Em breve vamos publicar o plano completo de 12 semanas para este
+              grupo.
+            </p>
+          )}
+        </section>
       </div>
 
       <BottomNavbar />
