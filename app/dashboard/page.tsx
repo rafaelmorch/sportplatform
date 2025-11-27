@@ -55,24 +55,21 @@ export default function DashboardPage() {
       setLoading(true);
       setErrorMsg(null);
 
-      // 1) Pegar usuário logado
+      // 1) sessão do usuário
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (userError || !user) {
-        console.error(userError);
-        setErrorMsg(
-          "Não foi possível carregar seus dados. Faça login novamente."
-        );
+      if (sessionError || !session) {
+        setErrorMsg("Não foi possível carregar seus dados. Faça login novamente.");
         setLoading(false);
         return;
       }
 
-      const userId = user.id;
+      const userId = session.user.id;
 
-      // 2) Carregar profile (nome + plano)
+      // 2) profile
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("full_name, plan")
@@ -80,12 +77,14 @@ export default function DashboardPage() {
         .single();
 
       if (profileError) {
-        console.error(profileError);
-      } else {
+        setErrorMsg("Erro ao carregar seu perfil.");
+        setLoading(false);
+        return;
+      } else if (profileData) {
         setProfile(profileData as Profile);
       }
 
-      // 3) Carregar atividades do usuário (ordenadas por data)
+      // 3) atividades
       const { data: activitiesData, error: activitiesError } = await supabase
         .from("user_activities")
         .select("id, type, minutes, points, start_date")
@@ -93,7 +92,6 @@ export default function DashboardPage() {
         .order("start_date", { ascending: false });
 
       if (activitiesError) {
-        console.error(activitiesError);
         setErrorMsg("Erro ao carregar atividades.");
         setLoading(false);
         return;
@@ -102,7 +100,7 @@ export default function DashboardPage() {
       const acts = (activitiesData || []) as Activity[];
       setActivities(acts);
 
-      // 3.1) Calcular stats pessoais
+      // 3.1) stats pessoais
       let totalMin = 0;
       let totalPts = 0;
       let last7 = 0;
@@ -118,12 +116,8 @@ export default function DashboardPage() {
         const d = new Date(a.start_date);
         const diffDays = (now.getTime() - d.getTime()) / msInDay;
 
-        if (diffDays <= 7) {
-          last7 += a.minutes;
-        }
-        if (diffDays <= 30) {
-          last30 += a.minutes;
-        }
+        if (diffDays <= 7) last7 += a.minutes;
+        if (diffDays <= 30) last30 += a.minutes;
       });
 
       setTotalMinutes(totalMin);
@@ -131,8 +125,8 @@ export default function DashboardPage() {
       setLast7DaysMinutes(last7);
       setLast30DaysMinutes(last30);
 
-      // 4) Carregar desafio ativo (se existir)
-      const todayIso = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      // 4) desafio ativo
+      const todayIso = new Date().toISOString().slice(0, 10);
 
       const { data: challengeData, error: challengeError } = await supabase
         .from("challenges")
@@ -143,82 +137,66 @@ export default function DashboardPage() {
         .limit(1)
         .maybeSingle();
 
-      if (challengeError) {
-        console.error(challengeError);
-      }
-
-      if (challengeData) {
+      if (!challengeError && challengeData) {
         const challenge = challengeData as Challenge;
         setActiveChallenge(challenge);
 
-        // 4.1) Participantes do desafio
         const { data: participantsData, error: participantsError } =
           await supabase
             .from("challenge_participants")
             .select("user_id")
             .eq("challenge_id", challenge.id);
 
-        if (participantsError) {
-          console.error(participantsError);
-          setLoading(false);
-          return;
+        if (!participantsError && participantsData) {
+          const participants = participantsData || [];
+          const participantIds = participants.map((p: any) => p.user_id);
+
+          if (participantIds.length > 0) {
+            const {
+              data: challengeActivities,
+              error: challengeActivitiesError,
+            } = await supabase
+              .from("user_activities")
+              .select("user_id, minutes, start_date")
+              .in("user_id", participantIds)
+              .gte("start_date", challenge.start_date)
+              .lte("start_date", challenge.end_date);
+
+            if (!challengeActivitiesError && challengeActivities) {
+              const byUser: Record<string, number> = {};
+              let totalChallengeMinutes = 0;
+
+              (challengeActivities || []).forEach((a: any) => {
+                const uid = a.user_id as string;
+                const mins = a.minutes as number;
+                byUser[uid] = (byUser[uid] || 0) + mins;
+                totalChallengeMinutes += mins;
+              });
+
+              const participantsCount = participantIds.length;
+              const avg =
+                participantsCount > 0
+                  ? Math.round(totalChallengeMinutes / participantsCount)
+                  : 0;
+
+              const userMinutesInChallenge = byUser[userId] || 0;
+
+              setGroupStats({
+                participants: participantsCount,
+                challengeTotalMinutes: totalChallengeMinutes,
+                challengeAverageMinutes: avg,
+                userMinutesInChallenge,
+              });
+            }
+          } else {
+            setGroupStats({
+              participants: 0,
+              challengeTotalMinutes: 0,
+              challengeAverageMinutes: 0,
+              userMinutesInChallenge: 0,
+            });
+          }
         }
-
-        const participants = participantsData || [];
-        const participantIds = participants.map((p: any) => p.user_id);
-
-        if (participantIds.length === 0) {
-          setGroupStats({
-            participants: 0,
-            challengeTotalMinutes: 0,
-            challengeAverageMinutes: 0,
-            userMinutesInChallenge: 0,
-          });
-          setLoading(false);
-          return;
-        }
-
-        // 4.2) Atividades de todos participantes dentro do período do desafio
-        const {
-          data: challengeActivities,
-          error: challengeActivitiesError,
-        } = await supabase
-          .from("user_activities")
-          .select("user_id, minutes, start_date")
-          .in("user_id", participantIds)
-          .gte("start_date", challenge.start_date)
-          .lte("start_date", challenge.end_date);
-
-        if (challengeActivitiesError) {
-          console.error(challengeActivitiesError);
-          setLoading(false);
-          return;
-        }
-
-        const byUser: Record<string, number> = {};
-        let totalChallengeMinutes = 0;
-
-        (challengeActivities || []).forEach((a: any) => {
-          const uid = a.user_id as string;
-          const mins = a.minutes as number;
-          byUser[uid] = (byUser[uid] || 0) + mins;
-          totalChallengeMinutes += mins;
-        });
-
-        const participantsCount = participantIds.length;
-        const avg =
-          participantsCount > 0
-            ? Math.round(totalChallengeMinutes / participantsCount)
-            : 0;
-
-        const userMinutesInChallenge = byUser[userId] || 0;
-
-        setGroupStats({
-          participants: participantsCount,
-          challengeTotalMinutes: totalChallengeMinutes,
-          challengeAverageMinutes: avg,
-          userMinutesInChallenge,
-        });
       }
 
       setLoading(false);
@@ -263,7 +241,7 @@ export default function DashboardPage() {
         {/* Conteúdo principal */}
         {!loading && !errorMsg && (
           <div className="space-y-6">
-            {/* Bloco: seus números */}
+            {/* Seus números */}
             <section className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-3 py-3">
                 <p className="text-xs text-slate-400">Minutos totais</p>
@@ -296,7 +274,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* Bloco: desafio ativo + grupo */}
+            {/* Desafio + grupo */}
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h2 className="text-sm font-semibold text-slate-100">
@@ -355,7 +333,7 @@ export default function DashboardPage() {
               )}
             </section>
 
-            {/* Bloco: últimas atividades */}
+            {/* Últimas atividades */}
             <section className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 mb-4">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-sm font-semibold text-slate-100">
