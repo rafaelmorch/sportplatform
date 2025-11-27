@@ -1,6 +1,7 @@
 // app/plans/plans-data.ts
 
-import type { TrainingGroupSlug } from "../groups/groups-data";
+// ❌ Removemos o import tipado para simplificar por enquanto
+// import type { TrainingGroupSlug } from "../groups/groups-data";
 
 export type TrainingPlanSlug =
   | "starter-5k"
@@ -17,7 +18,8 @@ export type TrainingPlan = {
   durationWeeks: number;
   level: "Beginner" | "Intermediate" | "Advanced" | "Mixed";
   description: string;
-  recommendedGroups: TrainingGroupSlug[];
+  // 👉 por enquanto, só string[]
+  recommendedGroups: string[];
   highlights: string[];
 };
 
@@ -31,7 +33,6 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Beginner",
     description:
       "Perfeito para quem está começando na corrida e quer completar 5 km com segurança, seguindo um plano simples e objetivo.",
-    // 🔹 slugs CORRETOS vindos de TrainingGroupSlug
     recommendedGroups: ["beginners-running", "weight-loss-running"],
     highlights: [
       "Plano de 4 semanas focado em progressão segura",
