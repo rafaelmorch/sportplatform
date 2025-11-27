@@ -76,10 +76,14 @@ export default function DashboardPage() {
         .eq("id", userId)
         .single();
 
+      // 👉 AQUI É A MUDANÇA IMPORTANTE:
+      // Se der erro, em vez de travar o dashboard, usamos um perfil padrão.
       if (profileError) {
-        setErrorMsg("Erro ao carregar seu perfil.");
-        setLoading(false);
-        return;
+        console.warn("Perfil não encontrado, usando padrão:", profileError);
+        setProfile({
+          full_name: session.user.email ?? "Atleta",
+          plan: "free",
+        });
       } else if (profileData) {
         setProfile(profileData as Profile);
       }
@@ -92,6 +96,7 @@ export default function DashboardPage() {
         .order("start_date", { ascending: false });
 
       if (activitiesError) {
+        console.error(activitiesError);
         setErrorMsg("Erro ao carregar atividades.");
         setLoading(false);
         return;
