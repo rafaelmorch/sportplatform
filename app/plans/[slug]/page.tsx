@@ -2,29 +2,69 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
-import { trainingPlans } from "../plans-data";
+import { createClient } from "@supabase/supabase-js";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+// Cliente Supabase para rodar no servidor (usando as envs públicas)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type Training = {
+  id: string;
+  title: string;
+  description: string | null;
+  level: string | null;
+  duration_weeks: number | null;
+  price_cents: number | null;
+  currency: string | null;
+  slug: string | null;
+};
+
+function formatPrice(price_cents: number | null, currency: string | null) {
+  if (!price_cents || price_cents <= 0) return undefined;
+  const curr = (currency || "BRL").toUpperCase();
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: curr,
+  }).format(price_cents / 100);
+}
+
 export default async function PlanDetailPage({ params }: PageProps) {
   // Next 16: params é Promise
   const { slug } = await params;
 
-  const plan = trainingPlans.find((p: any) => p.slug === slug) as any | undefined;
+  // Busca o treinamento no Supabase
+  const { data, error } = await supabase
+    .from("trainings")
+    .select(
+      "id, title, description, level, duration_weeks, price_cents, currency, slug"
+    )
+    .eq("slug", slug)
+    .eq("visibility", "platform")
+    .eq("is_active", true)
+    .single<Training>();
 
-  if (!plan) {
+  if (error || !data) {
+    console.error("Erro ao carregar treinamento:", error);
     notFound();
   }
 
-  const title: string = plan.title ?? "Plano sem título";
+  const training = data;
+
+  const title: string = training.title ?? "Treinamento sem título";
   const description: string =
-    plan.description ??
-    plan.shortDescription ??
-    "Descrição em breve para este plano.";
-  const level: string | undefined = plan.level;
-  const price: string | undefined = plan.price;
+    training.description ?? "Descrição em breve para este treinamento.";
+  const level: string | null = training.level;
+  const priceFormatted = formatPrice(
+    training.price_cents,
+    training.currency
+  );
 
   return (
     <main
@@ -60,7 +100,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               margin: 0,
             }}
           >
-            Plano de treino
+            Treinamento online
           </p>
           <h1
             style={{
@@ -71,7 +111,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
           >
             {title}
           </h1>
-          {(level || price) && (
+          {(level || priceFormatted) && (
             <p
               style={{
                 fontSize: 13,
@@ -80,8 +120,10 @@ export default async function PlanDetailPage({ params }: PageProps) {
               }}
             >
               {level && <span>Nível: {level}</span>}
-              {level && price && <span> · </span>}
-              {price && <span>Investimento: {price}</span>}
+              {level && priceFormatted && <span> · </span>}
+              {priceFormatted && (
+                <span>Investimento: {priceFormatted}</span>
+              )}
             </p>
           )}
         </header>
@@ -105,7 +147,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               marginBottom: 8,
             }}
           >
-            O que você recebe neste plano
+            O que você recebe neste treinamento
           </h2>
           <p
             style={{
@@ -148,8 +190,8 @@ export default async function PlanDetailPage({ params }: PageProps) {
               marginBottom: 10,
             }}
           >
-            Este plano foi pensado para se conectar com os dados reais do
-            atleta via Strava, permitindo acompanhar métricas de volume,
+            Este treinamento foi pensado para se conectar com os dados reais
+            do atleta via Strava, permitindo acompanhar métricas de volume,
             intensidade e evolução ao longo das semanas.
           </p>
           <p
@@ -175,7 +217,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
           }}
         >
           <Link
-            href={`/checkout/${plan.slug}`}
+            href={`/checkout/${training.slug ?? ""}`}
             style={{
               display: "inline-flex",
               justifyContent: "center",
@@ -209,7 +251,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               fontWeight: 500,
             }}
           >
-            Voltar para lista de planos
+            Voltar para lista de treinamentos
           </Link>
         </div>
       </div>
