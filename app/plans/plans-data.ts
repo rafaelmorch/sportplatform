@@ -1,4 +1,4 @@
-// app/plans/plans-data.ts
+// app/plans/plans-data.ts 
 
 import type { TrainingGroupSlug } from "../groups/groups-data";
 
@@ -31,7 +31,7 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Beginner",
     description:
       "Perfeito para quem está começando na corrida e quer completar 5 km com segurança, seguindo um plano simples e objetivo.",
-    recommendedGroups: ["beginners-running", "weight-loss-running"],
+    recommendedGroups: ["corrida-beginners", "running-weight-loss"],
     highlights: [
       "Plano de 4 semanas focado em progressão segura",
       "2 a 4 treinos por semana",
@@ -63,7 +63,7 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Advanced",
     description:
       "Indicado para corredores experientes que querem se preparar com qualidade para uma maratona, com longões e treinos de ritmo.",
-    recommendedGroups: ["marathon", "performance-10k"],
+    recommendedGroups: ["maratona-42k", "performance-10k"],
     highlights: [
       "Plano de 8 semanas com foco em endurance",
       "Longões progressivos e treinos de ritmo",
@@ -79,7 +79,7 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Intermediate",
     description:
       "Para triatletas amadores que querem organizar melhor os treinos das três modalidades, com equilíbrio de carga.",
-    recommendedGroups: ["triathlon"],
+    recommendedGroups: ["triathlon-endurance"],
     highlights: [
       "Plano de 8 semanas com treinos combinados",
       "Brick sessions (bike + corrida)",
@@ -95,7 +95,7 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Mixed",
     description:
       "Ideal para quem quer usar a corrida e a caminhada como ferramenta de perda de peso de forma organizada.",
-    recommendedGroups: ["weight-loss-running", "beginners-running"],
+    recommendedGroups: ["running-weight-loss", "corrida-beginners"],
     highlights: [
       "Plano de 4 semanas com treinos intervalados leves",
       "Recomendações de rotina ativa no dia a dia",
