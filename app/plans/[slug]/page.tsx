@@ -2,69 +2,30 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
-import { createClient } from "@supabase/supabase-js";
+import { trainingPlans } from "../plans-data";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-// Cliente Supabase para rodar no servidor
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-type Training = {
-  id: string;
-  title: string;
-  description: string | null;
-  level: string | null;
-  duration_weeks: number | null;
-  price_cents: number | null;
-  currency: string | null;
-  slug: string | null;
-};
-
-function formatPrice(price_cents: number | null, currency: string | null) {
-  if (!price_cents || price_cents <= 0) return undefined;
-  const curr = (currency || "USD").toUpperCase();
-
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: curr,
-  }).format(price_cents / 100);
-}
-
 export default async function PlanDetailPage({ params }: PageProps) {
-  // Next 16: params é Promise
+  // Next 16: params vem como Promise
   const { slug } = await params;
 
-  // Busca o treinamento no Supabase
-  const { data, error } = await supabase
-    .from("trainings")
-    .select(
-      "id, title, description, level, duration_weeks, price_cents, currency, slug, visibility, is_active"
-    )
-    .eq("slug", slug)
-    .eq("visibility", "platform")
-    .eq("is_active", true)
-    .single<Training>();
+  const plan = trainingPlans.find((p) => p.slug === slug);
 
-  if (error || !data) {
-    console.error("Erro ao carregar treinamento:", error);
+  if (!plan) {
     notFound();
   }
 
-  const training = data;
-
-  const title: string = training.title ?? "Treinamento sem título";
-  const description: string =
-    training.description ?? "Descrição em breve para este treinamento.";
-  const level: string | null = training.level;
-  const priceFormatted = formatPrice(
-    training.price_cents,
-    training.currency
-  );
+  const {
+    title,
+    subtitle,
+    description,
+    level,
+    pricePerMonth,
+    durationWeeks,
+  } = plan!;
 
   return (
     <main
@@ -82,13 +43,33 @@ export default async function PlanDetailPage({ params }: PageProps) {
           margin: "0 auto",
         }}
       >
+        {/* Botão voltar */}
+        <div style={{ marginBottom: 16 }}>
+          <Link
+            href="/plans"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(55,65,81,0.9)",
+              fontSize: 13,
+              textDecoration: "none",
+              color: "#e5e7eb",
+            }}
+          >
+            ← Voltar para planos
+          </Link>
+        </div>
+
         {/* Header */}
         <header
           style={{
-            marginBottom: "20px",
+            marginBottom: 20,
             display: "flex",
             flexDirection: "column",
-            gap: "8px",
+            gap: 8,
           }}
         >
           <p
@@ -100,7 +81,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               margin: 0,
             }}
           >
-            Treinamento online
+            Plano de treino
           </p>
           <h1
             style={{
@@ -111,32 +92,51 @@ export default async function PlanDetailPage({ params }: PageProps) {
           >
             {title}
           </h1>
-          {(level || priceFormatted) && (
+          {subtitle && (
             <p
               style={{
-                fontSize: 13,
+                fontSize: 14,
                 color: "#9ca3af",
                 margin: 0,
               }}
             >
-              {level && <span>Nível: {level}</span>}
-              {level && priceFormatted && <span> · </span>}
-              {priceFormatted && (
-                <span>Investimento: {priceFormatted}</span>
-              )}
+              {subtitle}
             </p>
           )}
+
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: 0,
+            }}
+          >
+            {level && <span>Nível: {level}</span>}
+            {(level || durationWeeks) && " · "}
+            {durationWeeks && (
+              <span>
+                Duração: {durationWeeks}{" "}
+                {durationWeeks === 1 ? "semana" : "semanas"}
+              </span>
+            )}
+            {pricePerMonth && (
+              <>
+                {" · "}
+                <span>Investimento: ${pricePerMonth}/mês</span>
+              </>
+            )}
+          </p>
         </header>
 
         {/* Card principal */}
         <section
           style={{
-            borderRadius: "20px",
+            borderRadius: 20,
             border: "1px solid rgba(148,163,184,0.35)",
             background:
               "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
             padding: "16px 14px",
-            marginBottom: "18px",
+            marginBottom: 18,
           }}
         >
           <h2
@@ -147,7 +147,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               marginBottom: 8,
             }}
           >
-            O que você recebe neste treinamento
+            O que você recebe neste plano
           </h2>
           <p
             style={{
@@ -164,12 +164,12 @@ export default async function PlanDetailPage({ params }: PageProps) {
         {/* Integração com plataforma */}
         <section
           style={{
-            borderRadius: "18px",
+            borderRadius: 18,
             border: "1px solid rgba(55,65,81,0.9)",
             background:
               "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
             padding: "16px 14px",
-            marginBottom: "20px",
+            marginBottom: 20,
           }}
         >
           <h3
@@ -190,9 +190,9 @@ export default async function PlanDetailPage({ params }: PageProps) {
               marginBottom: 10,
             }}
           >
-            Este treinamento foi pensado para se conectar com os dados reais
-            do atleta via Strava, permitindo acompanhar métricas de volume,
-            intensidade e evolução ao longo das semanas.
+            Este plano é pensado para se conectar com os dados reais do atleta
+            via Strava, permitindo acompanhar métricas de volume, intensidade e
+            evolução ao longo das semanas.
           </p>
           <p
             style={{
@@ -203,27 +203,27 @@ export default async function PlanDetailPage({ params }: PageProps) {
           >
             Na versão completa, cada sessão será monitorada automaticamente,
             com alertas de consistência, cargas semanais e comparação com as
-            metas definidas.
+            metas definidas dentro do seu grupo de treino.
           </p>
         </section>
 
-        {/* CTA / navegação */}
+        {/* CTA */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             gap: 10,
-            marginBottom: "12px",
+            marginBottom: 12,
           }}
         >
           <Link
-            href={`/checkout/${training.slug ?? ""}`}
+            href={`/checkout/${plan.slug}`}
             style={{
               display: "inline-flex",
               justifyContent: "center",
               alignItems: "center",
               height: 46,
-              borderRadius: "999px",
+              borderRadius: 999,
               background:
                 "linear-gradient(135deg, #22c55e, #16a34a, #22c55e)",
               color: "#020617",
@@ -243,7 +243,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               justifyContent: "center",
               alignItems: "center",
               height: 44,
-              borderRadius: "999px",
+              borderRadius: 999,
               border: "1px solid rgba(148,163,184,0.5)",
               textDecoration: "none",
               color: "#e5e7eb",
@@ -251,7 +251,7 @@ export default async function PlanDetailPage({ params }: PageProps) {
               fontWeight: 500,
             }}
           >
-            Voltar para lista de treinamentos
+            Voltar para lista de planos
           </Link>
         </div>
       </div>

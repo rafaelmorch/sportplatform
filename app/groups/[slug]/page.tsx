@@ -1,48 +1,44 @@
 // app/groups/[slug]/page.tsx
 import Link from "next/link";
 import { notFound } from "next/navigation";
-
-import { trainingGroups } from "../groups-data";
-import JoinGroupButton from "./JoinGroupButton";
+import {
+  getGroupBySlug,
+  type TrainingGroupSlug,
+  type TrainingGroup,
+} from "../groups-data";
 import { supabaseAdmin } from "@/lib/supabase";
+import JoinGroupButton from "./JoinGroupButton";
 
-// Tipo do params (Next 16 manda como Promise)
 type PageProps = {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ slug: TrainingGroupSlug }>;
 };
 
-async function getMemberCount(groupSlug: string): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from("group_members")
-    .select("*", { head: true, count: "exact" })
-    .eq("group_slug", groupSlug);
+async function getMemberCount(group: TrainingGroup): Promise<number> {
+  if (!group.challengeId) return 0;
+
+  const { data, error } = await supabaseAdmin
+    .from("challenge_participants") // se a tabela tiver outro nome, troca aqui
+    .select("id", { count: "exact" })
+    .eq("challenge_id", group.challengeId);
 
   if (error) {
-    console.error("Erro ao buscar membros do grupo:", error);
+    console.error("Erro ao contar participantes do grupo", group.slug, error);
     return 0;
   }
 
-  return count ?? 0;
+  return data?.length ?? 0;
 }
 
 export default async function GroupDetailPage({ params }: PageProps) {
   const { slug } = await params;
-
-  const group = trainingGroups.find((g) => g.slug === slug);
+  const group = getGroupBySlug(slug);
 
   if (!group) {
     notFound();
   }
 
-  // 👇 Aqui a gente “relaxa” o tipo para poder usar campos extras
-  const g = group as any;
-
-  const memberCount = await getMemberCount(g.slug as string);
-
-  const plan = g.twelveWeekPlan ?? null;
-  const weeks: any[] = plan?.weeks ?? [];
-
-  const hasPlan = !!plan;
+  const memberCount = await getMemberCount(group);
+  const plan = group.twelveWeekPlan;
 
   return (
     <main
@@ -51,25 +47,16 @@ export default async function GroupDetailPage({ params }: PageProps) {
         background: "#020617",
         color: "#e5e7eb",
         padding: "16px",
-        paddingBottom: "40px",
       }}
     >
       <div
         style={{
-          maxWidth: "960px",
+          maxWidth: "980px",
           margin: "0 auto",
         }}
       >
-        {/* Topo: botão voltar */}
-        <div
-          style={{
-            marginBottom: 16,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
+        {/* Botão voltar – sem BottomNavbar nesta página */}
+        <div style={{ marginBottom: 16 }}>
           <Link
             href="/groups"
             style={{
@@ -78,166 +65,110 @@ export default async function GroupDetailPage({ params }: PageProps) {
               gap: 8,
               padding: "6px 12px",
               borderRadius: 999,
-              border: "1px solid rgba(148,163,184,0.5)",
+              border: "1px solid rgba(55,65,81,0.9)",
               fontSize: 13,
               textDecoration: "none",
               color: "#e5e7eb",
-              background:
-                "radial-gradient(circle at top left, #020617, #020617 60%, #000000 100%)",
             }}
           >
-            <span style={{ fontSize: 16 }}>←</span>
-            <span>Voltar para grupos</span>
+            ← Voltar para grupos
           </Link>
         </div>
 
         {/* Header do grupo */}
-        <header
-          style={{
-            borderRadius: 24,
-            padding: "18px 18px",
-            marginBottom: 18,
-            background:
-              "radial-gradient(circle at top left, #020617, #020617 40%, #000000 100%)",
-            border: "1px solid rgba(55,65,81,0.9)",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "#64748b",
-              margin: 0,
-              marginBottom: 6,
-            }}
-          >
-            Grupo de treino
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  margin: 0,
-                  marginBottom: 4,
-                }}
-              >
-                {g.name}
-              </h1>
-              {g.tagline && (
-                <p
-                  style={{
-                    fontSize: 14,
-                    color: "#9ca3af",
-                    margin: 0,
-                  }}
-                >
-                  {g.tagline}
-                </p>
-              )}
-            </div>
-
-            {/* chips à direita */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                justifyContent: "flex-end",
-              }}
-            >
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(34,197,94,0.6)",
-                  fontSize: 11,
-                  color: "#bbf7d0",
-                  background:
-                    "radial-gradient(circle at top, #022c22, #022c22 40%, transparent)",
-                }}
-              >
-                {memberCount} participante
-                {memberCount === 1 ? "" : "s"}
-              </span>
-
-              {g.recommendedLevel && (
-                <span
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(59,130,246,0.65)",
-                    fontSize: 11,
-                    color: "#bfdbfe",
-                    background:
-                      "radial-gradient(circle at top, #0b1120, #020617 60%)",
-                  }}
-                >
-                  Nível sugerido: {g.recommendedLevel}
-                </span>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Descrição longa + botões */}
         <section
           style={{
             borderRadius: 20,
-            border: "1px solid rgba(75,85,99,0.9)",
+            border: "1px solid rgba(31,41,55,0.9)",
             background:
               "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "16px 16px 14px",
+            padding: "20px 18px",
             marginBottom: 18,
           }}
         >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  margin: 0,
+                }}
+              >
+                Grupo de treino
+              </p>
+              <h1
+                style={{
+                  fontSize: 24,
+                  fontWeight: 700,
+                  margin: 0,
+                }}
+              >
+                {group.name}
+              </h1>
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                padding: "6px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(148,163,184,0.5)",
+                color: "#cbd5f5",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {memberCount}{" "}
+              {memberCount === 1 ? "participante" : "participantes"}
+            </div>
+          </div>
+
+          {/* Descrição longa do grupo */}
           <p
             style={{
               fontSize: 14,
-              lineHeight: 1.7,
               color: "#d1d5db",
-              marginTop: 0,
-              marginBottom: 14,
+              margin: 0,
             }}
           >
-            {g.longDescription}
+            {group.longDescription}
           </p>
 
+          {/* Botões Participar / Sair */}
           <div
             style={{
               display: "flex",
               flexWrap: "wrap",
-              gap: 10,
+              gap: 12,
+              marginTop: 18,
               alignItems: "center",
             }}
           >
-            {/* Botão principal: Join (client component) */}
-            <JoinGroupButton groupSlug={g.slug} />
+            {/* Botão principal – client component */}
+            <JoinGroupButton groupSlug={group.slug} />
 
-            {/* Botão menor – ainda sem ação */}
+            {/* Botão menor – placeholder por enquanto */}
             <button
               type="button"
               disabled
               style={{
-                padding: "8px 14px",
+                padding: "10px 16px",
                 borderRadius: 999,
                 border: "1px solid rgba(148,163,184,0.6)",
                 backgroundColor: "transparent",
                 color: "#9ca3af",
-                fontSize: 12,
+                fontSize: 13,
                 cursor: "not-allowed",
-                opacity: 0.7,
               }}
             >
               Sair do grupo (em breve)
@@ -248,21 +179,20 @@ export default async function GroupDetailPage({ params }: PageProps) {
         {/* Plano de 12 semanas */}
         <section
           style={{
-            borderRadius: 22,
-            border: "1px solid rgba(148,163,184,0.35)",
+            borderRadius: 20,
+            border: "1px solid rgba(31,41,55,0.9)",
             background:
-              "radial-gradient(circle at top left, #020617, #020617 40%, #000000 100%)",
-            padding: "18px 16px 18px",
-            marginBottom: 20,
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "20px 18px",
           }}
         >
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 12,
+              alignItems: "baseline",
+              gap: 12,
+              marginBottom: 10,
             }}
           >
             <div>
@@ -271,7 +201,6 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   fontSize: 18,
                   fontWeight: 600,
                   margin: 0,
-                  marginBottom: 4,
                 }}
               >
                 Plano de 12 semanas
@@ -290,80 +219,63 @@ export default async function GroupDetailPage({ params }: PageProps) {
 
             <p
               style={{
-                fontSize: 13,
+                fontSize: 12,
                 color: "#a5b4fc",
                 margin: 0,
+                whiteSpace: "nowrap",
               }}
             >
-              Volume alvo:{" "}
-              {g.targetVolumeDescription ?? "adaptado ao grupo"}
+              {plan?.volumeLabel ?? "Volume alvo adaptado a cada atleta do grupo"}
             </p>
           </div>
 
-          {hasPlan && weeks.length > 0 ? (
+          {plan && plan.weeks && plan.weeks.length > 0 ? (
             <div
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 10,
+                gap: 12,
+                marginTop: 10,
               }}
             >
-              {weeks.map((week, index) => (
+              {plan.weeks.map((w) => (
                 <div
-                  key={week.title ?? index}
+                  key={w.week}
                   style={{
                     borderRadius: 16,
-                    padding: "10px 10px",
                     border: "1px solid rgba(55,65,81,0.9)",
-                    background:
-                      "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
+                    padding: "10px 12px",
                   }}
                 >
-                  <p
-                    style={{
-                      fontSize: 11,
-                      textTransform: "uppercase",
-                      color: "#64748b",
-                      margin: 0,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Semana {index + 1}
-                  </p>
-                  <h3
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      margin: 0,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {week.title}
-                  </h3>
                   <p
                     style={{
                       fontSize: 12,
                       color: "#9ca3af",
                       margin: 0,
-                      marginBottom: 6,
+                      marginBottom: 4,
                     }}
                   >
-                    {week.focus}
+                    Semana {w.week} · {w.focus}
                   </p>
-                  {week.keyWorkouts && week.keyWorkouts.length > 0 && (
-                    <ul
-                      style={{
-                        margin: 0,
-                        paddingLeft: 16,
-                        fontSize: 12,
-                        color: "#e5e7eb",
-                      }}
-                    >
-                      {week.keyWorkouts.map((w: string, i: number) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  )}
+                  <p
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      margin: 0,
+                      marginBottom: 4,
+                    }}
+                  >
+                    {w.title}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#d1d5db",
+                      margin: 0,
+                    }}
+                  >
+                    {w.description}
+                  </p>
                 </div>
               ))}
             </div>
@@ -371,12 +283,13 @@ export default async function GroupDetailPage({ params }: PageProps) {
             <p
               style={{
                 fontSize: 13,
-                color: "#9ca3af",
-                margin: 0,
+                color: "#d1d5db",
+                marginTop: 10,
               }}
             >
-              Em breve você verá aqui o detalhamento semana a semana deste
-              grupo.
+              Em breve você verá aqui o detalhamento semana a semana deste grupo,
+              com treinos organizados por fase (base, progressão, carga alta e
+              taper).
             </p>
           )}
         </section>
