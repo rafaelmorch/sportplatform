@@ -1,4 +1,4 @@
-// app/plans/plans-data.ts 
+// app/plans/plans-data.ts
 
 import type { TrainingGroupSlug } from "../groups/groups-data";
 
@@ -31,7 +31,8 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Beginner",
     description:
       "Perfeito para quem está começando na corrida e quer completar 5 km com segurança, seguindo um plano simples e objetivo.",
-    recommendedGroups: ["corrida-beginners", "running-weight-loss"],
+    // 🔹 slugs CORRETOS vindos de TrainingGroupSlug
+    recommendedGroups: ["beginners-running", "weight-loss-running"],
     highlights: [
       "Plano de 4 semanas focado em progressão segura",
       "2 a 4 treinos por semana",
@@ -63,7 +64,7 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Advanced",
     description:
       "Indicado para corredores experientes que querem se preparar com qualidade para uma maratona, com longões e treinos de ritmo.",
-    recommendedGroups: ["maratona-42k", "performance-10k"],
+    recommendedGroups: ["marathon-42k", "performance-10k"],
     highlights: [
       "Plano de 8 semanas com foco em endurance",
       "Longões progressivos e treinos de ritmo",
@@ -95,7 +96,7 @@ export const trainingPlans: TrainingPlan[] = [
     level: "Mixed",
     description:
       "Ideal para quem quer usar a corrida e a caminhada como ferramenta de perda de peso de forma organizada.",
-    recommendedGroups: ["running-weight-loss", "corrida-beginners"],
+    recommendedGroups: ["weight-loss-running", "beginners-running"],
     highlights: [
       "Plano de 4 semanas com treinos intervalados leves",
       "Recomendações de rotina ativa no dia a dia",
