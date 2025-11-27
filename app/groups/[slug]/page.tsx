@@ -6,13 +6,12 @@ import { trainingGroups } from "../groups-data";
 import JoinGroupButton from "./JoinGroupButton";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// Tipo do params (Next 16 envia como Promise)
+// Tipo do params (Next 16 manda como Promise)
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
 async function getMemberCount(groupSlug: string): Promise<number> {
-  // conta quantos usuários estão no grupo (tabela group_members)
   const { count, error } = await supabaseAdmin
     .from("group_members")
     .select("*", { head: true, count: "exact" })
@@ -35,10 +34,15 @@ export default async function GroupDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const memberCount = await getMemberCount(group.slug);
+  // 👇 Aqui a gente “relaxa” o tipo para poder usar campos extras
+  const g = group as any;
 
-  const hasPlan = !!group.twelveWeekPlan;
-  const weeks = group.twelveWeekPlan?.weeks ?? [];
+  const memberCount = await getMemberCount(g.slug as string);
+
+  const plan = g.twelveWeekPlan ?? null;
+  const weeks: any[] = plan?.weeks ?? [];
+
+  const hasPlan = !!plan;
 
   return (
     <main
@@ -129,9 +133,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   marginBottom: 4,
                 }}
               >
-                {group.name}
+                {g.name}
               </h1>
-              {group.tagline && (
+              {g.tagline && (
                 <p
                   style={{
                     fontSize: 14,
@@ -139,7 +143,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                     margin: 0,
                   }}
                 >
-                  {group.tagline}
+                  {g.tagline}
                 </p>
               )}
             </div>
@@ -168,7 +172,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 {memberCount === 1 ? "" : "s"}
               </span>
 
-              {group.recommendedLevel && (
+              {g.recommendedLevel && (
                 <span
                   style={{
                     padding: "4px 10px",
@@ -180,14 +184,14 @@ export default async function GroupDetailPage({ params }: PageProps) {
                       "radial-gradient(circle at top, #0b1120, #020617 60%)",
                   }}
                 >
-                  Nível sugerido: {group.recommendedLevel}
+                  Nível sugerido: {g.recommendedLevel}
                 </span>
               )}
             </div>
           </div>
         </header>
 
-        {/* Descrição longa + botões de ação */}
+        {/* Descrição longa + botões */}
         <section
           style={{
             borderRadius: 20,
@@ -207,7 +211,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
               marginBottom: 14,
             }}
           >
-            {group.longDescription}
+            {g.longDescription}
           </p>
 
           <div
@@ -218,10 +222,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
               alignItems: "center",
             }}
           >
-            {/* Botão principal: Participar do grupo (client component) */}
-            <JoinGroupButton groupSlug={group.slug} />
+            {/* Botão principal: Join (client component) */}
+            <JoinGroupButton groupSlug={g.slug} />
 
-            {/* Botão menor – ainda sem ação (sem onClick) */}
+            {/* Botão menor – ainda sem ação */}
             <button
               type="button"
               disabled
@@ -291,7 +295,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 margin: 0,
               }}
             >
-              Volume alvo: {group.targetVolumeDescription ?? "adaptado ao grupo"}
+              Volume alvo:{" "}
+              {g.targetVolumeDescription ?? "adaptado ao grupo"}
             </p>
           </div>
 
@@ -354,7 +359,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                         color: "#e5e7eb",
                       }}
                     >
-                      {week.keyWorkouts.map((w, i) => (
+                      {week.keyWorkouts.map((w: string, i: number) => (
                         <li key={i}>{w}</li>
                       ))}
                     </ul>
