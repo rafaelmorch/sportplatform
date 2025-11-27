@@ -1,11 +1,7 @@
 // app/groups/[slug]/page.tsx
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  getGroupBySlug,
-  type TrainingGroupSlug,
-  type TrainingGroup,
-} from "../groups-data";
+import { trainingGroups, type TrainingGroupSlug } from "../groups-data";
 import { supabaseAdmin } from "@/lib/supabase";
 import JoinGroupButton from "./JoinGroupButton";
 
@@ -13,11 +9,14 @@ type PageProps = {
   params: Promise<{ slug: TrainingGroupSlug }>;
 };
 
+// Deriva o tipo do próprio array de grupos
+type TrainingGroup = (typeof trainingGroups)[number];
+
 async function getMemberCount(group: TrainingGroup): Promise<number> {
   if (!group.challengeId) return 0;
 
   const { data, error } = await supabaseAdmin
-    .from("challenge_participants") // se a tabela tiver outro nome, troca aqui
+    .from("challenge_participants") // se o nome for outro, ajusta aqui
     .select("id", { count: "exact" })
     .eq("challenge_id", group.challengeId);
 
@@ -31,7 +30,8 @@ async function getMemberCount(group: TrainingGroup): Promise<number> {
 
 export default async function GroupDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const group = getGroupBySlug(slug);
+
+  const group = trainingGroups.find((g) => g.slug === slug);
 
   if (!group) {
     notFound();
