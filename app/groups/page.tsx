@@ -1,5 +1,7 @@
 // app/groups/page.tsx
+
 import Link from "next/link";
+import BottomNavbar from "@/components/BottomNavbar";
 import { trainingGroups } from "./groups-data";
 
 export default function GroupsPage() {
@@ -9,35 +11,48 @@ export default function GroupsPage() {
         minHeight: "100vh",
         background: "#020617",
         color: "#e5e7eb",
-        padding: "20px",
-        paddingBottom: "80px",
+        padding: "16px",
+        paddingBottom: "80px", // espaço para o BottomNavbar
       }}
     >
-      <div style={{ maxWidth: 1000, margin: "0 auto" }}>
-        <h1
+      <div
+        style={{
+          maxWidth: "1100px",
+          margin: "0 auto",
+        }}
+      >
+        {/* Título da página */}
+        <header
           style={{
-            fontSize: 28,
-            fontWeight: 700,
-            marginBottom: 10,
+            marginBottom: 24,
           }}
         >
-          Grupos de treino
-        </h1>
+          <h1
+            style={{
+              fontSize: 28,
+              fontWeight: 700,
+              margin: 0,
+            }}
+          >
+            Grupos de treino
+          </h1>
+          <p
+            style={{
+              marginTop: 8,
+              marginBottom: 0,
+              fontSize: 14,
+              color: "#9ca3af",
+            }}
+          >
+            Escolha o grupo que melhor se conecta com o seu momento de treino.
+          </p>
+        </header>
 
-        <p
-          style={{
-            fontSize: 14,
-            color: "#94a3b8",
-            marginBottom: 20,
-          }}
-        >
-          Escolha o grupo que melhor se conecta com o seu momento de treino.
-        </p>
-
+        {/* Grid de grupos */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
             gap: 20,
           }}
         >
@@ -52,20 +67,21 @@ export default function GroupsPage() {
             >
               <div
                 style={{
-                  borderRadius: 16,
-                  border: "1px solid rgba(148,163,184,0.3)",
+                  borderRadius: 20,
+                  border: "1px solid rgba(148,163,184,0.35)",
                   background:
                     "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-                  padding: 18,
+                  padding: "18px 16px",
                   display: "flex",
                   flexDirection: "column",
                   gap: 8,
-                  transition: "0.2s",
+                  height: "100%",
+                  cursor: "pointer",
                 }}
               >
                 <h2
                   style={{
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: 700,
                     margin: 0,
                   }}
@@ -75,10 +91,10 @@ export default function GroupsPage() {
 
                 <p
                   style={{
-                    fontSize: 14,
-                    lineHeight: 1.5,
-                    color: "#cbd5e1",
+                    fontSize: 13,
+                    color: "#d1d5db",
                     margin: 0,
+                    lineHeight: 1.6,
                   }}
                 >
                   {group.shortDescription}
@@ -87,30 +103,34 @@ export default function GroupsPage() {
                 <p
                   style={{
                     fontSize: 12,
-                    margin: 0,
-                    color: "#64748b",
-                    marginTop: 6,
+                    color: "#9ca3af",
+                    marginTop: 12,
+                    marginBottom: 0,
                   }}
                 >
                   Desafio de 30 dias incluso
                 </p>
 
-                <p
+                <div
                   style={{
-                    margin: 0,
-                    marginTop: 10,
-                    fontSize: 13,
+                    marginTop: 8,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: 12,
                     color: "#22c55e",
-                    fontWeight: 500,
                   }}
                 >
-                  Ver detalhes →
-                </p>
+                  <span style={{ fontWeight: 500 }}>Ver detalhes →</span>
+                </div>
               </div>
             </Link>
           ))}
         </div>
       </div>
+
+      {/* Navbar fixa para página principal de grupos */}
+      <BottomNavbar />
     </main>
   );
 }
