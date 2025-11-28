@@ -1,10 +1,9 @@
 // app/groups/page.tsx
 
 import Link from "next/link";
-import BottomNavbar from "@/components/BottomNavbar";
-import { trainingGroups } from "./groups-data";
+import { trainingGroups, type TrainingGroup } from "./groups-data";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export default function GroupsPage() {
   return (
@@ -13,67 +12,45 @@ export default function GroupsPage() {
         minHeight: "100vh",
         backgroundColor: "#020617",
         color: "#e5e7eb",
-        padding: "16px",
-        paddingBottom: "80px", // espaço pro BottomNavbar
+        padding: "24px 16px",
       }}
     >
       <div
         style={{
-          maxWidth: "900px",
+          maxWidth: "1100px",
           margin: "0 auto",
         }}
       >
-        {/* Header */}
-        <header
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "#64748b",
-              margin: 0,
-            }}
-          >
-            Comunidades
-          </p>
+        <header style={{ marginBottom: 24 }}>
           <h1
             style={{
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: 700,
               margin: 0,
+              marginBottom: 8,
             }}
           >
             Grupos de treino
           </h1>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 14,
               color: "#9ca3af",
               margin: 0,
             }}
           >
-            Escolha um grupo que combine com seu objetivo. Ao entrar, seus
-            treinos passam a contar no ranking daquela comunidade.
+            Escolha o grupo que melhor se conecta com o seu momento de treino.
           </p>
         </header>
 
-        {/* Lista de grupos */}
-        <section
+        <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 12,
-            marginBottom: 24,
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 16,
           }}
         >
-          {trainingGroups.map((group) => (
+          {trainingGroups.map((group: TrainingGroup) => (
             <Link
               key={group.slug}
               href={`/groups/${group.slug}`}
@@ -84,62 +61,69 @@ export default function GroupsPage() {
             >
               <div
                 style={{
-                  borderRadius: 18,
-                  border: "1px solid rgba(51,65,85,0.9)",
+                  borderRadius: 20,
+                  border: "1px solid rgba(30,64,175,0.7)",
                   background:
-                    "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
-                  padding: "14px 14px",
+                    "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+                  padding: "16px 18px",
+                  minHeight: 180,
                   display: "flex",
                   flexDirection: "column",
-                  gap: 8,
-                  height: "100%",
+                  justifyContent: "space-between",
+                  boxShadow: "0 18px 45px rgba(15,23,42,0.8)",
                 }}
               >
-                <p
-                  style={{
-                    fontSize: 11,
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    margin: 0,
-                  }}
-                >
-                  Grupo de treino
-                </p>
-                <h2
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 600,
-                    margin: 0,
-                  }}
-                >
-                  {group.name}
-                </h2>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "#9ca3af",
-                    margin: 0,
-                  }}
-                >
-                  {group.shortDescription}
-                </p>
+                <div>
+                  <h2
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      margin: 0,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {group.title}
+                  </h2>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "#cbd5f5",
+                      lineHeight: 1.5,
+                      margin: 0,
+                      marginBottom: 10,
+                    }}
+                  >
+                    {group.shortDescription}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#64748b",
+                      margin: 0,
+                    }}
+                  >
+                    Desafio de 30 dias incluso
+                  </p>
+                </div>
 
                 <div
                   style={{
-                    marginTop: 10,
-                    fontSize: 12,
-                    color: "#a5b4fc",
+                    marginTop: 16,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 13,
+                    color: "#22c55e",
                   }}
                 >
-                  Toque para ver o plano de 12 semanas e entrar na comunidade.
+                  <span>Ver detalhes</span>
+                  <span>➜</span>
                 </div>
               </div>
             </Link>
           ))}
-        </section>
+        </div>
       </div>
-
-      <BottomNavbar />
     </main>
   );
 }
