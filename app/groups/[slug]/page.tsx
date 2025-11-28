@@ -1,15 +1,12 @@
 // app/groups/[slug]/page.tsx
-import Link from "next/link";
-import { notFound } from "next/navigation";
 
+import Link from "next/link";
 import {
   trainingGroups,
   type TrainingGroupSlug,
   type TrainingGroup,
 } from "../groups-data";
-
-import JoinGroupButton from "./JoinGroupButton";
-// (se quiser usar depois) import LeaveGroupButton from "./LeaveGroupButton";
+import JoinGroupButton from "./JoinGroupButton"; // 👈 IMPORT IMPORTANTE
 
 type PageProps = {
   params: { slug: string };
@@ -18,13 +15,73 @@ type PageProps = {
 export default function GroupDetailPage({ params }: PageProps) {
   const slug = params.slug as TrainingGroupSlug;
 
-  // Busca o grupo pelos dados locais (por enquanto)
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slug
   );
 
+  // ❌ Não usamos mais notFound(); mostramos nossa própria tela
   if (!group) {
-    notFound();
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#020617",
+          color: "#e5e7eb",
+          padding: "16px",
+          paddingBottom: "24px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "900px",
+            margin: "0 auto",
+          }}
+        >
+          <div style={{ marginBottom: 16 }}>
+            <Link
+              href="/groups"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                color: "#9ca3af",
+                textDecoration: "none",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                ←
+              </span>
+              <span>Voltar para grupos</span>
+            </Link>
+          </div>
+
+          <h1
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              marginBottom: 8,
+            }}
+          >
+            Grupo não encontrado
+          </h1>
+          <p
+            style={{
+              fontSize: 14,
+              color: "#9ca3af",
+            }}
+          >
+            Não encontramos nenhum grupo com o identificador:{" "}
+            <span style={{ fontFamily: "monospace" }}>{slug}</span>
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const plan = group.twelveWeekPlan;
@@ -110,7 +167,7 @@ export default function GroupDetailPage({ params }: PageProps) {
           </p>
         </header>
 
-        {/* Bloco comunidade + botão de entrar/sair */}
+        {/* Comunidade + botão participar/sair */}
         <section
           style={{
             borderRadius: 20,
@@ -161,12 +218,7 @@ export default function GroupDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {/* Só UM controle de participação.
-                  JoinGroupButton é client e cuida sozinho de:
-                  - checar se já está no grupo
-                  - mostrar "Você está no grupo"
-                  - mostrar o botão pretinho de "Sair do grupo"
-              */}
+              {/* Apenas UM componente aqui; ele mesmo cuida de "entrar" / "sair" */}
               <div
                 style={{
                   minWidth: 180,
