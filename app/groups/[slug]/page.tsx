@@ -1,25 +1,23 @@
 // app/groups/[slug]/page.tsx
+"use client";
 
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   trainingGroups,
-  type TrainingGroupSlug,
   type TrainingGroup,
 } from "../groups-data";
-import JoinGroupButton from "./JoinGroupButton"; // 👈 IMPORT IMPORTANTE
+import JoinGroupButton from "./JoinGroupButton";
 
-type PageProps = {
-  params: { slug: string };
-};
-
-export default function GroupDetailPage({ params }: PageProps) {
-  const slug = params.slug as TrainingGroupSlug;
+export default function GroupDetailPage() {
+  const params = useParams();
+  const slugParam = (params?.slug ?? "") as string;
 
   const group: TrainingGroup | undefined = trainingGroups.find(
-    (g) => g.slug === slug
+    (g) => g.slug === slugParam
   );
 
-  // ❌ Não usamos mais notFound(); mostramos nossa própria tela
+  // Se não achar o grupo, mostra a tela de "não encontrado"
   if (!group) {
     return (
       <main
@@ -77,7 +75,9 @@ export default function GroupDetailPage({ params }: PageProps) {
             }}
           >
             Não encontramos nenhum grupo com o identificador:{" "}
-            <span style={{ fontFamily: "monospace" }}>{slug}</span>
+            <span style={{ fontFamily: "monospace" }}>
+              {slugParam || "(vazio)"}
+            </span>
           </p>
         </div>
       </main>
@@ -167,7 +167,7 @@ export default function GroupDetailPage({ params }: PageProps) {
           </p>
         </header>
 
-        {/* Comunidade + botão participar/sair */}
+        {/* Comunidade + botão entrar/sair (apenas UM componente) */}
         <section
           style={{
             borderRadius: 20,
@@ -218,7 +218,6 @@ export default function GroupDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {/* Apenas UM componente aqui; ele mesmo cuida de "entrar" / "sair" */}
               <div
                 style={{
                   minWidth: 180,
