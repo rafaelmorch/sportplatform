@@ -1,150 +1,45 @@
 // app/groups/[slug]/page.tsx
-"use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase-browser";
+import { notFound } from "next/navigation";
+import { supabaseAdmin } from "@/lib/supabase";
 import {
   trainingGroups,
+  type TrainingGroupSlug,
   type TrainingGroup,
 } from "../groups-data";
 import JoinGroupButton from "./JoinGroupButton";
-import LeaveGroupButton from "./LeaveGroupButton";
 
-type PageParams = {
-  slug?: string | string[];
+export const dynamic = "force-dynamic";
+
+type PageProps = {
+  params: { slug: string };
 };
 
-export default function GroupDetailPage() {
-  const params = useParams() as PageParams;
-  const rawSlug = params?.slug;
+async function getMemberCount(slug: string): Promise<number> {
+  const { count, error } = await supabaseAdmin
+    .from("group_members")
+    .select("*", { count: "exact", head: true })
+    .eq("group_slug", slug); // 👈 coluna snake_case no banco
 
-  // slug sempre em string
-  const slug =
-    typeof rawSlug === "string" ? rawSlug : Array.isArray(rawSlug) ? rawSlug[0] : "";
-
-  const [group, setGroup] = useState<TrainingGroup | null>(null);
-  const [memberCount, setMemberCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      if (!slug) {
-        setGroup(null);
-        setMemberCount(0);
-        setLoading(false);
-        return;
-      }
-
-      // 1) Busca grupo no groups-data.ts
-      const g = trainingGroups.find((gr) => gr.slug === slug) || null;
-      setGroup(g);
-
-      // 2) Conta participantes reais no Supabase
-      try {
-        const supabase = supabaseBrowser;
-        const { count, error } = await supabase
-          .from("group_members")
-          .select("*", { count: "exact", head: true })
-          .eq("groupSlug", slug);
-
-        if (!error && count != null) {
-          setMemberCount(count);
-        } else {
-          console.error("Erro ao contar membros do grupo:", error);
-        }
-      } catch (err) {
-        console.error("Erro inesperado ao buscar membros do grupo:", err);
-      }
-
-      setLoading(false);
-    }
-
-    loadData();
-  }, [slug]);
-
-  // Se slug está vazio: algo muito errado com a rota
-  if (!slug) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#020617",
-          color: "#e5e7eb",
-          padding: "16px",
-        }}
-      >
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <div style={{ marginBottom: 16 }}>
-            <Link
-              href="/groups"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 13,
-                color: "#9ca3af",
-                textDecoration: "none",
-              }}
-            >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>←</span>
-              <span>Voltar para grupos</span>
-            </Link>
-          </div>
-
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-            Grupo não encontrado
-          </h1>
-          <p style={{ fontSize: 14, color: "#9ca3af" }}>
-            O identificador do grupo não foi informado na URL.
-          </p>
-        </div>
-      </main>
-    );
+  if (error) {
+    console.error("Erro ao contar membros:", error);
+    return 0;
   }
 
-  // Grupo não existe no groups-data.ts
-  if (!group) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          backgroundColor: "#020617",
-          color: "#e5e7eb",
-          padding: "16px",
-        }}
-      >
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <div style={{ marginBottom: 16 }}>
-            <Link
-              href="/groups"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 13,
-                color: "#9ca3af",
-                textDecoration: "none",
-              }}
-            >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>←</span>
-              <span>Voltar para grupos</span>
-            </Link>
-          </div>
+  return count ?? 0;
+}
 
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-            Grupo não encontrado
-          </h1>
-          <p style={{ fontSize: 14, color: "#9ca3af" }}>
-            Não encontramos nenhum grupo com o identificador:{" "}
-            <code>{slug}</code>.
-          </p>
-        </div>
-      </main>
-    );
+export default async function GroupDetailPage({ params }: PageProps) {
+  const slug = params.slug as TrainingGroupSlug;
+
+  const groupFound = trainingGroups.find((g) => g.slug === slug);
+  if (!groupFound) {
+    notFound();
   }
+  const group = groupFound as TrainingGroup;
 
+  const memberCount = await getMemberCount(slug);
   const plan = group.twelveWeekPlan;
 
   return (
@@ -228,7 +123,7 @@ export default function GroupDetailPage() {
           </p>
         </header>
 
-        {/* Bloco: comunidade do grupo */}
+        {/* Bloco: comunidade + botão entrar/sair */}
         <section
           style={{
             borderRadius: 20,
@@ -274,9 +169,7 @@ export default function GroupDetailPage() {
                     margin: 0,
                   }}
                 >
-                  {loading
-                    ? "Carregando..."
-                    : memberCount === 0
+                  {memberCount === 0
                     ? "Seja o primeiro a participar deste grupo."
                     : `${memberCount} ${
                         memberCount === 1 ? "participante" : "participantes"
@@ -284,6 +177,7 @@ export default function GroupDetailPage() {
                 </p>
               </div>
 
+              {/* Só UM componente: JoinGroupButton (ele mesmo cuida de entrar e sair) */}
               <div
                 style={{
                   minWidth: 220,
@@ -292,9 +186,7 @@ export default function GroupDetailPage() {
                   gap: 8,
                 }}
               >
-                {/* Join / Leave usam Supabase e se viram com o estado */}
                 <JoinGroupButton groupSlug={group.slug} />
-                <LeaveGroupButton groupSlug={group.slug} />
               </div>
             </div>
 
@@ -312,7 +204,7 @@ export default function GroupDetailPage() {
           </div>
         </section>
 
-        {/* Descrição longa */}
+        {/* Sobre o grupo */}
         <section
           style={{
             borderRadius: 20,
@@ -417,7 +309,8 @@ export default function GroupDetailPage() {
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(220px, 1fr))",
                   gap: 10,
                 }}
               >
