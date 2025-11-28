@@ -1,136 +1,199 @@
 // app/groups/groups-data.ts
 
+// Slugs usados nas rotas, planos, etc.
 export type TrainingGroupSlug =
-  | "maratona-42k"
+  | "marathon-42k"
   | "triathlon-endurance"
-  | "corrida-beginners"
-  | "running-weight-loss"
+  | "beginners-running"
+  | "weight-loss-running"
   | "performance-5k"
   | "performance-10k";
 
+// Uma semana do plano de 12 semanas
+export type WeekPlan = {
+  week: number;
+  title: string;
+  focus: string;
+  description: string;
+};
+
+// Estrutura do plano de 12 semanas
+export type TwelveWeekPlan = {
+  volumeLabel: string;
+  weeks: WeekPlan[];
+};
+
+// Estrutura de um grupo de treino
 export type TrainingGroup = {
   slug: TrainingGroupSlug;
+  /** Nome exibido nos cards / páginas de grupo */
+  name: string;
+  /** Alias para compatibilidade com páginas que usam `title` (ex.: checkout) */
   title: string;
   shortDescription: string;
   longDescription: string;
-  includedChallengeSummary: string;
-  weeklyPlan: string[];
-  levelHint?: string;
-  members?: number; // ⬅ ADICIONADO AQUI
+  // challengeId no Supabase (pode deixar null por enquanto)
+  challengeId: string | null;
+  // plano de 12 semanas (opcional – se não tiver, mostra mensagem “em breve”)
+  twelveWeekPlan?: TwelveWeekPlan;
 };
 
+// Lista de grupos disponíveis na tela /groups
 export const trainingGroups: TrainingGroup[] = [
   {
-    slug: "maratona-42k",
+    slug: "marathon-42k",
+    name: "Maratona 42K",
     title: "Maratona 42K",
     shortDescription:
-      "Grupo voltado para corredores que já conseguem correr pelo menos 15 km com conforto e querem se preparar para uma maratona completa.",
+      "Grupo voltado para corredores que já conseguem correr pelo menos 15 km e querem se preparar para uma maratona.",
     longDescription:
       "Foco em construir resistência, trabalhar ritmo constante e fortalecer a parte mental para encarar os 42 km. O grupo combina treinos longos, rodagens moderadas, treinos de ritmo e semanas de descarga para recuperação.",
-    includedChallengeSummary: "Programa de 12 semanas com pico entre 30 e 34 km.",
-    weeklyPlan: [
-      "Semanas 1–3: Base aeróbia, 4–5 treinos por semana, longões até 18–20 km.",
-      "Semanas 4–6: Aumento gradual do volume total, longões em torno de 24 km e treinos de ritmo controlado.",
-      "Semanas 7–9: Pico de carga, longões entre 28–34 km, simulações de prova e trabalho mental.",
-      "Semanas 10–11: Redução gradual do volume, mantendo intensidade moderada para chegar descansado.",
-      "Semana 12: Taper final, treinos leves, ajuste de estratégia de prova e foco total em recuperação."
-    ],
-    levelHint: "Corre 3–4x por semana e já fez longões de 15–20 km.",
-    members: 12,
+    challengeId: null,
+    twelveWeekPlan: {
+      volumeLabel: "Volume alvo: 40–60 km/semana ao final do ciclo",
+      weeks: [
+        {
+          week: 1,
+          title: "Semana 1 – Base leve",
+          focus: "Adaptar o corpo ao volume",
+          description:
+            "3 treinos de corrida leve de 30–40 minutos + 1 sessão de fortalecimento geral. Objetivo é criar rotina sem preocupação com ritmo."
+        },
+        {
+          week: 2,
+          title: "Semana 2 – Rotina consistente",
+          focus: "Manter frequência",
+          description:
+            "3–4 treinos leves, incluindo 1 treino um pouco mais longo (50–60 minutos) em ritmo confortável."
+        },
+        {
+          week: 3,
+          title: "Semana 3 – Primeiro longo",
+          focus: "Aumentar o longo",
+          description:
+            "Rodagens leves durante a semana e 1 treino longo de 70–80 minutos no fim de semana, sempre em zona confortável."
+        },
+        {
+          week: 4,
+          title: "Semana 4 – Consolidação",
+          focus: "Consolidar volume",
+          description:
+            "Volume semelhante à semana 3, mantendo intensidade baixa. Atenção à recuperação (sono, hidratação e alimentação)."
+        },
+        {
+          week: 5,
+          title: "Semana 5 – Introdução de ritmo",
+          focus: "Trabalhar limiar",
+          description:
+            "1 treino de ritmo (por exemplo 3×8 minutos em intensidade moderada) + longo de 90 minutos. Demais treinos em rodagens leves."
+        },
+        {
+          week: 6,
+          title: "Semana 6 – Longo progressivo",
+          focus: "Sustentar esforço por mais tempo",
+          description:
+            "Longo de 100–110 minutos com parte final um pouco mais forte, simulando o cansaço da prova. Restante da semana em rodagens regenerativas."
+        },
+        {
+          week: 7,
+          title: "Semana 7 – Carga alta",
+          focus: "Maior volume do ciclo até aqui",
+          description:
+            "Semana com 4 treinos, incluindo longo de até 120 minutos. Importante monitorar sinais de fadiga e ajustar se necessário."
+        },
+        {
+          week: 8,
+          title: "Semana 8 – Semana de descarga",
+          focus: "Recuperar para novo bloco",
+          description:
+            "Redução de aproximadamente 30% do volume total, mantendo apenas 1 treino um pouco mais forte. Semana para o corpo absorver a carga."
+        },
+        {
+          week: 9,
+          title: "Semana 9 – Ritmo de prova",
+          focus: "Testar ritmo alvo",
+          description:
+            "Treinos em ritmo próximo ao objetivo de prova (por exemplo, blocos de 3–5 km) + longo de 120–130 minutos em ritmo confortável."
+        },
+        {
+          week: 10,
+          title: "Semana 10 – Pico de volume",
+          focus: "Maior carga do ciclo",
+          description:
+            "Longo principal de 2h15–2h30, dependendo do nível do atleta, com rodagens leves nos outros dias. Importante planejar hidratação e nutrição como se fosse dia de prova."
+        },
+        {
+          week: 11,
+          title: "Semana 11 – Início do taper",
+          focus: "Reduzir volume mantendo intensidade",
+          description:
+            "Volume menor, mantendo alguns estímulos rápidos (tiros curtos) para preservar sensação de velocidade sem gerar fadiga."
+        },
+        {
+          week: 12,
+          title: "Semana 12 – Semana de prova",
+          focus: "Descanso ativo",
+          description:
+            "Rodagens bem leves, foco total em descanso, alimentação e sono. Últimos ajustes de estratégia de prova e logística do dia."
+        }
+      ]
+    }
   },
   {
     slug: "triathlon-endurance",
+    name: "Triathlon Endurance",
     title: "Triathlon Endurance",
     shortDescription:
-      "Para quem já pratica pelo menos duas das três modalidades e quer organizar melhor os treinos para provas short ou olímpicas.",
+      "Ideal para quem já pratica pelo menos duas modalidades e quer organizar melhor os treinos.",
     longDescription:
-      "O foco é equilibrar natação, ciclismo e corrida sem sobrecarregar o atleta. O plano traz treinos combinados (brick), sessões técnicas e semanas de foco em cada modalidade para desenvolver endurance e eficiência.",
-    includedChallengeSummary:
-      "Programa de 12 semanas para provas short/olímpicas com bricks estruturados.",
-    weeklyPlan: [
-      "Semanas 1–3: Base técnica, 2x natação, 2x bike, 2x corrida por semana.",
-      "Semanas 4–6: Introdução de bricks curtos (bike + corrida), foco em cadência e técnica.",
-      "Semanas 7–9: Bricks mais longos, treinos específicos em ritmo de prova e simulações.",
-      "Semanas 10–11: Redução de volume, mantendo algumas passadas em ritmo de prova.",
-      "Semana 12: Semana de prova, treinos leves, ajustes finos de transições e logística."
-    ],
-    levelHint: "Já treina pelo menos 2 das 3 modalidades semanalmente.",
-    members: 8,
+      "Para triatletas que querem estruturar os treinos de natação, ciclismo e corrida, equilibrando carga, transições e dias de recuperação para provas de short triathlon ou olímpico.",
+    challengeId: null
   },
   {
-    slug: "corrida-beginners",
+    slug: "beginners-running",
+    name: "Corrida para Beginners",
     title: "Corrida para Beginners",
     shortDescription:
       "Perfeito para quem está começando do zero ou voltando depois de muito tempo parado.",
     longDescription:
-      "Plano pensado para ser amigável, progressivo e seguro. Começa com mais caminhada do que corrida e, semana a semana, inverte essa relação até que o atleta consiga correr 5 km sem parar.",
-    includedChallengeSummary:
-      "Desafio de 12 semanas para sair do zero e completar 5 km com conforto.",
-    weeklyPlan: [
-      "Semanas 1–3: Combinação de caminhada e trote leve (ex.: 1 min correr / 2 min caminhar).",
-      "Semanas 4–6: Aumenta o tempo correndo e reduz a caminhada, mantendo 3–4 sessões por semana.",
-      "Semanas 7–9: Blocos maiores de corrida contínua, chegando a 20–25 minutos correndo.",
-      "Semanas 10–11: Corridas contínuas entre 25–35 minutos, ajustes de ritmo e respiração.",
-      "Semana 12: Semana de consolidação com um treino alvo de 5 km contínuos."
-    ],
-    levelHint: "Consegue caminhar 20–30 min, mas ainda não corre 5 km direto.",
-    members: 20,
+      "Combina caminhada, trote leve e pequenos blocos de corrida contínua para chegar aos 5 km com segurança, respeitando o ritmo atual de cada atleta.",
+    challengeId: null
   },
   {
-    slug: "running-weight-loss",
+    slug: "weight-loss-running",
+    name: "Running & Weight Loss",
     title: "Running & Weight Loss",
     shortDescription:
-      "Foco em constância, intensidade controlada e aumento de gasto calórico, sempre respeitando o nível atual do atleta.",
+      "Foco em constância, intensidade controlada e aumento de gasto calórico.",
     longDescription:
-      "Combinação de rodagens leves, treinos intervalados moderados e caminhadas ativas para aumentar o gasto calórico semanal sem exageros. Também incentiva sono, hidratação e rotina saudável.",
-    includedChallengeSummary:
-      "Desafio de 12 semanas com foco em consistência e evolução gradual.",
-    weeklyPlan: [
-      "Semanas 1–3: 3 sessões por semana, com mistura de caminhada e corrida leve.",
-      "Semanas 4–6: 4 sessões por semana, introduzindo intervalados suaves (ex.: 2 min forte / 2 min leve).",
-      "Semanas 7–9: Aumento do tempo total ativo na semana, com um treino mais longo no fim de semana.",
-      "Semanas 10–11: Mantém volume, melhora ligeiramente a intensidade para elevar o gasto calórico.",
-      "Semana 12: Consolidação, mantendo rotina estável e preparando o próximo ciclo."
-    ],
-    levelHint: "Quer usar a corrida como ferramenta de emagrecimento com segurança.",
-    members: 15,
+      "Grupo voltado para quem quer emagrecer usando corrida e caminhada como ferramentas principais, sempre respeitando o nível atual e histórico de lesões.",
+    challengeId: null
   },
   {
     slug: "performance-5k",
+    name: "Performance 5K",
     title: "Performance 5K",
     shortDescription:
       "Grupo ideal para quem já corre 5 km e quer ficar mais rápido.",
     longDescription:
-      "Plano desenhado para melhorar o tempo nos 5 km. Combina treinos de ritmo, tiros curtos e médios, além de rodagem leve para recuperação. Ideal para quem quer baixar minutos (ou segundos) do seu melhor tempo.",
-    includedChallengeSummary:
-      "Ciclo de 12 semanas com foco em velocidade e ritmo de prova.",
-    weeklyPlan: [
-      "Semanas 1–3: Construção de base, rodagens leves e alguns intervalados curtos.",
-      "Semanas 4–6: Tiros médios em ritmo um pouco mais forte que o 5K alvo.",
-      "Semanas 7–9: Sessões específicas em ritmo de prova e treinos progressivos.",
-      "Semanas 10–11: Redução leve de volume, mantendo estímulo de velocidade.",
-      "Semana 12: Afinar para a prova alvo, com 1 ou 2 treinos curtos em ritmo forte e muito descanso."
-    ],
-    levelHint: "Corre 5 km contínuos pelo menos 1 vez por semana.",
-    members: 10,
+      "Treinos com foco em ritmo, tiros, intervalados e controle de carga para melhorar tempo em provas de 5 km sem perder consistência.",
+    challengeId: null
   },
   {
     slug: "performance-10k",
+    name: "Performance 10K",
     title: "Performance 10K",
     shortDescription:
-      "Para atletas que já correm 8–10 km e querem estruturar melhor os treinos para evoluir tempo e consistência.",
+      "Para atletas que já correm 8–10 km e querem evoluir tempo e resistência.",
     longDescription:
-      "O foco é melhorar o ritmo médio dos 10 km, com treinos de tempo run, intervalados e rodagens controladas. Combina força, resistência e ritmo para competir melhor nas provas de 10K.",
-    includedChallengeSummary:
-      "Ciclo de 12 semanas para baixar tempo nos 10 km.",
-    weeklyPlan: [
-      "Semanas 1–3: Base aeróbia, rodagens entre 6–8 km e alguns blocos moderados.",
-      "Semanas 4–6: Tempo run (treinos contínuos em ritmo firme) e intervalados médios.",
-      "Semanas 7–9: Treinos em ritmo de prova e algumas sessões acima do ritmo alvo.",
-      "Semanas 10–11: Redução de volume, mantendo intensidade em menor quantidade.",
-      "Semana 12: Semana de prova com treinos curtos, leves e alguns estímulos rápidos."
-    ],
-    levelHint: "Já corre 8–10 km e quer melhorar performance.",
-    members: 9,
-  },
+      "Estrutura de treinos intervalados, tempo run e rodagens em diferentes intensidades, ajudando a bater recordes pessoais nos 10 km.",
+    challengeId: null
+  }
 ];
+
+// Helper opcional – usado em algumas páginas
+export function getGroupBySlug(
+  slug: TrainingGroupSlug
+): TrainingGroup | undefined {
+  return trainingGroups.find((g) => g.slug === slug);
+}
