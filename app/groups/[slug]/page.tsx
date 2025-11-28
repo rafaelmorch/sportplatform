@@ -9,17 +9,15 @@ type PageProps = {
   params: Promise<{ slug: TrainingGroupSlug }>;
 };
 
-// Deixa o TypeScript mais relaxado aqui
-async function getMemberCount(group: any): Promise<number> {
-  if (!group?.challengeId) return 0;
-
+// Conta participantes usando o slug do grupo
+async function getMemberCount(slug: TrainingGroupSlug): Promise<number> {
   const { data, error } = await supabaseAdmin
-    .from("challenge_participants") // se o nome for outro, ajusta aqui
+    .from("challenge_participants") // se o nome da tabela for outro, ajusta aqui
     .select("id", { count: "exact" })
-    .eq("challenge_id", group.challengeId);
+    .eq("group_slug", slug); // usamos a coluna group_slug
 
   if (error) {
-    console.error("Erro ao contar participantes do grupo", group?.slug, error);
+    console.error("Erro ao contar participantes do grupo", slug, error);
     return 0;
   }
 
@@ -29,15 +27,25 @@ async function getMemberCount(group: any): Promise<number> {
 export default async function GroupDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const group = trainingGroups.find((g) => g.slug === slug);
+  // 👉 forçamos any pra não dar mais xilique de tipo
+  const group = trainingGroups.find((g) => g.slug === slug) as any;
 
   if (!group) {
     notFound();
   }
 
-  const memberCount = await getMemberCount(group);
-  // 👇 aqui é onde o TS estava reclamando
-  const plan = (group as any).twelveWeekPlan;
+  const memberCount = await getMemberCount(slug);
+  const plan = (group as any).twelveWeekPlan as
+    | {
+        volumeLabel?: string;
+        weeks?: {
+          week: number;
+          title: string;
+          focus: string;
+          description: string;
+        }[];
+      }
+    | undefined;
 
   return (
     <main
@@ -224,7 +232,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 whiteSpace: "nowrap",
               }}
             >
-              {plan?.volumeLabel ?? "Volume alvo adaptado a cada atleta do grupo"}
+              {plan?.volumeLabel ??
+                "Volume alvo adaptado ao nível dos atletas do grupo."}
             </p>
           </div>
 
@@ -237,7 +246,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 marginTop: 10,
               }}
             >
-              {plan.weeks.map((w: any) => (
+              {plan.weeks.map((w) => (
                 <div
                   key={w.week}
                   style={{
