@@ -1,167 +1,182 @@
 // app/groups/page.tsx
-"use client";
+import Link from "next/link";
+import BottomNavbar from "@/components/BottomNavbar";
+import { trainingGroups } from "./groups-data";
 
-import { useRouter } from "next/navigation";
-import {
-  trainingGroups,
-  type TrainingGroup,
-} from "./groups-data";
+export const dynamic = "force-dynamic";
 
 export default function GroupsPage() {
-  const router = useRouter();
-
-  const handleOpenGroup = (slug: string) => {
-    router.push(`/groups/${slug}`);
-  };
-
   return (
     <main
       style={{
         minHeight: "100vh",
         backgroundColor: "#020617",
         color: "#e5e7eb",
+        padding: "16px",
+        paddingBottom: "80px", // espaço pro BottomNavbar
       }}
     >
       <div
         style={{
-          maxWidth: 1100,
+          maxWidth: "900px",
           margin: "0 auto",
-          padding: "20px 16px 32px",
         }}
       >
-        {/* TÍTULO E SUBTÍTULO DA PÁGINA */}
+        {/* Header simples */}
         <header
           style={{
-            marginBottom: 24,
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
           }}
         >
+          <p
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              margin: 0,
+            }}
+          >
+            Comunidades
+          </p>
           <h1
             style={{
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: 700,
               margin: 0,
-              marginBottom: 6,
             }}
           >
             Grupos de treino
           </h1>
           <p
             style={{
-              fontSize: 14,
+              fontSize: 13,
               color: "#9ca3af",
               margin: 0,
             }}
           >
-            Escolha o grupo que melhor se conecta com o seu momento de treino.
+            Escolha um grupo que combine com o seu momento e acompanhe sua
+            evolução junto com outros atletas.
           </p>
         </header>
 
-        {/* GRID DE CARDS DOS GRUPOS */}
-        <div
+        {/* Lista de grupos */}
+        <section
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: 18,
+            gridTemplateColumns: "1fr",
+            gap: 12,
           }}
         >
-          {trainingGroups.map((group: TrainingGroup) => (
-            <button
+          {trainingGroups.map((group) => (
+            <Link
               key={group.slug}
-              type="button"
-              onClick={() => handleOpenGroup(group.slug)}
+              href={`/groups/${group.slug}`}
               style={{
-                textAlign: "left",
-                borderRadius: 18,
-                border: "1px solid rgba(31,41,55,0.9)",
-                background:
-                  "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-                padding: "16px 14px 14px",
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                transition:
-                  "transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s ease-out",
-              }}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLButtonElement;
-                el.style.transform = "translateY(-2px)";
-                el.style.boxShadow = "0 18px 35px rgba(15,23,42,0.9)";
-                el.style.borderColor = "rgba(52,211,153,0.9)";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLButtonElement;
-                el.style.transform = "translateY(0)";
-                el.style.boxShadow = "none";
-                el.style.borderColor = "rgba(31,41,55,0.9)";
+                textDecoration: "none",
+                color: "inherit",
               }}
             >
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#22c55e",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  margin: 0,
-                }}
-              >
-                Grupo de treino
-              </p>
-
-              <h2
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  margin: 0,
-                  marginBottom: 4,
-                }}
-              >
-                {group.title}
-              </h2>
-
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#d1d5db",
-                  margin: 0,
-                  marginBottom: 6,
-                }}
-              >
-                {group.shortDescription}
-              </p>
-
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#9ca3af",
-                  margin: 0,
-                  marginTop: 4,
-                }}
-              >
-                Desafio de 30 dias incluso
-              </p>
-
               <div
                 style={{
-                  marginTop: 10,
+                  borderRadius: 18,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background:
+                    "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+                  padding: "14px 14px",
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  flexDirection: "column",
+                  gap: 8,
                 }}
               >
-                <span
+                <div
                   style={{
-                    fontSize: 13,
-                    color: "#22c55e",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    alignItems: "flex-start",
                   }}
                 >
-                  Ver detalhes →
-                </span>
+                  <div>
+                    <h2
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 600,
+                        margin: 0,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {group.title}
+                    </h2>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "#9ca3af",
+                        margin: 0,
+                      }}
+                    >
+                      {group.shortDescription}
+                    </p>
+                  </div>
+
+                  {/* Tagzinha azul no canto, só pra indicar grupo ativo */}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(56,189,248,0.5)", // azul
+                      background:
+                        "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
+                      color: "#e0f2fe",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Grupo ativo
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-end",
+                    marginTop: 6,
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "#60a5fa", // azul no lugar do verde
+                      margin: 0,
+                    }}
+                  >
+                    Plano de 12 semanas pensado para este grupo.
+                  </p>
+
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: "#93c5fd",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Ver detalhes
+                  </span>
+                </div>
               </div>
-            </button>
+            </Link>
           ))}
-        </div>
+        </section>
       </div>
+
+      {/* ✅ Bottom navbar fixo, igual nas outras páginas principais */}
+      <BottomNavbar />
     </main>
   );
 }
