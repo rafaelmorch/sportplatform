@@ -1,7 +1,10 @@
 // app/groups/[slug]/page.tsx
+"use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { supabaseAdmin } from "@/lib/supabase";
+import { useParams } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 import {
   trainingGroups,
   type TrainingGroup,
@@ -9,45 +12,60 @@ import {
 import JoinGroupButton from "./JoinGroupButton";
 import LeaveGroupButton from "./LeaveGroupButton";
 
-export const dynamic = "force-dynamic";
-
-type PageProps = {
-  params: { slug: string };
+type PageParams = {
+  slug?: string | string[];
 };
 
-async function getMemberCount(slug: string): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from("group_members")
-    .select("*", { count: "exact", head: true })
-    .eq("groupSlug", slug);
+export default function GroupDetailPage() {
+  const params = useParams() as PageParams;
+  const rawSlug = params?.slug;
 
-  if (error || count == null) {
-    console.error("Erro ao contar membros do grupo:", error);
-    return 0;
-  }
+  // slug sempre em string
+  const slug =
+    typeof rawSlug === "string" ? rawSlug : Array.isArray(rawSlug) ? rawSlug[0] : "";
 
-  return count;
-}
+  const [group, setGroup] = useState<TrainingGroup | null>(null);
+  const [memberCount, setMemberCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
 
-export default async function GroupDetailPage({ params }: PageProps) {
-  const slug = params.slug;
+  useEffect(() => {
+    async function loadData() {
+      if (!slug) {
+        setGroup(null);
+        setMemberCount(0);
+        setLoading(false);
+        return;
+      }
 
-  // DEBUG: ver o que está vindo do Next
-  console.log("GroupDetailPage slug =", slug);
+      // 1) Busca grupo no groups-data.ts
+      const g = trainingGroups.find((gr) => gr.slug === slug) || null;
+      setGroup(g);
 
-  const group: TrainingGroup | undefined = trainingGroups.find(
-    (g) => g.slug === slug
-  );
+      // 2) Conta participantes reais no Supabase
+      try {
+        const supabase = supabaseBrowser;
+        const { count, error } = await supabase
+          .from("group_members")
+          .select("*", { count: "exact", head: true })
+          .eq("groupSlug", slug);
 
-  // Se não achar, mostra uma mensagem em vez de 404
-  if (!group) {
-    console.error(
-      "Grupo não encontrado para slug:",
-      slug,
-      "slugs existentes:",
-      trainingGroups.map((g) => g.slug)
-    );
+        if (!error && count != null) {
+          setMemberCount(count);
+        } else {
+          console.error("Erro ao contar membros do grupo:", error);
+        }
+      } catch (err) {
+        console.error("Erro inesperado ao buscar membros do grupo:", err);
+      }
 
+      setLoading(false);
+    }
+
+    loadData();
+  }, [slug]);
+
+  // Se slug está vazio: algo muito errado com a rota
+  if (!slug) {
     return (
       <main
         style={{
@@ -75,21 +93,50 @@ export default async function GroupDetailPage({ params }: PageProps) {
             </Link>
           </div>
 
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              marginBottom: 8,
-            }}
-          >
+          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
             Grupo não encontrado
           </h1>
-          <p
-            style={{
-              fontSize: 14,
-              color: "#9ca3af",
-            }}
-          >
+          <p style={{ fontSize: 14, color: "#9ca3af" }}>
+            O identificador do grupo não foi informado na URL.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Grupo não existe no groups-data.ts
+  if (!group) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#020617",
+          color: "#e5e7eb",
+          padding: "16px",
+        }}
+      >
+        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <div style={{ marginBottom: 16 }}>
+            <Link
+              href="/groups"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 13,
+                color: "#9ca3af",
+                textDecoration: "none",
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>←</span>
+              <span>Voltar para grupos</span>
+            </Link>
+          </div>
+
+          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
+            Grupo não encontrado
+          </h1>
+          <p style={{ fontSize: 14, color: "#9ca3af" }}>
             Não encontramos nenhum grupo com o identificador:{" "}
             <code>{slug}</code>.
           </p>
@@ -98,7 +145,6 @@ export default async function GroupDetailPage({ params }: PageProps) {
     );
   }
 
-  const memberCount = await getMemberCount(slug);
   const plan = group.twelveWeekPlan;
 
   return (
@@ -228,7 +274,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
                     margin: 0,
                   }}
                 >
-                  {memberCount === 0
+                  {loading
+                    ? "Carregando..."
+                    : memberCount === 0
                     ? "Seja o primeiro a participar deste grupo."
                     : `${memberCount} ${
                         memberCount === 1 ? "participante" : "participantes"
@@ -244,6 +292,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   gap: 8,
                 }}
               >
+                {/* Join / Leave usam Supabase e se viram com o estado */}
                 <JoinGroupButton groupSlug={group.slug} />
                 <LeaveGroupButton groupSlug={group.slug} />
               </div>
