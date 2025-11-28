@@ -1,66 +1,85 @@
+// app/groups/[slug]/LeaveGroupButton.tsx
 "use client";
 
-import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase-browser";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type LeaveGroupButtonProps = {
   groupSlug: string;
 };
 
 export default function LeaveGroupButton({ groupSlug }: LeaveGroupButtonProps) {
-  const supabase = supabaseBrowser;
+  const [isPending, startTransition] = useTransition();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const supabase = supabaseBrowser;
 
-  async function handleLeave() {
-    setLoading(true);
+  const handleClick = async () => {
+    if (isPending) return;
 
+    setErrorMessage(null);
+
+    // 1) Garantir que o usuário está logado
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      alert("Você precisa estar logado.");
-      setLoading(false);
+    if (authError || !user) {
+      setErrorMessage("Você precisa estar logado para sair do grupo.");
       return;
     }
 
-    const { error } = await supabase
+    // 2) Remover da tabela group_members
+    const { error: deleteError } = await supabase
       .from("group_members")
       .delete()
       .eq("userId", user.id)
       .eq("groupSlug", groupSlug);
 
-    if (error) {
-      console.error("Erro ao sair do grupo:", error);
-      alert("Não foi possível sair do grupo.");
-      setLoading(false);
+    if (deleteError) {
+      console.error("Erro ao sair do grupo:", deleteError);
+      setErrorMessage("Não foi possível sair do grupo.");
       return;
     }
 
-    // Atualiza a página
-    router.refresh();
-    setLoading(false);
-  }
+    // 3) Atualizar a tela (contagem de membros etc.)
+    startTransition(() => router.refresh());
+  };
 
   return (
-    <button
-      onClick={handleLeave}
-      disabled={loading}
-      style={{
-        marginTop: 10,
-        backgroundColor: "#991b1b",
-        padding: "10px 14px",
-        borderRadius: 12,
-        color: "white",
-        fontSize: 14,
-        fontWeight: 600,
-        border: "1px solid #7f1d1d",
-        width: "100%",
-      }}
-    >
-      {loading ? "Saindo..." : "Sair do Grupo"}
-    </button>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isPending}
+        style={{
+          padding: "10px 16px",
+          borderRadius: 999,
+          border: "1px solid #f87171",
+          backgroundColor: "transparent",
+          color: "#fca5a5",
+          fontSize: 14,
+          fontWeight: 500,
+          cursor: isPending ? "default" : "pointer",
+        }}
+      >
+        {isPending ? "Saindo..." : "Sair do grupo"}
+      </button>
+
+      {errorMessage && (
+        <p
+          style={{
+            fontSize: 12,
+            color: "#f97373",
+            margin: 0,
+          }}
+        >
+          {errorMessage}
+        </p>
+      )}
+    </div>
   );
 }
