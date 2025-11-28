@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { supabaseAdmin } from "@/lib/supabase";
 import {
   trainingGroups,
   type TrainingGroupSlug,
   type TrainingGroup,
 } from "../groups-data";
-import { supabaseAdmin } from "@/lib/supabase";
 import JoinGroupButton from "./JoinGroupButton";
 import LeaveGroupButton from "./LeaveGroupButton";
 
@@ -17,89 +17,34 @@ type PageProps = {
   params: { slug: string };
 };
 
-// Tipos auxiliares para o plano vindo do Supabase
-type DbWeekRow = {
-  week_number: number;
-  title: string;
-  focus: string;
-  description: string;
-};
-
-type PlanFromDb = {
-  volumeLabel: string | null;
-  weeks: {
-    week: number;
-    title: string;
-    focus: string;
-    description: string;
-  }[];
-};
-
-async function getGroupData(slugParam: string) {
-  const slug = slugParam as TrainingGroupSlug;
-
-  // 1) Grupo base (nome, descrições) ainda vem do arquivo local
-  const group: TrainingGroup | undefined = trainingGroups.find(
-    (g) => g.slug === slug
-  );
-
-  if (!group) return null;
-
-  // 2) Contagem real de participantes no Supabase
-  const { count: membersCount, error: countError } = await supabaseAdmin
+// Conta participantes reais na tabela group_members
+async function getMemberCount(slug: TrainingGroupSlug): Promise<number> {
+  const { count, error } = await supabaseAdmin
     .from("group_members")
     .select("*", { count: "exact", head: true })
     .eq("groupSlug", slug);
 
-  const memberCount = countError ? 0 : membersCount ?? 0;
-
-  // 3) Plano de 12 semanas vindo de group_plans + group_plan_weeks
-  let plan: PlanFromDb | null = null;
-
-  const { data: planRow, error: planError } = await supabaseAdmin
-    .from("group_plans")
-    .select("id, volume_label")
-    .eq("group_slug", slug)
-    .maybeSingle();
-
-  if (!planError && planRow) {
-    const { data: weeksRows, error: weeksError } = await supabaseAdmin
-      .from("group_plan_weeks")
-      .select("week_number, title, focus, description")
-      .eq("plan_id", planRow.id)
-      .order("week_number", { ascending: true });
-
-    if (!weeksError && weeksRows) {
-      const weeks = (weeksRows as DbWeekRow[]).map((w) => ({
-        week: w.week_number,
-        title: w.title,
-        focus: w.focus,
-        description: w.description,
-      }));
-
-      plan = {
-        volumeLabel: planRow.volume_label ?? null,
-        weeks,
-      };
-    }
+  if (error || count == null) {
+    console.error("Erro ao contar membros do grupo:", error);
+    return 0;
   }
 
-  return {
-    group,
-    memberCount,
-    plan,
-  };
+  return count;
 }
 
 export default async function GroupDetailPage({ params }: PageProps) {
-  const { slug } = params;
+  const slug = params.slug as TrainingGroupSlug;
 
-  const data = await getGroupData(slug);
-  if (!data) {
+  const group: TrainingGroup | undefined = trainingGroups.find(
+    (g) => g.slug === slug
+  );
+
+  if (!group) {
     notFound();
   }
 
-  const { group, memberCount, plan } = data;
+  const memberCount = await getMemberCount(slug);
+  const plan = group.twelveWeekPlan;
 
   return (
     <main
@@ -182,7 +127,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </p>
         </header>
 
-        {/* Bloco: status e membros */}
+        {/* Bloco: comunidade do grupo */}
         <section
           style={{
             borderRadius: 20,
@@ -236,10 +181,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {/* Botões client-side: Join / Leave */}
+              {/* Botões – lógica de estar ou não no grupo fica nos componentes client */}
               <div
                 style={{
-                  minWidth: 180,
+                  minWidth: 220,
                   display: "flex",
                   flexDirection: "column",
                   gap: 8,
@@ -297,7 +242,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </p>
         </section>
 
-        {/* Plano de 12 semanas (Supabase) */}
+        {/* Plano de 12 semanas (ainda vindo do arquivo, não do Supabase) */}
         <section
           style={{
             borderRadius: 20,
