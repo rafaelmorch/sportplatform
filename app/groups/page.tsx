@@ -1,7 +1,6 @@
 // app/groups/page.tsx
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   trainingGroups,
@@ -23,103 +22,6 @@ export default function GroupsPage() {
         color: "#e5e7eb",
       }}
     >
-      {/* NAVBAR SIMPLES NO TOPO */}
-      <header
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 20,
-          borderBottom: "1px solid rgba(31,41,55,0.8)",
-          background:
-            "linear-gradient(to right, #020617, #020617 40%, #020617ee)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            padding: "10px 16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <span
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 999,
-                border: "2px solid #22c55e",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#22c55e",
-              }}
-            >
-              SP
-            </span>
-            <span
-              style={{
-                fontWeight: 600,
-                fontSize: 16,
-              }}
-            >
-              SportPlatform
-            </span>
-          </div>
-
-          <nav
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              fontSize: 13,
-            }}
-          >
-            <Link
-              href="/dashboard"
-              style={{
-                color: "#9ca3af",
-                textDecoration: "none",
-              }}
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/events"
-              style={{
-                color: "#9ca3af",
-                textDecoration: "none",
-              }}
-            >
-              Eventos
-            </Link>
-            <Link
-              href="/groups"
-              style={{
-                color: "#e5e7eb",
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
-              Grupos
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      {/* CONTEÚDO PRINCIPAL */}
       <div
         style={{
           maxWidth: 1100,
@@ -127,6 +29,7 @@ export default function GroupsPage() {
           padding: "20px 16px 32px",
         }}
       >
+        {/* TÍTULO E SUBTÍTULO DA PÁGINA */}
         <header
           style={{
             marginBottom: 24,
@@ -153,7 +56,7 @@ export default function GroupsPage() {
           </p>
         </header>
 
-        {/* GRID DE CARDS */}
+        {/* GRID DE CARDS DOS GRUPOS */}
         <div
           style={{
             display: "grid",
@@ -177,22 +80,20 @@ export default function GroupsPage() {
                 display: "flex",
                 flexDirection: "column",
                 gap: 8,
-                transition: "transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s ease-out",
+                transition:
+                  "transform 0.12s ease-out, box-shadow 0.12s ease-out, border-color 0.12s ease-out",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateY(-2px)";
-                (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 18px 35px rgba(15,23,42,0.9)";
-                (e.currentTarget as HTMLButtonElement).style.borderColor =
-                  "rgba(52,211,153,0.9)";
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.transform = "translateY(-2px)";
+                el.style.boxShadow = "0 18px 35px rgba(15,23,42,0.9)";
+                el.style.borderColor = "rgba(52,211,153,0.9)";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateY(0)";
-                (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
-                (e.currentTarget as HTMLButtonElement).style.borderColor =
-                  "rgba(31,41,55,0.9)";
+                const el = e.currentTarget as HTMLButtonElement;
+                el.style.transform = "translateY(0)";
+                el.style.boxShadow = "none";
+                el.style.borderColor = "rgba(31,41,55,0.9)";
               }}
             >
               <p
@@ -206,6 +107,7 @@ export default function GroupsPage() {
               >
                 Grupo de treino
               </p>
+
               <h2
                 style={{
                   fontSize: 18,
@@ -216,6 +118,7 @@ export default function GroupsPage() {
               >
                 {group.title}
               </h2>
+
               <p
                 style={{
                   fontSize: 13,
