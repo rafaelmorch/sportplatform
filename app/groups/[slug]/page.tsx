@@ -1,68 +1,96 @@
 // app/groups/[slug]/page.tsx
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { trainingGroups, type TrainingGroupSlug } from "../groups-data";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+import {
+  trainingGroups,
+  type TrainingGroupSlug,
+  type TrainingGroup,
+} from "../groups-data";
 import JoinGroupButton from "./JoinGroupButton";
+import LeaveGroupButton from "./LeaveGroupButton";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = {
-  params: Promise<{ slug: TrainingGroupSlug }>;
+  params: Promise<{ slug: string }>;
 };
 
-// Conta participantes usando o slug do grupo
-async function getMemberCount(slug: TrainingGroupSlug): Promise<number> {
-  const { data, error } = await supabaseAdmin
-    .from("challenge_participants") // se o nome da tabela for outro, ajusta aqui
-    .select("id", { count: "exact" })
-    .eq("group_slug", slug); // usamos a coluna group_slug
+async function getGroupData(slugParam: string) {
+  const slug = slugParam as TrainingGroupSlug;
 
-  if (error) {
-    console.error("Erro ao contar participantes do grupo", slug, error);
-    return 0;
+  const group: TrainingGroup | undefined = trainingGroups.find(
+    (g) => g.slug === slug
+  );
+
+  if (!group) return null;
+
+  const supabase = supabaseBrowser;
+
+  // Usuário logado (para saber se é membro)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let isMember = false;
+
+  if (user) {
+    const { data: membership, error: membershipError } = await supabase
+      .from("group_members")
+      .select("id")
+      .eq("userId", user.id)
+      .eq("groupSlug", slug)
+      .limit(1);
+
+    if (!membershipError && membership && membership.length > 0) {
+      isMember = true;
+    }
   }
 
-  return data?.length ?? 0;
+  // Contagem real de participantes
+  const { count: membersCount, error: countError } = await supabase
+    .from("group_members")
+    .select("*", { count: "exact", head: true })
+    .eq("groupSlug", slug);
+
+  const memberCount = countError ? 0 : membersCount ?? 0;
+
+  return {
+    group,
+    memberCount,
+    isMember,
+  };
 }
 
 export default async function GroupDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
-  // 👉 forçamos any pra não dar mais xilique de tipo
-  const group = trainingGroups.find((g) => g.slug === slug) as any;
-
-  if (!group) {
+  const data = await getGroupData(slug);
+  if (!data) {
     notFound();
   }
 
-  const memberCount = await getMemberCount(slug);
-  const plan = (group as any).twelveWeekPlan as
-    | {
-        volumeLabel?: string;
-        weeks?: {
-          week: number;
-          title: string;
-          focus: string;
-          description: string;
-        }[];
-      }
-    | undefined;
+  const { group, memberCount, isMember } = data;
+  const plan = group.twelveWeekPlan;
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#020617",
+        backgroundColor: "#020617",
         color: "#e5e7eb",
         padding: "16px",
+        paddingBottom: "24px",
       }}
     >
       <div
         style={{
-          maxWidth: "980px",
+          maxWidth: "900px",
           margin: "0 auto",
         }}
       >
-        {/* Botão voltar – sem BottomNavbar nesta página */}
+        {/* Botão voltar */}
         <div style={{ marginBottom: 16 }}>
           <Link
             href="/groups"
@@ -70,142 +98,206 @@ export default async function GroupDetailPage({ params }: PageProps) {
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: "1px solid rgba(55,65,81,0.9)",
               fontSize: 13,
+              color: "#9ca3af",
               textDecoration: "none",
-              color: "#e5e7eb",
             }}
           >
-            ← Voltar para grupos
+            <span
+              style={{
+                fontSize: 18,
+                lineHeight: 1,
+              }}
+            >
+              ←
+            </span>
+            <span>Voltar para grupos</span>
           </Link>
         </div>
 
         {/* Header do grupo */}
+        <header
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              margin: 0,
+            }}
+          >
+            Grupo de treino
+          </p>
+          <h1
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              margin: 0,
+            }}
+          >
+            {group.title}
+          </h1>
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              margin: 0,
+            }}
+          >
+            {group.shortDescription}
+          </p>
+        </header>
+
+        {/* Bloco: status e membros */}
         <section
           style={{
             borderRadius: 20,
-            border: "1px solid rgba(31,41,55,0.9)",
+            border: "1px solid rgba(148,163,184,0.35)",
             background:
               "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "20px 18px",
+            padding: "16px 14px",
             marginBottom: 18,
           }}
         >
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              alignItems: "center",
-              marginBottom: 12,
+              flexDirection: "column",
+              gap: 10,
             }}
           >
-            <div>
-              <p
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "#64748b",
-                  margin: 0,
-                }}
-              >
-                Grupo de treino
-              </p>
-              <h1
-                style={{
-                  fontSize: 24,
-                  fontWeight: 700,
-                  margin: 0,
-                }}
-              >
-                {group.name}
-              </h1>
-            </div>
-
             <div
               style={{
-                fontSize: 12,
-                padding: "6px 10px",
-                borderRadius: 999,
-                border: "1px solid rgba(148,163,184,0.5)",
-                color: "#cbd5f5",
-                whiteSpace: "nowrap",
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "flex-start",
+                flexWrap: "wrap",
               }}
             >
-              {memberCount}{" "}
-              {memberCount === 1 ? "participante" : "participantes"}
-            </div>
-          </div>
+              <div>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#a5b4fc",
+                    textTransform: "uppercase",
+                    margin: 0,
+                    marginBottom: 4,
+                  }}
+                >
+                  Comunidade do grupo
+                </p>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "#e5e7eb",
+                    margin: 0,
+                  }}
+                >
+                  {memberCount === 0
+                    ? "Seja o primeiro a participar deste grupo."
+                    : `${memberCount} ${
+                        memberCount === 1 ? "participante" : "participantes"
+                      } ativos neste grupo.`}
+                </p>
+              </div>
 
-          {/* Descrição longa do grupo */}
+              {/* Botões: entrar / sair */}
+              <div
+                style={{
+                  minWidth: 180,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {!isMember ? (
+                  <JoinGroupButton groupSlug={group.slug} />
+                ) : (
+                  <LeaveGroupButton groupSlug={group.slug} />
+                )}
+              </div>
+            </div>
+
+            <p
+              style={{
+                fontSize: 12,
+                color: "#9ca3af",
+                margin: 0,
+                marginTop: 8,
+              }}
+            >
+              Ao participar, seus minutos de atividade (via Strava) passam a
+              contar no ranking e nos desafios deste grupo.
+            </p>
+          </div>
+        </section>
+
+        {/* Descrição longa */}
+        <section
+          style={{
+            borderRadius: 20,
+            border: "1px solid rgba(55,65,81,0.9)",
+            background:
+              "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: 20,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              marginTop: 0,
+              marginBottom: 8,
+            }}
+          >
+            Sobre o grupo
+          </h2>
           <p
             style={{
               fontSize: 14,
+              lineHeight: 1.6,
               color: "#d1d5db",
               margin: 0,
             }}
           >
             {group.longDescription}
           </p>
-
-          {/* Botões Participar / Sair */}
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 12,
-              marginTop: 18,
-              alignItems: "center",
-            }}
-          >
-            {/* Botão principal – client component */}
-            <JoinGroupButton groupSlug={group.slug} />
-
-            {/* Botão menor – placeholder por enquanto */}
-            <button
-              type="button"
-              disabled
-              style={{
-                padding: "10px 16px",
-                borderRadius: 999,
-                border: "1px solid rgba(148,163,184,0.6)",
-                backgroundColor: "transparent",
-                color: "#9ca3af",
-                fontSize: 13,
-                cursor: "not-allowed",
-              }}
-            >
-              Sair do grupo (em breve)
-            </button>
-          </div>
         </section>
 
         {/* Plano de 12 semanas */}
         <section
           style={{
             borderRadius: 20,
-            border: "1px solid rgba(31,41,55,0.9)",
+            border: "1px solid rgba(148,163,184,0.35)",
             background:
               "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "20px 18px",
+            padding: "16px 14px",
+            marginBottom: 24,
           }}
         >
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
+              gap: 8,
               alignItems: "baseline",
-              gap: 12,
               marginBottom: 10,
+              flexWrap: "wrap",
             }}
           >
             <div>
               <h2
                 style={{
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: 600,
                   margin: 0,
                 }}
@@ -214,91 +306,104 @@ export default async function GroupDetailPage({ params }: PageProps) {
               </h2>
               <p
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   color: "#9ca3af",
                   margin: 0,
                 }}
               >
-                Estrutura progressiva pensada para o objetivo principal do
-                grupo.
+                Estrutura progressiva pensada para os atletas deste grupo.
               </p>
             </div>
-
-            <p
-              style={{
-                fontSize: 12,
-                color: "#a5b4fc",
-                margin: 0,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {plan?.volumeLabel ??
-                "Volume alvo adaptado ao nível dos atletas do grupo."}
-            </p>
           </div>
 
-          {plan && plan.weeks && plan.weeks.length > 0 ? (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 12,
-                marginTop: 10,
-              }}
-            >
-              {plan.weeks.map((w) => (
-                <div
-                  key={w.week}
-                  style={{
-                    borderRadius: 16,
-                    border: "1px solid rgba(55,65,81,0.9)",
-                    padding: "10px 12px",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "#9ca3af",
-                      margin: 0,
-                      marginBottom: 4,
-                    }}
-                  >
-                    Semana {w.week} · {w.focus}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 500,
-                      margin: 0,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {w.title}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "#d1d5db",
-                      margin: 0,
-                    }}
-                  >
-                    {w.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
+          {!plan ? (
             <p
               style={{
                 fontSize: 13,
-                color: "#d1d5db",
-                marginTop: 10,
+                color: "#9ca3af",
+                marginTop: 8,
+                marginBottom: 0,
               }}
             >
-              Em breve você verá aqui o detalhamento semana a semana deste grupo,
-              com treinos organizados por fase (base, progressão, carga alta e
-              taper).
+              Em breve este grupo terá um plano completo de 12 semanas com
+              progressão semanal e recomendações detalhadas.
             </p>
+          ) : (
+            <>
+              {plan.volumeLabel && (
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "#a5b4fc",
+                    marginBottom: 10,
+                  }}
+                >
+                  {plan.volumeLabel}
+                </p>
+              )}
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 10,
+                }}
+              >
+                {plan.weeks.map((week) => (
+                  <div
+                    key={week.week}
+                    style={{
+                      borderRadius: 16,
+                      border: "1px solid rgba(51,65,85,0.9)",
+                      background:
+                        "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: 11,
+                        color: "#64748b",
+                        textTransform: "uppercase",
+                        margin: 0,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Semana {week.week}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        margin: 0,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {week.title}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#a5b4fc",
+                        margin: 0,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Foco: {week.focus}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 12,
+                        color: "#d1d5db",
+                        margin: 0,
+                      }}
+                    >
+                      {week.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
       </div>
