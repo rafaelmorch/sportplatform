@@ -1,35 +1,24 @@
 // app/groups/[slug]/page.tsx
-
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
 import {
   trainingGroups,
-  type TrainingGroup,
   type TrainingGroupSlug,
+  type TrainingGroup,
 } from "../groups-data";
-import JoinGroupButton from "./JoinGroupButton";
-import LeaveGroupButton from "./LeaveGroupButton";
-import { supabaseAdmin } from "@/lib/supabase";
 
-export const dynamic = "force-dynamic";
+import JoinGroupButton from "./JoinGroupButton";
+// (se quiser usar depois) import LeaveGroupButton from "./LeaveGroupButton";
 
 type PageProps = {
   params: { slug: string };
 };
 
-async function getMemberCount(slug: string): Promise<number> {
-  const { count, error } = await supabaseAdmin
-    .from("group_members")
-    .select("*", { count: "exact", head: true })
-    .eq("groupSlug", slug);
-
-  if (error || count == null) return 0;
-  return count;
-}
-
-export default async function GroupDetailPage({ params }: PageProps) {
+export default function GroupDetailPage({ params }: PageProps) {
   const slug = params.slug as TrainingGroupSlug;
 
+  // Busca o grupo pelos dados locais (por enquanto)
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slug
   );
@@ -38,14 +27,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  // contador real
-  const memberCount = await getMemberCount(group.slug);
-
-  // ❗ por enquanto vamos deixar quem está logado decidir se entra/ sai
-  // no cliente; aqui só renderizamos os botões
-  const isMember = false;
-
-  const plan = group.twelveWeekPlan ?? null;
+  const plan = group.twelveWeekPlan;
 
   return (
     <main
@@ -88,7 +70,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </Link>
         </div>
 
-        {/* Header */}
+        {/* Header do grupo */}
         <header
           style={{
             marginBottom: 20,
@@ -128,7 +110,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </p>
         </header>
 
-        {/* Comunidade */}
+        {/* Bloco comunidade + botão de entrar/sair */}
         <section
           style={{
             borderRadius: 20,
@@ -174,15 +156,17 @@ export default async function GroupDetailPage({ params }: PageProps) {
                     margin: 0,
                   }}
                 >
-                  {memberCount === 0
-                    ? "Seja o primeiro a participar deste grupo."
-                    : `${memberCount} ${
-                        memberCount === 1 ? "participante" : "participantes"
-                      } ativos neste grupo.`}
+                  Ao participar, seus minutos de atividade (via Strava) passam a
+                  contar no ranking e nos desafios deste grupo.
                 </p>
               </div>
 
-              {/* Botão único – entra ou sai via componente client */}
+              {/* Só UM controle de participação.
+                  JoinGroupButton é client e cuida sozinho de:
+                  - checar se já está no grupo
+                  - mostrar "Você está no grupo"
+                  - mostrar o botão pretinho de "Sair do grupo"
+              */}
               <div
                 style={{
                   minWidth: 180,
@@ -191,23 +175,9 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   gap: 8,
                 }}
               >
-                {/* Deixa só UM botão visível; a lógica de mostrar
-                    “entrar” ou “sair” pode ser tratada no client */}
                 <JoinGroupButton groupSlug={group.slug} />
               </div>
             </div>
-
-            <p
-              style={{
-                fontSize: 12,
-                color: "#9ca3af",
-                margin: 0,
-                marginTop: 8,
-              }}
-            >
-              Ao participar, seus minutos de atividade (via Strava) passam a
-              contar no ranking e nos desafios deste grupo.
-            </p>
           </div>
         </section>
 
@@ -244,7 +214,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </p>
         </section>
 
-        {/* Plano 12 semanas */}
+        {/* Plano de 12 semanas */}
         <section
           style={{
             borderRadius: 20,
