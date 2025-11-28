@@ -14,9 +14,10 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const router = useRouter();
-  const supabase = supabaseBrowser; // já é o client
+  const supabase = supabaseBrowser;
 
   // 1) Ao carregar, ver se o usuário JÁ está no grupo
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
       } = await supabase.auth.getUser();
 
       if (authError || !user) {
-        setChecking(false);
+        if (!cancelled) setChecking(false);
         return;
       }
 
@@ -58,12 +59,12 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
     };
   }, [groupSlug, supabase]);
 
-  const handleClick = async () => {
-    if (checking || joined) return;
+  // 2) Entrar no grupo
+  const handleJoinClick = async () => {
+    if (checking || joined || isPending || isLeaving) return;
 
     setErrorMessage(null);
 
-    // 2) Garantir que está logado
     const {
       data: { user },
       error: authError,
@@ -74,7 +75,6 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
       return;
     }
 
-    // 3) Tentar inserir na tabela challenge_participants
     const { error: insertError } = await supabase
       .from("challenge_participants")
       .insert({
@@ -89,7 +89,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
       const code = (insertError as any).code;
       const message = ((insertError as any).message ?? "").toLowerCase();
 
-      // Se for conflito/duplicado, tratamos como "já está no grupo"
+      // Conflito/duplicado = já está no grupo
       if (
         code === "23505" ||
         message.includes("duplicate") ||
@@ -105,12 +105,47 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
       return;
     }
 
-    // 4) Sucesso
     setJoined(true);
     startTransition(() => router.refresh());
   };
 
-  const label = checking
+  // 3) Sair do grupo
+  const handleLeaveClick = async () => {
+    if (checking || !joined || isLeaving) return;
+
+    setErrorMessage(null);
+    setIsLeaving(true);
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      setIsLeaving(false);
+      setErrorMessage("Você precisa estar logado para sair do grupo.");
+      return;
+    }
+
+    const { error: deleteError } = await supabase
+      .from("challenge_participants")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("group_slug", groupSlug);
+
+    if (deleteError) {
+      console.error("Erro ao sair do grupo:", deleteError);
+      setIsLeaving(false);
+      setErrorMessage("Não foi possível sair do grupo. Tente novamente.");
+      return;
+    }
+
+    setJoined(false);
+    setIsLeaving(false);
+    startTransition(() => router.refresh());
+  };
+
+  const primaryLabel = checking
     ? "Verificando..."
     : joined
     ? "Você está no grupo"
@@ -119,11 +154,12 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
     : "Participar do grupo";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Botão principal: entrar / status */}
       <button
         type="button"
-        onClick={handleClick}
-        disabled={checking || isPending || joined}
+        onClick={handleJoinClick}
+        disabled={checking || isPending || joined || isLeaving}
         style={{
           padding: "12px 20px",
           borderRadius: 999,
@@ -135,12 +171,36 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
           color: "#020617",
           fontSize: 15,
           fontWeight: 600,
-          cursor: checking || isPending || joined ? "default" : "pointer",
-          opacity: isPending ? 0.8 : 1,
+          cursor:
+            checking || isPending || joined || isLeaving ? "default" : "pointer",
+          opacity: isPending || isLeaving ? 0.8 : 1,
         }}
       >
-        {label}
+        {primaryLabel}
       </button>
+
+      {/* Botão menor: sair do grupo (só aparece se já estiver no grupo) */}
+      {joined && !checking && (
+        <button
+          type="button"
+          onClick={handleLeaveClick}
+          disabled={isLeaving}
+          style={{
+            alignSelf: "flex-start",
+            padding: "8px 16px",
+            borderRadius: 999,
+            border: "1px solid rgba(148,163,184,0.7)",
+            background: "transparent",
+            color: "#e5e7eb",
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: isLeaving ? "default" : "pointer",
+            opacity: isLeaving ? 0.7 : 1,
+          }}
+        >
+          {isLeaving ? "Saindo do grupo..." : "Sair do grupo"}
+        </button>
+      )}
 
       {errorMessage && (
         <p
