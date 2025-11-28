@@ -2,77 +2,104 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase-browser";
 import {
   trainingGroups,
   type TrainingGroupSlug,
   type TrainingGroup,
 } from "../groups-data";
+import { supabaseAdmin } from "@/lib/supabase";
 import JoinGroupButton from "./JoinGroupButton";
 import LeaveGroupButton from "./LeaveGroupButton";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
+};
+
+// Tipos auxiliares para o plano vindo do Supabase
+type DbWeekRow = {
+  week_number: number;
+  title: string;
+  focus: string;
+  description: string;
+};
+
+type PlanFromDb = {
+  volumeLabel: string | null;
+  weeks: {
+    week: number;
+    title: string;
+    focus: string;
+    description: string;
+  }[];
 };
 
 async function getGroupData(slugParam: string) {
   const slug = slugParam as TrainingGroupSlug;
 
+  // 1) Grupo base (nome, descrições) ainda vem do arquivo local
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slug
   );
 
   if (!group) return null;
 
-  const supabase = supabaseBrowser;
-
-  // Usuário logado (para saber se é membro)
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let isMember = false;
-
-  if (user) {
-    const { data: membership, error: membershipError } = await supabase
-      .from("group_members")
-      .select("id")
-      .eq("userId", user.id)
-      .eq("groupSlug", slug)
-      .limit(1);
-
-    if (!membershipError && membership && membership.length > 0) {
-      isMember = true;
-    }
-  }
-
-  // Contagem real de participantes
-  const { count: membersCount, error: countError } = await supabase
+  // 2) Contagem real de participantes no Supabase
+  const { count: membersCount, error: countError } = await supabaseAdmin
     .from("group_members")
     .select("*", { count: "exact", head: true })
     .eq("groupSlug", slug);
 
   const memberCount = countError ? 0 : membersCount ?? 0;
 
+  // 3) Plano de 12 semanas vindo de group_plans + group_plan_weeks
+  let plan: PlanFromDb | null = null;
+
+  const { data: planRow, error: planError } = await supabaseAdmin
+    .from("group_plans")
+    .select("id, volume_label")
+    .eq("group_slug", slug)
+    .maybeSingle();
+
+  if (!planError && planRow) {
+    const { data: weeksRows, error: weeksError } = await supabaseAdmin
+      .from("group_plan_weeks")
+      .select("week_number, title, focus, description")
+      .eq("plan_id", planRow.id)
+      .order("week_number", { ascending: true });
+
+    if (!weeksError && weeksRows) {
+      const weeks = (weeksRows as DbWeekRow[]).map((w) => ({
+        week: w.week_number,
+        title: w.title,
+        focus: w.focus,
+        description: w.description,
+      }));
+
+      plan = {
+        volumeLabel: planRow.volume_label ?? null,
+        weeks,
+      };
+    }
+  }
+
   return {
     group,
     memberCount,
-    isMember,
+    plan,
   };
 }
 
 export default async function GroupDetailPage({ params }: PageProps) {
-  const { slug } = await params;
+  const { slug } = params;
 
   const data = await getGroupData(slug);
   if (!data) {
     notFound();
   }
 
-  const { group, memberCount, isMember } = data;
-  const plan = group.twelveWeekPlan;
+  const { group, memberCount, plan } = data;
 
   return (
     <main
@@ -209,7 +236,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 </p>
               </div>
 
-              {/* Botões: entrar / sair */}
+              {/* Botões client-side: Join / Leave */}
               <div
                 style={{
                   minWidth: 180,
@@ -218,11 +245,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   gap: 8,
                 }}
               >
-                {!isMember ? (
-                  <JoinGroupButton groupSlug={group.slug} />
-                ) : (
-                  <LeaveGroupButton groupSlug={group.slug} />
-                )}
+                <JoinGroupButton groupSlug={group.slug} />
+                <LeaveGroupButton groupSlug={group.slug} />
               </div>
             </div>
 
@@ -273,7 +297,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </p>
         </section>
 
-        {/* Plano de 12 semanas */}
+        {/* Plano de 12 semanas (Supabase) */}
         <section
           style={{
             borderRadius: 20,
