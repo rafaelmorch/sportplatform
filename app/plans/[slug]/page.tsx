@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -22,13 +22,18 @@ type TrainingGroup = {
   title: string;
 };
 
-// tipo inferido a partir do array que você já usa
 type StaticPlan = (typeof trainingPlans)[number];
+
+function formatPrice(priceCents: number | null, currency: string | null) {
+  if (!priceCents || !currency) return "Gratuito";
+  const value = priceCents / 100;
+  return `${currency} ${value.toFixed(2)}`;
+}
 
 export default function PlanDetailPage() {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
-  const router = useRouter();
+
   const supabase = supabaseBrowser;
 
   const [dbTraining, setDbTraining] = useState<DbTraining | null>(null);
@@ -51,21 +56,21 @@ export default function PlanDetailPage() {
           "id, title, description, duration_weeks, price_cents, currency, slug"
         )
         .eq("slug", slug)
-        .maybeSingle(); // pode vir null sem erro
+        .maybeSingle();
 
       if (trainingError) {
         console.error("Erro ao carregar treinamento do Supabase:", trainingError);
       }
 
       if (trainingData) {
-        // achou no Supabase
-        setDbTraining(trainingData as DbTraining);
+        const t = trainingData as DbTraining;
+        setDbTraining(t);
 
-        // 2) busca grupos desse treinamento
+        // 2) busca grupos relacionados
         const { data: relations, error: relError } = await supabase
           .from("training_group_trainings")
           .select("training_group_id")
-          .eq("training_id", trainingData.id);
+          .eq("training_id", t.id);
 
         if (relError) {
           console.error(
@@ -100,7 +105,7 @@ export default function PlanDetailPage() {
         return;
       }
 
-      // 3) se não achou no Supabase, tenta nos planos estáticos antigos
+      // 3) se não achou no Supabase, tenta nos planos estáticos
       const foundStatic = trainingPlans.find((p) => p.slug === slug) ?? null;
       setStaticPlan(foundStatic);
 
@@ -113,12 +118,6 @@ export default function PlanDetailPage() {
 
     fetchData();
   }, [slug, supabase]);
-
-  function formatPrice(priceCents: number | null, currency: string | null) {
-    if (!priceCents || !currency) return "Gratuito";
-    const value = priceCents / 100;
-    return `${currency} ${value.toFixed(2)}`;
-  }
 
   const isDb = !!dbTraining;
   const isStatic = !!staticPlan;
@@ -214,6 +213,7 @@ export default function PlanDetailPage() {
               margin: 0,
             }}
           >
+            {/* planos estáticos antigos */}
             {isStatic && staticPlan!.level && (
               <span>Nível: {staticPlan!.level}</span>
             )}
@@ -224,33 +224,36 @@ export default function PlanDetailPage() {
                 {staticPlan!.durationWeeks === 1 ? "semana" : "semanas"}
               </span>
             )}
-
-            {isDb && dbTraining!.duration_weeks && (
-              <span>
-                Duração: {dbTraining!.duration_weeks}{" "}
-                {dbTraining!.duration_weeks === 1 ? "semana" : "semanas"}
-              </span>
-            )}
-
-            {(isDb && dbTraining!.duration_weeks && dbTraining!.price_cents) ||
-            (isStatic && staticPlan!.pricePerMonth)
-              ? " · "
-              : null}
-
             {isStatic && staticPlan!.pricePerMonth && (
-              <span>Investimento: ${staticPlan!.pricePerMonth}/mês</span>
+              <>
+                {" · "}
+                <span>Investimento: ${staticPlan!.pricePerMonth}/mês</span>
+              </>
             )}
 
+            {/* planos vindos do Supabase */}
+            {isDb && dbTraining!.duration_weeks && (
+              <>
+                {isStatic ? " · " : ""}
+                <span>
+                  Duração: {dbTraining!.duration_weeks}{" "}
+                  {dbTraining!.duration_weeks === 1 ? "semana" : "semanas"}
+                </span>
+              </>
+            )}
             {isDb && dbTraining!.price_cents && (
-              <span>
-                Investimento:{" "}
-                {formatPrice(dbTraining!.price_cents, dbTraining!.currency)}
-              </span>
+              <>
+                {" · "}
+                <span>
+                  Investimento:{" "}
+                  {formatPrice(dbTraining!.price_cents, dbTraining!.currency)}
+                </span>
+              </>
             )}
           </p>
         </header>
 
-        {/* Estado de carregamento / erro */}
+        {/* Loading / erro simples */}
         {loading && (
           <p style={{ fontSize: 13, color: "#9ca3af" }}>Carregando...</p>
         )}
@@ -270,9 +273,10 @@ export default function PlanDetailPage() {
           </div>
         )}
 
-        {/* Card principal */}
+        {/* Conteúdo principal, se tiver plano (db ou estático) */}
         {!loading && (isDb || isStatic) && (
           <>
+            {/* Descrição / o que recebe */}
             <section
               style={{
                 borderRadius: 20,
@@ -308,7 +312,7 @@ export default function PlanDetailPage() {
               </p>
             </section>
 
-            {/* Se for plano vindo do Supabase, mostra os grupos vinculados */}
+            {/* Se for plano vindo do Supabase, mostra grupos vinculados */}
             {isDb && (
               <section
                 style={{
@@ -372,7 +376,7 @@ export default function PlanDetailPage() {
               </section>
             )}
 
-            {/* Bloco de integração / CTA (mantive a ideia original) */}
+            {/* Bloco de integração / CTA */}
             <section
               style={{
                 borderRadius: 18,
@@ -401,9 +405,9 @@ export default function PlanDetailPage() {
                   marginBottom: 10,
                 }}
               >
-                Este plano é pensado para se conectar com os dados reais do atleta
-                via Strava, permitindo acompanhar métricas de volume, intensidade e
-                evolução ao longo das semanas.
+                Este plano é pensado para se conectar com os dados reais do
+                atleta via Strava, permitindo acompanhar métricas de volume,
+                intensidade e evolução ao longo das semanas.
               </p>
               <p
                 style={{
@@ -413,3 +417,67 @@ export default function PlanDetailPage() {
                 }}
               >
                 Na versão completa, cada sessão será monitorada
+                automaticamente, com alertas de consistência, cargas semanais e
+                comparação com as metas definidas dentro do seu grupo de
+                treino.
+              </p>
+            </section>
+
+            {/* CTA */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              <button
+                type="button"
+                style={{
+                  display: "inline-flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: 46,
+                  borderRadius: 999,
+                  background:
+                    "linear-gradient(135deg, #22c55e, #16a34a, #22c55e)",
+                  color: "#020617",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  border: "1px solid rgba(248,250,252,0.12)",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  alert("Em breve: fluxo de checkout/uso do plano.");
+                }}
+              >
+                Usar este plano
+              </button>
+
+              <Link
+                href="/plans"
+                style={{
+                  display: "inline-flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: 44,
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.5)",
+                  textDecoration: "none",
+                  color: "#e5e7eb",
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                Voltar para lista de planos
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
+
+      <BottomNavbar />
+    </main>
+  );
+}
