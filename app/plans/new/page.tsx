@@ -7,7 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type TrainingGroup = {
   id: string;
-  name: string;
+  title: string;
 };
 
 function slugify(text: string): string {
@@ -42,10 +42,12 @@ export default function NewTrainingPage() {
   useEffect(() => {
     async function fetchTrainingGroups() {
       setLoadingGroups(true);
+      setErrorMsg(null);
+
       const { data, error } = await supabase
         .from("training_groups")
-        .select("id, name")
-        .order("name", { ascending: true });
+        .select("id, title")
+        .order("title", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar grupos de treinamento:", error);
@@ -53,6 +55,7 @@ export default function NewTrainingPage() {
       } else {
         setTrainingGroups(data ?? []);
       }
+
       setLoadingGroups(false);
     }
 
@@ -134,7 +137,7 @@ export default function NewTrainingPage() {
           price_cents: priceCents,
           currency: "USD",
           slug: finalSlug,
-          is_generic: false, // agora sempre vinculado a pelo menos um grupo
+          is_generic: false, // sempre vinculado a pelo menos um grupo
         })
         .select("id, slug")
         .single();
@@ -458,7 +461,7 @@ export default function NewTrainingPage() {
                         height: 16,
                       }}
                     />
-                    <span>{group.name}</span>
+                    <span>{group.title}</span>
                   </label>
                 ))}
               </div>
