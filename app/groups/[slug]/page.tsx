@@ -25,8 +25,17 @@ type DbWeek = {
   description?: string | null;
   key_workouts?: string | null;
   mileage_hint?: string | null;
-  // qualquer outra coluna que exista
   [key: string]: any;
+};
+
+type Training = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  duration_weeks: number | null;
+  price_cents: number | null;
+  currency: string | null;
 };
 
 export default function GroupDetailPage() {
@@ -35,18 +44,23 @@ export default function GroupDetailPage() {
 
   const supabase = supabaseBrowser;
 
-  // grupo estático (layout, textos etc.)
+  // grupo estático (texto, layout)
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slugParam
   );
 
-  // estados do plano de 12 semanas vindo do Supabase
+  // Plano 12 semanas (Supabase)
   const [dbGroup, setDbGroup] = useState<DbGroup | null>(null);
   const [weeks, setWeeks] = useState<DbWeek[]>([]);
   const [loadingWeeks, setLoadingWeeks] = useState(false);
   const [weeksError, setWeeksError] = useState<string | null>(null);
 
-  // Carrega plano de 12 semanas da tabela training_group_weeks
+  // Treinamentos indicados para o grupo
+  const [trainings, setTrainings] = useState<Training[]>([]);
+  const [loadingTrainings, setLoadingTrainings] = useState(false);
+  const [trainingsError, setTrainingsError] = useState<string | null>(null);
+
+  // Carrega grupo + plano de 12 semanas
   useEffect(() => {
     async function fetchWeeks() {
       if (!group) return;
@@ -56,7 +70,7 @@ export default function GroupDetailPage() {
 
       let groupData: DbGroup | null = null;
 
-      // 1) tenta achar por slug
+      // 1) tenta achar o grupo no Supabase por slug
       const { data: bySlug, error: slugError } = await supabase
         .from("training_groups")
         .select("id, slug, title")
@@ -64,16 +78,13 @@ export default function GroupDetailPage() {
         .maybeSingle();
 
       if (slugError) {
-        console.error(
-          "Erro ao carregar grupo por slug no Supabase:",
-          slugError
-        );
+        console.error("Erro ao carregar grupo por slug no Supabase:", slugError);
       }
 
       if (bySlug) {
         groupData = bySlug as DbGroup;
       } else {
-        // 2) se não achou por slug, tenta pelo título
+        // 2) se não achar por slug, tenta pelo título
         const { data: byTitle, error: titleError } = await supabase
           .from("training_groups")
           .select("id, slug, title")
@@ -92,8 +103,8 @@ export default function GroupDetailPage() {
         }
       }
 
-      // se não encontrou no Supabase, não há plano dinâmico
       if (!groupData) {
+        // sem grupo no banco → sem plano dinâmico
         setDbGroup(null);
         setWeeks([]);
         setLoadingWeeks(false);
@@ -102,7 +113,7 @@ export default function GroupDetailPage() {
 
       setDbGroup(groupData);
 
-      // 3) busca as semanas desse grupo
+      // 3) busca semanas desse grupo
       const { data: weeksData, error: weeksErrorResp } = await supabase
         .from("training_group_weeks")
         .select("*")
@@ -128,7 +139,54 @@ export default function GroupDetailPage() {
     }
   }, [group, supabase]);
 
-  // Se não achou o grupo estático, mostra a tela de "não encontrado"
+  // Carrega treinamentos associados ao grupo
+  useEffect(() => {
+    async function fetchTrainings() {
+      if (!dbGroup) return;
+
+      setLoadingTrainings(true);
+      setTrainingsError(null);
+
+      const { data, error } = await supabase
+        .from("training_group_trainings")
+        .select(
+          `
+          training_id,
+          trainings (
+            id,
+            title,
+            slug,
+            description,
+            duration_weeks,
+            price_cents,
+            currency
+          )
+        `
+        )
+        .eq("group_id", dbGroup.id);
+
+      if (error) {
+        console.error("Erro ao carregar treinamentos do grupo:", error);
+        setTrainingsError("Não foi possível carregar os treinamentos indicados.");
+        setLoadingTrainings(false);
+        return;
+      }
+
+      const list: Training[] =
+        (data ?? [])
+          .map((row: any) => row.trainings)
+          .filter((t: any) => !!t) as Training[];
+
+      setTrainings(list);
+      setLoadingTrainings(false);
+    }
+
+    if (dbGroup) {
+      fetchTrainings();
+    }
+  }, [dbGroup, supabase]);
+
+  // Se não achou o grupo estático, mostra "não encontrado"
   if (!group) {
     return (
       <main
@@ -196,6 +254,13 @@ export default function GroupDetailPage() {
   }
 
   const staticPlan = group.twelveWeekPlan;
+
+  function formatPrice(price_cents: number | null, currency: string | null) {
+    if (!price_cents || price_cents <= 0) return "Gratuito";
+    const value = (price_cents / 100).toFixed(2);
+    const prefix = currency === "USD" || !currency ? "US$ " : `${currency} `;
+    return prefix + value;
+  }
 
   return (
     <main
@@ -460,9 +525,7 @@ export default function GroupDetailPage() {
                   (week as any).title ?? `Semana ${week.week_number}`;
 
                 const focus =
-                  week.focus ??
-                  (week as any).focus ??
-                  "";
+                  week.focus ?? (week as any).focus ?? "";
 
                 const description =
                   (week as any).description ?? "";
@@ -661,6 +724,149 @@ export default function GroupDetailPage() {
                 Em breve este grupo terá um plano completo de 12 semanas com
                 progressão semanal e recomendações detalhadas.
               </p>
+            )}
+        </section>
+
+        {/* Treinamentos indicados para este grupo */}
+        <section
+          style={{
+            borderRadius: 20,
+            border: "1px solid rgba(55,65,81,0.9)",
+            background:
+              "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
+            padding: "16px 14px",
+            marginBottom: 24,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              marginTop: 0,
+              marginBottom: 8,
+            }}
+          >
+            Treinamentos indicados para este grupo
+          </h2>
+
+          {trainingsError && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#fecaca",
+                marginTop: 4,
+                marginBottom: 0,
+              }}
+            >
+              {trainingsError}
+            </p>
+          )}
+
+          {!trainingsError && loadingTrainings && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#9ca3af",
+                marginTop: 4,
+                marginBottom: 0,
+              }}
+            >
+              Carregando treinamentos...
+            </p>
+          )}
+
+          {!trainingsError &&
+            !loadingTrainings &&
+            trainings.length === 0 && (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  marginTop: 4,
+                  marginBottom: 0,
+                }}
+              >
+                Ainda não há treinamentos cadastrados especificamente para este
+                grupo.
+              </p>
+            )}
+
+          {!trainingsError &&
+            !loadingTrainings &&
+            trainings.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 10,
+                  marginTop: 8,
+                }}
+              >
+                {trainings.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={`/plans/${t.slug}`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    <article
+                      style={{
+                        borderRadius: 16,
+                        border: "1px solid rgba(148,163,184,0.35)",
+                        background:
+                          "radial-gradient(circle at top left, #020617, #020617 60%, #000000 100%)",
+                        padding: "10px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          margin: 0,
+                        }}
+                      >
+                        {t.title}
+                      </p>
+                      {t.description && (
+                        <p
+                          style={{
+                            fontSize: 12,
+                            color: "#d1d5db",
+                            margin: 0,
+                          }}
+                        >
+                          {t.description}
+                        </p>
+                      )}
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#9ca3af",
+                          margin: 0,
+                        }}
+                      >
+                        {t.duration_weeks
+                          ? `Duração: ${t.duration_weeks} ${
+                              t.duration_weeks === 1 ? "semana" : "semanas"
+                            } · `
+                          : ""}
+                        {formatPrice(t.price_cents, t.currency)}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "#64748b",
+                          margin: 0,
+                        }}
+                      >
+                        Ver detalhes do treinamento ⟶
+                      </p>
+                    </article>
+                  </Link>
+                ))}
+              </div>
             )}
         </section>
       </div>
