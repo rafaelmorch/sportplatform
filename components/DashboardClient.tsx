@@ -597,7 +597,10 @@ export default function DashboardClient({
                 <option
                   key={g.id}
                   value={g.id}
-                  style={{ color: "#020617" }}
+                  style={{
+                    backgroundColor: "#020617",
+                    color: "#e5e7eb", // texto claro na lista
+                  }}
                 >
                   {g.name}
                 </option>
