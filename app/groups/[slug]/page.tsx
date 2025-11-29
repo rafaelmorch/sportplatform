@@ -49,44 +49,64 @@ export default function GroupDetailPage() {
   // Carrega plano de 12 semanas da tabela training_group_weeks
   useEffect(() => {
     async function fetchWeeks() {
-      if (!group?.slug) return;
+      if (!group) return;
 
       setLoadingWeeks(true);
       setWeeksError(null);
 
-      // 1) busca o grupo no Supabase para pegar o id (uuid)
-      const { data: groupData, error: groupError } = await supabase
+      let groupData: DbGroup | null = null;
+
+      // 1) tenta achar por slug
+      const { data: bySlug, error: slugError } = await supabase
         .from("training_groups")
         .select("id, slug, title")
         .eq("slug", group.slug)
         .maybeSingle();
 
-      if (groupError) {
+      if (slugError) {
         console.error(
-          "Erro ao carregar grupo no Supabase para plano de 12 semanas:",
-          groupError
+          "Erro ao carregar grupo por slug no Supabase:",
+          slugError
         );
-        setWeeksError("Não foi possível carregar o plano de 12 semanas.");
-        setLoadingWeeks(false);
-        return;
       }
 
+      if (bySlug) {
+        groupData = bySlug as DbGroup;
+      } else {
+        // 2) se não achou por slug, tenta pelo título
+        const { data: byTitle, error: titleError } = await supabase
+          .from("training_groups")
+          .select("id, slug, title")
+          .eq("title", group.title)
+          .maybeSingle();
+
+        if (titleError) {
+          console.error(
+            "Erro ao carregar grupo por título no Supabase:",
+            titleError
+          );
+        }
+
+        if (byTitle) {
+          groupData = byTitle as DbGroup;
+        }
+      }
+
+      // se não encontrou no Supabase, não há plano dinâmico
       if (!groupData) {
-        // não encontrou o grupo no Supabase → sem plano no banco
         setDbGroup(null);
         setWeeks([]);
         setLoadingWeeks(false);
         return;
       }
 
-      const dbG = groupData as DbGroup;
-      setDbGroup(dbG);
+      setDbGroup(groupData);
 
-      // 2) busca as semanas desse grupo
+      // 3) busca as semanas desse grupo
       const { data: weeksData, error: weeksErrorResp } = await supabase
         .from("training_group_weeks")
         .select("*")
-        .eq("group_id", dbG.id)
+        .eq("group_id", groupData.id)
         .order("week_number", { ascending: true });
 
       if (weeksErrorResp) {
@@ -356,7 +376,7 @@ export default function GroupDetailPage() {
           </p>
         </section>
 
-        {/* Plano de 12 semanas (Supabase + fallback estático) */}
+        {/* Plano de 12 semanas */}
         <section
           style={{
             borderRadius: 20,
@@ -542,7 +562,7 @@ export default function GroupDetailPage() {
             </div>
           )}
 
-          {/* Fallback: plano estático antigo */}
+          {/* Fallback: plano estático */}
           {!weeksError &&
             !loadingWeeks &&
             weeks.length === 0 &&
