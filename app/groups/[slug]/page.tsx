@@ -44,23 +44,23 @@ export default function GroupDetailPage() {
 
   const supabase = supabaseBrowser;
 
-  // grupo estático (texto, layout etc.)
+  // grupo estático (texto / layout)
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slugParam
   );
 
-  // Plano 12 semanas (Supabase)
+  // plano 12 semanas (Supabase)
   const [dbGroup, setDbGroup] = useState<DbGroup | null>(null);
   const [weeks, setWeeks] = useState<DbWeek[]>([]);
   const [loadingWeeks, setLoadingWeeks] = useState(false);
   const [weeksError, setWeeksError] = useState<string | null>(null);
 
-  // Treinamentos indicados
+  // treinamentos indicados (Supabase)
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loadingTrainings, setLoadingTrainings] = useState(false);
   const [trainingsError, setTrainingsError] = useState<string | null>(null);
 
-  // Carrega grupo + plano 12 semanas
+  // Carrega grupo + plano de 12 semanas
   useEffect(() => {
     async function fetchWeeks() {
       if (!group) return;
@@ -84,7 +84,7 @@ export default function GroupDetailPage() {
       if (bySlug) {
         groupData = bySlug as DbGroup;
       } else {
-        // 2) se não achou por slug, tenta pelo título
+        // 2) se não achar por slug, tenta pelo título
         const { data: byTitle, error: titleError } = await supabase
           .from("training_groups")
           .select("id, slug, title")
@@ -138,7 +138,7 @@ export default function GroupDetailPage() {
     }
   }, [group, supabase]);
 
-  // Carrega treinamentos associados ao grupo (2 passos: ids -> trainings)
+  // Carrega treinamentos associados ao grupo
   useEffect(() => {
     async function fetchTrainings() {
       if (!dbGroup) return;
@@ -146,11 +146,11 @@ export default function GroupDetailPage() {
       setLoadingTrainings(true);
       setTrainingsError(null);
 
-      // 1) busca os IDs dos treinamentos vinculados ao grupo
+      // 1) busca os IDs de treinamento vinculados ao grupo
       const { data: linkData, error: linkError } = await supabase
         .from("training_group_trainings")
         .select("training_id")
-        .eq("group_id", dbGroup.id);
+        .eq("training_group_id", dbGroup.id); // <- coluna correta
 
       if (linkError) {
         console.error(
@@ -196,7 +196,7 @@ export default function GroupDetailPage() {
     }
   }, [dbGroup, supabase]);
 
-  // Se não achou grupo estático → 404 custom
+  // 404 se não achar o grupo estático
   if (!group) {
     return (
       <main
@@ -494,7 +494,7 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
-          {/* Estados de erro / loading */}
+          {/* estados de erro / loading */}
           {weeksError && (
             <p
               style={{
@@ -521,7 +521,7 @@ export default function GroupDetailPage() {
             </p>
           )}
 
-          {/* Plano vindo do Supabase */}
+          {/* plano vindo do Supabase */}
           {!weeksError && !loadingWeeks && weeks.length > 0 && (
             <div
               style={{
@@ -635,7 +635,7 @@ export default function GroupDetailPage() {
             </div>
           )}
 
-          {/* Fallback estático */}
+          {/* fallback estático */}
           {!weeksError &&
             !loadingWeeks &&
             weeks.length === 0 &&
@@ -718,7 +718,7 @@ export default function GroupDetailPage() {
               </>
             )}
 
-          {/* Se não tiver nada */}
+          {/* se não tiver nada */}
           {!weeksError &&
             !loadingWeeks &&
             weeks.length === 0 &&
