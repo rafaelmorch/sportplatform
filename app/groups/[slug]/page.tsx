@@ -23,6 +23,8 @@ type DbWeek = {
   focus?: string | null;
   title?: string | null;
   description?: string | null;
+  key_workouts?: string | null;
+  mileage_hint?: string | null;
   // qualquer outra coluna que exista
   [key: string]: any;
 };
@@ -354,7 +356,7 @@ export default function GroupDetailPage() {
           </p>
         </section>
 
-        {/* Plano de 12 semanas (agora usando Supabase) */}
+        {/* Plano de 12 semanas (Supabase + fallback estático) */}
         <section
           style={{
             borderRadius: 20,
@@ -424,7 +426,7 @@ export default function GroupDetailPage() {
             </p>
           )}
 
-          {/* Se veio plano do Supabase, usa ele */}
+          {/* Plano vindo do Supabase */}
           {!weeksError && !loadingWeeks && weeks.length > 0 && (
             <div
               style={{
@@ -435,11 +437,25 @@ export default function GroupDetailPage() {
             >
               {weeks.map((week) => {
                 const title =
-                  (week as any).title ??
-                  `Semana ${week.week_number}`;
-                const focus = week.focus ?? (week as any).focus ?? "";
+                  (week as any).title ?? `Semana ${week.week_number}`;
+
+                const focus =
+                  week.focus ??
+                  (week as any).focus ??
+                  "";
+
                 const description =
                   (week as any).description ?? "";
+
+                const keyWorkouts =
+                  (week as any).key_workouts ??
+                  (week as any).keyWorkouts ??
+                  "";
+
+                const mileageHint =
+                  (week as any).mileage_hint ??
+                  (week as any).mileageHint ??
+                  "";
 
                 return (
                   <div
@@ -491,9 +507,33 @@ export default function GroupDetailPage() {
                           fontSize: 12,
                           color: "#d1d5db",
                           margin: 0,
+                          marginBottom: 4,
                         }}
                       >
                         {description}
+                      </p>
+                    )}
+                    {keyWorkouts && (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#d1d5db",
+                          margin: 0,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {keyWorkouts}
+                      </p>
+                    )}
+                    {mileageHint && (
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "#9ca3af",
+                          margin: 0,
+                        }}
+                      >
+                        Volume semanal: {mileageHint}
                       </p>
                     )}
                   </div>
@@ -502,7 +542,7 @@ export default function GroupDetailPage() {
             </div>
           )}
 
-          {/* Fallback: se não tiver nada no Supabase, usa plano estático (se existir) */}
+          {/* Fallback: plano estático antigo */}
           {!weeksError &&
             !loadingWeeks &&
             weeks.length === 0 &&
@@ -603,8 +643,6 @@ export default function GroupDetailPage() {
               </p>
             )}
         </section>
-
-        {/* (o resto da página, como seção de treinamentos dinâmicos, fica igual se você já tiver adicionado) */}
       </div>
     </main>
   );
