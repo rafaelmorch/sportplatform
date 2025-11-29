@@ -26,18 +26,6 @@ type EventsSummary = {
 
 type RangeKey = "all" | "today" | "7d" | "30d" | "6m";
 
-type DailyPoint = {
-  date: string;
-  label: string;
-  distanceKm: number;
-  movingTimeMin: number;
-};
-
-type SportPoint = {
-  sport: string;
-  distanceKm: number;
-};
-
 type DashboardClientProps = {
   activities: StravaActivity[];
   eventsSummary: EventsSummary; // mantido só por compatibilidade
@@ -54,6 +42,14 @@ type RankingEntry = {
 type GroupOption = {
   id: string;
   name: string;
+};
+
+export type EvolutionPoint = {
+  date: string;
+  label: string;
+  userMinutes: number;
+  groupAvgMinutes: number;
+  leaderMinutes: number;
 };
 
 function metersToKm(distance: number | null | undefined): number {
@@ -388,61 +384,6 @@ export default function DashboardClient({
     })
     .slice(0, 10);
 
-  // DAILY / SPORT CHART DATA
-
-  const dailyMap = new Map<
-    string,
-    { label: string; distanceKm: number; movingTimeMin: number }
-  >();
-
-  for (const a of athleteActivities) {
-    if (!a.start_date) continue;
-    const d = new Date(a.start_date);
-    if (Number.isNaN(d.getTime())) continue;
-
-    const key = d.toISOString().slice(0, 10);
-    const label = d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-    });
-
-    const prev = dailyMap.get(key) ?? {
-      label,
-      distanceKm: 0,
-      movingTimeMin: 0,
-    };
-
-    dailyMap.set(key, {
-      label,
-      distanceKm: prev.distanceKm + metersToKm(a.distance),
-      movingTimeMin:
-        prev.movingTimeMin + (a.moving_time ? a.moving_time / 60 : 0),
-    });
-  }
-
-  const dailyData: DailyPoint[] = Array.from(dailyMap.entries())
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([key, v]) => ({
-      date: key,
-      label: v.label,
-      distanceKm: Number(v.distanceKm.toFixed(2)),
-      movingTimeMin: Number(v.movingTimeMin.toFixed(1)),
-    }));
-
-  const sportMap = new Map<string, number>();
-  for (const a of athleteActivities) {
-    const sport = a.sport_type || a.type || "Outro";
-    const prev = sportMap.get(sport) ?? 0;
-    sportMap.set(sport, prev + metersToKm(a.distance));
-  }
-
-  const sportData: SportPoint[] = Array.from(sportMap.entries()).map(
-    ([sport, distanceKm]) => ({
-      sport,
-      distanceKm: Number(distanceKm.toFixed(2)),
-    })
-  );
-
   const ranges: { key: RangeKey; label: string }[] = [
     { key: "all", label: "Tudo" },
     { key: "today", label: "Hoje" },
@@ -488,6 +429,82 @@ export default function DashboardClient({
 
     entries.sort((a, b) => b.totalPoints - a.totalPoints);
     return entries;
+  })();
+
+  // -----------------------------
+  // EVOLUÇÃO DOS TREINOS (MINUTOS)
+  // 3 linhas: líder, média do grupo, usuário
+  // -----------------------------
+  const evolutionData: EvolutionPoint[] = (() => {
+    const userMap = new Map<string, number>(); // date -> minutos
+    const leaderMap = new Map<string, number>();
+    const groupMap = new Map<
+      string,
+      { totalMinutes: number; athleteIds: Set<number> }
+    >();
+
+    // quem é o líder do ranking?
+    const leaderId = ranking.length > 0 ? ranking[0].athleteId : null;
+
+    for (const a of groupActivities) {
+      if (!a.start_date || !a.moving_time) continue;
+      const d = new Date(a.start_date);
+      if (Number.isNaN(d.getTime())) continue;
+
+      const key = d.toISOString().slice(0, 10);
+      const mins = a.moving_time / 60;
+
+      // grupo (para média)
+      const gPrev =
+        groupMap.get(key) ?? { totalMinutes: 0, athleteIds: new Set<number>() };
+      gPrev.totalMinutes += mins;
+      if (typeof a.athlete_id === "number") {
+        gPrev.athleteIds.add(a.athlete_id);
+      }
+      groupMap.set(key, gPrev);
+
+      // usuário
+      if (currentAthleteId != null && a.athlete_id === currentAthleteId) {
+        userMap.set(key, (userMap.get(key) ?? 0) + mins);
+      }
+
+      // líder
+      if (leaderId != null && a.athlete_id === leaderId) {
+        leaderMap.set(key, (leaderMap.get(key) ?? 0) + mins);
+      }
+    }
+
+    const allDates = new Set<string>([
+      ...userMap.keys(),
+      ...leaderMap.keys(),
+      ...groupMap.keys(),
+    ]);
+
+    const sorted = Array.from(allDates).sort((a, b) => (a < b ? -1 : 1));
+
+    return sorted.map((key) => {
+      const d = new Date(key);
+      const label = d.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+
+      const userMinutes = userMap.get(key) ?? 0;
+      const leaderMinutes = leaderMap.get(key) ?? 0;
+      const groupInfo = groupMap.get(key);
+      const groupAvgMinutes =
+        groupInfo && groupInfo.athleteIds.size > 0
+          ? groupInfo.totalMinutes / groupInfo.athleteIds.size
+          : 0;
+
+      return {
+        date: key,
+        label,
+        userMinutes: Number(userMinutes.toFixed(1)),
+        leaderMinutes: Number(leaderMinutes.toFixed(1)),
+        groupAvgMinutes: Number(groupAvgMinutes.toFixed(1)),
+      };
+    });
   })();
 
   return (
@@ -599,7 +616,7 @@ export default function DashboardClient({
                   value={g.id}
                   style={{
                     backgroundColor: "#020617",
-                    color: "#e5e7eb", // texto claro na lista
+                    color: "#e5e7eb",
                   }}
                 >
                   {g.name}
@@ -628,8 +645,8 @@ export default function DashboardClient({
             marginTop: 4,
           }}
         >
-          Visão geral do atleta, do grupo selecionado e ranking de pontos (100
-          pts/h em atividades, 15 pts/h em caminhadas).
+          Visão geral do atleta, do grupo selecionado, ranking de pontos e
+          evolução dos treinos (minutos de atividade).
         </p>
       </header>
 
@@ -1022,7 +1039,7 @@ export default function DashboardClient({
         )}
       </section>
 
-      {/* Gráficos */}
+      {/* Gráfico ÚNICO: Evolução dos treinos */}
       <section
         style={{
           borderRadius: 20,
@@ -1033,7 +1050,7 @@ export default function DashboardClient({
           marginBottom: 24,
         }}
       >
-        <DashboardCharts dailyData={dailyData} sportData={sportData} />
+        <DashboardCharts evolutionData={evolutionData} />
       </section>
 
       {/* Últimas atividades */}
