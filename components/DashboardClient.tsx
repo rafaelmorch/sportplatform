@@ -16,7 +16,7 @@ type StravaActivity = {
   sport_type: string | null;
   start_date: string | null;
   distance: number | null;
-  moving_time: number | null;
+  moving_time: number | null; // em segundos
   total_elevation_gain: number | null;
 };
 
@@ -42,6 +42,14 @@ type SportPoint = {
 type DashboardClientProps = {
   activities: StravaActivity[];
   eventsSummary: EventsSummary;
+};
+
+type RankingEntry = {
+  athleteId: number;
+  label: string;
+  totalPoints: number;
+  totalHours: number;
+  isCurrent: boolean;
 };
 
 function metersToKm(distance: number | null | undefined): number {
@@ -114,6 +122,31 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
   if (range === "6m") return diffDays <= 180;
 
   return true;
+}
+
+// ---------------------
+// PONTUAÇÃO DO RANKING
+// ---------------------
+
+function isWalkingActivity(a: StravaActivity): boolean {
+  const t = (a.sport_type ?? a.type ?? "").toLowerCase();
+
+  // aqui você pode ajustar os tipos que considera "caminhada"
+  return t.includes("walk") || t.includes("hike") || t.includes("caminhada");
+}
+
+/**
+ * Regra:
+ * - Atividades que NÃO são caminhada: 1h = 100 pontos
+ * - Caminhada: 1h = 15 pontos
+ */
+function getActivityPoints(a: StravaActivity): number {
+  if (!a.moving_time || a.moving_time <= 0) return 0;
+
+  const hours = a.moving_time / 3600; // segundos → horas
+  const rate = isWalkingActivity(a) ? 15 : 100;
+
+  return hours * rate;
 }
 
 export default function DashboardClient({
@@ -208,6 +241,8 @@ export default function DashboardClient({
       ? activitiesInRange.filter((a) => a.athlete_id === currentAthleteId)
       : activitiesInRange;
 
+  // Aqui estamos considerando que "groupActivities" já vêm só com os atletas do grupo.
+  // Se depois você quiser filtrar por grupo no backend, é só ajustar a query em /app/dashboard/page.tsx
   const groupActivities = activitiesInRange;
 
   const athleteDistance = athleteActivities.reduce(
@@ -245,6 +280,10 @@ export default function DashboardClient({
       return db - da;
     })
     .slice(0, 10);
+
+  // -----------------------
+  // DAILY / SPORT CHART DATA
+  // -----------------------
 
   const dailyMap = new Map<
     string,
@@ -310,6 +349,46 @@ export default function DashboardClient({
   const athleteLabel =
     athleteName ??
     (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
+
+  // -----------------------
+  // RANKING DO GRUPO
+  // -----------------------
+
+  const ranking: RankingEntry[] = (() => {
+    const map = new Map<
+      number,
+      { points: number; hours: number }
+    >();
+
+    for (const a of groupActivities) {
+      if (!a.athlete_id) continue;
+
+      const pts = getActivityPoints(a);
+      const hours = a.moving_time ? a.moving_time / 3600 : 0;
+
+      const prev = map.get(a.athlete_id) ?? { points: 0, hours: 0 };
+      map.set(a.athlete_id, {
+        points: prev.points + pts,
+        hours: prev.hours + hours,
+      });
+    }
+
+    const entries: RankingEntry[] = Array.from(map.entries()).map(
+      ([athleteId, v]) => ({
+        athleteId,
+        label:
+          currentAthleteId === athleteId && athleteName
+            ? athleteName
+            : `Atleta ${athleteId}`,
+        totalPoints: Math.round(v.points),
+        totalHours: v.hours,
+        isCurrent: athleteId === currentAthleteId,
+      })
+    );
+
+    entries.sort((a, b) => b.totalPoints - a.totalPoints);
+    return entries;
+  })();
 
   return (
     <>
@@ -738,6 +817,169 @@ export default function DashboardClient({
             </a>
           </div>
         </div>
+      </section>
+
+      {/* RANKING DO GRUPO */}
+      <section
+        style={{
+          borderRadius: 20,
+          border: "1px solid rgba(148,163,184,0.35)",
+          background:
+            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+          padding: "16px 14px",
+          marginBottom: 24,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 8,
+            alignItems: "baseline",
+            marginBottom: 10,
+          }}
+        >
+          <div>
+            <h2
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                margin: 0,
+              }}
+            >
+              Ranking do grupo
+              {range === "all"
+                ? " (todo período)"
+                : " (dentro do período selecionado)"}
+            </h2>
+            <p
+              style={{
+                fontSize: 12,
+                color: "#9ca3af",
+                margin: 0,
+              }}
+            >
+              Pontuação: atividades (exceto caminhada) = 100 pts/h, caminhada =
+              15 pts/h.
+            </p>
+          </div>
+        </div>
+
+        {ranking.length === 0 ? (
+          <p
+            style={{
+              fontSize: 13,
+              color: "#9ca3af",
+              marginTop: 8,
+            }}
+          >
+            Nenhuma atividade encontrada nesse período para montar o ranking.
+          </p>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              overflowX: "auto",
+            }}
+          >
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 12,
+                minWidth: 420,
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: "1px solid rgba(55,65,81,0.8)",
+                    color: "#9ca3af",
+                    textAlign: "left",
+                  }}
+                >
+                  <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
+                  <th style={{ padding: "8px 4px" }}>Atleta</th>
+                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                    Pontos
+                  </th>
+                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                    Horas (total)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranking.map((r, index) => (
+                  <tr
+                    key={r.athleteId}
+                    style={{
+                      borderBottom: "1px solid rgba(31,41,55,0.7)",
+                      background: r.isCurrent
+                        ? "linear-gradient(to right, rgba(34,197,94,0.18), transparent)"
+                        : "transparent",
+                    }}
+                  >
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
+                      #{index + 1}
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        maxWidth: 220,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
+                      {r.label}
+                      {r.isCurrent && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 10,
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                            border: "1px solid rgba(34,197,94,0.6)",
+                            color: "#bbf7d0",
+                          }}
+                        >
+                          Você
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
+                      {r.totalPoints}
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                        color: "#9ca3af",
+                      }}
+                    >
+                      {r.totalHours.toFixed(1)} h
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* Gráficos */}
