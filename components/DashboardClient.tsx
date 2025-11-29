@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import DashboardCharts from "@/components/DashboardCharts";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-// usamos o client já criado em lib/supabase-browser.ts
 const supabase = supabaseBrowser;
 
 type StravaActivity = {
@@ -16,7 +15,7 @@ type StravaActivity = {
   sport_type: string | null;
   start_date: string | null;
   distance: number | null;
-  moving_time: number | null; // em segundos
+  moving_time: number | null; // segundos
   total_elevation_gain: number | null;
 };
 
@@ -41,7 +40,7 @@ type SportPoint = {
 
 type DashboardClientProps = {
   activities: StravaActivity[];
-  eventsSummary: EventsSummary;
+  eventsSummary: EventsSummary; // mantemos no tipo, mas não vamos mais usar
 };
 
 type RankingEntry = {
@@ -50,6 +49,11 @@ type RankingEntry = {
   totalPoints: number;
   totalHours: number;
   isCurrent: boolean;
+};
+
+type GroupOption = {
+  id: string;
+  name: string;
 };
 
 function metersToKm(distance: number | null | undefined): number {
@@ -130,8 +134,6 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
 
 function isWalkingActivity(a: StravaActivity): boolean {
   const t = (a.sport_type ?? a.type ?? "").toLowerCase();
-
-  // aqui você pode ajustar os tipos que considera "caminhada"
   return t.includes("walk") || t.includes("hike") || t.includes("caminhada");
 }
 
@@ -142,28 +144,30 @@ function isWalkingActivity(a: StravaActivity): boolean {
  */
 function getActivityPoints(a: StravaActivity): number {
   if (!a.moving_time || a.moving_time <= 0) return 0;
-
   const hours = a.moving_time / 3600; // segundos → horas
   const rate = isWalkingActivity(a) ? 15 : 100;
-
   return hours * rate;
 }
 
 export default function DashboardClient({
   activities,
-  eventsSummary,
 }: DashboardClientProps) {
   const [range, setRange] = useState<RangeKey>("30d");
+
   const [currentAthleteId, setCurrentAthleteId] = useState<number | null>(null);
   const [athleteName, setAthleteName] = useState<string | null>(null);
   const [loadingAthlete, setLoadingAthlete] = useState(true);
 
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [groupAthleteIds, setGroupAthleteIds] = useState<number[] | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+
   useEffect(() => {
-    const loadAthleteForUser = async () => {
+    const loadAthleteAndGroups = async () => {
       try {
         setLoadingAthlete(true);
 
-        // 1) pega usuário logado
         const {
           data: { user },
           error: userError,
@@ -174,14 +178,13 @@ export default function DashboardClient({
         }
 
         if (!user) {
-          // se não tiver usuário (não deveria acontecer aqui), usa fallback
           const firstAthlete = activities[0]?.athlete_id ?? null;
           setCurrentAthleteId(firstAthlete);
           setLoadingAthlete(false);
           return;
         }
 
-        // 2) busca nome de perfil
+        // Perfil (nome)
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("full_name")
@@ -196,7 +199,7 @@ export default function DashboardClient({
           setAthleteName(profile.full_name);
         }
 
-        // 3) acha o athlete_id desse usuário na tabela strava_tokens
+        // Athlete id do usuário (Strava)
         const { data: tokenRow, error: tokenError } = await supabase
           .from("strava_tokens")
           .select("athlete_id")
@@ -212,22 +215,111 @@ export default function DashboardClient({
         if (tokenRow?.athlete_id) {
           setCurrentAthleteId(tokenRow.athlete_id);
         } else {
-          // fallback: usa o primeiro atleta que aparecer nas atividades
           const firstAthlete = activities[0]?.athlete_id ?? null;
           setCurrentAthleteId(firstAthlete);
         }
+
+        // Grupos em que o usuário participa
+        setLoadingGroups(true);
+
+        // Ajuste esse select conforme seu schema:
+        // aqui assumo tabela "group_members" com FK para "groups"
+        const { data: memberships, error: groupsError } = await supabase
+          .from("group_members")
+          .select("group_id, groups(name)")
+          .eq("user_id", user.id);
+
+        if (groupsError) {
+          console.error("Erro ao carregar grupos do usuário:", groupsError);
+        } else if (memberships) {
+          const opts: GroupOption[] = memberships.map((m: any) => ({
+            id: m.group_id,
+            name: m.groups?.name ?? "Grupo sem nome",
+          }));
+
+          // remove duplicados
+          const unique = Array.from(
+            new Map(opts.map((g) => [g.id, g])).values()
+          );
+
+          setGroups(unique);
+          if (unique.length > 0) {
+            setSelectedGroupId(unique[0].id);
+          }
+        }
       } catch (err) {
-        console.error("Erro inesperado ao definir atleta do dashboard:", err);
+        console.error("Erro inesperado ao definir atleta/grupos:", err);
         const firstAthlete = activities[0]?.athlete_id ?? null;
         setCurrentAthleteId(firstAthlete);
       } finally {
         setLoadingAthlete(false);
+        setLoadingGroups(false);
       }
     };
 
-    loadAthleteForUser();
+    loadAthleteAndGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Carrega os athlete_ids dos membros do grupo selecionado
+  useEffect(() => {
+    const loadGroupAthletes = async () => {
+      if (!selectedGroupId) {
+        setGroupAthleteIds(null);
+        return;
+      }
+
+      try {
+        setLoadingGroups(true);
+
+        const { data: members, error: membersError } = await supabase
+          .from("group_members")
+          .select("user_id")
+          .eq("group_id", selectedGroupId);
+
+        if (membersError) {
+          console.error("Erro ao carregar membros do grupo:", membersError);
+          setGroupAthleteIds(null);
+          return;
+        }
+
+        const userIds = (members ?? []).map((m: any) => m.user_id);
+        if (userIds.length === 0) {
+          setGroupAthleteIds([]);
+          return;
+        }
+
+        const { data: tokens, error: tokensError } = await supabase
+          .from("strava_tokens")
+          .select("user_id, athlete_id")
+          .in("user_id", userIds);
+
+        if (tokensError) {
+          console.error(
+            "Erro ao carregar tokens dos atletas do grupo:",
+            tokensError
+          );
+          setGroupAthleteIds(null);
+          return;
+        }
+
+        const athleteIds = (tokens ?? [])
+          .map((t: any) => t.athlete_id as number | null)
+          .filter((id): id is number => id != null);
+
+        setGroupAthleteIds(Array.from(new Set(athleteIds)));
+      } catch (err) {
+        console.error("Erro inesperado ao carregar atletas do grupo:", err);
+        setGroupAthleteIds(null);
+      } finally {
+        setLoadingGroups(false);
+      }
+    };
+
+    if (selectedGroupId) {
+      loadGroupAthletes();
+    }
+  }, [selectedGroupId]);
 
   const now = new Date();
 
@@ -235,15 +327,21 @@ export default function DashboardClient({
     isInRange(a.start_date, range, now)
   );
 
-  // Se ainda não descobrimos o atleta, por enquanto usa tudo
+  // Aplica filtro de grupo (somente atletas do grupo selecionado)
+  let groupActivities = activitiesInRange;
+  if (groupAthleteIds && groupAthleteIds.length > 0) {
+    groupActivities = groupActivities.filter(
+      (a) =>
+        typeof a.athlete_id === "number" &&
+        groupAthleteIds.includes(a.athlete_id)
+    );
+  }
+
+  // Atividades do atleta atual dentro do grupo selecionado
   const athleteActivities =
     currentAthleteId != null
-      ? activitiesInRange.filter((a) => a.athlete_id === currentAthleteId)
-      : activitiesInRange;
-
-  // Aqui estamos considerando que "groupActivities" já vêm só com os atletas do grupo.
-  // Se depois você quiser filtrar por grupo no backend, é só ajustar a query em /app/dashboard/page.tsx
-  const groupActivities = activitiesInRange;
+      ? groupActivities.filter((a) => a.athlete_id === currentAthleteId)
+      : groupActivities;
 
   const athleteDistance = athleteActivities.reduce(
     (sum, a) => sum + metersToKm(a.distance),
@@ -281,9 +379,7 @@ export default function DashboardClient({
     })
     .slice(0, 10);
 
-  // -----------------------
   // DAILY / SPORT CHART DATA
-  // -----------------------
 
   const dailyMap = new Map<
     string,
@@ -350,15 +446,10 @@ export default function DashboardClient({
     athleteName ??
     (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
 
-  // -----------------------
   // RANKING DO GRUPO
-  // -----------------------
 
   const ranking: RankingEntry[] = (() => {
-    const map = new Map<
-      number,
-      { points: number; hours: number }
-    >();
+    const map = new Map<number, { points: number; hours: number }>();
 
     for (const a of groupActivities) {
       if (!a.athlete_id) continue;
@@ -448,15 +539,85 @@ export default function DashboardClient({
             </h1>
           </div>
         </div>
+
+        {/* Seletor de grupo */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+            marginTop: 4,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              color: "#9ca3af",
+            }}
+          >
+            {groups.length > 1
+              ? "Selecione o grupo para ver ranking e métricas:"
+              : "Grupo atual:"}
+          </span>
+          {groups.length === 0 ? (
+            <span
+              style={{
+                fontSize: 12,
+                color: "#6b7280",
+              }}
+            >
+              Nenhum grupo encontrado.
+            </span>
+          ) : (
+            <select
+              value={selectedGroupId ?? ""}
+              onChange={(e) => setSelectedGroupId(e.target.value || null)}
+              style={{
+                fontSize: 12,
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(55,65,81,0.9)",
+                backgroundColor: "#020617",
+                color: "#e5e7eb",
+                outline: "none",
+                cursor: "pointer",
+              }}
+            >
+              {groups.map((g) => (
+                <option
+                  key={g.id}
+                  value={g.id}
+                  style={{ color: "#020617" }}
+                >
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {loadingGroups && (
+            <span
+              style={{
+                fontSize: 11,
+                color: "#9ca3af",
+              }}
+            >
+              Carregando grupos...
+            </span>
+          )}
+        </div>
+
         <p
           style={{
             fontSize: 13,
             color: "#9ca3af",
             margin: 0,
+            marginTop: 4,
           }}
         >
-          Visão geral do atleta, do grupo e dos eventos conectados ao
-          SportPlatform.
+          Visão geral do atleta, do grupo selecionado e ranking de pontos (100
+          pts/h em atividades, 15 pts/h em caminhadas).
         </p>
       </header>
 
@@ -544,8 +705,8 @@ export default function DashboardClient({
               marginBottom: 8,
             }}
           >
-            Distância total em todas as atividades deste atleta no período
-            filtrado.
+            Distância total em todas as atividades deste atleta no grupo e
+            período filtrados.
           </p>
 
           <div
@@ -632,8 +793,8 @@ export default function DashboardClient({
               marginBottom: 8,
             }}
           >
-            Distância total somando todos os atletas do grupo (atividades no
-            período filtrado).
+            Distância total somando todos os atletas do grupo selecionado no
+            período filtrado.
           </p>
 
           <div
@@ -681,140 +842,6 @@ export default function DashboardClient({
                 {groupActivitiesCount}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Linha 2: Eventos */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        <div
-          style={{
-            borderRadius: 18,
-            padding: "14px 14px",
-            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-            border: "1px solid rgba(34,197,94,0.35)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <div>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#bbf7d0",
-                marginBottom: 4,
-                textTransform: "uppercase",
-              }}
-            >
-              Eventos disponíveis
-            </p>
-            <p
-              style={{
-                fontSize: 11,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              Provas abertas para inscrição no SportPlatform.
-            </p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-              }}
-            >
-              {eventsSummary.availableEvents}
-            </div>
-            <a
-              href="/events"
-              style={{
-                display: "inline-block",
-                marginTop: 6,
-                fontSize: 11,
-                padding: "6px 10px",
-                borderRadius: 999,
-                border: "1px solid rgba(34,197,94,0.7)",
-                background: "transparent",
-                color: "#bbf7d0",
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
-            >
-              Ver eventos
-            </a>
-          </div>
-        </div>
-
-        <div
-          style={{
-            borderRadius: 18,
-            padding: "14px 14px",
-            background: "radial-gradient(circle at top, #020617, #020617 60%)",
-            border: "1px solid rgba(56,189,248,0.5)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
-          <div>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#7dd3fc",
-                marginBottom: 4,
-                textTransform: "uppercase",
-              }}
-            >
-              Eventos cadastrados
-            </p>
-            <p
-              style={{
-                fontSize: 11,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              Eventos que você criou ou em que está inscrito.
-            </p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-              }}
-            >
-              {eventsSummary.userEvents}
-            </div>
-            <a
-              href="/my-events"
-              style={{
-                display: "inline-block",
-                marginTop: 6,
-                fontSize: 11,
-                padding: "6px 10px",
-                borderRadius: 999,
-                border: "1px solid rgba(56,189,248,0.6)",
-                background: "transparent",
-                color: "#7dd3fc",
-                textDecoration: "none",
-                cursor: "pointer",
-              }}
-            >
-              Meus eventos
-            </a>
           </div>
         </div>
       </section>
@@ -873,7 +900,8 @@ export default function DashboardClient({
               marginTop: 8,
             }}
           >
-            Nenhuma atividade encontrada nesse período para montar o ranking.
+            Nenhuma atividade encontrada nesse período para montar o ranking
+            deste grupo.
           </p>
         ) : (
           <div
@@ -1036,7 +1064,8 @@ export default function DashboardClient({
                 margin: 0,
               }}
             >
-              As 10 atividades mais recentes dentro do filtro atual.
+              As 10 atividades mais recentes do grupo selecionado dentro do
+              filtro atual.
             </p>
           </div>
         </div>
@@ -1049,8 +1078,8 @@ export default function DashboardClient({
               marginTop: 8,
             }}
           >
-            Nenhuma atividade encontrada nesse período. Ajuste o filtro ou
-            sincronize novos treinos do Strava.
+            Nenhuma atividade encontrada nesse período para o grupo
+            selecionado.
           </p>
         ) : (
           <div
