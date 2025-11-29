@@ -44,7 +44,7 @@ export default function GroupDetailPage() {
 
   const supabase = supabaseBrowser;
 
-  // grupo estático (texto, layout)
+  // grupo estático (texto, layout etc.)
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slugParam
   );
@@ -55,12 +55,12 @@ export default function GroupDetailPage() {
   const [loadingWeeks, setLoadingWeeks] = useState(false);
   const [weeksError, setWeeksError] = useState<string | null>(null);
 
-  // Treinamentos indicados para o grupo
+  // Treinamentos indicados
   const [trainings, setTrainings] = useState<Training[]>([]);
   const [loadingTrainings, setLoadingTrainings] = useState(false);
   const [trainingsError, setTrainingsError] = useState<string | null>(null);
 
-  // Carrega grupo + plano de 12 semanas
+  // Carrega grupo + plano 12 semanas
   useEffect(() => {
     async function fetchWeeks() {
       if (!group) return;
@@ -70,7 +70,7 @@ export default function GroupDetailPage() {
 
       let groupData: DbGroup | null = null;
 
-      // 1) tenta achar o grupo no Supabase por slug
+      // 1) tenta achar o grupo por slug
       const { data: bySlug, error: slugError } = await supabase
         .from("training_groups")
         .select("id, slug, title")
@@ -84,7 +84,7 @@ export default function GroupDetailPage() {
       if (bySlug) {
         groupData = bySlug as DbGroup;
       } else {
-        // 2) se não achar por slug, tenta pelo título
+        // 2) se não achou por slug, tenta pelo título
         const { data: byTitle, error: titleError } = await supabase
           .from("training_groups")
           .select("id, slug, title")
@@ -104,7 +104,6 @@ export default function GroupDetailPage() {
       }
 
       if (!groupData) {
-        // sem grupo no banco → sem plano dinâmico
         setDbGroup(null);
         setWeeks([]);
         setLoadingWeeks(false);
@@ -113,7 +112,7 @@ export default function GroupDetailPage() {
 
       setDbGroup(groupData);
 
-      // 3) busca semanas desse grupo
+      // 3) carrega semanas do plano
       const { data: weeksData, error: weeksErrorResp } = await supabase
         .from("training_group_weeks")
         .select("*")
@@ -139,7 +138,7 @@ export default function GroupDetailPage() {
     }
   }, [group, supabase]);
 
-  // Carrega treinamentos associados ao grupo
+  // Carrega treinamentos associados ao grupo (2 passos: ids -> trainings)
   useEffect(() => {
     async function fetchTrainings() {
       if (!dbGroup) return;
@@ -147,37 +146,48 @@ export default function GroupDetailPage() {
       setLoadingTrainings(true);
       setTrainingsError(null);
 
-      const { data, error } = await supabase
+      // 1) busca os IDs dos treinamentos vinculados ao grupo
+      const { data: linkData, error: linkError } = await supabase
         .from("training_group_trainings")
-        .select(
-          `
-          training_id,
-          trainings (
-            id,
-            title,
-            slug,
-            description,
-            duration_weeks,
-            price_cents,
-            currency
-          )
-        `
-        )
+        .select("training_id")
         .eq("group_id", dbGroup.id);
 
-      if (error) {
-        console.error("Erro ao carregar treinamentos do grupo:", error);
+      if (linkError) {
+        console.error(
+          "Erro ao carregar vínculos training_group_trainings:",
+          linkError
+        );
         setTrainingsError("Não foi possível carregar os treinamentos indicados.");
         setLoadingTrainings(false);
         return;
       }
 
-      const list: Training[] =
-        (data ?? [])
-          .map((row: any) => row.trainings)
-          .filter((t: any) => !!t) as Training[];
+      const ids = (linkData ?? [])
+        .map((row: any) => row.training_id as string | null)
+        .filter((id): id is string => !!id);
 
-      setTrainings(list);
+      if (ids.length === 0) {
+        setTrainings([]);
+        setLoadingTrainings(false);
+        return;
+      }
+
+      // 2) busca os treinamentos em si
+      const { data: trainingsData, error: trainingsErr } = await supabase
+        .from("trainings")
+        .select(
+          "id, title, slug, description, duration_weeks, price_cents, currency"
+        )
+        .in("id", Array.from(new Set(ids)));
+
+      if (trainingsErr) {
+        console.error("Erro ao carregar treinamentos:", trainingsErr);
+        setTrainingsError("Não foi possível carregar os treinamentos indicados.");
+        setLoadingTrainings(false);
+        return;
+      }
+
+      setTrainings((trainingsData ?? []) as Training[]);
       setLoadingTrainings(false);
     }
 
@@ -186,7 +196,7 @@ export default function GroupDetailPage() {
     }
   }, [dbGroup, supabase]);
 
-  // Se não achou o grupo estático, mostra "não encontrado"
+  // Se não achou grupo estático → 404 custom
   if (!group) {
     return (
       <main
@@ -625,7 +635,7 @@ export default function GroupDetailPage() {
             </div>
           )}
 
-          {/* Fallback: plano estático */}
+          {/* Fallback estático */}
           {!weeksError &&
             !loadingWeeks &&
             weeks.length === 0 &&
@@ -708,7 +718,7 @@ export default function GroupDetailPage() {
               </>
             )}
 
-          {/* Se não tem Supabase nem estático */}
+          {/* Se não tiver nada */}
           {!weeksError &&
             !loadingWeeks &&
             weeks.length === 0 &&
@@ -727,7 +737,7 @@ export default function GroupDetailPage() {
             )}
         </section>
 
-        {/* Treinamentos indicados para este grupo */}
+        {/* Treinamentos indicados */}
         <section
           style={{
             borderRadius: 20,
