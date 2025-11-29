@@ -1,8 +1,12 @@
 // app/dashboard/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { supabaseBrowser } from "@/lib/supabase-browser";
 import DashboardClient from "@/components/DashboardClient";
 import BottomNavbar from "@/components/BottomNavbar";
-import { supabaseServer } from "@/lib/supabase-server";
-import { redirect } from "next/navigation";
 
 type StravaActivity = {
   id: string;
@@ -21,75 +25,96 @@ type EventsSummary = {
   userEvents: number;
 };
 
-export default async function DashboardPage() {
-  const supabase = supabaseServer();
+export default function DashboardPage() {
+  const router = useRouter();
 
-  // 🔐 garante que só usuário logado vê o dashboard
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [activities, setActivities] = useState<StravaActivity[]>([]);
+  const [eventsSummary, setEventsSummary] = useState<EventsSummary>({
+    availableEvents: 0,
+    userEvents: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  if (!user) {
-    redirect("/login");
-  }
+  useEffect(() => {
+    const supabase = supabaseBrowser;
 
-  // 🏃‍♂️ Atividades Strava (ajuste o nome da tabela se for outro)
-  const { data: activitiesData, error: activitiesError } = await supabase
-    .from("strava_activities")
-    .select(
-      `
-      id,
-      athlete_id,
-      name,
-      type,
-      sport_type,
-      start_date,
-      distance,
-      moving_time,
-      total_elevation_gain
-    `
-    )
-    .order("start_date", { ascending: false })
-    .limit(500);
+    const load = async () => {
+      setLoading(true);
+      setErrorMsg(null);
 
-  if (activitiesError) {
-    console.error("Erro ao carregar atividades:", activitiesError);
-  }
+      // 1) sessão
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
 
-  const activities: StravaActivity[] = (activitiesData ?? []).map((a: any) => ({
-    id: String(a.id),
-    athlete_id: a.athlete_id,
-    name: a.name,
-    type: a.type,
-    sport_type: a.sport_type,
-    start_date: a.start_date,
-    distance: a.distance,
-    moving_time: a.moving_time,
-    total_elevation_gain: a.total_elevation_gain,
-  }));
+      if (error || !session) {
+        setErrorMsg("Não foi possível carregar seus dados. Faça login novamente.");
+        router.push("/login");
+        return;
+      }
 
-  // 🎯 Resumo de eventos (ajuste nomes das tabelas se precisar)
-  const { count: availableEvents, error: eventsError } = await supabase
-    .from("events")
-    .select("*", { head: true, count: "exact" });
+      const userId = session.user.id;
 
-  if (eventsError) {
-    console.error("Erro ao contar eventos disponíveis:", eventsError);
-  }
+      // 2) atividades Strava (ajuste o nome da tabela se for outro)
+      const { data: activitiesData, error: activitiesError } = await supabase
+        .from("strava_activities")
+        .select(
+          `
+          id,
+          athlete_id,
+          name,
+          type,
+          sport_type,
+          start_date,
+          distance,
+          moving_time,
+          total_elevation_gain
+        `
+        )
+        .order("start_date", { ascending: false })
+        .limit(500);
 
-  const { count: userEvents, error: userEventsError } = await supabase
-    .from("event_registrations")
-    .select("*", { head: true, count: "exact" })
-    .eq("user_id", user.id);
+      if (activitiesError) {
+        console.error("Erro ao carregar atividades:", activitiesError);
+        setErrorMsg("Erro ao carregar atividades.");
+        setLoading(false);
+        return;
+      }
 
-  if (userEventsError) {
-    console.error("Erro ao contar eventos do usuário:", userEventsError);
-  }
+      setActivities(
+        (activitiesData ?? []) as unknown as StravaActivity[]
+      );
 
-  const eventsSummary: EventsSummary = {
-    availableEvents: availableEvents ?? 0,
-    userEvents: userEvents ?? 0,
-  };
+      // 3) resumo de eventos (se ainda não tiver essas tabelas, vai ficar 0/0)
+      try {
+        const { count: availableEvents } = await supabase
+          .from("events")
+          .select("*", { head: true, count: "exact" });
+
+        const { count: userEvents } = await supabase
+          .from("event_registrations")
+          .select("*", { head: true, count: "exact" })
+          .eq("user_id", userId);
+
+        setEventsSummary({
+          availableEvents: availableEvents ?? 0,
+          userEvents: userEvents ?? 0,
+        });
+      } catch (e) {
+        console.warn("Erro ao carregar resumo de eventos:", e);
+        setEventsSummary({
+          availableEvents: 0,
+          userEvents: 0,
+        });
+      }
+
+      setLoading(false);
+    };
+
+    load();
+  }, [router]);
 
   return (
     <div
@@ -109,13 +134,22 @@ export default async function DashboardPage() {
           margin: "0 auto",
         }}
       >
-        <DashboardClient
-          activities={activities}
-          eventsSummary={eventsSummary}
-        />
+        {loading && !errorMsg && (
+          <p style={{ fontSize: 13 }}>Carregando seu dashboard...</p>
+        )}
+
+        {errorMsg && (
+          <p style={{ fontSize: 13, color: "#fca5a5" }}>{errorMsg}</p>
+        )}
+
+        {!loading && !errorMsg && (
+          <DashboardClient
+            activities={activities}
+            eventsSummary={eventsSummary}
+          />
+        )}
       </main>
 
-      {/* navbar fixa embaixo */}
       <BottomNavbar />
     </div>
   );

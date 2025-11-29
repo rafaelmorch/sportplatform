@@ -2,8 +2,10 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-export function supabaseServer() {
-  const cookieStore = cookies();
+// Helper assíncrono. Hoje não estamos usando em lugar nenhum,
+// mas ele fica pronto para uso futuro.
+export async function supabaseServer() {
+  const cookieStore = await cookies(); // 👈 repare no await aqui
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
