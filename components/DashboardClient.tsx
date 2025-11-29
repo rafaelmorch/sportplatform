@@ -40,7 +40,7 @@ type SportPoint = {
 
 type DashboardClientProps = {
   activities: StravaActivity[];
-  eventsSummary: EventsSummary; // mantemos no tipo, mas não vamos mais usar
+  eventsSummary: EventsSummary; // não usamos mais, mas mantemos pra compatibilidade
 };
 
 type RankingEntry = {
@@ -163,6 +163,7 @@ export default function DashboardClient({
   const [groupAthleteIds, setGroupAthleteIds] = useState<number[] | null>(null);
   const [loadingGroups, setLoadingGroups] = useState(false);
 
+  // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
     const loadAthleteAndGroups = async () => {
       try {
@@ -222,29 +223,37 @@ export default function DashboardClient({
         // Grupos em que o usuário participa
         setLoadingGroups(true);
 
-        // Ajuste esse select conforme seu schema:
-        // aqui assumo tabela "group_members" com FK para "groups"
-        const { data: memberships, error: groupsError } = await supabase
-          .from("group_members")
-          .select("group_id, groups(name)")
+        // 1) vínculos na tabela de membros
+        const { data: memberRows, error: memberError } = await supabase
+          .from("training_group_members") // tabela de membros do grupo
+          .select("group_id")
           .eq("user_id", user.id);
 
-        if (groupsError) {
-          console.error("Erro ao carregar grupos do usuário:", groupsError);
-        } else if (memberships) {
-          const opts: GroupOption[] = memberships.map((m: any) => ({
-            id: m.group_id,
-            name: m.groups?.name ?? "Grupo sem nome",
-          }));
-
-          // remove duplicados
-          const unique = Array.from(
-            new Map(opts.map((g) => [g.id, g])).values()
+        if (memberError) {
+          console.error("Erro ao carregar grupos do usuário:", memberError);
+        } else if (memberRows && memberRows.length > 0) {
+          const groupIds = Array.from(
+            new Set(memberRows.map((m: any) => m.group_id as string))
           );
 
-          setGroups(unique);
-          if (unique.length > 0) {
-            setSelectedGroupId(unique[0].id);
+          // 2) dados dos grupos
+          const { data: groupRows, error: groupError } = await supabase
+            .from("training_groups") // tabela de grupos
+            .select("id, name")
+            .in("id", groupIds);
+
+          if (groupError) {
+            console.error("Erro ao carregar dados dos grupos:", groupError);
+          } else if (groupRows) {
+            const opts: GroupOption[] = groupRows.map((g: any) => ({
+              id: g.id as string,
+              name: g.name as string,
+            }));
+
+            setGroups(opts);
+            if (opts.length > 0) {
+              setSelectedGroupId(opts[0].id);
+            }
           }
         }
       } catch (err) {
@@ -273,7 +282,7 @@ export default function DashboardClient({
         setLoadingGroups(true);
 
         const { data: members, error: membersError } = await supabase
-          .from("group_members")
+          .from("training_group_members") // mesma tabela de membros
           .select("user_id")
           .eq("group_id", selectedGroupId);
 
