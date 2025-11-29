@@ -15,6 +15,15 @@ type Post = {
   comments_count: number;
 };
 
+type Comment = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_name: string | null;
+  content: string;
+  created_at: string;
+};
+
 export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +41,16 @@ export default function FeedPage() {
     null
   );
   const [commentLoadingPostId, setCommentLoadingPostId] = useState<
+    string | null
+  >(null);
+
+  // comentários carregados por post
+  const [postComments, setPostComments] = useState<Record<string, Comment[]>>(
+    {}
+  );
+  // quais posts estão com comentários abertos
+  const [openComments, setOpenComments] = useState<Set<string>>(new Set());
+  const [loadingCommentsPostId, setLoadingCommentsPostId] = useState<
     string | null
   >(null);
 
@@ -190,6 +209,54 @@ export default function FeedPage() {
     setLikeLoadingPostId(null);
   }
 
+  // ---------- CARREGAR / TOGGLE COMENTÁRIOS ----------
+  async function toggleComments(postId: string) {
+    // se já estiver aberto, fecha
+    if (openComments.has(postId)) {
+      setOpenComments((prev) => {
+        const copy = new Set(prev);
+        copy.delete(postId);
+        return copy;
+      });
+      return;
+    }
+
+    // se já temos comentários carregados, só abre
+    if (postComments[postId]) {
+      setOpenComments((prev) => {
+        const copy = new Set(prev);
+        copy.add(postId);
+        return copy;
+      });
+      return;
+    }
+
+    // precisa carregar do Supabase
+    setLoadingCommentsPostId(postId);
+
+    const { data, error } = await supabaseBrowser
+      .from("feed_comments")
+      .select("*")
+      .eq("post_id", postId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Erro ao carregar comentários:", error);
+    } else if (data) {
+      setPostComments((prev) => ({
+        ...prev,
+        [postId]: data as Comment[],
+      }));
+      setOpenComments((prev) => {
+        const copy = new Set(prev);
+        copy.add(postId);
+        return copy;
+      });
+    }
+
+    setLoadingCommentsPostId(null);
+  }
+
   // ---------- COMENTAR ----------
   async function handleSubmitComment(postId: string) {
     const text = (commentText[postId] || "").trim();
@@ -202,21 +269,29 @@ export default function FeedPage() {
 
     setCommentLoadingPostId(postId);
 
-    const { error } = await supabaseBrowser.from("feed_comments").insert({
-      post_id: postId,
-      user_id: userId,
-      author_name: userName,
-      content: text,
-    });
+    const { data, error } = await supabaseBrowser
+      .from("feed_comments")
+      .insert({
+        post_id: postId,
+        user_id: userId,
+        author_name: userName,
+        content: text,
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error("Erro ao salvar comentário:", error);
-    } else {
-      // limpa campo e incrementa contador no front
+    } else if (data) {
+      const newComment = data as Comment;
+
+      // limpa campo
       setCommentText((prev) => ({
         ...prev,
         [postId]: "",
       }));
+
+      // incrementa contador no post
       setPosts((current) =>
         current.map((post) =>
           post.id === postId
@@ -224,6 +299,12 @@ export default function FeedPage() {
             : post
         )
       );
+
+      // se os comentários desse post já estão carregados, adiciona na lista
+      setPostComments((prev) => ({
+        ...prev,
+        [postId]: [...(prev[postId] ?? []), newComment],
+      }));
     }
 
     setCommentLoadingPostId(null);
@@ -336,6 +417,8 @@ export default function FeedPage() {
           >
             {posts.map((post) => {
               const isLiked = likedPosts.has(post.id);
+              const isCommentsOpen = openComments.has(post.id);
+              const comments = postComments[post.id] ?? [];
 
               return (
                 <article
@@ -497,18 +580,27 @@ export default function FeedPage() {
                       </span>
                     </div>
 
-                    <div
+                    <button
+                      type="button"
+                      onClick={() => toggleComments(post.id)}
                       style={{
-                        display: "flex",
-                        gap: "10px",
+                        border: "none",
+                        background: "transparent",
                         color: "#64748b",
+                        fontSize: "12px",
+                        cursor: "pointer",
+                        padding: "4px 6px",
+                        borderRadius: "999px",
+                        textDecoration: "underline",
+                        textDecorationStyle: "dotted",
                       }}
                     >
-                      <span>
-                        {post.comments_count} comentário
-                        {post.comments_count === 1 ? "" : "s"}
-                      </span>
-                    </div>
+                      {loadingCommentsPostId === post.id
+                        ? "Carregando comentários…"
+                        : isCommentsOpen
+                        ? `Ocultar comentários (${post.comments_count})`
+                        : `Ver comentários (${post.comments_count})`}
+                    </button>
                   </div>
 
                   {/* Campo de comentário */}
@@ -567,6 +659,123 @@ export default function FeedPage() {
                       </button>
                     </form>
                   </div>
+
+                  {/* Lista de comentários (colapsável) */}
+                  {isCommentsOpen && (
+                    <div
+                      style={{
+                        marginTop: "8px",
+                        paddingTop: "8px",
+                        borderTop: "1px solid #1f2937",
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {comments.length === 0 ? (
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: "#64748b",
+                            margin: 0,
+                          }}
+                        >
+                          Ainda não há comentários neste post. Seja o primeiro a
+                          comentar.
+                        </p>
+                      ) : (
+                        <ul
+                          style={{
+                            listStyle: "none",
+                            padding: 0,
+                            margin: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px",
+                          }}
+                        >
+                          {comments.map((c) => (
+                            <li
+                              key={c.id}
+                              style={{
+                                display: "flex",
+                                gap: "8px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: "22px",
+                                  height: "22px",
+                                  borderRadius: "999px",
+                                  background:
+                                    "radial-gradient(circle at 30% 30%, #38bdf8, #0f172a)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  color: "#0b1120",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {(c.author_name || "AT")
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </div>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  fontSize: "12px",
+                                  lineHeight: 1.4,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "baseline",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontWeight: 600,
+                                      color: "#e5e7eb",
+                                    }}
+                                  >
+                                    {c.author_name || "Atleta"}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: "10px",
+                                      color: "#6b7280",
+                                      marginLeft: "8px",
+                                    }}
+                                  >
+                                    {new Date(
+                                      c.created_at
+                                    ).toLocaleDateString("pt-BR", {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                    })}
+                                  </span>
+                                </div>
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    color: "#d1d5db",
+                                  }}
+                                >
+                                  {c.content}
+                                </p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })}
