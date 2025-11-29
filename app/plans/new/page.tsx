@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-type Challenge = {
+type TrainingGroup = {
   id: string;
-  title: string;
+  name: string;
 };
 
 function slugify(text: string): string {
@@ -29,41 +29,39 @@ export default function NewTrainingPage() {
   const [durationWeeks, setDurationWeeks] = useState<string>("");
   const [price, setPrice] = useState<string>(""); // em dólar (ex: 199.99)
 
-  // >>> NOVOS ESTADOS PARA GRUPOS <<<
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [selectedChallengeIds, setSelectedChallengeIds] = useState<string[]>(
-    []
-  );
-  const [isGeneric, setIsGeneric] = useState(false);
+  // >>> ESTADOS PARA GRUPOS DE TREINAMENTO <<<
+  const [trainingGroups, setTrainingGroups] = useState<TrainingGroup[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
-  const [loadingChallenges, setLoadingChallenges] = useState(true);
+  const [loadingGroups, setLoadingGroups] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Carrega os grupos (desafios) existentes
+  // Carrega os grupos de treinamento existentes
   useEffect(() => {
-    async function fetchChallenges() {
-      setLoadingChallenges(true);
+    async function fetchTrainingGroups() {
+      setLoadingGroups(true);
       const { data, error } = await supabase
-        .from("challenges")
-        .select("id, title")
-        .order("start_date", { ascending: true });
+        .from("training_groups")
+        .select("id, name")
+        .order("name", { ascending: true });
 
       if (error) {
-        console.error("Erro ao carregar grupos/desafios:", error);
+        console.error("Erro ao carregar grupos de treinamento:", error);
+        setErrorMsg("Não foi possível carregar os grupos de treinamento.");
       } else {
-        setChallenges(data ?? []);
+        setTrainingGroups(data ?? []);
       }
-      setLoadingChallenges(false);
+      setLoadingGroups(false);
     }
 
-    fetchChallenges();
+    fetchTrainingGroups();
   }, [supabase]);
 
-  function toggleChallengeSelection(id: string) {
-    setSelectedChallengeIds((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+  function toggleGroupSelection(id: string) {
+    setSelectedGroupIds((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
     );
   }
 
@@ -74,6 +72,13 @@ export default function NewTrainingPage() {
 
     if (!title.trim()) {
       setErrorMsg("Dê um nome para o seu treinamento.");
+      return;
+    }
+
+    if (selectedGroupIds.length === 0) {
+      setErrorMsg(
+        "Selecione pelo menos um grupo para o qual o treinamento é indicado."
+      );
       return;
     }
 
@@ -89,7 +94,6 @@ export default function NewTrainingPage() {
       if (sessionError || !session?.user) {
         console.error("Erro de sessão:", sessionError);
         setErrorMsg("Você precisa estar logado para criar um treinamento.");
-        setLoading(false);
         return;
       }
 
@@ -130,14 +134,13 @@ export default function NewTrainingPage() {
           price_cents: priceCents,
           currency: "USD",
           slug: finalSlug,
-          is_generic: isGeneric,
+          is_generic: false, // agora sempre vinculado a pelo menos um grupo
         })
         .select("id, slug")
         .single();
 
       if (error || !data) {
         console.error("Erro ao criar treinamento:", error);
-        // slug único pode dar conflito
         const pgError = error as any;
         if (pgError?.code === "23505") {
           setErrorMsg(
@@ -146,7 +149,6 @@ export default function NewTrainingPage() {
         } else {
           setErrorMsg("Não foi possível criar o treinamento. Tente novamente.");
         }
-        setLoading(false);
         return;
       }
 
@@ -154,22 +156,21 @@ export default function NewTrainingPage() {
       const createdSlug = (data as any).slug ?? finalSlug;
 
       // 6) Cria vínculos treinamento <-> grupos selecionados
-      if (selectedChallengeIds.length > 0) {
-        const rows = selectedChallengeIds.map((challengeId) => ({
+      if (selectedGroupIds.length > 0) {
+        const rows = selectedGroupIds.map((groupId) => ({
           training_id: trainingId,
-          challenge_id: challengeId,
+          training_group_id: groupId,
         }));
 
         const { error: relError } = await supabase
-          .from("training_challenges")
+          .from("training_group_trainings")
           .insert(rows);
 
         if (relError) {
           console.error(
-            "Erro ao vincular treinamento aos grupos/desafios:",
+            "Erro ao vincular treinamento aos grupos de treinamento:",
             relError
           );
-          // Não vamos travar o fluxo por isso, só avisar
           setErrorMsg(
             "Treinamento criado, mas houve um problema ao vincular aos grupos."
           );
@@ -183,8 +184,8 @@ export default function NewTrainingPage() {
     } catch (err) {
       console.error(err);
       setErrorMsg("Ocorreu um erro inesperado. Tente novamente.");
+    } finally {
       setLoading(false);
-      return;
     }
   }
 
@@ -241,7 +242,7 @@ export default function NewTrainingPage() {
             }}
           >
             Cadastre um treinamento para disponibilizar na plataforma. Depois
-            você poderá conectá-lo a desafios e eventos.
+            você poderá conectá-lo aos seus grupos de treinamento.
           </p>
         </header>
 
@@ -404,7 +405,7 @@ export default function NewTrainingPage() {
             </div>
           </div>
 
-          {/* Apropriado para o grupo */}
+          {/* Grupos de treinamento */}
           <div
             style={{
               marginTop: 4,
@@ -418,17 +419,16 @@ export default function NewTrainingPage() {
             <label
               style={{ fontSize: 13, fontWeight: 500, color: "#e5e7eb" }}
             >
-              Apropriado para o grupo
+              Para quais grupos este treinamento é indicado? *
             </label>
 
-            {loadingChallenges ? (
+            {loadingGroups ? (
               <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-                Carregando grupos...
+                Carregando grupos de treinamento...
               </p>
-            ) : challenges.length === 0 ? (
+            ) : trainingGroups.length === 0 ? (
               <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-                Ainda não há grupos cadastrados. Você pode marcar o
-                treinamento como genérico.
+                Ainda não há grupos de treinamento cadastrados.
               </p>
             ) : (
               <div
@@ -438,9 +438,9 @@ export default function NewTrainingPage() {
                   gap: 6,
                 }}
               >
-                {challenges.map((ch) => (
+                {trainingGroups.map((group) => (
                   <label
-                    key={ch.id}
+                    key={group.id}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -451,43 +451,22 @@ export default function NewTrainingPage() {
                   >
                     <input
                       type="checkbox"
-                      checked={selectedChallengeIds.includes(ch.id)}
-                      onChange={() => toggleChallengeSelection(ch.id)}
+                      checked={selectedGroupIds.includes(group.id)}
+                      onChange={() => toggleGroupSelection(group.id)}
                       style={{
                         width: 16,
                         height: 16,
                       }}
                     />
-                    <span>{ch.title}</span>
+                    <span>{group.name}</span>
                   </label>
                 ))}
               </div>
             )}
 
-            {/* Opção genérica */}
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 13,
-                color: "#e5e7eb",
-                marginTop: 4,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={isGeneric}
-                onChange={(e) => setIsGeneric(e.target.checked)}
-                style={{
-                  width: 16,
-                  height: 16,
-                }}
-              />
-              <span>
-                Treinamento genérico (não vinculado a um grupo específico)
-              </span>
-            </label>
+            <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>
+              Selecione pelo menos um grupo.
+            </p>
           </div>
 
           {/* Botão salvar */}
