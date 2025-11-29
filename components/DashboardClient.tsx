@@ -40,7 +40,7 @@ type SportPoint = {
 
 type DashboardClientProps = {
   activities: StravaActivity[];
-  eventsSummary: EventsSummary; // não usamos mais, mas mantemos pra compatibilidade
+  eventsSummary: EventsSummary; // mantido só por compatibilidade
 };
 
 type RankingEntry = {
@@ -225,7 +225,7 @@ export default function DashboardClient({
 
         // 1) vínculos na tabela de membros
         const { data: memberRows, error: memberError } = await supabase
-          .from("training_group_members") // tabela de membros do grupo
+          .from("training_group_members") // tabela de membros
           .select("group_id")
           .eq("user_id", user.id);
 
@@ -236,10 +236,10 @@ export default function DashboardClient({
             new Set(memberRows.map((m: any) => m.group_id as string))
           );
 
-          // 2) dados dos grupos
+          // 2) dados dos grupos (usa title como nome)
           const { data: groupRows, error: groupError } = await supabase
-            .from("training_groups") // tabela de grupos
-            .select("id, name")
+            .from("training_groups")
+            .select("id, title")
             .in("id", groupIds);
 
           if (groupError) {
@@ -247,7 +247,7 @@ export default function DashboardClient({
           } else if (groupRows) {
             const opts: GroupOption[] = groupRows.map((g: any) => ({
               id: g.id as string,
-              name: g.name as string,
+              name: g.title as string,
             }));
 
             setGroups(opts);
