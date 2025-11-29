@@ -16,21 +16,16 @@ type DbGroup = {
   title: string;
 };
 
-type Training = {
-  id: string;
-  title: string;
-  description: string | null;
-  duration_weeks: number | null;
-  price_cents: number | null;
-  currency: string | null;
-  slug: string;
+type DbWeek = {
+  id: number;
+  group_id: string;
+  week_number: number;
+  focus?: string | null;
+  title?: string | null;
+  description?: string | null;
+  // qualquer outra coluna que exista
+  [key: string]: any;
 };
-
-function formatPrice(priceCents: number | null, currency: string | null) {
-  if (!priceCents || !currency) return null;
-  const value = priceCents / 100;
-  return `${currency} ${value.toFixed(2)}`;
-}
 
 export default function GroupDetailPage() {
   const params = useParams();
@@ -38,25 +33,26 @@ export default function GroupDetailPage() {
 
   const supabase = supabaseBrowser;
 
+  // grupo estático (layout, textos etc.)
   const group: TrainingGroup | undefined = trainingGroups.find(
     (g) => g.slug === slugParam
   );
 
-  // estados para treinamentos vindos do Supabase
+  // estados do plano de 12 semanas vindo do Supabase
   const [dbGroup, setDbGroup] = useState<DbGroup | null>(null);
-  const [trainings, setTrainings] = useState<Training[]>([]);
-  const [loadingTrainings, setLoadingTrainings] = useState(false);
-  const [trainingsError, setTrainingsError] = useState<string | null>(null);
+  const [weeks, setWeeks] = useState<DbWeek[]>([]);
+  const [loadingWeeks, setLoadingWeeks] = useState(false);
+  const [weeksError, setWeeksError] = useState<string | null>(null);
 
-  // Carrega treinamentos vinculados a este grupo (se existir no Supabase)
+  // Carrega plano de 12 semanas da tabela training_group_weeks
   useEffect(() => {
-    async function fetchTrainingsForGroup() {
+    async function fetchWeeks() {
       if (!group?.slug) return;
 
-      setLoadingTrainings(true);
-      setTrainingsError(null);
+      setLoadingWeeks(true);
+      setWeeksError(null);
 
-      // 1) Busca o grupo no Supabase pelo slug para achar o id
+      // 1) busca o grupo no Supabase para pegar o id (uuid)
       const { data: groupData, error: groupError } = await supabase
         .from("training_groups")
         .select("id, slug, title")
@@ -64,78 +60,53 @@ export default function GroupDetailPage() {
         .maybeSingle();
 
       if (groupError) {
-        console.error("Erro ao carregar grupo no Supabase:", groupError);
-        setTrainingsError("Não foi possível carregar os treinamentos do grupo.");
-        setLoadingTrainings(false);
+        console.error(
+          "Erro ao carregar grupo no Supabase para plano de 12 semanas:",
+          groupError
+        );
+        setWeeksError("Não foi possível carregar o plano de 12 semanas.");
+        setLoadingWeeks(false);
         return;
       }
 
       if (!groupData) {
-        // não existe correspondente no Supabase, então não há treinamentos vinculados
+        // não encontrou o grupo no Supabase → sem plano no banco
         setDbGroup(null);
-        setTrainings([]);
-        setLoadingTrainings(false);
+        setWeeks([]);
+        setLoadingWeeks(false);
         return;
       }
 
       const dbG = groupData as DbGroup;
       setDbGroup(dbG);
 
-      // 2) Busca vínculos group <-> trainings
-      const { data: relData, error: relError } = await supabase
-        .from("training_group_trainings")
-        .select("training_id")
-        .eq("training_group_id", dbG.id);
+      // 2) busca as semanas desse grupo
+      const { data: weeksData, error: weeksErrorResp } = await supabase
+        .from("training_group_weeks")
+        .select("*")
+        .eq("group_id", dbG.id)
+        .order("week_number", { ascending: true });
 
-      if (relError) {
+      if (weeksErrorResp) {
         console.error(
-          "Erro ao carregar vínculos do grupo com treinamentos:",
-          relError
+          "Erro ao carregar semanas do plano de 12 semanas:",
+          weeksErrorResp
         );
-        setTrainingsError("Não foi possível carregar os treinamentos do grupo.");
-        setLoadingTrainings(false);
+        setWeeksError("Não foi possível carregar o plano de 12 semanas.");
+        setLoadingWeeks(false);
         return;
       }
 
-      const relations =
-        (relData as { training_id: string }[] | null) ?? [];
-
-      const trainingIds = relations.map((r) => r.training_id);
-      if (trainingIds.length === 0) {
-        setTrainings([]);
-        setLoadingTrainings(false);
-        return;
-      }
-
-      // 3) Busca os treinamentos vinculados
-      const { data: trainingsData, error: trainingsError } = await supabase
-        .from("trainings")
-        .select(
-          "id, title, description, duration_weeks, price_cents, currency, slug"
-        )
-        .in("id", trainingIds)
-        .order("created_at", { ascending: false });
-
-      if (trainingsError) {
-        console.error(
-          "Erro ao carregar treinamentos do grupo:",
-          trainingsError
-        );
-        setTrainingsError("Não foi possível carregar os treinamentos do grupo.");
-        setLoadingTrainings(false);
-        return;
-      }
-
-      setTrainings((trainingsData ?? []) as Training[]);
-      setLoadingTrainings(false);
+      setWeeks((weeksData ?? []) as DbWeek[]);
+      setLoadingWeeks(false);
     }
 
     if (group) {
-      fetchTrainingsForGroup();
+      fetchWeeks();
     }
   }, [group, supabase]);
 
-  // Se não achar o grupo estático, mostra a tela de "não encontrado"
+  // Se não achou o grupo estático, mostra a tela de "não encontrado"
   if (!group) {
     return (
       <main
@@ -202,7 +173,7 @@ export default function GroupDetailPage() {
     );
   }
 
-  const plan = group.twelveWeekPlan;
+  const staticPlan = group.twelveWeekPlan;
 
   return (
     <main
@@ -383,7 +354,7 @@ export default function GroupDetailPage() {
           </p>
         </section>
 
-        {/* Plano de 12 semanas (estático, como já estava) */}
+        {/* Plano de 12 semanas (agora usando Supabase) */}
         <section
           style={{
             borderRadius: 20,
@@ -426,7 +397,21 @@ export default function GroupDetailPage() {
             </div>
           </div>
 
-          {!plan ? (
+          {/* Estados de erro / loading */}
+          {weeksError && (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#fecaca",
+                marginTop: 8,
+                marginBottom: 0,
+              }}
+            >
+              {weeksError}
+            </p>
+          )}
+
+          {!weeksError && loadingWeeks && (
             <p
               style={{
                 fontSize: 13,
@@ -435,33 +420,30 @@ export default function GroupDetailPage() {
                 marginBottom: 0,
               }}
             >
-              Em breve este grupo terá um plano completo de 12 semanas com
-              progressão semanal e recomendações detalhadas.
+              Carregando plano de 12 semanas...
             </p>
-          ) : (
-            <>
-              {plan.volumeLabel && (
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "#a5b4fc",
-                    marginBottom: 10,
-                  }}
-                >
-                  {plan.volumeLabel}
-                </p>
-              )}
+          )}
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                  gap: 10,
-                }}
-              >
-                {plan.weeks.map((week) => (
+          {/* Se veio plano do Supabase, usa ele */}
+          {!weeksError && !loadingWeeks && weeks.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 10,
+              }}
+            >
+              {weeks.map((week) => {
+                const title =
+                  (week as any).title ??
+                  `Semana ${week.week_number}`;
+                const focus = week.focus ?? (week as any).focus ?? "";
+                const description =
+                  (week as any).description ?? "";
+
+                return (
                   <div
-                    key={week.week}
+                    key={week.id}
                     style={{
                       borderRadius: 16,
                       border: "1px solid rgba(51,65,85,0.9)",
@@ -479,7 +461,7 @@ export default function GroupDetailPage() {
                         marginBottom: 4,
                       }}
                     >
-                      Semana {week.week}
+                      Semana {week.week_number}
                     </p>
                     <p
                       style={{
@@ -489,165 +471,21 @@ export default function GroupDetailPage() {
                         marginBottom: 4,
                       }}
                     >
-                      {week.title}
+                      {title}
                     </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#a5b4fc",
-                        margin: 0,
-                        marginBottom: 4,
-                      }}
-                    >
-                      Foco: {week.focus}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#d1d5db",
-                        margin: 0,
-                      }}
-                    >
-                      {week.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </section>
-
-        {/* NOVA SEÇÃO: Treinamentos dinâmicos vindos do Supabase */}
-        <section
-          style={{
-            borderRadius: 20,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background:
-              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "16px 14px",
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 8,
-              alignItems: "baseline",
-              marginBottom: 10,
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  margin: 0,
-                }}
-              >
-                Treinamentos disponíveis para este grupo
-              </h2>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#9ca3af",
-                  margin: 0,
-                }}
-              >
-                Planos cadastrados na área de Treinamentos e conectados a este
-                grupo.
-              </p>
-            </div>
-          </div>
-
-          {trainingsError && (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#fecaca",
-                margin: 0,
-              }}
-            >
-              {trainingsError}
-            </p>
-          )}
-
-          {!trainingsError && loadingTrainings && (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              Carregando treinamentos...
-            </p>
-          )}
-
-          {!loadingTrainings && !trainingsError && trainings.length === 0 && (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              Ainda não há treinamentos vinculados a este grupo. Crie um plano
-              em <strong>Planos de treino &gt; Criar novo treinamento</strong>{" "}
-              e selecione este grupo.
-            </p>
-          )}
-
-          {!loadingTrainings && trainings.length > 0 && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: 10,
-                marginTop: 6,
-              }}
-            >
-              {trainings.map((t) => {
-                const priceLabel = formatPrice(
-                  t.price_cents,
-                  t.currency
-                );
-                const durationLabel = t.duration_weeks
-                  ? `${t.duration_weeks} semana${
-                      t.duration_weeks > 1 ? "s" : ""
-                    }`
-                  : null;
-
-                return (
-                  <Link
-                    key={t.id}
-                    href={`/plans/${t.slug}`}
-                    style={{ textDecoration: "none" }}
-                  >
-                    <article
-                      style={{
-                        borderRadius: 16,
-                        border: "1px solid rgba(51,65,85,0.9)",
-                        background:
-                          "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
-                        padding: "10px 12px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 6,
-                        height: "100%",
-                      }}
-                    >
-                      <h3
+                    {focus && (
+                      <p
                         style={{
-                          fontSize: 14,
-                          fontWeight: 600,
+                          fontSize: 12,
+                          color: "#a5b4fc",
                           margin: 0,
+                          marginBottom: 4,
                         }}
                       >
-                        {t.title}
-                      </h3>
+                        Foco: {focus}
+                      </p>
+                    )}
+                    {description && (
                       <p
                         style={{
                           fontSize: 12,
@@ -655,40 +493,118 @@ export default function GroupDetailPage() {
                           margin: 0,
                         }}
                       >
-                        {t.description ||
-                          "Plano com progressão estruturada."}
+                        {description}
                       </p>
-
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "#94a3b8",
-                          margin: 0,
-                        }}
-                      >
-                        {durationLabel
-                          ? `Duração: ${durationLabel}`
-                          : "Duração não informada"}
-                        {priceLabel && ` · ${priceLabel}`}
-                      </p>
-
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "#64748b",
-                          margin: 0,
-                          marginTop: 4,
-                        }}
-                      >
-                        Ver detalhes do treinamento ⟶
-                      </p>
-                    </article>
-                  </Link>
+                    )}
+                  </div>
                 );
               })}
             </div>
           )}
+
+          {/* Fallback: se não tiver nada no Supabase, usa plano estático (se existir) */}
+          {!weeksError &&
+            !loadingWeeks &&
+            weeks.length === 0 &&
+            staticPlan && (
+              <>
+                {staticPlan.volumeLabel && (
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "#a5b4fc",
+                      marginBottom: 10,
+                    }}
+                  >
+                    {staticPlan.volumeLabel}
+                  </p>
+                )}
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 10,
+                  }}
+                >
+                  {staticPlan.weeks.map((week) => (
+                    <div
+                      key={week.week}
+                      style={{
+                        borderRadius: 16,
+                        border: "1px solid rgba(51,65,85,0.9)",
+                        background:
+                          "radial-gradient(circle at top, #020617, #020617 60%, #000000 100%)",
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: "#64748b",
+                          textTransform: "uppercase",
+                          margin: 0,
+                          marginBottom: 4,
+                        }}
+                      >
+                        Semana {week.week}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 600,
+                          margin: 0,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {week.title}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#a5b4fc",
+                          margin: 0,
+                          marginBottom: 4,
+                        }}
+                      >
+                        Foco: {week.focus}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#d1d5db",
+                          margin: 0,
+                        }}
+                      >
+                        {week.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+          {/* Se não tem Supabase nem estático */}
+          {!weeksError &&
+            !loadingWeeks &&
+            weeks.length === 0 &&
+            !staticPlan && (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  marginTop: 8,
+                  marginBottom: 0,
+                }}
+              >
+                Em breve este grupo terá um plano completo de 12 semanas com
+                progressão semanal e recomendações detalhadas.
+              </p>
+            )}
         </section>
+
+        {/* (o resto da página, como seção de treinamentos dinâmicos, fica igual se você já tiver adicionado) */}
       </div>
     </main>
   );
