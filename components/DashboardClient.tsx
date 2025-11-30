@@ -37,10 +37,8 @@ type RankingEntry = {
   totalPoints: number;
   totalHours: number;
   isCurrent: boolean;
-  rankByPoints: number; // posição real no ranking, calculada por pontos
+  rankPosition: number; // posição real no ranking (por pontos)
 };
-
-type SortKey = "label" | "totalPoints";
 
 type GroupOption = {
   id: string;
@@ -176,8 +174,10 @@ export default function DashboardClient({
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingGroupActivities, setLoadingGroupActivities] = useState(false);
 
-  const [rankingSortKey, setRankingSortKey] = useState<SortKey>("totalPoints");
-  const [rankingSortDir, setRankingSortDir] = useState<"asc" | "desc">("desc");
+  // ordenação do ranking
+  const [rankingSortKey, setRankingSortKey] = useState<"points" | "name">(
+    "points"
+  );
 
   // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
@@ -514,48 +514,36 @@ export default function DashboardClient({
       });
     }
 
-    const entriesBase = Array.from(map.entries()).map(([userId, v]) => ({
+    const entries = Array.from(map.entries()).map(([userId, v]) => ({
       userId,
       label: v.name ?? `Atleta ${userId.slice(0, 8)}`,
       totalPoints: Math.round(v.points),
       totalHours: v.hours,
       isCurrent: currentUserId === userId,
+      rankPosition: 0, // preenchido depois
     }));
 
-    // calcula ranking por pontos (desc) e guarda posição real
-    const byPoints = [...entriesBase].sort(
-      (a, b) => b.totalPoints - a.totalPoints
-    );
+    // ordenação principal = pontos (maior para menor)
+    entries.sort((a, b) => b.totalPoints - a.totalPoints);
 
-    const rankMap = new Map<string, number>();
-    byPoints.forEach((entry, index) => {
-      rankMap.set(entry.userId, index + 1);
+    // define posição real no ranking
+    entries.forEach((entry, idx) => {
+      entry.rankPosition = idx + 1;
     });
 
-    const entriesWithRank: RankingEntry[] = entriesBase.map((e) => ({
-      ...e,
-      rankByPoints: rankMap.get(e.userId) ?? 0,
-    }));
-
-    return entriesWithRank;
+    return entries;
   })();
 
-  const sortedRanking: RankingEntry[] = (() => {
-    const list = [...ranking];
-    list.sort((a, b) => {
-      if (rankingSortKey === "totalPoints") {
-        const diff = a.totalPoints - b.totalPoints;
-        return rankingSortDir === "asc" ? diff : -diff;
-      }
+  // Último colocado REAL (baseado em pontos)
+  const lastPlace = ranking.length > 0 ? ranking[ranking.length - 1] : null;
 
-      // label
-      const cmp = a.label.localeCompare(b.label, "pt-BR", {
-        sensitivity: "base",
-      });
-      return rankingSortDir === "asc" ? cmp : -cmp;
-    });
-    return list;
-  })();
+  // Ranking que será exibido (pode ser reordenado para fins de visualização)
+  const displayRanking =
+    rankingSortKey === "name"
+      ? [...ranking].sort((a, b) =>
+          a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" })
+        )
+      : ranking;
 
   // -----------------------------
   // EVOLUÇÃO DOS TREINOS (MINUTOS) - 3 linhas
@@ -568,13 +556,7 @@ export default function DashboardClient({
     );
     if (filtered.length === 0) return [];
 
-    // líder sempre baseado no maior número de pontos, independente da ordenação atual
-    const leaderId =
-      ranking.length > 0
-        ? ranking.reduce((best, curr) =>
-            !best || curr.totalPoints > best.totalPoints ? curr : best
-          )?.userId
-        : null;
+    const leaderId = ranking.length > 0 ? ranking[0].userId : null;
 
     const userMap = new Map<string, number>(); // date -> minutos do usuário
     const leaderMap = new Map<string, number>(); // date -> minutos do líder
@@ -644,21 +626,6 @@ export default function DashboardClient({
       };
     });
   })();
-
-  const handleRankingSort = (key: SortKey) => {
-    if (rankingSortKey === key) {
-      setRankingSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setRankingSortKey(key);
-      // default: pontos em ordem desc, nome em ordem asc
-      setRankingSortDir(key === "totalPoints" ? "desc" : "asc");
-    }
-  };
-
-  const renderSortIcon = (key: SortKey) => {
-    if (rankingSortKey !== key) return "↕";
-    return rankingSortDir === "asc" ? "▲" : "▼";
-  };
 
   return (
     <>
@@ -769,7 +736,7 @@ export default function DashboardClient({
                   value={g.id}
                   style={{
                     backgroundColor: "#020617",
-                    color: "#e5e7eb", // mais contraste nas opções
+                    color: "#e5e7eb",
                   }}
                 >
                   {g.name}
@@ -1046,6 +1013,7 @@ export default function DashboardClient({
             gap: 8,
             alignItems: "baseline",
             marginBottom: 10,
+            flexWrap: "wrap",
           }}
         >
           <div>
@@ -1074,7 +1042,82 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {sortedRanking.length === 0 ? (
+        {/* Card do churrasco – último colocado real */}
+        {lastPlace && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              marginBottom: 14,
+              padding: "10px 12px",
+              borderRadius: 18,
+              border: "1px solid rgba(248,113,113,0.6)",
+              background:
+                "linear-gradient(135deg, rgba(248,113,113,0.16), rgba(15,23,42,0.95))",
+              flexWrap: "wrap",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                minWidth: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.16em",
+                  color: "#fca5a5",
+                }}
+              >
+                Quem vai pagar o próximo churrasco?
+              </span>
+              <span
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {lastPlace.label}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#9ca3af",
+                }}
+              >
+                Último colocado no ranking neste período.
+              </span>
+            </div>
+
+            <div
+              aria-hidden="true"
+              style={{
+                minWidth: 56,
+                minHeight: 56,
+                borderRadius: "999px",
+                border: "2px solid rgba(248,113,113,0.9)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 26,
+                fontWeight: 800,
+              }}
+            >
+              🥩
+            </div>
+          </div>
+        )}
+
+        {ranking.length === 0 ? (
           <p
             style={{
               fontSize: 13,
@@ -1090,164 +1133,161 @@ export default function DashboardClient({
             style={{
               width: "100%",
               overflowX: "auto",
-              maxHeight: 360, // ~12 linhas, depois scroll
-              overflowY: "auto",
             }}
           >
-            <table
+            <div
               style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                minWidth: 420,
+                maxHeight: 360,
+                overflowY: ranking.length > 12 ? "auto" : "visible",
               }}
             >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid rgba(55,65,81,0.8)",
-                    color: "#9ca3af",
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
-                  <th style={{ padding: "8px 4px" }}>
-                    <button
-                      type="button"
-                      onClick={() => handleRankingSort("label")}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "inherit",
-                        font: "inherit",
-                        padding: 0,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span>Atleta</span>
-                      <span
-                        style={{
-                          fontSize: 10,
-                        }}
-                      >
-                        {renderSortIcon("label")}
-                      </span>
-                    </button>
-                  </th>
-                  <th
-                    style={{
-                      padding: "8px 4px",
-                      textAlign: "right",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleRankingSort("totalPoints")}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "inherit",
-                        font: "inherit",
-                        padding: 0,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        cursor: "pointer",
-                      }}
-                    >
-                      <span>Pontos</span>
-                      <span
-                        style={{
-                          fontSize: 10,
-                        }}
-                      >
-                        {renderSortIcon("totalPoints")}
-                      </span>
-                    </button>
-                  </th>
-                  <th
-                    style={{
-                      padding: "8px 4px",
-                      textAlign: "right",
-                    }}
-                  >
-                    Horas (total)
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRanking.map((r) => (
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 12,
+                  minWidth: 420,
+                }}
+              >
+                <thead>
                   <tr
-                    key={r.userId}
                     style={{
-                      borderBottom: "1px solid rgba(31,41,55,0.7)",
-                      background: r.isCurrent
-                        ? "linear-gradient(to right, rgba(34,197,94,0.18), transparent)"
-                        : "transparent",
+                      borderBottom: "1px solid rgba(55,65,81,0.8)",
+                      color: "#9ca3af",
+                      textAlign: "left",
                     }}
                   >
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
-                      #{r.rankByPoints}
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        maxWidth: 220,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
-                      {r.label}
-                      {r.isCurrent && (
-                        <span
-                          style={{
-                            marginLeft: 6,
-                            fontSize: 10,
-                            padding: "1px 6px",
-                            borderRadius: 999,
-                            border: "1px solid rgba(34,197,94,0.6)",
-                            color: "#bbf7d0",
-                          }}
-                        >
-                          Você
-                        </span>
-                      )}
-                    </td>
-                    <td
+                    <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
+                    <th style={{ padding: "8px 4px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setRankingSortKey("name")}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          margin: 0,
+                          fontSize: 12,
+                          color:
+                            rankingSortKey === "name"
+                              ? "#e5e7eb"
+                              : "#9ca3af",
+                          fontWeight:
+                            rankingSortKey === "name" ? 600 : 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Atleta
+                      </button>
+                    </th>
+                    <th
                       style={{
                         padding: "8px 4px",
                         textAlign: "right",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
                       }}
                     >
-                      {r.totalPoints}
-                    </td>
-                    <td
+                      <button
+                        type="button"
+                        onClick={() => setRankingSortKey("points")}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          margin: 0,
+                          fontSize: 12,
+                          color:
+                            rankingSortKey === "points"
+                              ? "#e5e7eb"
+                              : "#9ca3af",
+                          fontWeight:
+                            rankingSortKey === "points" ? 600 : 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Pontos
+                      </button>
+                    </th>
+                    <th
                       style={{
                         padding: "8px 4px",
                         textAlign: "right",
-                        whiteSpace: "nowrap",
-                        color: "#9ca3af",
                       }}
                     >
-                      {r.totalHours.toFixed(1)} h
-                    </td>
+                      Horas (total)
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {displayRanking.map((r) => (
+                    <tr
+                      key={r.userId}
+                      style={{
+                        borderBottom: "1px solid rgba(31,41,55,0.7)",
+                        background: r.isCurrent
+                          ? "linear-gradient(to right, rgba(34,197,94,0.18), transparent)"
+                          : "transparent",
+                      }}
+                    >
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          whiteSpace: "nowrap",
+                          fontWeight: r.isCurrent ? 700 : 500,
+                        }}
+                      >
+                        #{r.rankPosition}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          maxWidth: 220,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontWeight: r.isCurrent ? 700 : 500,
+                        }}
+                      >
+                        {r.label}
+                        {r.isCurrent && (
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 10,
+                              padding: "1px 6px",
+                              borderRadius: 999,
+                              border: "1px solid rgba(34,197,94,0.6)",
+                              color: "#bbf7d0",
+                            }}
+                          >
+                            Você
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          textAlign: "right",
+                          whiteSpace: "nowrap",
+                          fontWeight: r.isCurrent ? 700 : 500,
+                        }}
+                      >
+                        {r.totalPoints}
+                      </td>
+                      <td
+                        style={{
+                          padding: "8px 4px",
+                          textAlign: "right",
+                          whiteSpace: "nowrap",
+                          color: "#9ca3af",
+                        }}
+                      >
+                        {r.totalHours.toFixed(1)} h
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </section>
