@@ -784,102 +784,77 @@ export default function DashboardClient({
         })}
       </div>
 
-      {/* MEME DO CHURRASCO (estilo mais simples) */}
+      {/* MEME DO CHURRASCO – versão original mais simples */}
       {lastPlace && (
         <section
           style={{
-            borderRadius: 20,
-            border: "1px solid rgba(248,113,113,0.7)",
-            background:
-              "linear-gradient(135deg, rgba(30,64,175,0.9), #020617 60%)",
-            padding: "12px 14px",
-            marginBottom: 18,
             display: "flex",
-            flexDirection: "column",
-            gap: 6,
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 18,
+            padding: "10px 12px",
+            borderRadius: 18,
+            border: "1px solid rgba(248,113,113,0.6)",
+            background:
+              "linear-gradient(135deg, rgba(248,113,113,0.16), rgba(15,23,42,0.95))",
+            flexWrap: "wrap",
           }}
         >
-          <p
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              letterSpacing: "0.16em",
-              color: "#fecaca",
-              margin: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span>🔥🍖</span>
-            <span>Quem vai pagar o próximo churrasco?</span>
-          </p>
-
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-              gap: 8,
+              flexDirection: "column",
+              gap: 4,
+              minWidth: 0,
             }}
           >
-            <div>
-              <p
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  margin: 0,
-                }}
-              >
-                {lastPlace.label}
-                {lastPlace.isCurrent && (
-                  <span
-                    style={{
-                      marginLeft: 8,
-                      fontSize: 10,
-                      padding: "2px 8px",
-                      borderRadius: 999,
-                      border: "1px solid rgba(248,250,252,0.5)",
-                      color: "#fee2e2",
-                    }}
-                  >
-                    Parece que é você 😅
-                  </span>
-                )}
-              </p>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#e5e7eb",
-                  margin: 0,
-                  marginTop: 2,
-                }}
-              >
-                Último colocado no ranking do período selecionado.
-              </p>
-            </div>
-
-            <div
+            <span
               style={{
-                textAlign: "right",
                 fontSize: 11,
-                color: "#e5e7eb",
-                minWidth: 120,
+                textTransform: "uppercase",
+                letterSpacing: "0.16em",
+                color: "#fca5a5",
               }}
             >
-              <div>Pontos: {lastPlace.totalPoints}</div>
-              <div>Horas: {lastPlace.totalHours.toFixed(1)} h</div>
-              <div
-                style={{
-                  marginTop: 4,
-                  fontStyle: "italic",
-                  color: "#fee2e2",
-                }}
-              >
-                Ainda dá tempo de fugir desse churrasco! 💨
-              </div>
-            </div>
+              Quem vai pagar o próximo churrasco?
+            </span>
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {lastPlace.label}
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                color: "#9ca3af",
+              }}
+            >
+              Último colocado no ranking neste período.
+            </span>
+          </div>
+
+          <div
+            aria-hidden="true"
+            style={{
+              minWidth: 56,
+              minHeight: 56,
+              borderRadius: "999px",
+              border: "2px solid rgba(248,113,113,0.9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 26,
+              fontWeight: 800,
+            }}
+          >
+            🥩
           </div>
         </section>
       )}
