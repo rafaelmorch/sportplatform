@@ -32,12 +32,30 @@ export default function LeaveGroupButton({ groupSlug }: LeaveGroupButtonProps) {
       return;
     }
 
-    // 2) Remover da tabela group_members
+    // 2) Descobrir o ID do grupo a partir do slug
+    const { data: groupRow, error: groupError } = await supabase
+      .from("training_groups")
+      .select("id")
+      .eq("slug", groupSlug)
+      .maybeSingle();
+
+    if (groupError) {
+      console.error("Erro ao buscar o grupo para sair:", groupError);
+      setErrorMessage("Não foi possível identificar o grupo.");
+      return;
+    }
+
+    if (!groupRow) {
+      setErrorMessage("Grupo não encontrado.");
+      return;
+    }
+
+    // 3) Remover da tabela correta: training_group_members
     const { error: deleteError } = await supabase
-      .from("group_members")
+      .from("training_group_members")
       .delete()
-      .eq("userId", user.id)
-      .eq("groupSlug", groupSlug);
+      .eq("user_id", user.id)
+      .eq("group_id", groupRow.id);
 
     if (deleteError) {
       console.error("Erro ao sair do grupo:", deleteError);
@@ -45,7 +63,7 @@ export default function LeaveGroupButton({ groupSlug }: LeaveGroupButtonProps) {
       return;
     }
 
-    // 3) Atualizar a tela (contagem de membros etc.)
+    // 4) Atualizar a tela (contagem de membros etc.)
     startTransition(() => router.refresh());
   };
 
