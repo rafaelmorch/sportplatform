@@ -480,6 +480,9 @@ export default function DashboardClient({
   const athleteLabel =
     athleteName ?? (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
 
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId);
+  const selectedGroupName = selectedGroup?.name ?? "Grupo";
+
   // -----------------------------
   // RANKING DO GRUPO (com user_activities)
   // -----------------------------
@@ -628,7 +631,14 @@ export default function DashboardClient({
   })();
 
   return (
-    <>
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 1100,
+        margin: "0 auto",
+        paddingBottom: 80,
+      }}
+    >
       {/* Header */}
       <header
         style={{
@@ -923,8 +933,8 @@ export default function DashboardClient({
               textTransform: "uppercase",
             }}
           >
-            Grupo
-            {range === "all" ? " · todo período" : " · período selecionado"}
+            {selectedGroupName.toUpperCase()} ·{" "}
+            {range === "all" ? "TODO PERÍODO" : "PERÍODO SELECIONADO"}
           </p>
           <p
             style={{
@@ -942,8 +952,9 @@ export default function DashboardClient({
               marginBottom: 8,
             }}
           >
-            Distância total somando todos os atletas do grupo selecionado (apenas
-            quem tem Strava conectado) no período filtrado.
+            Distância total somando todos os atletas do grupo{" "}
+            <strong>{selectedGroupName}</strong> (apenas quem tem Strava
+            conectado) no período filtrado.
           </p>
 
           <div
@@ -1137,7 +1148,7 @@ export default function DashboardClient({
           >
             <div
               style={{
-                maxHeight: 360,
+                maxHeight: ranking.length > 12 ? "50vh" : "none",
                 overflowY: ranking.length > 12 ? "auto" : "visible",
               }}
             >
@@ -1459,6 +1470,6 @@ export default function DashboardClient({
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
