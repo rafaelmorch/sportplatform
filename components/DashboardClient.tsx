@@ -508,6 +508,10 @@ export default function DashboardClient({
     return entries;
   })();
 
+  // Último colocado pro meme do churrasco
+  const lastPlace =
+    ranking.length > 0 ? ranking[ranking.length - 1] : null;
+
   // -----------------------------
   // EVOLUÇÃO DOS TREINOS (MINUTOS) - 3 linhas
   // -----------------------------
@@ -591,7 +595,12 @@ export default function DashboardClient({
   })();
 
   return (
-    <>
+    <div
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
       {/* Header */}
       <header
         style={{
@@ -606,6 +615,7 @@ export default function DashboardClient({
             display: "flex",
             gap: 8,
             alignItems: "center",
+            flexWrap: "wrap",
           }}
         >
           <div
@@ -691,6 +701,7 @@ export default function DashboardClient({
                 color: "#e5e7eb",
                 outline: "none",
                 cursor: "pointer",
+                maxWidth: "100%",
               }}
             >
               {groups.map((g) => (
@@ -729,7 +740,7 @@ export default function DashboardClient({
           }}
         >
           Visão geral do ranking do grupo selecionado, evolução dos treinos (em
-          minutos) e resumo das suas atividades (Strava).
+          minutos), meme do churrasco e resumo das suas atividades (Strava).
         </p>
       </header>
 
@@ -771,6 +782,101 @@ export default function DashboardClient({
         })}
       </div>
 
+      {/* MEME DO CHURRASCO */}
+      {lastPlace && (
+        <section
+          style={{
+            borderRadius: 20,
+            border: "1px solid rgba(248,113,113,0.6)",
+            background:
+              "radial-gradient(circle at top left, rgba(30,64,175,1), #020617 55%, #000000 100%)",
+            padding: "14px 14px",
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#fecaca",
+              margin: 0,
+            }}
+          >
+            Quem vai pagar o próximo churrasco?
+          </p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  margin: 0,
+                }}
+              >
+                {lastPlace.label}
+                {lastPlace.isCurrent && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      fontSize: 10,
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(248,250,252,0.6)",
+                      color: "#fee2e2",
+                    }}
+                  >
+                    Parece que é você 😅
+                  </span>
+                )}
+              </p>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#e5e7eb",
+                  margin: 0,
+                  marginTop: 2,
+                }}
+              >
+                Último colocado no ranking do grupo neste período.
+              </p>
+            </div>
+
+            <div
+              style={{
+                textAlign: "right",
+                fontSize: 11,
+                color: "#e5e7eb",
+                minWidth: 120,
+              }}
+            >
+              <div>Pontos: {lastPlace.totalPoints}</div>
+              <div>Horas: {lastPlace.totalHours.toFixed(1)} h</div>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontStyle: "italic",
+                  color: "#fee2e2",
+                }}
+              >
+                Bora fugir desse churrasco na próxima semana 👀
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* RANKING DO GRUPO (user_activities) */}
       <section
         style={{
@@ -789,6 +895,7 @@ export default function DashboardClient({
             gap: 8,
             alignItems: "baseline",
             marginBottom: 10,
+            flexWrap: "wrap",
           }}
         >
           <div>
@@ -1058,6 +1165,7 @@ export default function DashboardClient({
             gap: 8,
             alignItems: "baseline",
             marginBottom: 10,
+            flexWrap: "wrap",
           }}
         >
           <div>
@@ -1193,6 +1301,6 @@ export default function DashboardClient({
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }
