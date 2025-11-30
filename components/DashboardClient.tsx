@@ -32,7 +32,7 @@ type DashboardClientProps = {
 };
 
 type RankingEntry = {
-  athleteId: number;
+  userId: string;
   label: string;
   totalPoints: number;
   totalHours: number;
@@ -50,6 +50,14 @@ export type EvolutionPoint = {
   userMinutes: number;
   groupAvgMinutes: number;
   leaderMinutes: number;
+};
+
+type GroupActivityRow = {
+  user_id: string;
+  start_date: string;
+  type: string | null;
+  minutes: number;
+  full_name: string | null;
 };
 
 function metersToKm(distance: number | null | undefined): number {
@@ -125,11 +133,11 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
 }
 
 // ---------------------
-// PONTUAÇÃO DO RANKING
+// PONTUAÇÃO DO RANKING (user_activities)
 // ---------------------
 
-function isWalkingActivity(a: StravaActivity): boolean {
-  const t = (a.sport_type ?? a.type ?? "").toLowerCase();
+function isWalkingType(type: string | null | undefined): boolean {
+  const t = (type ?? "").toLowerCase();
   return t.includes("walk") || t.includes("hike") || t.includes("caminhada");
 }
 
@@ -137,11 +145,12 @@ function isWalkingActivity(a: StravaActivity): boolean {
  * Regra:
  * - Atividades que NÃO são caminhada: 1h = 100 pontos
  * - Caminhada: 1h = 15 pontos
+ * (usando minutos da tabela user_activities)
  */
-function getActivityPoints(a: StravaActivity): number {
-  if (!a.moving_time || a.moving_time <= 0) return 0;
-  const hours = a.moving_time / 3600; // segundos → horas
-  const rate = isWalkingActivity(a) ? 15 : 100;
+function getUserActivityPoints(type: string | null, minutes: number): number {
+  if (!minutes || minutes <= 0) return 0;
+  const hours = minutes / 60;
+  const rate = isWalkingType(type) ? 15 : 100;
   return hours * rate;
 }
 
@@ -151,13 +160,18 @@ export default function DashboardClient({
   const [range, setRange] = useState<RangeKey>("30d");
 
   const [currentAthleteId, setCurrentAthleteId] = useState<number | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [athleteName, setAthleteName] = useState<string | null>(null);
   const [loadingAthlete, setLoadingAthlete] = useState(true);
 
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupAthleteIds, setGroupAthleteIds] = useState<number[] | null>(null);
+  const [groupUserActivities, setGroupUserActivities] = useState<
+    GroupActivityRow[]
+  >([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingGroupActivities, setLoadingGroupActivities] = useState(false);
 
   // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
@@ -180,6 +194,8 @@ export default function DashboardClient({
           setLoadingAthlete(false);
           return;
         }
+
+        setCurrentUserId(user.id);
 
         // Perfil (nome)
         const { data: profile, error: profileError } = await supabase
@@ -219,9 +235,8 @@ export default function DashboardClient({
         // Grupos em que o usuário participa
         setLoadingGroups(true);
 
-        // 1) vínculos na tabela de membros
         const { data: memberRows, error: memberError } = await supabase
-          .from("training_group_members") // tabela de membros
+          .from("training_group_members")
           .select("group_id")
           .eq("user_id", user.id);
 
@@ -232,7 +247,6 @@ export default function DashboardClient({
             new Set(memberRows.map((m: any) => m.group_id as string))
           );
 
-          // 2) dados dos grupos (usa title como nome)
           const { data: groupRows, error: groupError } = await supabase
             .from("training_groups")
             .select("id, title")
@@ -266,11 +280,69 @@ export default function DashboardClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Carrega os athlete_ids dos membros do grupo selecionado
+  // Helper para carregar atividades de user_activities dos membros do grupo
+  const loadGroupUserActivities = async (userIds: string[]) => {
+    if (!userIds || userIds.length === 0) {
+      setGroupUserActivities([]);
+      return;
+    }
+
+    try {
+      setLoadingGroupActivities(true);
+
+      const { data: activitiesData, error: activitiesError } = await supabase
+        .from("user_activities")
+        .select("user_id, start_date, type, minutes")
+        .in("user_id", userIds);
+
+      if (activitiesError) {
+        console.error(
+          "Erro ao carregar user_activities do grupo:",
+          activitiesError
+        );
+        setGroupUserActivities([]);
+        return;
+      }
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
+
+      if (profilesError) {
+        console.error("Erro ao carregar profiles do grupo:", profilesError);
+      }
+
+      const nameMap = new Map<string, string | null>();
+      (profilesData ?? []).forEach((p: any) => {
+        nameMap.set(p.id as string, (p.full_name as string) ?? null);
+      });
+
+      const rows: GroupActivityRow[] = (activitiesData ?? []).map(
+        (row: any) => ({
+          user_id: row.user_id as string,
+          start_date: row.start_date as string,
+          type: (row.type as string) ?? null,
+          minutes: (row.minutes as number) ?? 0,
+          full_name: nameMap.get(row.user_id as string) ?? null,
+        })
+      );
+
+      setGroupUserActivities(rows);
+    } catch (err) {
+      console.error("Erro inesperado ao carregar atividades do grupo:", err);
+      setGroupUserActivities([]);
+    } finally {
+      setLoadingGroupActivities(false);
+    }
+  };
+
+  // Carrega os athlete_ids E os user_activities dos membros do grupo selecionado
   useEffect(() => {
     const loadGroupAthletes = async () => {
       if (!selectedGroupId) {
         setGroupAthleteIds(null);
+        setGroupUserActivities([]);
         return;
       }
 
@@ -278,17 +350,23 @@ export default function DashboardClient({
         setLoadingGroups(true);
 
         const { data: members, error: membersError } = await supabase
-          .from("training_group_members") // mesma tabela de membros
+          .from("training_group_members")
           .select("user_id")
           .eq("group_id", selectedGroupId);
 
         if (membersError) {
           console.error("Erro ao carregar membros do grupo:", membersError);
           setGroupAthleteIds(null);
+          setGroupUserActivities([]);
           return;
         }
 
-        const userIds = (members ?? []).map((m: any) => m.user_id);
+        const userIds = (members ?? []).map((m: any) => m.user_id as string);
+
+        // carrega atividades de user_activities para TODOS os membros do grupo
+        await loadGroupUserActivities(userIds);
+
+        // Mapeia para athlete_ids (Strava) quando existir
         if (userIds.length === 0) {
           setGroupAthleteIds([]);
           return;
@@ -316,6 +394,7 @@ export default function DashboardClient({
       } catch (err) {
         console.error("Erro inesperado ao carregar atletas do grupo:", err);
         setGroupAthleteIds(null);
+        setGroupUserActivities([]);
       } finally {
         setLoadingGroups(false);
       }
@@ -324,15 +403,16 @@ export default function DashboardClient({
     if (selectedGroupId) {
       loadGroupAthletes();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId]);
 
   const now = new Date();
 
+  // Atividades Strava dentro do range (ainda usadas para alguns cards/tabela)
   const activitiesInRange = activities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
 
-  // Aplica filtro de grupo (somente atletas do grupo selecionado)
   let groupActivities = activitiesInRange;
   if (groupAthleteIds && groupAthleteIds.length > 0) {
     groupActivities = groupActivities.filter(
@@ -342,7 +422,6 @@ export default function DashboardClient({
     );
   }
 
-  // Atividades do atleta atual dentro do grupo selecionado
   const athleteActivities =
     currentAthleteId != null
       ? groupActivities.filter((a) => a.athlete_id === currentAthleteId)
@@ -393,37 +472,49 @@ export default function DashboardClient({
   ];
 
   const athleteLabel =
-    athleteName ??
-    (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
+    athleteName ?? (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
 
-  // RANKING DO GRUPO
-
+  // -----------------------------
+  // RANKING DO GRUPO (com user_activities)
+  // -----------------------------
   const ranking: RankingEntry[] = (() => {
-    const map = new Map<number, { points: number; hours: number }>();
+    if (!groupUserActivities || groupUserActivities.length === 0) return [];
 
-    for (const a of groupActivities) {
-      if (!a.athlete_id) continue;
+    const filtered = groupUserActivities.filter((a) =>
+      isInRange(a.start_date, range, now)
+    );
+    if (filtered.length === 0) return [];
 
-      const pts = getActivityPoints(a);
-      const hours = a.moving_time ? a.moving_time / 3600 : 0;
+    const map = new Map<
+      string,
+      { points: number; hours: number; name: string | null }
+    >();
 
-      const prev = map.get(a.athlete_id) ?? { points: 0, hours: 0 };
-      map.set(a.athlete_id, {
+    for (const a of filtered) {
+      const minutes = a.minutes ?? 0;
+      const pts = getUserActivityPoints(a.type, minutes);
+      const hours = minutes / 60;
+
+      const prev = map.get(a.user_id) ?? {
+        points: 0,
+        hours: 0,
+        name: a.full_name,
+      };
+
+      map.set(a.user_id, {
         points: prev.points + pts,
         hours: prev.hours + hours,
+        name: a.full_name ?? prev.name,
       });
     }
 
     const entries: RankingEntry[] = Array.from(map.entries()).map(
-      ([athleteId, v]) => ({
-        athleteId,
-        label:
-          currentAthleteId === athleteId && athleteName
-            ? athleteName
-            : `Atleta ${athleteId}`,
+      ([userId, v]) => ({
+        userId,
+        label: v.name ?? `Atleta ${userId.slice(0, 8)}`,
         totalPoints: Math.round(v.points),
         totalHours: v.hours,
-        isCurrent: athleteId === currentAthleteId,
+        isCurrent: currentUserId === userId,
       })
     );
 
@@ -432,45 +523,51 @@ export default function DashboardClient({
   })();
 
   // -----------------------------
-  // EVOLUÇÃO DOS TREINOS (MINUTOS)
-  // 3 linhas: líder, média do grupo, usuário
+  // EVOLUÇÃO DOS TREINOS (MINUTOS) - 3 linhas
   // -----------------------------
   const evolutionData: EvolutionPoint[] = (() => {
-    const userMap = new Map<string, number>(); // date -> minutos
-    const leaderMap = new Map<string, number>();
+    if (!groupUserActivities || groupUserActivities.length === 0) return [];
+
+    const filtered = groupUserActivities.filter((a) =>
+      isInRange(a.start_date, range, now)
+    );
+    if (filtered.length === 0) return [];
+
+    const leaderId = ranking.length > 0 ? ranking[0].userId : null;
+
+    const userMap = new Map<string, number>(); // date -> minutos do usuário
+    const leaderMap = new Map<string, number>(); // date -> minutos do líder
     const groupMap = new Map<
       string,
-      { totalMinutes: number; athleteIds: Set<number> }
+      { totalMinutes: number; userIds: Set<string> }
     >();
 
-    // quem é o líder do ranking?
-    const leaderId = ranking.length > 0 ? ranking[0].athleteId : null;
-
-    for (const a of groupActivities) {
-      if (!a.start_date || !a.moving_time) continue;
+    for (const a of filtered) {
+      if (!a.start_date) continue;
       const d = new Date(a.start_date);
       if (Number.isNaN(d.getTime())) continue;
 
       const key = d.toISOString().slice(0, 10);
-      const mins = a.moving_time / 60;
+      const minutes = a.minutes ?? 0;
 
       // grupo (para média)
       const gPrev =
-        groupMap.get(key) ?? { totalMinutes: 0, athleteIds: new Set<number>() };
-      gPrev.totalMinutes += mins;
-      if (typeof a.athlete_id === "number") {
-        gPrev.athleteIds.add(a.athlete_id);
-      }
+        groupMap.get(key) ?? {
+          totalMinutes: 0,
+          userIds: new Set<string>(),
+        };
+      gPrev.totalMinutes += minutes;
+      gPrev.userIds.add(a.user_id);
       groupMap.set(key, gPrev);
 
-      // usuário
-      if (currentAthleteId != null && a.athlete_id === currentAthleteId) {
-        userMap.set(key, (userMap.get(key) ?? 0) + mins);
+      // usuário atual
+      if (currentUserId && a.user_id === currentUserId) {
+        userMap.set(key, (userMap.get(key) ?? 0) + minutes);
       }
 
       // líder
-      if (leaderId != null && a.athlete_id === leaderId) {
-        leaderMap.set(key, (leaderMap.get(key) ?? 0) + mins);
+      if (leaderId && a.user_id === leaderId) {
+        leaderMap.set(key, (leaderMap.get(key) ?? 0) + minutes);
       }
     }
 
@@ -493,8 +590,8 @@ export default function DashboardClient({
       const leaderMinutes = leaderMap.get(key) ?? 0;
       const groupInfo = groupMap.get(key);
       const groupAvgMinutes =
-        groupInfo && groupInfo.athleteIds.size > 0
-          ? groupInfo.totalMinutes / groupInfo.athleteIds.size
+        groupInfo && groupInfo.userIds.size > 0
+          ? groupInfo.totalMinutes / groupInfo.userIds.size
           : 0;
 
       return {
@@ -616,7 +713,7 @@ export default function DashboardClient({
                   value={g.id}
                   style={{
                     backgroundColor: "#020617",
-                    color: "#e5e7eb",
+                    color: "#0f172a", // cor do texto no dropdown nativo
                   }}
                 >
                   {g.name}
@@ -625,14 +722,14 @@ export default function DashboardClient({
             </select>
           )}
 
-          {loadingGroups && (
+          {(loadingGroups || loadingGroupActivities) && (
             <span
               style={{
                 fontSize: 11,
                 color: "#9ca3af",
               }}
             >
-              Carregando grupos...
+              Carregando grupos/atividades...
             </span>
           )}
         </div>
@@ -688,7 +785,7 @@ export default function DashboardClient({
         })}
       </div>
 
-      {/* Linha 1: Atleta x Grupo */}
+      {/* Linha 1: Atleta x Grupo (dados Strava) */}
       <section
         style={{
           display: "grid",
@@ -735,7 +832,7 @@ export default function DashboardClient({
             }}
           >
             Distância total em todas as atividades deste atleta no grupo e
-            período filtrados.
+            período filtrados (dados Strava).
           </p>
 
           <div
@@ -822,8 +919,8 @@ export default function DashboardClient({
               marginBottom: 8,
             }}
           >
-            Distância total somando todos os atletas do grupo selecionado no
-            período filtrado.
+            Distância total somando todos os atletas do grupo selecionado (apenas
+            quem tem Strava conectado) no período filtrado.
           </p>
 
           <div
@@ -875,7 +972,7 @@ export default function DashboardClient({
         </div>
       </section>
 
-      {/* RANKING DO GRUPO */}
+      {/* RANKING DO GRUPO (user_activities) */}
       <section
         style={{
           borderRadius: 20,
@@ -915,8 +1012,8 @@ export default function DashboardClient({
                 margin: 0,
               }}
             >
-              Pontuação: atividades (exceto caminhada) = 100 pts/h, caminhada =
-              15 pts/h.
+              Pontuação baseada nos treinos do grupo (user_activities):
+              atividades (exceto caminhada) = 100 pts/h, caminhada = 15 pts/h.
             </p>
           </div>
         </div>
@@ -968,7 +1065,7 @@ export default function DashboardClient({
               <tbody>
                 {ranking.map((r, index) => (
                   <tr
-                    key={r.athleteId}
+                    key={r.userId}
                     style={{
                       borderBottom: "1px solid rgba(31,41,55,0.7)",
                       background: r.isCurrent
@@ -1039,7 +1136,7 @@ export default function DashboardClient({
         )}
       </section>
 
-      {/* Gráfico ÚNICO: Evolução dos treinos */}
+      {/* Gráfico ÚNICO: Evolução dos treinos (user_activities) */}
       <section
         style={{
           borderRadius: 20,
@@ -1053,7 +1150,7 @@ export default function DashboardClient({
         <DashboardCharts evolutionData={evolutionData} />
       </section>
 
-      {/* Últimas atividades */}
+      {/* Últimas atividades (Strava) */}
       <section
         style={{
           borderRadius: 20,
@@ -1093,8 +1190,8 @@ export default function DashboardClient({
                 margin: 0,
               }}
             >
-              As 10 atividades mais recentes do grupo selecionado dentro do
-              filtro atual.
+              As 10 atividades mais recentes (Strava) do grupo selecionado
+              dentro do filtro atual.
             </p>
           </div>
         </div>
@@ -1107,7 +1204,7 @@ export default function DashboardClient({
               marginTop: 8,
             }}
           >
-            Nenhuma atividade encontrada nesse período para o grupo
+            Nenhuma atividade Strava encontrada nesse período para o grupo
             selecionado.
           </p>
         ) : (
