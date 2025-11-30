@@ -15,7 +15,7 @@ type StravaActivity = {
   sport_type: string | null;
   start_date: string | null;
   distance: number | null;
-  moving_time: number | null; // segundos
+  moving_time: number | null;
   total_elevation_gain: number | null;
 };
 
@@ -408,7 +408,7 @@ export default function DashboardClient({
 
   const now = new Date();
 
-  // Atividades Strava dentro do range (ainda usadas para alguns cards/tabela)
+  // Atividades Strava dentro do range
   const activitiesInRange = activities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
@@ -508,7 +508,7 @@ export default function DashboardClient({
     return entries;
   })();
 
-  // Último colocado pro meme do churrasco
+  // Último colocado pro churrasco
   const lastPlace =
     ranking.length > 0 ? ranking[ranking.length - 1] : null;
 
@@ -598,7 +598,9 @@ export default function DashboardClient({
     <div
       style={{
         width: "100%",
+        maxWidth: "100%",
         boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       {/* Header */}
@@ -739,8 +741,8 @@ export default function DashboardClient({
             marginTop: 4,
           }}
         >
-          Visão geral do ranking do grupo selecionado, evolução dos treinos (em
-          minutos), meme do churrasco e resumo das suas atividades (Strava).
+          Visão geral do ranking do grupo, meme do churrasco, evolução dos
+          treinos (minutos) e resumo das suas atividades.
         </p>
       </header>
 
@@ -782,16 +784,16 @@ export default function DashboardClient({
         })}
       </div>
 
-      {/* MEME DO CHURRASCO */}
+      {/* MEME DO CHURRASCO (estilo mais simples) */}
       {lastPlace && (
         <section
           style={{
             borderRadius: 20,
-            border: "1px solid rgba(248,113,113,0.6)",
+            border: "1px solid rgba(248,113,113,0.7)",
             background:
-              "radial-gradient(circle at top left, rgba(30,64,175,1), #020617 55%, #000000 100%)",
-            padding: "14px 14px",
-            marginBottom: 20,
+              "linear-gradient(135deg, rgba(30,64,175,0.9), #020617 60%)",
+            padding: "12px 14px",
+            marginBottom: 18,
             display: "flex",
             flexDirection: "column",
             gap: 6,
@@ -800,19 +802,24 @@ export default function DashboardClient({
           <p
             style={{
               fontSize: 11,
-              letterSpacing: "0.16em",
               textTransform: "uppercase",
+              letterSpacing: "0.16em",
               color: "#fecaca",
               margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Quem vai pagar o próximo churrasco?
+            <span>🔥🍖</span>
+            <span>Quem vai pagar o próximo churrasco?</span>
           </p>
+
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "baseline",
+              alignItems: "flex-start",
               flexWrap: "wrap",
               gap: 8,
             }}
@@ -820,8 +827,8 @@ export default function DashboardClient({
             <div>
               <p
                 style={{
-                  fontSize: 15,
-                  fontWeight: 600,
+                  fontSize: 16,
+                  fontWeight: 700,
                   margin: 0,
                 }}
               >
@@ -833,7 +840,7 @@ export default function DashboardClient({
                       fontSize: 10,
                       padding: "2px 8px",
                       borderRadius: 999,
-                      border: "1px solid rgba(248,250,252,0.6)",
+                      border: "1px solid rgba(248,250,252,0.5)",
                       color: "#fee2e2",
                     }}
                   >
@@ -849,7 +856,7 @@ export default function DashboardClient({
                   marginTop: 2,
                 }}
               >
-                Último colocado no ranking do grupo neste período.
+                Último colocado no ranking do período selecionado.
               </p>
             </div>
 
@@ -870,7 +877,7 @@ export default function DashboardClient({
                   color: "#fee2e2",
                 }}
               >
-                Bora fugir desse churrasco na próxima semana 👀
+                Ainda dá tempo de fugir desse churrasco! 💨
               </div>
             </div>
           </div>
@@ -918,8 +925,8 @@ export default function DashboardClient({
                 margin: 0,
               }}
             >
-              Pontuação baseada nos treinos do grupo (user_activities):
-              atividades (exceto caminhada) = 100 pts/h, caminhada = 15 pts/h.
+              Pontuação baseada nos treinos (user_activities): atividades (exceto
+              caminhada) = 100 pts/h, caminhada = 15 pts/h.
             </p>
           </div>
         </div>
