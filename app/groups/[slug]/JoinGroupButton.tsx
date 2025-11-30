@@ -7,9 +7,13 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type JoinGroupButtonProps = {
   groupSlug: string;
+  groupTitle: string;
 };
 
-export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
+export default function JoinGroupButton({
+  groupSlug,
+  groupTitle,
+}: JoinGroupButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
@@ -20,7 +24,8 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
   const router = useRouter();
   const supabase = supabaseBrowser;
 
-  // 1) Ao carregar, ver se o usuário JÁ está no grupo (training_group_members)
+  // 1) Ao carregar, ver se o usuário JÁ está no grupo (training_group_members),
+  // procurando o grupo primeiro pelo slug e, se não achar, pelo título.
   useEffect(() => {
     let cancelled = false;
 
@@ -38,33 +43,49 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
         return;
       }
 
-      // Descobre o id do grupo a partir do slug
-      const { data: groupRow, error: groupError } = await supabase
+      let foundGroupId: string | null = null;
+
+      // 1) tenta pelo slug
+      const { data: bySlug, error: slugError } = await supabase
         .from("training_groups")
         .select("id")
         .eq("slug", groupSlug)
         .maybeSingle();
 
-      if (groupError) {
-        console.error("Erro ao carregar grupo por slug:", groupError);
-        if (!cancelled) {
-          setErrorMessage("Não foi possível carregar o grupo.");
-          setChecking(false);
-        }
-        return;
+      if (slugError) {
+        console.error("Erro ao carregar grupo por slug:", slugError);
       }
 
-      if (!groupRow) {
+      if (bySlug) {
+        foundGroupId = bySlug.id as string;
+      } else {
+        // 2) fallback: tenta pelo título
+        const { data: byTitle, error: titleError } = await supabase
+          .from("training_groups")
+          .select("id")
+          .eq("title", groupTitle)
+          .maybeSingle();
+
+        if (titleError) {
+          console.error("Erro ao carregar grupo por título:", titleError);
+        }
+
+        if (byTitle) {
+          foundGroupId = byTitle.id as string;
+        }
+      }
+
+      if (!foundGroupId) {
         if (!cancelled) {
+          setGroupId(null);
+          setChecking(false);
           setErrorMessage("Grupo não encontrado.");
-          setChecking(false);
         }
         return;
       }
 
-      const gId = groupRow.id as string;
       if (!cancelled) {
-        setGroupId(gId);
+        setGroupId(foundGroupId);
       }
 
       // Verifica se o usuário já é membro em training_group_members
@@ -72,7 +93,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
         .from("training_group_members")
         .select("user_id")
         .eq("user_id", user.id)
-        .eq("group_id", gId)
+        .eq("group_id", foundGroupId)
         .maybeSingle();
 
       if (!cancelled) {
@@ -88,7 +109,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
     return () => {
       cancelled = true;
     };
-  }, [groupSlug, supabase]);
+  }, [groupSlug, groupTitle, supabase]);
 
   // 2) Entrar no grupo
   const handleJoinClick = async () => {

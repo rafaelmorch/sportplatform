@@ -412,7 +412,7 @@ export default function GroupDetailPage() {
                   gap: 8,
                 }}
               >
-                <JoinGroupButton groupSlug={group.slug} />
+                <JoinGroupButton groupSlug={group.slug} groupTitle={group.title} />
               </div>
             </div>
           </div>
