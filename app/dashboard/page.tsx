@@ -57,11 +57,7 @@ export default function DashboardPage() {
 
       const userId = session.user.id;
 
-      // -------------------------------------------------
-      // 2) Descobrir todos os athletes dos grupos do usuário
-      // -------------------------------------------------
-
-      // 2.1) grupos em que o usuário participa
+      // 2) grupos do usuário -> membros -> athlete_ids -> atividades
       const {
         data: myMemberships,
         error: membershipsError,
@@ -82,7 +78,6 @@ export default function DashboardPage() {
       );
 
       if (groupIds.length === 0) {
-        // não está em nenhum grupo → dashboard fica vazio
         setActivities([]);
         setEventsSummary({
           availableEvents: 0,
@@ -92,7 +87,6 @@ export default function DashboardPage() {
         return;
       }
 
-      // 2.2) todos os usuários que participam desses grupos
       const {
         data: allMembers,
         error: allMembersError,
@@ -122,7 +116,6 @@ export default function DashboardPage() {
         return;
       }
 
-      // 2.3) athlete_ids Strava desses usuários
       const {
         data: tokens,
         error: tokensError,
@@ -147,7 +140,6 @@ export default function DashboardPage() {
       );
 
       if (athleteIds.length === 0) {
-        // ninguém com Strava conectado
         setActivities([]);
         setEventsSummary({
           availableEvents: 0,
@@ -157,9 +149,6 @@ export default function DashboardPage() {
         return;
       }
 
-      // -------------------------------------------------
-      // 3) Atividades Strava de TODOS os athletes dos grupos
-      // -------------------------------------------------
       const {
         data: activitiesData,
         error: activitiesError,
@@ -191,9 +180,7 @@ export default function DashboardPage() {
 
       setActivities((activitiesData ?? []) as StravaActivity[]);
 
-      // -------------------------------------------------
-      // 4) Resumo de eventos (mantido igual)
-      // -------------------------------------------------
+      // 3) resumo de eventos
       try {
         const { count: availableEvents } = await supabase
           .from("events")
@@ -230,13 +217,18 @@ export default function DashboardPage() {
         flexDirection: "column",
         background: "#020617",
         color: "#e5e7eb",
+        width: "100%",        // <--- aqui
+        maxWidth: "100%",     // <--- aqui
+        boxSizing: "border-box",
+        overflowX: "hidden",  // garante que nada vaze
       }}
     >
       <main
         style={{
           flex: 1,
-          padding: "16px 16px 80px",
-          maxWidth: 1100,
+          padding: "16px 12px 80px",
+          width: "100%",
+          boxSizing: "border-box",
           margin: "0 auto",
         }}
       >
