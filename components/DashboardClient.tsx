@@ -37,6 +37,7 @@ type RankingEntry = {
   totalPoints: number;
   totalHours: number;
   isCurrent: boolean;
+  rankByPoints: number; // posição real no ranking, calculada por pontos
 };
 
 type SortKey = "label" | "totalPoints";
@@ -513,18 +514,30 @@ export default function DashboardClient({
       });
     }
 
-    const entries: RankingEntry[] = Array.from(map.entries()).map(
-      ([userId, v]) => ({
-        userId,
-        label: v.name ?? `Atleta ${userId.slice(0, 8)}`,
-        totalPoints: Math.round(v.points),
-        totalHours: v.hours,
-        isCurrent: currentUserId === userId,
-      })
+    const entriesBase = Array.from(map.entries()).map(([userId, v]) => ({
+      userId,
+      label: v.name ?? `Atleta ${userId.slice(0, 8)}`,
+      totalPoints: Math.round(v.points),
+      totalHours: v.hours,
+      isCurrent: currentUserId === userId,
+    }));
+
+    // calcula ranking por pontos (desc) e guarda posição real
+    const byPoints = [...entriesBase].sort(
+      (a, b) => b.totalPoints - a.totalPoints
     );
 
-    // sem ordenação aqui; a ordenação final é aplicada em sortedRanking
-    return entries;
+    const rankMap = new Map<string, number>();
+    byPoints.forEach((entry, index) => {
+      rankMap.set(entry.userId, index + 1);
+    });
+
+    const entriesWithRank: RankingEntry[] = entriesBase.map((e) => ({
+      ...e,
+      rankByPoints: rankMap.get(e.userId) ?? 0,
+    }));
+
+    return entriesWithRank;
   })();
 
   const sortedRanking: RankingEntry[] = (() => {
@@ -555,7 +568,13 @@ export default function DashboardClient({
     );
     if (filtered.length === 0) return [];
 
-    const leaderId = sortedRanking.length > 0 ? sortedRanking[0].userId : null;
+    // líder sempre baseado no maior número de pontos, independente da ordenação atual
+    const leaderId =
+      ranking.length > 0
+        ? ranking.reduce((best, curr) =>
+            !best || curr.totalPoints > best.totalPoints ? curr : best
+          )?.userId
+        : null;
 
     const userMap = new Map<string, number>(); // date -> minutos do usuário
     const leaderMap = new Map<string, number>(); // date -> minutos do líder
@@ -750,7 +769,7 @@ export default function DashboardClient({
                   value={g.id}
                   style={{
                     backgroundColor: "#020617",
-                    color: "#0f172a", // cor do texto no dropdown nativo
+                    color: "#e5e7eb", // mais contraste nas opções
                   }}
                 >
                   {g.name}
@@ -1160,7 +1179,7 @@ export default function DashboardClient({
                 </tr>
               </thead>
               <tbody>
-                {sortedRanking.map((r, index) => (
+                {sortedRanking.map((r) => (
                   <tr
                     key={r.userId}
                     style={{
@@ -1177,7 +1196,7 @@ export default function DashboardClient({
                         fontWeight: r.isCurrent ? 700 : 500,
                       }}
                     >
-                      #{index + 1}
+                      #{r.rankByPoints}
                     </td>
                     <td
                       style={{
