@@ -37,7 +37,6 @@ type RankingEntry = {
   totalPoints: number;
   totalHours: number;
   isCurrent: boolean;
-  rankPosition: number; // posição real no ranking (por pontos)
 };
 
 type GroupOption = {
@@ -173,11 +172,6 @@ export default function DashboardClient({
   >([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingGroupActivities, setLoadingGroupActivities] = useState(false);
-
-  // ordenação do ranking
-  const [rankingSortKey, setRankingSortKey] = useState<"points" | "name">(
-    "points"
-  );
 
   // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
@@ -447,20 +441,6 @@ export default function DashboardClient({
   );
   const athleteActivitiesCount = athleteActivities.length;
 
-  const groupDistance = groupActivities.reduce(
-    (sum, a) => sum + metersToKm(a.distance),
-    0
-  );
-  const groupMovingTime = groupActivities.reduce(
-    (sum, a) => sum + (a.moving_time ?? 0),
-    0
-  );
-  const groupElevation = groupActivities.reduce(
-    (sum, a) => sum + (a.total_elevation_gain ?? 0),
-    0
-  );
-  const groupActivitiesCount = groupActivities.length;
-
   const lastActivities = [...groupActivities]
     .sort((a, b) => {
       const da = a.start_date ? new Date(a.start_date).getTime() : 0;
@@ -479,9 +459,6 @@ export default function DashboardClient({
 
   const athleteLabel =
     athleteName ?? (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
-
-  const selectedGroup = groups.find((g) => g.id === selectedGroupId);
-  const selectedGroupName = selectedGroup?.name ?? "Grupo";
 
   // -----------------------------
   // RANKING DO GRUPO (com user_activities)
@@ -517,36 +494,19 @@ export default function DashboardClient({
       });
     }
 
-    const entries = Array.from(map.entries()).map(([userId, v]) => ({
-      userId,
-      label: v.name ?? `Atleta ${userId.slice(0, 8)}`,
-      totalPoints: Math.round(v.points),
-      totalHours: v.hours,
-      isCurrent: currentUserId === userId,
-      rankPosition: 0, // preenchido depois
-    }));
+    const entries: RankingEntry[] = Array.from(map.entries()).map(
+      ([userId, v]) => ({
+        userId,
+        label: v.name ?? `Atleta ${userId.slice(0, 8)}`,
+        totalPoints: Math.round(v.points),
+        totalHours: v.hours,
+        isCurrent: currentUserId === userId,
+      })
+    );
 
-    // ordenação principal = pontos (maior para menor)
     entries.sort((a, b) => b.totalPoints - a.totalPoints);
-
-    // define posição real no ranking
-    entries.forEach((entry, idx) => {
-      entry.rankPosition = idx + 1;
-    });
-
     return entries;
   })();
-
-  // Último colocado REAL (baseado em pontos)
-  const lastPlace = ranking.length > 0 ? ranking[ranking.length - 1] : null;
-
-  // Ranking que será exibido (pode ser reordenado para fins de visualização)
-  const displayRanking =
-    rankingSortKey === "name"
-      ? [...ranking].sort((a, b) =>
-          a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" })
-        )
-      : ranking;
 
   // -----------------------------
   // EVOLUÇÃO DOS TREINOS (MINUTOS) - 3 linhas
@@ -631,14 +591,7 @@ export default function DashboardClient({
   })();
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: 1100,
-        margin: "0 auto",
-        paddingBottom: 80,
-      }}
-    >
+    <>
       {/* Header */}
       <header
         style={{
@@ -775,8 +728,8 @@ export default function DashboardClient({
             marginTop: 4,
           }}
         >
-          Visão geral do atleta, do grupo selecionado, ranking de pontos e
-          evolução dos treinos (minutos de atividade).
+          Visão geral do ranking do grupo selecionado, evolução dos treinos (em
+          minutos) e resumo das suas atividades (Strava).
         </p>
       </header>
 
@@ -818,194 +771,6 @@ export default function DashboardClient({
         })}
       </div>
 
-      {/* Linha 1: Atleta x Grupo (dados Strava) */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
-        {/* Atleta */}
-        <div
-          style={{
-            borderRadius: 18,
-            padding: "14px 14px",
-            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-            border: "1px solid rgba(34,197,94,0.35)",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              color: "#86efac",
-              marginBottom: 4,
-              textTransform: "uppercase",
-            }}
-          >
-            {athleteLabel}
-            {range === "all" ? " · todo período" : " · período selecionado"}
-            {loadingAthlete ? " (carregando...)" : ""}
-          </p>
-          <p
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              marginBottom: 2,
-            }}
-          >
-            {athleteDistance.toFixed(1)} km
-          </p>
-          <p
-            style={{
-              fontSize: 11,
-              color: "#6b7280",
-              marginBottom: 8,
-            }}
-          >
-            Distância total em todas as atividades deste atleta no grupo e
-            período filtrados (dados Strava).
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 8,
-              fontSize: 11,
-              color: "#9ca3af",
-            }}
-          >
-            <div>
-              <div>Tempo em movimento</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                }}
-              >
-                {formatDuration(athleteMovingTime)}
-              </div>
-            </div>
-            <div>
-              <div>Elevação acumulada</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                }}
-              >
-                {Math.round(athleteElevation)} m
-              </div>
-            </div>
-            <div>
-              <div>Atividades</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                }}
-              >
-                {athleteActivitiesCount}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Grupo */}
-        <div
-          style={{
-            borderRadius: 18,
-            padding: "14px 14px",
-            background: "radial-gradient(circle at top, #0b1120, #020617 60%)",
-            border: "1px solid rgba(59,130,246,0.35)",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              color: "#93c5fd",
-              marginBottom: 4,
-              textTransform: "uppercase",
-            }}
-          >
-            {selectedGroupName.toUpperCase()} ·{" "}
-            {range === "all" ? "TODO PERÍODO" : "PERÍODO SELECIONADO"}
-          </p>
-          <p
-            style={{
-              fontSize: 22,
-              fontWeight: 700,
-              marginBottom: 2,
-            }}
-          >
-            {groupDistance.toFixed(1)} km
-          </p>
-          <p
-            style={{
-              fontSize: 11,
-              color: "#6b7280",
-              marginBottom: 8,
-            }}
-          >
-            Distância total somando todos os atletas do grupo{" "}
-            <strong>{selectedGroupName}</strong> (apenas quem tem Strava
-            conectado) no período filtrado.
-          </p>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 8,
-              fontSize: 11,
-              color: "#9ca3af",
-            }}
-          >
-            <div>
-              <div>Tempo em movimento</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                }}
-              >
-                {formatDuration(groupMovingTime)}
-              </div>
-            </div>
-            <div>
-              <div>Elevação acumulada</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                }}
-              >
-                {Math.round(groupElevation)} m
-              </div>
-            </div>
-            <div>
-              <div>Atividades</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#e5e7eb",
-                }}
-              >
-                {groupActivitiesCount}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* RANKING DO GRUPO (user_activities) */}
       <section
         style={{
@@ -1024,7 +789,6 @@ export default function DashboardClient({
             gap: 8,
             alignItems: "baseline",
             marginBottom: 10,
-            flexWrap: "wrap",
           }}
         >
           <div>
@@ -1053,81 +817,6 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {/* Card do churrasco – último colocado real */}
-        {lastPlace && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              marginBottom: 14,
-              padding: "10px 12px",
-              borderRadius: 18,
-              border: "1px solid rgba(248,113,113,0.6)",
-              background:
-                "linear-gradient(135deg, rgba(248,113,113,0.16), rgba(15,23,42,0.95))",
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 4,
-                minWidth: 0,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.16em",
-                  color: "#fca5a5",
-                }}
-              >
-                Quem vai pagar o próximo churrasco?
-              </span>
-              <span
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {lastPlace.label}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "#9ca3af",
-                }}
-              >
-                Último colocado no ranking neste período.
-              </span>
-            </div>
-
-            <div
-              aria-hidden="true"
-              style={{
-                minWidth: 56,
-                minHeight: 56,
-                borderRadius: "999px",
-                border: "2px solid rgba(248,113,113,0.9)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 26,
-                fontWeight: 800,
-              }}
-            >
-              🥩
-            </div>
-          </div>
-        )}
-
         {ranking.length === 0 ? (
           <p
             style={{
@@ -1144,161 +833,105 @@ export default function DashboardClient({
             style={{
               width: "100%",
               overflowX: "auto",
+              maxHeight: 360,
             }}
           >
-            <div
+            <table
               style={{
-                maxHeight: ranking.length > 12 ? "50vh" : "none",
-                overflowY: ranking.length > 12 ? "auto" : "visible",
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 12,
+                minWidth: 360,
               }}
             >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 12,
-                  minWidth: 420,
-                }}
-              >
-                <thead>
+              <thead>
+                <tr
+                  style={{
+                    borderBottom: "1px solid rgba(55,65,81,0.8)",
+                    color: "#9ca3af",
+                    textAlign: "left",
+                  }}
+                >
+                  <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
+                  <th style={{ padding: "8px 4px" }}>Atleta</th>
+                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                    Pontos
+                  </th>
+                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                    Horas (total)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {ranking.map((r, index) => (
                   <tr
+                    key={r.userId}
                     style={{
-                      borderBottom: "1px solid rgba(55,65,81,0.8)",
-                      color: "#9ca3af",
-                      textAlign: "left",
+                      borderBottom: "1px solid rgba(31,41,55,0.7)",
+                      background: r.isCurrent
+                        ? "linear-gradient(to right, rgba(34,197,94,0.18), transparent)"
+                        : "transparent",
                     }}
                   >
-                    <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
-                    <th style={{ padding: "8px 4px" }}>
-                      <button
-                        type="button"
-                        onClick={() => setRankingSortKey("name")}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          margin: 0,
-                          fontSize: 12,
-                          color:
-                            rankingSortKey === "name"
-                              ? "#e5e7eb"
-                              : "#9ca3af",
-                          fontWeight:
-                            rankingSortKey === "name" ? 600 : 500,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Atleta
-                      </button>
-                    </th>
-                    <th
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
+                      #{index + 1}
+                    </td>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        maxWidth: 220,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
+                      {r.label}
+                      {r.isCurrent && (
+                        <span
+                          style={{
+                            marginLeft: 6,
+                            fontSize: 10,
+                            padding: "1px 6px",
+                            borderRadius: 999,
+                            border: "1px solid rgba(34,197,94,0.6)",
+                            color: "#bbf7d0",
+                          }}
+                        >
+                          Você
+                        </span>
+                      )}
+                    </td>
+                    <td
                       style={{
                         padding: "8px 4px",
                         textAlign: "right",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => setRankingSortKey("points")}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          margin: 0,
-                          fontSize: 12,
-                          color:
-                            rankingSortKey === "points"
-                              ? "#e5e7eb"
-                              : "#9ca3af",
-                          fontWeight:
-                            rankingSortKey === "points" ? 600 : 500,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Pontos
-                      </button>
-                    </th>
-                    <th
+                      {r.totalPoints}
+                    </td>
+                    <td
                       style={{
                         padding: "8px 4px",
                         textAlign: "right",
+                        whiteSpace: "nowrap",
+                        color: "#9ca3af",
                       }}
                     >
-                      Horas (total)
-                    </th>
+                      {r.totalHours.toFixed(1)} h
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {displayRanking.map((r) => (
-                    <tr
-                      key={r.userId}
-                      style={{
-                        borderBottom: "1px solid rgba(31,41,55,0.7)",
-                        background: r.isCurrent
-                          ? "linear-gradient(to right, rgba(34,197,94,0.18), transparent)"
-                          : "transparent",
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "8px 4px",
-                          whiteSpace: "nowrap",
-                          fontWeight: r.isCurrent ? 700 : 500,
-                        }}
-                      >
-                        #{r.rankPosition}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 4px",
-                          maxWidth: 220,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          fontWeight: r.isCurrent ? 700 : 500,
-                        }}
-                      >
-                        {r.label}
-                        {r.isCurrent && (
-                          <span
-                            style={{
-                              marginLeft: 6,
-                              fontSize: 10,
-                              padding: "1px 6px",
-                              borderRadius: 999,
-                              border: "1px solid rgba(34,197,94,0.6)",
-                              color: "#bbf7d0",
-                            }}
-                          >
-                            Você
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 4px",
-                          textAlign: "right",
-                          whiteSpace: "nowrap",
-                          fontWeight: r.isCurrent ? 700 : 500,
-                        }}
-                      >
-                        {r.totalPoints}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 4px",
-                          textAlign: "right",
-                          whiteSpace: "nowrap",
-                          color: "#9ca3af",
-                        }}
-                      >
-                        {r.totalHours.toFixed(1)} h
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
@@ -1315,6 +948,96 @@ export default function DashboardClient({
         }}
       >
         <DashboardCharts evolutionData={evolutionData} />
+      </section>
+
+      {/* Card do ATLETA (após o gráfico) */}
+      <section
+        style={{
+          borderRadius: 18,
+          padding: "14px 14px",
+          background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
+          border: "1px solid rgba(34,197,94,0.35)",
+          marginBottom: 24,
+        }}
+      >
+        <p
+          style={{
+            fontSize: 11,
+            color: "#86efac",
+            marginBottom: 4,
+            textTransform: "uppercase",
+          }}
+        >
+          {athleteLabel}
+          {range === "all" ? " · todo período" : " · período selecionado"}
+          {loadingAthlete ? " (carregando...)" : ""}
+        </p>
+        <p
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+            marginBottom: 2,
+          }}
+        >
+          {athleteDistance.toFixed(1)} km
+        </p>
+        <p
+          style={{
+            fontSize: 11,
+            color: "#6b7280",
+            marginBottom: 8,
+          }}
+        >
+          Distância total em todas as suas atividades dentro do grupo e período
+          filtrados (dados Strava).
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 8,
+            fontSize: 11,
+            color: "#9ca3af",
+          }}
+        >
+          <div>
+            <div>Tempo em movimento</div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#e5e7eb",
+              }}
+            >
+              {formatDuration(athleteMovingTime)}
+            </div>
+          </div>
+          <div>
+            <div>Elevação acumulada</div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#e5e7eb",
+              }}
+            >
+              {Math.round(athleteElevation)} m
+            </div>
+          </div>
+          <div>
+            <div>Atividades</div>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#e5e7eb",
+              }}
+            >
+              {athleteActivitiesCount}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Últimas atividades (Strava) */}
@@ -1386,7 +1109,7 @@ export default function DashboardClient({
                 width: "100%",
                 borderCollapse: "collapse",
                 fontSize: 12,
-                minWidth: 520,
+                minWidth: 360,
               }}
             >
               <thead>
@@ -1470,6 +1193,6 @@ export default function DashboardClient({
           </div>
         )}
       </section>
-    </div>
+    </>
   );
 }
