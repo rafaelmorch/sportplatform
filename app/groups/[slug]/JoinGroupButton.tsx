@@ -1,4 +1,4 @@
-// app/groups/[slug]/JoinGroupButton.tsx
+// app/groups/[slug]/JoinGroupButton.tsx 
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
@@ -15,11 +15,12 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
   const [joined, setJoined] = useState(false);
   const [checking, setChecking] = useState(true);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [groupId, setGroupId] = useState<string | null>(null);
 
   const router = useRouter();
   const supabase = supabaseBrowser;
 
-  // 1) Ao carregar, ver se o usuário JÁ está no grupo
+  // 1) Ao carregar, ver se o usuário JÁ está no grupo (training_group_members)
   useEffect(() => {
     let cancelled = false;
 
@@ -37,11 +38,41 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("challenge_participants")
+      // Descobre o id do grupo a partir do slug
+      const { data: groupRow, error: groupError } = await supabase
+        .from("training_groups")
         .select("id")
+        .eq("slug", groupSlug)
+        .maybeSingle();
+
+      if (groupError) {
+        console.error("Erro ao carregar grupo por slug:", groupError);
+        if (!cancelled) {
+          setErrorMessage("Não foi possível carregar o grupo.");
+          setChecking(false);
+        }
+        return;
+      }
+
+      if (!groupRow) {
+        if (!cancelled) {
+          setErrorMessage("Grupo não encontrado.");
+          setChecking(false);
+        }
+        return;
+      }
+
+      const gId = groupRow.id as string;
+      if (!cancelled) {
+        setGroupId(gId);
+      }
+
+      // Verifica se o usuário já é membro em training_group_members
+      const { data, error } = await supabase
+        .from("training_group_members")
+        .select("user_id")
         .eq("user_id", user.id)
-        .eq("group_slug", groupSlug)
+        .eq("group_id", gId)
         .maybeSingle();
 
       if (!cancelled) {
@@ -61,7 +92,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
 
   // 2) Entrar no grupo
   const handleJoinClick = async () => {
-    if (checking || joined || isPending || isLeaving) return;
+    if (checking || joined || isPending || isLeaving || !groupId) return;
 
     setErrorMessage(null);
 
@@ -76,12 +107,11 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
     }
 
     const { error: insertError } = await supabase
-      .from("challenge_participants")
+      .from("training_group_members")
       .insert({
         user_id: user.id,
-        group_slug: groupSlug,
-      })
-      .single();
+        group_id: groupId,
+      });
 
     if (insertError) {
       console.error("Erro ao entrar no grupo:", insertError);
@@ -111,7 +141,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
 
   // 3) Sair do grupo
   const handleLeaveClick = async () => {
-    if (checking || !joined || isLeaving) return;
+    if (checking || !joined || isLeaving || !groupId) return;
 
     setErrorMessage(null);
     setIsLeaving(true);
@@ -128,10 +158,10 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
     }
 
     const { error: deleteError } = await supabase
-      .from("challenge_participants")
+      .from("training_group_members")
       .delete()
       .eq("user_id", user.id)
-      .eq("group_slug", groupSlug);
+      .eq("group_id", groupId);
 
     if (deleteError) {
       console.error("Erro ao sair do grupo:", deleteError);
@@ -159,7 +189,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
       <button
         type="button"
         onClick={handleJoinClick}
-        disabled={checking || isPending || joined || isLeaving}
+        disabled={checking || isPending || joined || isLeaving || !groupId}
         style={{
           padding: "12px 20px",
           borderRadius: 999,
@@ -172,7 +202,9 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
           fontSize: 15,
           fontWeight: 600,
           cursor:
-            checking || isPending || joined || isLeaving ? "default" : "pointer",
+            checking || isPending || joined || isLeaving || !groupId
+              ? "default"
+              : "pointer",
           opacity: isPending || isLeaving ? 0.8 : 1,
         }}
       >
@@ -184,7 +216,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
         <button
           type="button"
           onClick={handleLeaveClick}
-          disabled={isLeaving}
+          disabled={isLeaving || !groupId}
           style={{
             alignSelf: "flex-start",
             padding: "8px 16px",
@@ -194,7 +226,7 @@ export default function JoinGroupButton({ groupSlug }: JoinGroupButtonProps) {
             color: "#e5e7eb",
             fontSize: 13,
             fontWeight: 500,
-            cursor: isLeaving ? "default" : "pointer",
+            cursor: isLeaving || !groupId ? "default" : "pointer",
             opacity: isLeaving ? 0.7 : 1,
           }}
         >
