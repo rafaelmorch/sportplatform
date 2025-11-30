@@ -39,6 +39,8 @@ type RankingEntry = {
   isCurrent: boolean;
 };
 
+type SortKey = "label" | "totalPoints";
+
 type GroupOption = {
   id: string;
   name: string;
@@ -172,6 +174,9 @@ export default function DashboardClient({
   >([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingGroupActivities, setLoadingGroupActivities] = useState(false);
+
+  const [rankingSortKey, setRankingSortKey] = useState<SortKey>("totalPoints");
+  const [rankingSortDir, setRankingSortDir] = useState<"asc" | "desc">("desc");
 
   // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
@@ -518,8 +523,25 @@ export default function DashboardClient({
       })
     );
 
-    entries.sort((a, b) => b.totalPoints - a.totalPoints);
+    // sem ordenação aqui; a ordenação final é aplicada em sortedRanking
     return entries;
+  })();
+
+  const sortedRanking: RankingEntry[] = (() => {
+    const list = [...ranking];
+    list.sort((a, b) => {
+      if (rankingSortKey === "totalPoints") {
+        const diff = a.totalPoints - b.totalPoints;
+        return rankingSortDir === "asc" ? diff : -diff;
+      }
+
+      // label
+      const cmp = a.label.localeCompare(b.label, "pt-BR", {
+        sensitivity: "base",
+      });
+      return rankingSortDir === "asc" ? cmp : -cmp;
+    });
+    return list;
   })();
 
   // -----------------------------
@@ -533,7 +555,7 @@ export default function DashboardClient({
     );
     if (filtered.length === 0) return [];
 
-    const leaderId = ranking.length > 0 ? ranking[0].userId : null;
+    const leaderId = sortedRanking.length > 0 ? sortedRanking[0].userId : null;
 
     const userMap = new Map<string, number>(); // date -> minutos do usuário
     const leaderMap = new Map<string, number>(); // date -> minutos do líder
@@ -603,6 +625,21 @@ export default function DashboardClient({
       };
     });
   })();
+
+  const handleRankingSort = (key: SortKey) => {
+    if (rankingSortKey === key) {
+      setRankingSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setRankingSortKey(key);
+      // default: pontos em ordem desc, nome em ordem asc
+      setRankingSortDir(key === "totalPoints" ? "desc" : "asc");
+    }
+  };
+
+  const renderSortIcon = (key: SortKey) => {
+    if (rankingSortKey !== key) return "↕";
+    return rankingSortDir === "asc" ? "▲" : "▼";
+  };
 
   return (
     <>
@@ -1018,7 +1055,7 @@ export default function DashboardClient({
           </div>
         </div>
 
-        {ranking.length === 0 ? (
+        {sortedRanking.length === 0 ? (
           <p
             style={{
               fontSize: 13,
@@ -1034,6 +1071,8 @@ export default function DashboardClient({
             style={{
               width: "100%",
               overflowX: "auto",
+              maxHeight: 360, // ~12 linhas, depois scroll
+              overflowY: "auto",
             }}
           >
             <table
@@ -1053,17 +1092,75 @@ export default function DashboardClient({
                   }}
                 >
                   <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
-                  <th style={{ padding: "8px 4px" }}>Atleta</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
-                    Pontos
+                  <th style={{ padding: "8px 4px" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleRankingSort("label")}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "inherit",
+                        font: "inherit",
+                        padding: 0,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>Atleta</span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                        }}
+                      >
+                        {renderSortIcon("label")}
+                      </span>
+                    </button>
                   </th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
+                  <th
+                    style={{
+                      padding: "8px 4px",
+                      textAlign: "right",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleRankingSort("totalPoints")}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "inherit",
+                        font: "inherit",
+                        padding: 0,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>Pontos</span>
+                      <span
+                        style={{
+                          fontSize: 10,
+                        }}
+                      >
+                        {renderSortIcon("totalPoints")}
+                      </span>
+                    </button>
+                  </th>
+                  <th
+                    style={{
+                      padding: "8px 4px",
+                      textAlign: "right",
+                    }}
+                  >
                     Horas (total)
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {ranking.map((r, index) => (
+                {sortedRanking.map((r, index) => (
                   <tr
                     key={r.userId}
                     style={{
