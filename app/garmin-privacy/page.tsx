@@ -1,460 +1,431 @@
 // app/garmin-privacy/page.tsx
-import type { CSSProperties } from "react";
-
-const containerStyle: CSSProperties = {
-  maxWidth: "1100px",
-  margin: "0 auto",
-  padding: "40px 20px 80px",
-  fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  color: "#0f172a",
-};
-
-const heroStyle: CSSProperties = {
-  background: "linear-gradient(135deg, #15803d, #0f766e)",
-  borderRadius: "18px",
-  padding: "28px 24px",
-  color: "#f9fafb",
-  marginBottom: "32px",
-  boxShadow: "0 18px 45px rgba(15, 23, 42, 0.35)",
-};
-
-const badgeRowStyle: CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "8px",
-  marginBottom: "12px",
-  alignItems: "center",
-};
-
-const badgeStyle: CSSProperties = {
-  padding: "4px 10px",
-  borderRadius: "999px",
-  fontSize: "0.75rem",
-  border: "1px solid rgba(148, 163, 184, 0.6)",
-  backgroundColor: "rgba(15, 23, 42, 0.35)",
-};
-
-const titleStyle: CSSProperties = {
-  fontSize: "2rem",
-  fontWeight: 700,
-  marginBottom: "6px",
-};
-
-const subtitleStyle: CSSProperties = {
-  fontSize: "0.95rem",
-  maxWidth: "640px",
-  lineHeight: 1.5,
-  opacity: 0.92,
-};
-
-const langTabsStyle: CSSProperties = {
-  display: "flex",
-  gap: "10px",
-  marginTop: "18px",
-};
-
-const langPillStyle: CSSProperties = {
-  padding: "6px 14px",
-  borderRadius: "999px",
-  fontSize: "0.8rem",
-  border: "1px solid rgba(148, 163, 184, 0.75)",
-  backgroundColor: "rgba(15, 23, 42, 0.18)",
-};
-
-const gridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr)",
-  gap: "20px",
-};
-
-const cardStyle: CSSProperties = {
-  backgroundColor: "#ffffff",
-  borderRadius: "16px",
-  padding: "22px 20px 26px",
-  boxShadow: "0 10px 30px rgba(15, 23, 42, 0.08)",
-  border: "1px solid #e5e7eb",
-};
-
-const sectionTitleStyle: CSSProperties = {
-  fontSize: "1.25rem",
-  fontWeight: 700,
-  marginBottom: "10px",
-};
-
-const updatedTextStyle: CSSProperties = {
-  fontSize: "0.8rem",
-  color: "#64748b",
-  marginBottom: "16px",
-};
-
-const h2Style: CSSProperties = {
-  fontSize: "1rem",
-  fontWeight: 700,
-  marginTop: "20px",
-  marginBottom: "6px",
-};
-
-const pStyle: CSSProperties = {
-  fontSize: "0.9rem",
-  lineHeight: 1.6,
-  marginBottom: "8px",
-};
-
-const ulStyle: CSSProperties = {
-  paddingLeft: "20px",
-  marginTop: "4px",
-  marginBottom: "8px",
-};
-
-const liStyle: CSSProperties = {
-  fontSize: "0.9rem",
-  lineHeight: 1.5,
-  marginBottom: "4px",
-};
 
 export default function GarminPrivacyPage() {
   return (
-    <div style={containerStyle}>
-      {/* HERO */}
-      <section style={heroStyle}>
-        <div style={badgeRowStyle}>
-          <span style={badgeStyle}>SportPlatform</span>
-          <span style={badgeStyle}>Garmin Data · Dados Garmin</span>
-        </div>
-        <h1 style={titleStyle}>Garmin Data Privacy & Processing</h1>
-        <p style={subtitleStyle}>
-          This page describes specifically how SportPlatform handles data obtained from
-          Garmin devices and Garmin Connect. Below you can read the full statement in
-          English and Portuguese.
-        </p>
-        <div style={langTabsStyle}>
-          <span style={{ ...langPillStyle, backgroundColor: "rgba(15, 23, 42, 0.3)" }}>
-            🇺🇸 English Version
-          </span>
-          <span style={{ ...langPillStyle, opacity: 0.9 }}>🇧🇷 Versão em Português</span>
-        </div>
-      </section>
+    <main
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
+        color: "#e5e7eb",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "120px 16px 40px", // espaço por causa do menu fixo
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "900px",
+          borderRadius: "24px",
+          border: "1px solid #111827",
+          background:
+            "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+          boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
+          padding: "24px 24px 28px",
+          fontSize: "14px",
+          lineHeight: 1.6,
+        }}
+      >
+        <header style={{ marginBottom: "18px" }}>
+          <div
+            style={{
+              fontSize: "11px",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "#6b7280",
+              marginBottom: "6px",
+            }}
+          >
+            PRIVACY POLICY
+          </div>
+          <h1
+            style={{
+              fontSize: "26px",
+              fontWeight: 700,
+              letterSpacing: "-0.04em",
+              marginBottom: "4px",
+            }}
+          >
+            SportPlatform Privacy Policy
+          </h1>
+          <p
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+            }}
+          >
+            Last updated: December 5, 2025
+          </p>
+        </header>
 
-      <section style={gridStyle}>
-        {/* ENGLISH CARD */}
-        <article style={cardStyle}>
-          <h2 style={sectionTitleStyle}>
-            SportPlatform – Garmin Data Privacy & Processing (English)
+        <section
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+            color: "#d1d5db",
+          }}
+        >
+          <p>
+            This Privacy Policy explains how <strong>SportPlatform</strong>{" "}
+            (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) collects, uses,
+            and protects personal data when you use our services, including our
+            website, web application, and integrations with third-party
+            platforms such as Strava and, in the future, Garmin.
+          </p>
+
+          <p>
+            By creating an account or using SportPlatform, you agree to the
+            practices described in this Privacy Policy.
+          </p>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "10px",
+              marginBottom: "2px",
+            }}
+          >
+            1. Data We Collect
           </h2>
-          <p style={updatedTextStyle}>Last Updated: November 2024</p>
 
-          <p style={pStyle}>
-            This document explains how <strong>SportPlatform</strong> (“Platform”,
-            “Application”, “we”, “our”) collects, uses, stores, and protects data obtained
-            from <strong>Garmin devices and Garmin Connect</strong> via the Garmin
-            Connect Developer Program / Garmin Health APIs.
-          </p>
-          <p style={pStyle}>
-            This statement is <strong>specific to Garmin data</strong> and complements our
-            general Privacy Policy available at{" "}
-            <a href="/privacy">https://sportplatform.app/privacy</a>.
-          </p>
+          <p>We may collect the following categories of data:</p>
 
-          <h3 style={h2Style}>1. Type of Garmin Data Collected</h3>
-          <p style={pStyle}>
-            SportPlatform only requests and processes <strong>activity-level data</strong>
-            from Garmin, such as:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>Running and cycling activities</li>
-            <li style={liStyle}>Distance, duration, moving time</li>
-            <li style={liStyle}>Pace and speed metrics</li>
-            <li style={liStyle}>Elevation gain / loss</li>
-            <li style={liStyle}>GPS track (route polyline / coordinates)</li>
-            <li style={liStyle}>Activity type, date and basic summaries</li>
-          </ul>
-          <p style={pStyle}>
-            <strong>SportPlatform does NOT request or process:</strong>
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>Sleep data</li>
-            <li style={liStyle}>Stress data</li>
-            <li style={liStyle}>Body Battery data</li>
-            <li style={liStyle}>Wellness or medical metrics</li>
-            <li style={liStyle}>Any other biometric or sensitive health data</li>
-          </ul>
-
-          <h3 style={h2Style}>2. Purpose of Using Garmin Data</h3>
-          <p style={pStyle}>
-            Garmin activity data is used exclusively to:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>Generate personal dashboards for each user</li>
-            <li style={liStyle}>Provide individual training and performance analytics</li>
-            <li style={liStyle}>Display historical activity records and trends</li>
-            <li style={liStyle}>Help users track their own running and cycling progress</li>
-          </ul>
-          <p style={pStyle}>
-            Data is used only for <strong>personal performance analysis</strong> and is
-            never sold or shared with third parties.
-          </p>
-
-          <h3 style={h2Style}>3. Data Visibility & Sharing</h3>
-          <p style={pStyle}>
-            SportPlatform strictly limits the visibility of Garmin data:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>
-              Garmin activity data is visible only to the authenticated user who owns that
-              data.
+          <ul
+            style={{
+              listStyle: "disc",
+              paddingLeft: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
+            <li>
+              <strong>Account information:</strong> name, email address, and
+              password (stored securely as a hash).
             </li>
-            <li style={liStyle}>
-              We do <strong>not</strong> display one user&apos;s Garmin data to any other
-              user.
+            <li>
+              <strong>Profile and training information:</strong> sport
+              preferences, training groups, goals, and participation in events
+              or challenges.
             </li>
-            <li style={liStyle}>
-              We do <strong>not</strong> create public leaderboards or public rankings
-              based on Garmin data.
+            <li>
+              <strong>Activity data from third parties:</strong> when you
+              connect accounts such as Strava (and, in the future, Garmin), we
+              may receive activity details, including distance, duration, pace,
+              elevation, heart rate, and related metrics.
             </li>
-            <li style={liStyle}>
-              We do <strong>not</strong> share Garmin data with external platforms or
-              services.
+            <li>
+              <strong>Usage and technical data:</strong> device information,
+              approximate location (based on IP), and log data related to how
+              you interact with our platform.
             </li>
           </ul>
 
-          <h3 style={h2Style}>4. Data Storage & Security</h3>
-          <p style={pStyle}>
-            Garmin data is stored securely in our Supabase database (PostgreSQL) using:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>
-              Encrypted storage where applicable and secure credential management
-            </li>
-            <li style={liStyle}>Row-Level Security (RLS) and access control policies</li>
-            <li style={liStyle}>Restricted internal access to production data</li>
-          </ul>
-          <p style={pStyle}>
-            Access tokens and refresh tokens obtained from Garmin are stored only to
-            synchronize the user&apos;s own data and are never shared with third parties.
-          </p>
-
-          <h3 style={h2Style}>5. Historical Data Retention</h3>
-          <p style={pStyle}>
-            SportPlatform may store historical Garmin activity data in order to generate
-            long-term performance trends, training history charts, and cumulative
-            statistics for each user.
-          </p>
-          <p style={pStyle}>
-            This data is retained only as long as it is needed to provide the services and
-            may be deleted upon user request.
-          </p>
-
-          <h3 style={h2Style}>6. Data Deletion & Revocation</h3>
-          <p style={pStyle}>
-            Users may revoke SportPlatform&apos;s access to their Garmin data at any time
-            through their Garmin account settings.
-          </p>
-          <p style={pStyle}>
-            Users may also request deletion of all Garmin-related data stored by
-            SportPlatform by emailing:
-          </p>
-          <p style={pStyle}>
-            👉{" "}
-            <a href="mailto:privacy@sportplatform.app">privacy@sportplatform.app</a>
-          </p>
-          <p style={pStyle}>
-            Upon a valid deletion request, Garmin-derived data will be removed from our
-            systems within a reasonable timeframe.
-          </p>
-
-          <h3 style={h2Style}>7. Compliance with Garmin Policies</h3>
-          <p style={pStyle}>
-            SportPlatform is designed to comply with the Garmin Connect Developer Program
-            requirements and Garmin&apos;s data privacy standards:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>
-              Garmin data is used only for the user&apos;s own analysis and experience.
-            </li>
-            <li style={liStyle}>
-              No biometric, wellness, sleep, or medical data is requested or stored.
-            </li>
-            <li style={liStyle}>
-              No redistribution, resale, or unauthorized sharing of Garmin data occurs.
-            </li>
-          </ul>
-
-          <h3 style={h2Style}>8. Contact</h3>
-          <p style={pStyle}>
-            For any questions about how we process Garmin data, please contact:
-          </p>
-          <p style={pStyle}>
-            👉{" "}
-            <a href="mailto:privacy@sportplatform.app">privacy@sportplatform.app</a>
-          </p>
-        </article>
-
-        {/* PORTUGUESE CARD */}
-        <article style={cardStyle}>
-          <h2 style={sectionTitleStyle}>
-            SportPlatform – Privacidade e Tratamento de Dados Garmin (Português)
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            2. How We Use Your Data
           </h2>
-          <p style={updatedTextStyle}>Última Atualização: Novembro de 2024</p>
 
-          <p style={pStyle}>
-            Este documento explica como a <strong>SportPlatform</strong> (“Plataforma”,
-            “Aplicativo”, “nós”) coleta, utiliza, armazena e protege dados provenientes de{" "}
-            <strong>dispositivos Garmin e Garmin Connect</strong> por meio do Garmin
-            Connect Developer Program / Garmin Health APIs.
-          </p>
-          <p style={pStyle}>
-            Esta declaração é <strong>específica para dados Garmin</strong> e complementa
-            a nossa Política de Privacidade geral disponível em{" "}
-            <a href="/privacy">https://sportplatform.app/privacy</a>.
-          </p>
+          <p>We use the data we collect to:</p>
 
-          <h3 style={h2Style}>1. Tipo de Dados Garmin Coletados</h3>
-          <p style={pStyle}>
-            A SportPlatform solicita e processa apenas{" "}
-            <strong>dados de nível de atividade</strong> vindos da Garmin, tais como:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>Atividades de corrida e ciclismo</li>
-            <li style={liStyle}>Distância, duração e tempo em movimento</li>
-            <li style={liStyle}>Ritmo (pace) e velocidade</li>
-            <li style={liStyle}>Ganho/perda de elevação</li>
-            <li style={liStyle}>Trilhas GPS (rotas / polilinhas)</li>
-            <li style={liStyle}>Tipo de atividade, data e resumos básicos</li>
-          </ul>
-          <p style={pStyle}>
-            <strong>A SportPlatform NÃO solicita nem processa:</strong>
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>Dados de sono</li>
-            <li style={liStyle}>Dados de estresse</li>
-            <li style={liStyle}>Body Battery</li>
-            <li style={liStyle}>Métricas de bem-estar ou médicas</li>
-            <li style={liStyle}>Qualquer dado biométrico sensível</li>
-          </ul>
-
-          <h3 style={h2Style}>2. Finalidade do Uso dos Dados Garmin</h3>
-          <p style={pStyle}>
-            Os dados de atividades da Garmin são utilizados exclusivamente para:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>Gerar painéis pessoais para cada usuário</li>
-            <li style={liStyle}>Fornecer análises individuais de treino e desempenho</li>
-            <li style={liStyle}>
-              Exibir histórico de atividades e tendências ao longo do tempo
+          <ul
+            style={{
+              listStyle: "disc",
+              paddingLeft: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
+            <li>Create and manage your SportPlatform account.</li>
+            <li>
+              Display dashboards, metrics, and performance trends related to
+              your training.
             </li>
-            <li style={liStyle}>
-              Ajudar o usuário a acompanhar sua própria evolução em corrida e ciclismo
+            <li>
+              Enable your participation in training groups, events, and
+              community challenges.
             </li>
-          </ul>
-          <p style={pStyle}>
-            Os dados são usados apenas para{" "}
-            <strong>análise de performance pessoal</strong> e não são vendidos nem
-            compartilhados com terceiros.
-          </p>
-
-          <h3 style={h2Style}>3. Visibilidade e Compartilhamento de Dados</h3>
-          <p style={pStyle}>
-            A SportPlatform limita rigorosamente a visibilidade dos dados Garmin:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>
-              Os dados de atividades Garmin são visíveis apenas para o próprio usuário
-              autenticado.
+            <li>
+              Provide customer support and communicate important updates about
+              the platform.
             </li>
-            <li style={liStyle}>
-              <strong>Não</strong> exibimos dados Garmin de um usuário para outros
-              usuários.
-            </li>
-            <li style={liStyle}>
-              <strong>Não</strong> criamos rankings públicos ou placares públicos com
-              base em dados Garmin.
-            </li>
-            <li style={liStyle}>
-              <strong>Não</strong> compartilhamos dados Garmin com plataformas ou serviços
-              externos.
+            <li>
+              Improve our services, features, and user experience through
+              aggregated and anonymized analysis.
             </li>
           </ul>
 
-          <h3 style={h2Style}>4. Armazenamento e Segurança dos Dados</h3>
-          <p style={pStyle}>
-            Os dados Garmin são armazenados com segurança em nosso banco Supabase
-            (PostgreSQL), utilizando:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>
-              Armazenamento protegido e gestão segura de credenciais e tokens
-            </li>
-            <li style={liStyle}>
-              Row-Level Security (RLS) e políticas de controle de acesso
-            </li>
-            <li style={liStyle}>
-              Acesso interno restrito aos dados de produção, apenas quando necessário
-            </li>
-          </ul>
-          <p style={pStyle}>
-            Tokens de acesso e atualização obtidos da Garmin são usados somente para
-            sincronizar os dados do próprio usuário e nunca são compartilhados com
-            terceiros.
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            3. Third-Party Integrations (Strava and Garmin)
+          </h2>
+
+          <p>
+            SportPlatform allows you to connect your account to third-party
+            services, such as Strava and, in the future, Garmin. When you
+            authorize these integrations:
           </p>
 
-          <h3 style={h2Style}>5. Retenção de Dados Históricos</h3>
-          <p style={pStyle}>
-            A SportPlatform pode armazenar o histórico de atividades Garmin para gerar
-            gráficos de evolução, relatórios de treino e estatísticas de longo prazo para
-            cada usuário.
-          </p>
-          <p style={pStyle}>
-            Esses dados são mantidos apenas enquanto forem necessários para a prestação do
-            serviço e podem ser excluídos mediante solicitação do usuário.
-          </p>
-
-          <h3 style={h2Style}>6. Exclusão e Revogação de Acesso</h3>
-          <p style={pStyle}>
-            O usuário pode revogar o acesso da SportPlatform aos seus dados Garmin a
-            qualquer momento nas configurações da própria conta Garmin.
-          </p>
-          <p style={pStyle}>
-            O usuário também pode solicitar a exclusão de todos os dados relacionados à
-            Garmin armazenados pela SportPlatform, enviando um e-mail para:
-          </p>
-          <p style={pStyle}>
-            👉{" "}
-            <a href="mailto:privacy@sportplatform.app">privacy@sportplatform.app</a>
-          </p>
-          <p style={pStyle}>
-            Após uma solicitação válida de exclusão, os dados provenientes da Garmin serão
-            removidos dos nossos sistemas em prazo razoável.
-          </p>
-
-          <h3 style={h2Style}>7. Conformidade com as Políticas da Garmin</h3>
-          <p style={pStyle}>
-            A SportPlatform foi projetada para estar em conformidade com os requisitos do
-            Garmin Connect Developer Program e com os padrões de privacidade de dados da
-            Garmin:
-          </p>
-          <ul style={ulStyle}>
-            <li style={liStyle}>
-              Os dados Garmin são usados apenas para a experiência individual do usuário.
+          <ul
+            style={{
+              listStyle: "disc",
+              paddingLeft: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
+            <li>
+              We receive activity and performance data from your connected
+              account in accordance with the permissions you grant.
             </li>
-            <li style={liStyle}>
-              Não solicitamos dados biométricos, de bem-estar, sono ou métricas médicas.
+            <li>
+              We use this data only to provide SportPlatform features, such as
+              dashboards, statistics, and training insights.
             </li>
-            <li style={liStyle}>
-              Não há redistribuição, revenda ou compartilhamento não autorizado de dados
-              Garmin.
+            <li>
+              You can revoke access at any time from the third-party service
+              (e.g., in your Strava or Garmin account settings).
             </li>
           </ul>
 
-          <h3 style={h2Style}>8. Contato</h3>
-          <p style={pStyle}>
-            Para dúvidas sobre como processamos dados da Garmin, entre em contato:
+          <p>
+            SportPlatform is not owned or controlled by Strava, Garmin, or any
+            other third-party provider, and their use of your data is governed
+            by their own privacy policies.
           </p>
-          <p style={pStyle}>
-            👉{" "}
-            <a href="mailto:privacy@sportplatform.app">privacy@sportplatform.app</a>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            4. Legal Basis and Purpose Limitation
+          </h2>
+
+          <p>
+            We process your personal data to fulfill our contractual obligations
+            to you (for example, providing access to your account and training
+            features), based on your consent (for third-party integrations), and
+            where necessary for our legitimate interests (such as maintaining
+            the security and reliability of our services).
           </p>
-        </article>
-      </section>
-    </div>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            5. Data Storage and Security
+          </h2>
+
+          <p>
+            SportPlatform uses reputable third-party providers to host and store
+            data, including cloud infrastructure and database services. Access
+            to personal data is restricted to authorized personnel and is
+            protected through technical and organizational measures designed to
+            prevent unauthorized access, loss, or misuse.
+          </p>
+
+          <p>
+            While we take reasonable steps to protect your data, no online
+            service can guarantee absolute security.
+          </p>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            6. Data Sharing
+          </h2>
+
+          <p>
+            We do <strong>not</strong> sell your personal data. We may share
+            data only in the following situations:
+          </p>
+
+          <ul
+            style={{
+              listStyle: "disc",
+              paddingLeft: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
+            <li>
+              <strong>Service providers:</strong> with third-party vendors who
+              help us operate the platform (for example, hosting, analytics, and
+              email delivery), under appropriate data protection commitments.
+            </li>
+            <li>
+              <strong>Legal requirements:</strong> when required by law or in
+              response to valid legal processes.
+            </li>
+            <li>
+              <strong>Protection of rights:</strong> when necessary to protect
+              the rights, property, or safety of SportPlatform, our users, or
+              others.
+            </li>
+          </ul>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            7. Data Retention
+          </h2>
+
+          <p>
+            We retain personal data for as long as necessary to provide our
+            services and for legitimate and essential business purposes, such as
+            maintaining the performance of the platform, complying with legal
+            obligations, and resolving disputes. You may request deletion of
+            your account, and we will remove or anonymize your personal data,
+            unless we are required to retain it by law.
+          </p>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            8. Your Rights
+          </h2>
+
+          <p>Depending on your jurisdiction, you may have the right to:</p>
+
+          <ul
+            style={{
+              listStyle: "disc",
+              paddingLeft: "20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+            }}
+          >
+            <li>Access the personal data we hold about you.</li>
+            <li>Request correction of inaccurate or incomplete information.</li>
+            <li>Request deletion of your personal data, subject to legal limits.</li>
+            <li>
+              Withdraw consent for third-party integrations (e.g., disconnecting
+              Strava or Garmin).
+            </li>
+          </ul>
+
+          <p>
+            To exercise any of these rights, please contact us using the details
+            provided below.
+          </p>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            9. Children&apos;s Privacy
+          </h2>
+
+          <p>
+            SportPlatform is not designed to be used by children without the
+            consent and supervision of a parent, guardian, or responsible adult.
+            Where applicable, accounts for minors should be created and managed
+            by or under the guidance of an adult.
+          </p>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            10. Changes to This Policy
+          </h2>
+
+          <p>
+            We may update this Privacy Policy from time to time to reflect
+            changes in our services, legal requirements, or best practices. When
+            we make material changes, we will update the &quot;Last updated&quot;
+            date at the top of this page.
+          </p>
+
+          <h2
+            style={{
+              fontSize: "18px",
+              fontWeight: 600,
+              marginTop: "12px",
+              marginBottom: "2px",
+            }}
+          >
+            11. Contact Us
+          </h2>
+
+          <p>
+            If you have any questions about this Privacy Policy or how we handle
+            your data, you can contact us at:
+          </p>
+
+          <p>
+            <strong>SportPlatform</strong>
+            <br />
+            Email: support@sportplatform.app
+            <br />
+            (You may also contact us using the details provided in your account
+            or on our website.)
+          </p>
+
+          <p
+            style={{
+              fontSize: "12px",
+              color: "#9ca3af",
+              marginTop: "8px",
+            }}
+          >
+            This Privacy Policy is provided for informational purposes and does
+            not constitute legal advice. You should consult legal counsel to
+            ensure compliance with applicable laws in your jurisdiction.
+          </p>
+        </section>
+      </div>
+    </main>
   );
 }
