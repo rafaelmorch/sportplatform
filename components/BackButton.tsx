@@ -12,7 +12,7 @@ export default function BackButton() {
         display: "flex",
         alignItems: "center",
         gap: "8px",
-        color: "#cbd5e1", // cinza claro, combina com o tema
+        color: "#cbd5e1", // cinza claro
         background: "transparent",
         border: "none",
         fontSize: "15px",
