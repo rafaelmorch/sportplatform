@@ -4,8 +4,6 @@
 import Link from "next/link";
 
 export default function LoginTopMenu() {
-  console.log("LoginTopMenu RENDERIZADO"); // só pra testar no console
-
   return (
     <nav
       style={{
@@ -29,7 +27,6 @@ export default function LoginTopMenu() {
           justifyContent: "space-between",
         }}
       >
-        {/* Logo / Nome */}
         <div
           style={{
             fontSize: 18,
@@ -41,7 +38,6 @@ export default function LoginTopMenu() {
           SportPlatform
         </div>
 
-        {/* Links */}
         <div
           style={{
             display: "flex",
@@ -55,11 +51,19 @@ export default function LoginTopMenu() {
           >
             About
           </Link>
+
           <Link
             href="/garmin-privacy"
             style={{ color: "#e5e7eb", textDecoration: "none" }}
           >
             Privacy Policy
+          </Link>
+
+          <Link
+            href="/terms"
+            style={{ color: "#e5e7eb", textDecoration: "none" }}
+          >
+            Terms
           </Link>
         </div>
       </div>
