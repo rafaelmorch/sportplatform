@@ -12,16 +12,19 @@ export default function BackButton() {
         display: "flex",
         alignItems: "center",
         gap: "8px",
-        color: "#e5e7eb",
+        color: "#cbd5e1", // cinza claro, combina com o tema
         background: "transparent",
         border: "none",
-        fontSize: "14px",
+        fontSize: "15px",
         cursor: "pointer",
-        padding: "8px 0",
+        padding: "6px 0",
+        transition: "opacity 0.2s ease",
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+      onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
     >
-      <span style={{ fontSize: "18px" }}>←</span>
-      Voltar
+      <span style={{ fontSize: "20px", lineHeight: "0" }}>←</span>
+      Back
     </button>
   );
 }

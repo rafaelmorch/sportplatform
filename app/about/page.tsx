@@ -60,7 +60,8 @@ export default function AboutPage() {
           Group training, local challenges and community-driven outdoor events.
         </li>
         <li>
-          A responsible and privacy-focused approach to sports and health data.
+          A responsible and privacy-focused approach to sports and activity
+          data.
         </li>
       </ul>
 
@@ -68,14 +69,15 @@ export default function AboutPage() {
         We believe that sport is one of the most powerful tools to build
         discipline, confidence and connection between people. That is why
         SportsPlatform is not just about numbers on a screen; it is about
-        creating experiences that motivate you to move more and feel better.
+        creating experiences that motivate you to move more, feel better and
+        stay engaged with a community that shares the same goals.
       </p>
 
       <p style={{ lineHeight: 1.7, fontSize: 15 }}>
-        If you have ideas, questions or would like to collaborate with us,
-        feel free to reach out at{" "}
-        <strong>support@sportsplatform.app</strong>. We are always improving the
-        platform and your feedback truly matters.
+        If you have ideas, questions or would like to collaborate with us, feel
+        free to reach out at{" "}
+        <strong>rafael.morch@sportsplatform.app</strong>. Your feedback helps
+        shape the future of SportsPlatform.
       </p>
     </main>
   );

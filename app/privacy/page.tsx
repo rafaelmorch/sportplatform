@@ -29,8 +29,8 @@ export default function PrivacyPolicyPage() {
       <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
         This Privacy Policy explains how SportsPlatform (&quot;we&quot;,
         &quot;us&quot;, &quot;our&quot;) collects, uses and protects your
-        personal information when you use our website, mobile experience and
-        related services.
+        personal information when you use our website, web application and
+        related services (&quot;Services&quot;).
       </p>
 
       <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
@@ -57,8 +57,8 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           <strong>Training and activity data:</strong> distance, time, pace and
-          other metrics imported from third-party services like Strava, when
-          you authorize the connection.
+          other metrics imported from third-party services like Strava, when you
+          authorize the connection.
         </li>
         <li>
           <strong>Usage information:</strong> pages visited, features used and
@@ -94,19 +94,19 @@ export default function PrivacyPolicyPage() {
         </li>
         <li>
           Communicate with you about updates, security alerts or important
-          changes to our services.
+          changes to our Services.
         </li>
       </ul>
 
       <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        3. Third-Party Integrations (e.g., Strava)
+        3. Third-Party Integrations
       </h2>
       <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
         When you connect your account to Strava or other third-party services,
-        we access only the data necessary to provide the features you have
-        chosen to use (for example, importing your activities to show in your
-        dashboard). You can disconnect these integrations at any time through
-        the respective provider.
+        we access only the data necessary to provide the features you choose to
+        use (for example, importing your activities to show in your dashboard).
+        You can disconnect these integrations at any time through the respective
+        provider.
       </p>
 
       <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
@@ -124,11 +124,9 @@ export default function PrivacyPolicyPage() {
         }}
       >
         <li>With service providers that help us operate the platform;</li>
+        <li>When required by law, regulation or a valid legal request; or</li>
         <li>
-          When required by law, regulation or a valid legal request; or
-        </li>
-        <li>
-          When you explicitly opt-in to participate in specific events or
+          When you explicitly opt in to participate in specific events or
           rankings where data visibility is part of the experience.
         </li>
       </ul>
@@ -139,7 +137,7 @@ export default function PrivacyPolicyPage() {
       <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
         We use technical and organizational measures to protect your data
         against unauthorized access, loss or misuse. We retain your information
-        only for as long as necessary to provide our services or to comply with
+        only for as long as necessary to provide our Services or to comply with
         legal obligations.
       </p>
 
@@ -157,13 +155,14 @@ export default function PrivacyPolicyPage() {
         7. Contact
       </h2>
       <p style={{ lineHeight: 1.7, fontSize: 15 }}>
-        For any questions about this Privacy Policy or how we handle your data,
-        please contact us at:
+        For privacy-related questions, requests or concerns, please contact:
         <br />
         <strong>privacy@sportsplatform.app</strong>
         <br />
-        For general product or support questions, you can also reach us at{" "}
-        <strong>support@sportsplatform.app</strong>.
+        For general questions about the product or partnership opportunities,
+        you can also reach us at:
+        <br />
+        <strong>rafael.morch@sportsplatform.app</strong>
       </p>
     </main>
   );

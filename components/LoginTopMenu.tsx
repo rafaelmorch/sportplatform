@@ -35,7 +35,7 @@ export default function LoginTopMenu() {
             letterSpacing: 0.5,
           }}
         >
-          SportPlatform
+          SportsPlatform
         </div>
 
         <div
