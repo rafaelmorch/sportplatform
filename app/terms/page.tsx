@@ -5,6 +5,7 @@ export default function TermsOfUsePage() {
     <main
       style={{
         minHeight: "100vh",
+        width: "100%",
         padding: "24px 20px 32px",
         background: "radial-gradient(circle at top, #0f172a, #020617)",
         color: "#e2e8f0",

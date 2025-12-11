@@ -139,11 +139,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 4) Redirecionar para página de sucesso (ou dashboard)
+    // 4) Redirecionar para página unificada de integrações
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
-    const redirectUrl = new URL("/strava/success", baseUrl);
+    const redirectUrl = new URL("/integrations", baseUrl);
+    redirectUrl.searchParams.set("provider", "strava");
+    redirectUrl.searchParams.set("status", "success");
     redirectUrl.searchParams.set("athlete_id", String(athleteId));
 
     return NextResponse.redirect(redirectUrl.toString());

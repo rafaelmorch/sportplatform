@@ -5,6 +5,7 @@ export default function PrivacyPolicyPage() {
     <main
       style={{
         minHeight: "100vh",
+        width: "100%",
         padding: "24px 20px 32px",
         background: "radial-gradient(circle at top, #0f172a, #020617)",
         color: "#e2e8f0",
@@ -26,143 +27,55 @@ export default function PrivacyPolicyPage() {
         Privacy Policy
       </h1>
 
-      <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
-        This Privacy Policy explains how SportsPlatform (&quot;we&quot;,
-        &quot;us&quot;, &quot;our&quot;) collects, uses and protects your
-        personal information when you use our website, web application and
-        related services (&quot;Services&quot;).
+      <p style={{ marginBottom: 14, lineHeight: 1.7, fontSize: 15 }}>
+        This Privacy Policy explains how Sports Platform (“we”, “our”, or
+        “the platform”) collects, uses, and protects your information when
+        you participate in our activities, challenges, and platform services.
+        We are committed to maintaining the privacy and security of our users.
       </p>
 
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
         1. Information We Collect
       </h2>
-      <p style={{ lineHeight: 1.7, fontSize: 15 }}>
-        We may collect the following categories of information:
-      </p>
-      <ul
-        style={{
-          marginLeft: 18,
-          marginBottom: 16,
-          lineHeight: 1.7,
-          fontSize: 15,
-        }}
-      >
-        <li>
-          <strong>Account information:</strong> such as your name, e-mail
-          address and password.
-        </li>
-        <li>
-          <strong>Profile information:</strong> optional details you choose to
-          add to your profile (e.g., avatar, city, preferred sports).
-        </li>
-        <li>
-          <strong>Training and activity data:</strong> distance, time, pace and
-          other metrics imported from third-party services like Strava, when you
-          authorize the connection.
-        </li>
-        <li>
-          <strong>Usage information:</strong> pages visited, features used and
-          basic technical information about your device and browser.
-        </li>
-      </ul>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        2. How We Use Your Information
-      </h2>
-      <p style={{ lineHeight: 1.7, fontSize: 15 }}>
-        We use your information to:
-      </p>
-      <ul
-        style={{
-          marginLeft: 18,
-          marginBottom: 16,
-          lineHeight: 1.7,
-          fontSize: 15,
-        }}
-      >
-        <li>Provide access to your account and training dashboards.</li>
-        <li>
-          Synchronize and display your activities, statistics and progress.
-        </li>
-        <li>
-          Create group rankings, challenges and events when you choose to
-          participate.
-        </li>
-        <li>
-          Improve the platform, fix technical issues and understand how the
-          product is being used.
-        </li>
-        <li>
-          Communicate with you about updates, security alerts or important
-          changes to our Services.
-        </li>
-      </ul>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        3. Third-Party Integrations
-      </h2>
-      <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
-        When you connect your account to Strava or other third-party services,
-        we access only the data necessary to provide the features you choose to
-        use (for example, importing your activities to show in your dashboard).
-        You can disconnect these integrations at any time through the respective
-        provider.
+      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
+        We may collect basic profile information (such as name and email) as well
+        as activity data voluntarily synchronized by the user through third-party
+        platforms (e.g., Strava, Fitbit, etc.). We only access data with your
+        explicit consent.
       </p>
 
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        4. Data Sharing
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
+        2. How We Use Your Data
       </h2>
-      <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
-        We do not sell your personal data. We may share information only:
-      </p>
-      <ul
-        style={{
-          marginLeft: 18,
-          marginBottom: 16,
-          lineHeight: 1.7,
-          fontSize: 15,
-        }}
-      >
-        <li>With service providers that help us operate the platform;</li>
-        <li>When required by law, regulation or a valid legal request; or</li>
-        <li>
-          When you explicitly opt in to participate in specific events or
-          rankings where data visibility is part of the experience.
-        </li>
-      </ul>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        5. Data Security and Retention
-      </h2>
-      <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
-        We use technical and organizational measures to protect your data
-        against unauthorized access, loss or misuse. We retain your information
-        only for as long as necessary to provide our Services or to comply with
-        legal obligations.
+      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
+        The data we collect is used to provide activity tracking, group challenges,
+        insights, leaderboards, and other features designed to enhance your
+        training and community experience.
       </p>
 
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        6. Your Rights
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
+        3. Sharing of Information
       </h2>
-      <p style={{ marginBottom: 16, lineHeight: 1.7, fontSize: 15 }}>
-        Depending on your location, you may have the right to access, correct
-        or delete your personal data, as well as to restrict or object to
-        certain types of processing. You can also request to disconnect
-        third-party integrations at any time.
+      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
+        We do not sell or share your data with third parties. Information is only
+        shared with the third-party service you authorize for activity sync.
       </p>
 
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 20 }}>
-        7. Contact
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
+        4. Data Security
       </h2>
-      <p style={{ lineHeight: 1.7, fontSize: 15 }}>
-        For privacy-related questions, requests or concerns, please contact:
+      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
+        We use industry-standard measures to protect your information. All data
+        transfers occur through secure and encrypted communication.
+      </p>
+
+      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
+        5. Contact
+      </h2>
+      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
+        For privacy-related questions, you may contact us at:
         <br />
         <strong>privacy@sportsplatform.app</strong>
-        <br />
-        For general questions about the product or partnership opportunities,
-        you can also reach us at:
-        <br />
-        <strong>rafael.morch@sportsplatform.app</strong>
       </p>
     </main>
   );
