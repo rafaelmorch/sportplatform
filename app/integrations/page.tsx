@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app"; // <- com S
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app"; // domínio novo
 const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID!;
 const fitbitClientId = process.env.NEXT_PUBLIC_FITBIT_CLIENT_ID!;
 
@@ -16,21 +15,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function IntegrationsPage() {
-  const searchParams = useSearchParams();
   const [stravaUrl, setStravaUrl] = useState<string | null>(null);
   const [fitbitUrl, setFitbitUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const status = searchParams.get("status");
-  const provider = searchParams.get("provider");
-
-  let successMsg: string | null = null;
-  if (status === "success" && provider === "strava") {
-    successMsg = "Strava connected successfully!";
-  } else if (status === "success" && provider === "fitbit") {
-    successMsg = "Fitbit connected successfully!";
-  }
 
   useEffect(() => {
     const setupUrls = async () => {
@@ -187,22 +175,6 @@ export default function IntegrationsPage() {
           centralizar histórico de atividades, métricas e desafios em um só
           lugar.
         </p>
-
-        {successMsg && (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(34,197,94,0.4)",
-              background: "rgba(22,163,74,0.15)",
-              color: "#bbf7d0",
-              fontSize: 13,
-            }}
-          >
-            {successMsg}
-          </div>
-        )}
 
         {errorMsg && (
           <p
