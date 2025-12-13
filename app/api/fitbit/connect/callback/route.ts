@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// ✅ garante Buffer disponível (Node runtime)
+export const runtime = "nodejs";
+
 const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID!;
 const FITBIT_CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET!;
 const FITBIT_REDIRECT_URL = process.env.FITBIT_REDIRECT_URL!;
@@ -19,11 +22,15 @@ type FitbitTokenResponse = {
   scope?: string;
 };
 
+function isUuid(v: string) {
+  return /^[0-9a-fA-F-]{36}$/.test(v);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
-    const state = searchParams.get("state") ?? null;
+    const state = searchParams.get("state") ?? null; // UUID (site) ou token (app)
     const error = searchParams.get("error");
 
     if (error) {
@@ -41,6 +48,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 1) Trocar code por tokens na Fitbit
     const basicAuth = Buffer.from(
       `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`
     ).toString("base64");
@@ -82,17 +90,56 @@ export async function GET(req: NextRequest) {
       scope,
     } = tokenJson;
 
+    if (!fitbitUserId) {
+      return NextResponse.json(
+        { message: "Resposta do Fitbit sem user_id." },
+        { status: 400 }
+      );
+    }
+
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expires_in * 1000);
 
-    // state futuramente pode carregar user_id do Supabase
+    // 2) Resolver user_id do Supabase:
+    //    - se state for UUID: comportamento do site (mantido)
+    //    - se state for token: buscar em oauth_states (modo app)
     let userId: string | null = null;
-    if (state && /^[0-9a-fA-F-]{36}$/.test(state)) {
-      userId = state;
-    } else if (state) {
-      console.warn("State inválido no callback do Fitbit:", state);
+
+    if (state) {
+      if (isUuid(state)) {
+        userId = state; // ✅ site antigo
+      } else {
+        // ✅ modo app: state é token curto, resolve em oauth_states
+        const { data: row, error: stateErr } = await supabaseAdmin
+          .from("oauth_states")
+          .select("user_id, expires_at")
+          .eq("provider", "fitbit")
+          .eq("state", state)
+          .maybeSingle();
+
+        if (stateErr) {
+          console.error("Erro ao buscar oauth_states (fitbit):", stateErr);
+        } else if (row) {
+          const exp = new Date(row.expires_at).getTime();
+          if (exp > Date.now()) {
+            userId = row.user_id;
+
+            // one-time-use
+            await supabaseAdmin
+              .from("oauth_states")
+              .delete()
+              .eq("provider", "fitbit")
+              .eq("state", state);
+          } else {
+            console.warn("oauth_state expirado (fitbit):", state);
+          }
+        } else {
+          console.warn("oauth_state não encontrado (fitbit):", state);
+        }
+      }
     }
 
+    // 3) Salvar tokens no Supabase
     const { error: dbError } = await supabaseAdmin
       .from("fitbit_tokens")
       .upsert(
@@ -101,14 +148,12 @@ export async function GET(req: NextRequest) {
           user_id: userId,
           access_token,
           refresh_token,
-          token_type,
+          token_type: token_type ?? "Bearer",
           scope,
           expires_at: expiresAt.toISOString(),
           updated_at: new Date().toISOString(),
         },
-        {
-          onConflict: "fitbit_user_id",
-        }
+        { onConflict: "fitbit_user_id" }
       );
 
     if (dbError) {
@@ -123,12 +168,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 4) Redirect final
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
     const redirectUrl = new URL("/integrations", baseUrl);
     redirectUrl.searchParams.set("provider", "fitbit");
     redirectUrl.searchParams.set("status", "success");
+    redirectUrl.searchParams.set("fitbit_user_id", fitbitUserId);
 
     return NextResponse.redirect(redirectUrl.toString());
   } catch (err) {

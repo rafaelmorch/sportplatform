@@ -20,12 +20,16 @@ type StravaTokenResponse = {
   athlete: { id: number; firstname?: string; lastname?: string };
 };
 
+function isUuid(v: string) {
+  return /^[0-9a-fA-F-]{36}$/.test(v);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const error = searchParams.get("error");
-    const state = searchParams.get("state"); // usado para receber o user_id
+    const state = searchParams.get("state"); // pode ser UUID (site antigo) ou token (app)
 
     if (error) {
       console.error("Erro retornado pelo Strava:", error);
@@ -94,38 +98,66 @@ export async function GET(req: NextRequest) {
 
     const athleteId = athlete.id;
 
-    // 2) Tentar extrair user_id do state (vem da tela de integração)
+    // 2) Descobrir user_id:
+    //    - modo antigo do site: state = UUID do user_id
+    //    - modo app: state = token aleatório -> lookup em oauth_states
     let userId: string | null = null;
-    if (state && /^[0-9a-fA-F-]{36}$/.test(state)) {
-      userId = state;
+
+    if (state) {
+      if (isUuid(state)) {
+        userId = state;
+      } else {
+        const { data: row, error: stateErr } = await supabaseAdmin
+          .from("oauth_states")
+          .select("user_id, expires_at")
+          .eq("provider", "strava")
+          .eq("state", state)
+          .maybeSingle();
+
+        if (stateErr) {
+          console.error("Erro ao buscar oauth_states (strava):", stateErr);
+        } else if (row?.user_id) {
+          const exp = new Date(row.expires_at).getTime();
+          if (Number.isFinite(exp) && exp > Date.now()) {
+            userId = row.user_id as string;
+
+            // limpa state (one-time use)
+            const { error: delErr } = await supabaseAdmin
+              .from("oauth_states")
+              .delete()
+              .eq("provider", "strava")
+              .eq("state", state);
+
+            if (delErr) {
+              console.warn("Falha ao deletar oauth_state (strava):", delErr);
+            }
+          } else {
+            console.warn("oauth_state expirado (strava). state:", state);
+          }
+        } else {
+          console.warn("oauth_state não encontrado (strava). state:", state);
+        }
+      }
     } else {
-      console.warn(
-        "State ausente ou não é um UUID válido. Nenhum user_id será associado:",
-        state
-      );
+      console.warn("State ausente. Tokens serão salvos sem user_id.");
     }
 
     const nowIso = new Date().toISOString();
     const expiresIso = new Date(expires_at * 1000).toISOString();
 
-    // 3) Salvar / atualizar tokens no Supabase
-    //    Aqui estamos usando athlete_id como chave única (onConflict)
-    const { error: dbError } = await supabaseAdmin
-      .from("strava_tokens")
-      .upsert(
-        {
-          athlete_id: athleteId,
-          access_token,
-          refresh_token,
-          token_type: token_type ?? "Bearer",
-          expires_at: expiresIso,
-          user_id: userId,
-          updated_at: nowIso,
-        },
-        {
-          onConflict: "athlete_id",
-        }
-      );
+    // 3) Salvar / atualizar tokens no Supabase (por athlete_id)
+    const { error: dbError } = await supabaseAdmin.from("strava_tokens").upsert(
+      {
+        athlete_id: athleteId,
+        access_token,
+        refresh_token,
+        token_type: token_type ?? "Bearer",
+        expires_at: expiresIso,
+        user_id: userId,
+        updated_at: nowIso,
+      },
+      { onConflict: "athlete_id" }
+    );
 
     if (dbError) {
       console.error("Erro ao salvar tokens no Supabase:", dbError);
@@ -139,7 +171,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 4) Redirecionar para página unificada de integrações
+    // 4) Redirecionar para integrações (site)
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
