@@ -1,6 +1,8 @@
-// app/api/strava/callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+
+// ✅ garante Buffer disponível (Node runtime)
+export const runtime = "nodejs";
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
 const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
@@ -8,14 +10,12 @@ const STRAVA_REDIRECT_URL = process.env.STRAVA_REDIRECT_URL;
 
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
-
-// Cliente ADMIN (server-side) – pode escrever em qualquer tabela
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
 type StravaTokenResponse = {
   access_token: string;
   refresh_token: string;
-  expires_at: number; // unix (segundos)
+  expires_at: number; // unix seconds
   token_type?: string;
   athlete: { id: number; firstname?: string; lastname?: string };
 };
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const error = searchParams.get("error");
-    const state = searchParams.get("state"); // pode ser UUID (site antigo) ou token (app)
+    const state = searchParams.get("state"); // esperado: user.id (uuid)
 
     if (error) {
       console.error("Erro retornado pelo Strava:", error);
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 1) Trocar o "code" pelo access_token / refresh_token no Strava
+    // 1) Trocar code por tokens no Strava
     const tokenRes = await fetch("https://www.strava.com/api/v3/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -98,54 +98,18 @@ export async function GET(req: NextRequest) {
 
     const athleteId = athlete.id;
 
-    // 2) Descobrir user_id:
-    //    - modo antigo do site: state = UUID do user_id
-    //    - modo app: state = token aleatório -> lookup em oauth_states
+    // 2) Resolver user_id (do Supabase) vindo no state
     let userId: string | null = null;
-
-    if (state) {
-      if (isUuid(state)) {
-        userId = state;
-      } else {
-        const { data: row, error: stateErr } = await supabaseAdmin
-          .from("oauth_states")
-          .select("user_id, expires_at")
-          .eq("provider", "strava")
-          .eq("state", state)
-          .maybeSingle();
-
-        if (stateErr) {
-          console.error("Erro ao buscar oauth_states (strava):", stateErr);
-        } else if (row?.user_id) {
-          const exp = new Date(row.expires_at).getTime();
-          if (Number.isFinite(exp) && exp > Date.now()) {
-            userId = row.user_id as string;
-
-            // limpa state (one-time use)
-            const { error: delErr } = await supabaseAdmin
-              .from("oauth_states")
-              .delete()
-              .eq("provider", "strava")
-              .eq("state", state);
-
-            if (delErr) {
-              console.warn("Falha ao deletar oauth_state (strava):", delErr);
-            }
-          } else {
-            console.warn("oauth_state expirado (strava). state:", state);
-          }
-        } else {
-          console.warn("oauth_state não encontrado (strava). state:", state);
-        }
-      }
-    } else {
-      console.warn("State ausente. Tokens serão salvos sem user_id.");
+    if (state && isUuid(state)) {
+      userId = state;
+    } else if (state) {
+      console.warn("State inválido no callback do Strava:", state);
     }
 
+    // 3) Salvar tokens no Supabase
     const nowIso = new Date().toISOString();
     const expiresIso = new Date(expires_at * 1000).toISOString();
 
-    // 3) Salvar / atualizar tokens no Supabase (por athlete_id)
     const { error: dbError } = await supabaseAdmin.from("strava_tokens").upsert(
       {
         athlete_id: athleteId,
@@ -160,7 +124,7 @@ export async function GET(req: NextRequest) {
     );
 
     if (dbError) {
-      console.error("Erro ao salvar tokens no Supabase:", dbError);
+      console.error("Erro ao salvar tokens do Strava no Supabase:", dbError);
       return NextResponse.json(
         {
           message:
@@ -171,7 +135,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 4) Redirecionar para integrações (site)
+    // 3.5) Marcar a integração preferida (evita somar Strava + Fitbit)
+    if (userId) {
+      const { error: prefErr } = await supabaseAdmin
+        .from("user_integrations")
+        .upsert(
+          {
+            user_id: userId,
+            preferred_provider: "strava",
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "user_id" }
+        );
+
+      if (prefErr) {
+        console.error("Erro ao salvar user_integrations (strava):", prefErr);
+        // não bloqueia o fluxo
+      }
+    }
+
+    // 4) Redirect final (web)
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
