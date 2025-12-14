@@ -1,43 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
+// Força runtime Node (necessário em OAuth server-side)
+export const runtime = "nodejs";
 
-const STRAVA_CLIENT_ID =
-  process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID ?? process.env.STRAVA_CLIENT_ID;
+// Variáveis conforme seu .env.local / Vercel
+const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID!;
+const STRAVA_REDIRECT_URL = process.env.STRAVA_REDIRECT_URL!;
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // pode vir como ?state=UUID ou token do app
-    const state = searchParams.get("state") ?? "";
+    // state = user_id do Supabase (site) ou token curto (app)
+    const state = searchParams.get("state");
 
-    if (!STRAVA_CLIENT_ID) {
-      console.error("STRAVA_CLIENT_ID/NEXT_PUBLIC_STRAVA_CLIENT_ID não definido.");
-      return NextResponse.json(
-        { message: "STRAVA client id não configurado no servidor." },
-        { status: 500 }
-      );
-    }
-
-    // callback "oficial" do Strava no seu site (o mesmo que você já usa)
-    const redirectUri = `${SITE_URL}/api/strava/callback`;
-
-    const stravaAuth = new URL("https://www.strava.com/oauth/authorize");
-    stravaAuth.searchParams.set("client_id", String(STRAVA_CLIENT_ID));
-    stravaAuth.searchParams.set("response_type", "code");
-    stravaAuth.searchParams.set("redirect_uri", redirectUri);
-    stravaAuth.searchParams.set("approval_prompt", "auto");
-    stravaAuth.searchParams.set("scope", "read,activity:read_all");
+    const authUrl = new URL("https://www.strava.com/oauth/authorize");
+    authUrl.searchParams.set("client_id", STRAVA_CLIENT_ID);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("redirect_uri", STRAVA_REDIRECT_URL);
+    authUrl.searchParams.set("approval_prompt", "auto");
+    authUrl.searchParams.set("scope", "read,activity:read_all");
 
     if (state) {
-      stravaAuth.searchParams.set("state", state);
+      authUrl.searchParams.set("state", state);
     }
 
-    return NextResponse.redirect(stravaAuth.toString());
+    // Redireciona o usuário (site ou app) para o Strava
+    return NextResponse.redirect(authUrl.toString());
   } catch (err) {
-    console.error("Erro ao iniciar OAuth Strava:", err);
+    console.error("Erro ao iniciar OAuth do Strava:", err);
     return NextResponse.json(
       { message: "Erro ao iniciar conexão com Strava." },
       { status: 500 }
