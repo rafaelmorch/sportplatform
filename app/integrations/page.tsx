@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app"; // domínio novo
-const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID!;
-const fitbitClientId = process.env.NEXT_PUBLIC_FITBIT_CLIENT_ID!;
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
 
 // Supabase browser client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -15,79 +13,60 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function IntegrationsPage() {
-  const [stravaUrl, setStravaUrl] = useState<string | null>(null);
-  const [fitbitUrl, setFitbitUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const setupUrls = async () => {
+    const load = async () => {
       try {
-        setErrorMsg(null);
         setLoading(true);
+        setErrorMsg(null);
 
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
+        const { data, error } = await supabase.auth.getSession();
 
         if (error) {
-          console.error("Erro ao carregar usuário:", error);
-          setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
+          console.error("Erro ao carregar sessão:", error);
+          setErrorMsg("Erro ao carregar sessão. Faça login novamente.");
+          setUserId(null);
           setLoading(false);
           return;
         }
 
-        if (!user) {
-          setErrorMsg("Você precisa estar logado para conectar integrações.");
+        const uid = data.session?.user?.id ?? null;
+        if (!uid) {
+          setErrorMsg("Você precisa estar logado no site para conectar integrações.");
+          setUserId(null);
           setLoading(false);
           return;
         }
 
-        // ---------- STRAVA ----------
-        const stravaRedirect = `${siteUrl}/api/strava/callback`;
-
-        const stravaParams = new URLSearchParams({
-          client_id: stravaClientId,
-          response_type: "code",
-          redirect_uri: stravaRedirect,
-          approval_prompt: "auto",
-          scope: "read,activity:read_all",
-          state: user.id,
-        });
-
-        const stravaAuthorizeUrl = `https://www.strava.com/oauth/authorize?${stravaParams.toString()}`;
-        setStravaUrl(stravaAuthorizeUrl);
-
-        // ---------- FITBIT ----------
-        const fitbitRedirect = `${siteUrl}/api/fitbit/callback`;
-        const fitbitScope =
-          "activity heartrate location profile settings sleep social weight";
-
-        const fitbitParams = new URLSearchParams({
-          response_type: "code",
-          client_id: fitbitClientId,
-          redirect_uri: fitbitRedirect,
-          scope: fitbitScope,
-          state: user.id,
-        });
-
-        const fitbitAuthorizeUrl = `https://www.fitbit.com/oauth2/authorize?${fitbitParams.toString()}`;
-        setFitbitUrl(fitbitAuthorizeUrl);
-
+        setUserId(uid);
         setLoading(false);
       } catch (err) {
-        console.error("Erro inesperado ao montar URLs de integração:", err);
+        console.error("Erro inesperado:", err);
         setErrorMsg("Erro inesperado ao preparar as integrações.");
+        setUserId(null);
         setLoading(false);
       }
     };
 
-    setupUrls();
+    load();
   }, []);
 
-  const disabledStrava = loading || !stravaUrl;
-  const disabledFitbit = loading || !fitbitUrl;
+  const disabled = loading || !userId;
+
+  // ✅ Agora os botões chamam rotas do SEU servidor
+  // O server usa FITBIT_CLIENT_ID / STRAVA_CLIENT_ID, sem depender de NEXT_PUBLIC
+  const fitbitConnectUrl = useMemo(() => {
+    if (!userId) return "#";
+    return `${siteUrl}/api/fitbit/connect?state=${encodeURIComponent(userId)}`;
+  }, [userId]);
+
+  const stravaConnectUrl = useMemo(() => {
+    if (!userId) return "#";
+    return `${siteUrl}/api/strava/connect?state=${encodeURIComponent(userId)}`;
+  }, [userId]);
 
   return (
     <main
@@ -177,18 +156,32 @@ export default function IntegrationsPage() {
         </p>
 
         {errorMsg && (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#fca5a5",
-              marginBottom: 12,
-            }}
-          >
-            {errorMsg}
-          </p>
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>
+              {errorMsg}
+            </p>
+
+            <div style={{ marginTop: 10 }}>
+              <Link
+                href="/login"
+                style={{
+                  display: "inline-flex",
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  background: "rgba(148,163,184,0.12)",
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  color: "#e5e7eb",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Ir para Login
+              </Link>
+            </div>
+          </div>
         )}
 
-        {/* Cards de integrações */}
         <div
           style={{
             display: "flex",
@@ -208,34 +201,17 @@ export default function IntegrationsPage() {
                 "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.9))",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "#e5e7eb",
-                  }}
-                >
-                  Strava
-                </div>
-                <div
-                  style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}
-                >
-                  Importa suas corridas, pedaladas e outras atividades.
-                </div>
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#e5e7eb" }}>
+                Strava
+              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                Importa suas corridas, pedaladas e outras atividades.
               </div>
             </div>
 
             <a
-              href={stravaUrl ?? "#"}
+              href={disabled ? "#" : stravaConnectUrl}
               style={{
                 display: "inline-flex",
                 width: "100%",
@@ -244,18 +220,18 @@ export default function IntegrationsPage() {
                 height: 44,
                 borderRadius: "999px",
                 marginTop: 8,
-                background: disabledStrava
+                background: disabled
                   ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
                   : "linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)",
-                color: disabledStrava ? "#9ca3af" : "#0b1120",
+                color: disabled ? "#9ca3af" : "#0b1120",
                 fontWeight: 600,
                 fontSize: "14px",
                 border: "1px solid rgba(248, 250, 252, 0.08)",
                 textDecoration: "none",
-                boxShadow: disabledStrava
+                boxShadow: disabled
                   ? "none"
                   : "0 12px 35px rgba(15,23,42,0.8), 0 0 0 1px rgba(15,23,42,0.9)",
-                pointerEvents: disabledStrava ? "none" : "auto",
+                pointerEvents: disabled ? "none" : "auto",
               }}
             >
               {loading ? "Preparando conexão..." : "Conectar com Strava"}
@@ -272,34 +248,17 @@ export default function IntegrationsPage() {
                 "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.9))",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "#e5e7eb",
-                  }}
-                >
-                  Fitbit
-                </div>
-                <div
-                  style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}
-                >
-                  Sincroniza atividades diárias, batimentos e outros dados.
-                </div>
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "#e5e7eb" }}>
+                Fitbit
+              </div>
+              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                Sincroniza atividades diárias, batimentos e outros dados.
               </div>
             </div>
 
             <a
-              href={fitbitUrl ?? "#"}
+              href={disabled ? "#" : fitbitConnectUrl}
               style={{
                 display: "inline-flex",
                 width: "100%",
@@ -308,18 +267,18 @@ export default function IntegrationsPage() {
                 height: 44,
                 borderRadius: "999px",
                 marginTop: 8,
-                background: disabledFitbit
+                background: disabled
                   ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
                   : "linear-gradient(135deg, #38bdf8 0%, #0ea5e9 40%, #0284c7 100%)",
-                color: disabledFitbit ? "#9ca3af" : "#0b1120",
+                color: disabled ? "#9ca3af" : "#0b1120",
                 fontWeight: 600,
                 fontSize: "14px",
                 border: "1px solid rgba(248, 250, 252, 0.08)",
                 textDecoration: "none",
-                boxShadow: disabledFitbit
+                boxShadow: disabled
                   ? "none"
                   : "0 12px 35px rgba(15,23,42,0.8), 0 0 0 1px rgba(15,23,42,0.9)",
-                pointerEvents: disabledFitbit ? "none" : "auto",
+                pointerEvents: disabled ? "none" : "auto",
               }}
             >
               {loading ? "Preparando conexão..." : "Conectar com Fitbit"}
@@ -327,13 +286,7 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
-        <div
-          style={{
-            marginTop: "8px",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
+        <div style={{ marginTop: 8, display: "flex", justifyContent: "center" }}>
           <Link
             href="/dashboard"
             style={{
