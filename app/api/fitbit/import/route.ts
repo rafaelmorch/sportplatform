@@ -3,169 +3,262 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-function supabaseServer() {
-  const cookieStore = cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options, maxAge: 0 });
-        },
-      },
-    }
-  );
+export const dynamic = "force-dynamic";
+
+type FitbitTokenRow = {
+  user_id: string;
+  fitbit_user_id: string | null;
+  access_token: string;
+  refresh_token: string;
+  token_type: string | null;
+  scope: string | null;
+  expires_at: string; // timestamptz
+};
+
+function env(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
 }
 
-function yyyyMmDd(d: Date) {
-  const yyyy = d.getUTCFullYear();
-  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(d.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+async function supabaseServer() {
+  // ✅ Next 16: cookies() é async
+  const cookieStore = await cookies();
+
+  return createServerClient(env("NEXT_PUBLIC_SUPABASE_URL"), env("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: any) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: any) {
+        cookieStore.set({ name, value: "", ...options, maxAge: 0 });
+      },
+    },
+  });
+}
+
+function toYYYYMMDD(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function asNumber(v: any, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function safeJsonParse(str: string) {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
+async function refreshFitbitTokenIfNeeded(
+  supabase: Awaited<ReturnType<typeof supabaseServer>>,
+  token: FitbitTokenRow
+): Promise<FitbitTokenRow> {
+  const now = Date.now();
+  const expiresAt = new Date(token.expires_at).getTime();
+
+  // se expira em <= 60s, renova
+  if (Number.isFinite(expiresAt) && expiresAt - now > 60_000) return token;
+
+  const clientId = env("FITBIT_CLIENT_ID");
+  const clientSecret = env("FITBIT_CLIENT_SECRET");
+
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+
+  const body = new URLSearchParams();
+  body.set("grant_type", "refresh_token");
+  body.set("refresh_token", token.refresh_token);
+
+  const r = await fetch("https://api.fitbit.com/oauth2/token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  const text = await r.text();
+  const data = safeJsonParse(text);
+
+  if (!r.ok) {
+    throw new Error(`Fitbit refresh failed (${r.status}): ${text}`);
+  }
+  if (!data?.access_token || !data?.refresh_token || !data?.expires_in) {
+    throw new Error(`Fitbit refresh response unexpected: ${text}`);
+  }
+
+  const newExpiresAt = new Date(Date.now() + Number(data.expires_in) * 1000).toISOString();
+
+  const updated: Partial<FitbitTokenRow> = {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    token_type: data.token_type ?? token.token_type,
+    scope: data.scope ?? token.scope,
+    expires_at: newExpiresAt,
+    fitbit_user_id: data.user_id ?? token.fitbit_user_id,
+  };
+
+  const { error } = await supabase
+    .from("fitbit_tokens")
+    .update(updated)
+    .eq("user_id", token.user_id);
+
+  if (error) throw new Error(`Supabase update fitbit_tokens failed: ${error.message}`);
+
+  return { ...token, ...(updated as FitbitTokenRow) };
+}
+
+async function fetchFitbitActivities(accessToken: string, afterDate: string) {
+  // Fitbit Activities List API
+  // https://api.fitbit.com/1/user/-/activities/list.json?afterDate=YYYY-MM-DD&sort=desc&limit=100&offset=0
+  const url = new URL("https://api.fitbit.com/1/user/-/activities/list.json");
+  url.searchParams.set("afterDate", afterDate);
+  url.searchParams.set("sort", "desc");
+  url.searchParams.set("limit", "100");
+  url.searchParams.set("offset", "0");
+
+  const r = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  const text = await r.text();
+  const data = safeJsonParse(text);
+
+  if (!r.ok) throw new Error(`Fitbit activities failed (${r.status}): ${text}`);
+
+  // geralmente vem em `activities`
+  const acts = Array.isArray(data?.activities) ? data.activities : [];
+  return acts;
 }
 
 export async function GET(req: Request) {
   try {
-    const supabase = supabaseServer();
+    const supabase = await supabaseServer();
 
     const {
       data: { user },
       error: userErr,
     } = await supabase.auth.getUser();
 
-    if (userErr) {
-      return NextResponse.json({ ok: false, error: userErr.message }, { status: 401 });
-    }
-    if (!user) {
-      return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
-    }
+    if (userErr) throw new Error(`Supabase auth error: ${userErr.message}`);
+    if (!user) return NextResponse.json({ ok: false, error: "Not logged in" }, { status: 401 });
 
-    // pega o token mais recente
+    const url = new URL(req.url);
+    const days = Math.max(1, Math.min(365, Number(url.searchParams.get("days") ?? "30")));
+    const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const afterDate = toYYYYMMDD(after);
+
+    // token do usuário
     const { data: tokenRow, error: tokenErr } = await supabase
       .from("fitbit_tokens")
-      .select("access_token, fitbit_user_id")
+      .select("user_id, fitbit_user_id, access_token, refresh_token, token_type, scope, expires_at")
       .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(1)
       .maybeSingle();
 
-    if (tokenErr) {
-      return NextResponse.json({ ok: false, error: tokenErr.message }, { status: 500 });
-    }
-    if (!tokenRow?.access_token) {
-      return NextResponse.json({ ok: false, error: "No Fitbit token found for this user" }, { status: 400 });
-    }
-
-    // quantos dias importar (default 30)
-    const url = new URL(req.url);
-    const days = Math.max(1, Math.min(180, Number(url.searchParams.get("days") ?? "30")));
-    const beforeDate = yyyyMmDd(new Date());
-
-    // Fitbit activities list
-    // docs: /1/user/-/activities/list.json?beforeDate=YYYY-MM-DD&sort=desc&limit=...
-    const fbUrl = new URL("https://api.fitbit.com/1/user/-/activities/list.json");
-    fbUrl.searchParams.set("beforeDate", beforeDate);
-    fbUrl.searchParams.set("sort", "desc");
-    fbUrl.searchParams.set("offset", "0");
-    fbUrl.searchParams.set("limit", "100");
-
-    const fbRes = await fetch(fbUrl.toString(), {
-      headers: {
-        Authorization: `Bearer ${tokenRow.access_token}`,
-        "Accept-Language": "en_US",
-      },
-    });
-
-    if (!fbRes.ok) {
-      const body = await fbRes.text().catch(() => "");
+    if (tokenErr) throw new Error(`Supabase read fitbit_tokens failed: ${tokenErr.message}`);
+    if (!tokenRow) {
       return NextResponse.json(
-        { ok: false, error: `Fitbit API error: ${fbRes.status}`, body },
-        { status: 500 }
+        { ok: false, error: "No Fitbit token found for this user." },
+        { status: 400 }
       );
     }
 
-    const fbJson: any = await fbRes.json();
+    const freshToken = await refreshFitbitTokenIfNeeded(supabase, tokenRow as FitbitTokenRow);
 
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
+    const activities = await fetchFitbitActivities(freshToken.access_token, afterDate);
 
-    const activities: any[] = Array.isArray(fbJson?.activities) ? fbJson.activities : [];
-
-    // mapeia para fitbit_activities + user_activities
-    const fitbitRows = [];
-    const userActivityRows = [];
-
-    for (const a of activities) {
-      const logId = a?.logId;
-      const startTime = a?.startTime; // ISO-ish
-      const durationMs = Number(a?.duration ?? 0);
-      const distance = Number(a?.distance ?? 0);
-
-      if (!logId || !startTime) continue;
-
-      const startDate = new Date(startTime);
-      if (Number.isNaN(startDate.getTime())) continue;
-      if (startDate < cutoff) continue;
-
-      const movingTimeSec = Math.round(durationMs / 1000);
-      const minutes = durationMs / 60000;
-
-      const name = (a?.activityName ?? a?.name ?? "Activity") as string;
-      const type = (a?.activityTypeId != null ? String(a.activityTypeId) : (a?.activityName ?? "Activity")) as string;
-
-      fitbitRows.push({
-        user_id: user.id,
-        fitbit_user_id: tokenRow.fitbit_user_id ?? null,
-        activity_id: logId, // bigint no banco
-        name,
-        type,
-        start_date: startDate.toISOString(),
-        distance: Number.isFinite(distance) ? distance : 0,
-        moving_time: Number.isFinite(movingTimeSec) ? movingTimeSec : 0,
-        raw: a,
+    if (!activities.length) {
+      return NextResponse.json({
+        ok: true,
+        days,
+        afterDate,
+        fetched: 0,
+        inserted_fitbit_activities: 0,
+        upserted_user_activities: 0,
       });
+    }
 
-      userActivityRows.push({
+    // montar rows p/ fitbit_activities
+    const fitbitRows = activities.map((a: any) => {
+      const activityId = a?.logId ?? a?.activityLogId ?? a?.activityId ?? null; // tenta achar um id
+      const startTime = a?.startTime ?? a?.startDateTime ?? a?.originalStartTime ?? null;
+      const durationMs = asNumber(a?.duration, 0); // ms
+      const dist = asNumber(a?.distance, 0); // normalmente em km/miles dependendo config; mantemos raw e não assumimos
+      const type = (a?.activityName ?? a?.name ?? a?.activityTypeName ?? "Activity") as string;
+
+      return {
+        user_id: user.id,
+        fitbit_user_id: freshToken.fitbit_user_id ?? null,
+        activity_id: Number(activityId ?? 0),
+        name: type,
+        type: type,
+        start_date: startTime ? new Date(startTime).toISOString() : null,
+        distance: dist,
+        moving_time: Math.round(durationMs / 1000), // segundos
+        raw: a,
+      };
+    });
+
+    // inserir/upsert fitbit_activities
+    // (assumindo que existe unique por user_id + activity_id; se não existir, criaremos depois)
+    const { data: fitbitInsert, error: fitbitErr } = await supabase
+      .from("fitbit_activities")
+      .upsert(fitbitRows, { onConflict: "user_id,activity_id" })
+      .select("activity_id");
+
+    if (fitbitErr) throw new Error(`Supabase upsert fitbit_activities failed: ${fitbitErr.message}`);
+
+    // montar rows p/ user_activities (provider=fitbit)
+    const userActs = activities.map((a: any) => {
+      const activityId = a?.logId ?? a?.activityLogId ?? a?.activityId ?? null;
+      const startTime = a?.startTime ?? a?.startDateTime ?? a?.originalStartTime ?? null;
+      const durationMs = asNumber(a?.duration, 0);
+      const minutes = durationMs > 0 ? durationMs / 60000 : 0;
+      const type = (a?.activityName ?? a?.name ?? a?.activityTypeName ?? "Activity") as string;
+
+      return {
         user_id: user.id,
         provider: "fitbit",
-        external_id: String(logId), // user_activities.external_id é text
-        start_date: startDate.toISOString(),
-        type: name, // mantém simples pro ranking (o app usa type)
-        minutes: Number.isFinite(minutes) ? minutes : 0,
+        external_id: String(activityId ?? ""),
+        start_date: startTime ? new Date(startTime).toISOString() : null,
+        type,
+        minutes,
         raw: a,
-      });
-    }
+      };
+    });
 
-    // grava fitbit_activities
-    if (fitbitRows.length > 0) {
-      const { error: fbInsErr } = await supabase.from("fitbit_activities").insert(fitbitRows);
-      if (fbInsErr) {
-        return NextResponse.json({ ok: false, error: `fitbit_activities insert: ${fbInsErr.message}` }, { status: 500 });
-      }
-    }
+    // upsert em user_activities
+    // (assumindo unique por user_id + provider + external_id)
+    const { data: uaUpsert, error: uaErr } = await supabase
+      .from("user_activities")
+      .upsert(userActs, { onConflict: "user_id,provider,external_id" })
+      .select("external_id");
 
-    // grava user_activities (é o que o APP lê)
-    if (userActivityRows.length > 0) {
-      const { error: uaInsErr } = await supabase.from("user_activities").insert(userActivityRows);
-      if (uaInsErr) {
-        return NextResponse.json({ ok: false, error: `user_activities insert: ${uaInsErr.message}` }, { status: 500 });
-      }
-    }
+    if (uaErr) throw new Error(`Supabase upsert user_activities failed: ${uaErr.message}`);
 
     return NextResponse.json({
       ok: true,
-      imported_fitbit_activities: fitbitRows.length,
-      imported_user_activities: userActivityRows.length,
       days,
+      afterDate,
+      fetched: activities.length,
+      inserted_fitbit_activities: fitbitInsert?.length ?? 0,
+      upserted_user_activities: uaUpsert?.length ?? 0,
     });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? String(e) }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message ?? String(e) },
+      { status: 500 }
+    );
   }
 }
