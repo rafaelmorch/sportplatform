@@ -1,188 +1,148 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ garante Buffer disponível (Node runtime)
 export const runtime = "nodejs";
 
-const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID!;
-const FITBIT_CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET!;
-const FITBIT_REDIRECT_URL = process.env.FITBIT_REDIRECT_URL!;
-
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
-
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
-
-type FitbitTokenResponse = {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number; // segundos
-  token_type: string;
-  user_id: string; // id do usuário na Fitbit
-  scope?: string;
-};
-
-function isUuid(v: string) {
-  return /^[0-9a-fA-F-]{36}$/.test(v);
+function requiredEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-    const code = searchParams.get("code");
-    const state = searchParams.get("state") ?? null; // UUID (site) ou token (app)
-    const error = searchParams.get("error");
+    const url = new URL(req.url);
+
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state"); // aqui vamos usar como user_id
+    const error = url.searchParams.get("error");
+    const errorDescription = url.searchParams.get("error_description");
+
+    const SITE_URL =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://sportsplatform.app";
 
     if (error) {
-      console.error("Erro retornado pelo Fitbit:", error);
-      return NextResponse.json(
-        { message: "Erro retornado pelo Fitbit.", error },
-        { status: 400 }
+      return NextResponse.redirect(
+        `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+          `${error}: ${errorDescription ?? ""}`.trim()
+        )}`
       );
     }
 
     if (!code) {
-      return NextResponse.json(
-        { message: "Code não recebido do Fitbit." },
-        { status: 400 }
+      return NextResponse.redirect(
+        `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+          "missing_code"
+        )}`
       );
     }
 
-    // 1) Trocar code por tokens na Fitbit
-    const basicAuth = Buffer.from(
+    if (!state) {
+      return NextResponse.redirect(
+        `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+          "missing_state_user_id"
+        )}`
+      );
+    }
+
+    // ====== Exchange code -> tokens (Fitbit) ======
+    const FITBIT_CLIENT_ID = requiredEnv("FITBIT_CLIENT_ID");
+    const FITBIT_CLIENT_SECRET = requiredEnv("FITBIT_CLIENT_SECRET");
+    const FITBIT_REDIRECT_URL = requiredEnv("FITBIT_REDIRECT_URL");
+
+    const basic = Buffer.from(
       `${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`
     ).toString("base64");
+
+    const body = new URLSearchParams();
+    body.set("client_id", FITBIT_CLIENT_ID);
+    body.set("grant_type", "authorization_code");
+    body.set("redirect_uri", FITBIT_REDIRECT_URL);
+    body.set("code", code);
 
     const tokenRes = await fetch("https://api.fitbit.com/oauth2/token", {
       method: "POST",
       headers: {
-        Authorization: `Basic ${basicAuth}`,
+        Authorization: `Basic ${basic}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({
-        grant_type: "authorization_code",
-        code,
-        redirect_uri: FITBIT_REDIRECT_URL,
-      }),
+      body,
     });
 
-    const tokenJson = (await tokenRes.json()) as FitbitTokenResponse & {
-      [key: string]: any;
-    };
+    const tokenJson: any = await tokenRes.json();
 
     if (!tokenRes.ok) {
-      console.error("Erro Fitbit /oauth2/token:", tokenJson);
-      return NextResponse.json(
-        {
-          message: "Erro ao trocar o code pelo token no Fitbit.",
-          fitbit_error: tokenJson,
-        },
-        { status: 400 }
+      return NextResponse.redirect(
+        `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+          `token_exchange_failed: ${JSON.stringify(tokenJson)}`
+        )}`
       );
     }
 
-    const {
-      access_token,
-      refresh_token,
-      expires_in,
-      token_type,
-      user_id: fitbitUserId,
-      scope,
-    } = tokenJson;
+    const fitbitUserId = tokenJson.user_id as string | undefined;
+    const accessToken = tokenJson.access_token as string | undefined;
+    const refreshToken = tokenJson.refresh_token as string | undefined;
+    const expiresIn = tokenJson.expires_in as number | undefined;
+    const scope = tokenJson.scope as string | undefined;
+    const tokenType = tokenJson.token_type as string | undefined;
 
-    if (!fitbitUserId) {
-      return NextResponse.json(
-        { message: "Resposta do Fitbit sem user_id." },
-        { status: 400 }
+    if (!fitbitUserId || !accessToken || !refreshToken) {
+      return NextResponse.redirect(
+        `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+          "invalid_token_payload"
+        )}`
       );
     }
 
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + expires_in * 1000);
+    const expiresAt =
+      typeof expiresIn === "number"
+        ? new Date(Date.now() + expiresIn * 1000).toISOString()
+        : null;
 
-    // 2) Resolver user_id do Supabase:
-    //    - se state for UUID: comportamento do site (mantido)
-    //    - se state for token: buscar em oauth_states (modo app)
-    let userId: string | null = null;
+    // ====== Save tokens on Supabase (server-side) ======
+    const supabaseUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+    const serviceRole = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (state) {
-      if (isUuid(state)) {
-        userId = state; // ✅ site antigo
-      } else {
-        // ✅ modo app: state é token curto, resolve em oauth_states
-        const { data: row, error: stateErr } = await supabaseAdmin
-          .from("oauth_states")
-          .select("user_id, expires_at")
-          .eq("provider", "fitbit")
-          .eq("state", state)
-          .maybeSingle();
+    const admin = createClient(supabaseUrl, serviceRole, {
+      auth: { persistSession: false },
+    });
 
-        if (stateErr) {
-          console.error("Erro ao buscar oauth_states (fitbit):", stateErr);
-        } else if (row) {
-          const exp = new Date(row.expires_at).getTime();
-          if (exp > Date.now()) {
-            userId = row.user_id;
+    const userId = state;
 
-            // one-time-use
-            await supabaseAdmin
-              .from("oauth_states")
-              .delete()
-              .eq("provider", "fitbit")
-              .eq("state", state);
-          } else {
-            console.warn("oauth_state expirado (fitbit):", state);
-          }
-        } else {
-          console.warn("oauth_state não encontrado (fitbit):", state);
-        }
-      }
-    }
+    const { error: upsertError } = await admin.from("fitbit_tokens").upsert(
+      {
+        user_id: userId,
+        fitbit_user_id: fitbitUserId,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: expiresAt,
+        scope: scope ?? null,
+        token_type: tokenType ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,fitbit_user_id" }
+    );
 
-    // 3) Salvar tokens no Supabase
-    const { error: dbError } = await supabaseAdmin
-      .from("fitbit_tokens")
-      .upsert(
-        {
-          fitbit_user_id: fitbitUserId,
-          user_id: userId,
-          access_token,
-          refresh_token,
-          token_type: token_type ?? "Bearer",
-          scope,
-          expires_at: expiresAt.toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "fitbit_user_id" }
-      );
-
-    if (dbError) {
-      console.error("Erro ao salvar tokens Fitbit no Supabase:", dbError);
-      return NextResponse.json(
-        {
-          message:
-            "Conexão com Fitbit feita, mas houve erro ao salvar os tokens.",
-          dbError,
-        },
-        { status: 500 }
+    if (upsertError) {
+      return NextResponse.redirect(
+        `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+          `db_upsert_failed: ${upsertError.message}`
+        )}`
       );
     }
 
-    // 4) Redirect final
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
-
-    const redirectUrl = new URL("/integrations", baseUrl);
-    redirectUrl.searchParams.set("provider", "fitbit");
-    redirectUrl.searchParams.set("status", "success");
-    redirectUrl.searchParams.set("fitbit_user_id", fitbitUserId);
-
-    return NextResponse.redirect(redirectUrl.toString());
-  } catch (err) {
-    console.error("Erro inesperado no callback do Fitbit:", err);
-    return NextResponse.json(
-      { message: "Erro inesperado no callback do Fitbit." },
-      { status: 500 }
+    return NextResponse.redirect(
+      `${SITE_URL}/integrations?provider=fitbit&status=success&fitbit_user_id=${encodeURIComponent(
+        fitbitUserId
+      )}`
+    );
+  } catch (e: any) {
+    const SITE_URL =
+      process.env.NEXT_PUBLIC_SITE_URL || "https://sportsplatform.app";
+    return NextResponse.redirect(
+      `${SITE_URL}/integrations?provider=fitbit&status=error&message=${encodeURIComponent(
+        e?.message ?? "unknown_error"
+      )}`
     );
   }
 }
