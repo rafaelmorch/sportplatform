@@ -22,7 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // current user
   String? _currentUserId;
 
-  // grupos do usuário (AGORA via training_groups)
+  // grupos do usuário (via training_groups)
   List<_TrainingGroupOption> _groups = [];
   _TrainingGroupOption? _selectedGroup;
 
@@ -128,6 +128,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  double _secondsToMinutes(num? seconds) {
+    final s = (seconds ?? 0).toDouble();
+    if (s <= 0) return 0;
+    return s / 60.0;
+  }
+
   // -----------------------------
   // Bootstrap / Loading
   // -----------------------------
@@ -149,7 +155,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       _currentUserId = user.id;
 
-      // ✅ 1) quais grupos (group_id) esse usuário participa? (training_group_members)
+      // 1) quais grupos (group_id) esse usuário participa? (training_group_members)
       final memberRows = await _supabase
           .from('training_group_members')
           .select('group_id')
@@ -162,7 +168,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .toSet()
           .toList();
 
-      // ✅ 2) buscar dados do grupo em training_groups (id, title)
+      // 2) buscar dados do grupo em training_groups (id, title)
       List<_TrainingGroupOption> groups = [];
       if (groupIds.isNotEmpty) {
         final groupRows = await _supabase
@@ -183,7 +189,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _groups = groups;
       _selectedGroup = groups.isNotEmpty ? groups.first : null;
 
-      // ✅ 3) carregar tudo do grupo selecionado
+      // 3) carregar tudo do grupo selecionado
       await _loadSelectedGroupData();
 
       setState(() => _loading = false);
@@ -208,7 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    // ✅ membros do grupo (training_group_members por group_id)
+    // membros do grupo (training_group_members por group_id)
     final members = await _supabase
         .from('training_group_members')
         .select('user_id')
@@ -240,12 +246,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (id.isNotEmpty) _nameByUserId[id] = name;
     }
 
-    // user_activities (filtra por membros)
+    // user_activities: na sua tabela NÃO existe minutes. Existe moving_time (segundos).
     final start = _rangeStart(_range);
 
-    var query = _supabase
+    PostgrestFilterBuilder query = _supabase
         .from('user_activities')
-        .select('user_id, start_date, type, minutes')
+        .select('user_id, start_date, type, moving_time')
         .inFilter('user_id', userIds);
 
     if (start != null) {
@@ -256,11 +262,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final rows = (actRows as List).map((r) {
       final uid = (r['user_id'] as String?) ?? '';
+      final minutes = _secondsToMinutes(r['moving_time'] as num?);
+
       return _GroupActivityRow(
         userId: uid,
         startDate: (r['start_date'] as String?),
         type: (r['type'] as String?),
-        minutes: ((r['minutes'] as num?) ?? 0).toDouble(),
+        minutes: minutes,
         fullName: _nameByUserId[uid],
       );
     }).toList();
@@ -533,7 +541,7 @@ class _HeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
 
-          // Grupo selector (AGORA: training_groups)
+          // Grupo selector (training_groups)
           Row(
             children: [
               const Icon(Icons.groups),
@@ -847,7 +855,8 @@ class _RankingCard extends StatelessWidget {
         children: [
           Text(
             "Ranking do grupo",
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
@@ -892,7 +901,8 @@ class _RankingCard extends StatelessWidget {
                     r.label,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontWeight: r.isCurrent ? FontWeight.w900 : FontWeight.w700,
+                      fontWeight:
+                          r.isCurrent ? FontWeight.w900 : FontWeight.w700,
                     ),
                   ),
                   subtitle: r.isCurrent
@@ -950,7 +960,8 @@ class _EvolutionCard extends StatelessWidget {
         children: [
           Text(
             "Evolução (minutos por dia)",
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
