@@ -1,8 +1,28 @@
+// lib/screens/dashboard_screen.dart
+// Dashboard V2 (FULL)
+// - fl_chart 0.71.0 compatível
+// - Linhas curvas (isCurved: true)
+// - Legenda no padrão do site (Líder / Média / Você)
+// - Ranking entre churrasco e gráfico, com scroll interno e ordenação (Posição / A-Z)
+// - Card "Últimas atividades" com 50 mais recentes + toggle Meus / Grupo
+// - Ajustes: grid quase imperceptível + eixos X/Y visíveis + medalhas top 3 (CORES reais)
+
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:fl_chart/fl_chart.dart';
+
+// =========================================================
+// ENUMS
+// =========================================================
 
 enum RangeKey { all, today, d7, d30, m6 }
+enum ActivitiesView { mine, group }
+enum RankingSort { position, az }
+
+// =========================================================
+// SCREEN
+// =========================================================
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,30 +35,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _supabase = Supabase.instance.client;
 
   RangeKey _range = RangeKey.d30;
+  ActivitiesView _activitiesView = ActivitiesView.group;
 
   bool _loading = true;
   String? _error;
 
-  // current user
   String? _currentUserId;
 
-  // grupos do usuário (via training_groups)
   List<_TrainingGroupOption> _groups = [];
   _TrainingGroupOption? _selectedGroup;
 
-  // membros do grupo selecionado
   List<String> _memberUserIds = [];
-
-  // profiles
   final Map<String, String?> _nameByUserId = {};
 
-  // atividades do grupo (user_activities)
   List<_GroupActivityRow> _groupActivities = [];
-
-  // ranking
   List<_RankingEntry> _ranking = [];
-
-  // evolução diária
   List<_EvolutionPoint> _evolution = [];
 
   @override
@@ -47,9 +58,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _bootstrap();
   }
 
-  // -----------------------------
-  // Helpers
-  // -----------------------------
+  // =========================================================
+  // HELPERS
+  // =========================================================
 
   DateTime _now() => DateTime.now();
 
@@ -69,20 +80,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  bool _isInRange(DateTime? dt, RangeKey r) {
-    if (r == RangeKey.all) return true;
-    if (dt == null) return false;
-
-    final start = _rangeStart(r);
-    if (start == null) return true;
-
-    if (r == RangeKey.today) {
-      final now = _now();
-      final d0 = DateTime(now.year, now.month, now.day);
-      final d1 = d0.add(const Duration(days: 1));
-      return dt.isAtSameMomentAs(d0) || (dt.isAfter(d0) && dt.isBefore(d1));
+  DateTime? _parseDate(String? s) {
+    if (s == null) return null;
+    try {
+      return DateTime.parse(s);
+    } catch (_) {
+      return null;
     }
+  }
 
+  bool _isInRange(DateTime? dt) {
+    if (dt == null) return false;
+    final start = _rangeStart(_range);
+    if (start == null) return true;
     return dt.isAfter(start) || dt.isAtSameMomentAs(start);
   }
 
@@ -93,50 +103,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   double _pointsFor(String? type, double minutes) {
     if (minutes <= 0) return 0;
-    final hours = minutes / 60.0;
     final rate = _isWalkingType(type) ? 15.0 : 100.0;
-    return hours * rate;
+    return (minutes / 60.0) * rate;
   }
 
-  DateTime? _parseDate(String? s) {
-    if (s == null) return null;
-    try {
-      return DateTime.parse(s);
-    } catch (_) {
-      return null;
-    }
-  }
+  String _fmtShortDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
 
-  String _fmtShortDate(DateTime d) {
+  String _fmtDateTime(DateTime d) {
     final dd = d.day.toString().padLeft(2, '0');
     final mm = d.month.toString().padLeft(2, '0');
-    return '$dd/$mm';
+    final yy = (d.year % 100).toString().padLeft(2, '0');
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mi = d.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/$yy $hh:$mi';
   }
 
-  String _rangeLabel(RangeKey r) {
-    switch (r) {
-      case RangeKey.all:
-        return 'Tudo';
-      case RangeKey.today:
-        return 'Hoje';
-      case RangeKey.d7:
-        return '7 dias';
-      case RangeKey.d30:
-        return '30 dias';
-      case RangeKey.m6:
-        return '6 meses';
-    }
-  }
-
-  double _secondsToMinutes(num? seconds) {
-    final s = (seconds ?? 0).toDouble();
-    if (s <= 0) return 0;
-    return s / 60.0;
-  }
-
-  // -----------------------------
-  // Bootstrap / Loading
-  // -----------------------------
+  // =========================================================
+  // BOOTSTRAP
+  // =========================================================
 
   Future<void> _bootstrap() async {
     setState(() {
@@ -153,43 +138,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
         return;
       }
+
       _currentUserId = user.id;
 
-      // 1) quais grupos (group_id) esse usuário participa? (training_group_members)
       final memberRows = await _supabase
           .from('training_group_members')
           .select('group_id')
           .eq('user_id', user.id);
 
       final groupIds = (memberRows as List)
-          .map((r) => (r['group_id'] as String?)?.trim())
+          .map((e) => (e['group_id'] as String?)?.trim())
           .whereType<String>()
           .where((s) => s.isNotEmpty)
           .toSet()
           .toList();
 
-      // 2) buscar dados do grupo em training_groups (id, title)
-      List<_TrainingGroupOption> groups = [];
       if (groupIds.isNotEmpty) {
         final groupRows = await _supabase
             .from('training_groups')
             .select('id, title')
             .inFilter('id', groupIds);
 
-        groups = (groupRows as List).map((r) {
-          final id = (r['id'] as String?) ?? '';
-          final title = (r['title'] as String?) ?? 'Grupo';
-          return _TrainingGroupOption(
-            id: id,
-            title: title,
-          );
-        }).where((g) => g.id.isNotEmpty).toList();
+        _groups = (groupRows as List)
+            .map((g) => _TrainingGroupOption(
+                  id: (g['id'] as String?) ?? '',
+                  title: (g['title'] as String?) ?? 'Grupo',
+                ))
+            .where((g) => g.id.isNotEmpty)
+            .toList();
+
+        _selectedGroup = _groups.isNotEmpty ? _groups.first : null;
+      } else {
+        _groups = [];
+        _selectedGroup = null;
       }
 
-      _groups = groups;
-      _selectedGroup = groups.isNotEmpty ? groups.first : null;
-
-      // 3) carregar tudo do grupo selecionado
       await _loadSelectedGroupData();
 
       setState(() => _loading = false);
@@ -214,7 +197,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    // membros do grupo (training_group_members por group_id)
     final members = await _supabase
         .from('training_group_members')
         .select('user_id')
@@ -234,7 +216,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    // profiles para nomes
     final profiles = await _supabase
         .from('profiles')
         .select('id, full_name')
@@ -246,72 +227,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (id.isNotEmpty) _nameByUserId[id] = name;
     }
 
-    // user_activities: na sua tabela NÃO existe minutes. Existe moving_time (segundos).
-    final start = _rangeStart(_range);
-
-    PostgrestFilterBuilder query = _supabase
+    var query = _supabase
         .from('user_activities')
-        .select('user_id, start_date, type, moving_time')
+        .select('user_id, start_date, type, minutes')
         .inFilter('user_id', userIds);
 
+    final start = _rangeStart(_range);
     if (start != null) {
       query = query.gte('start_date', start.toIso8601String());
     }
 
     final actRows = await query;
 
-    final rows = (actRows as List).map((r) {
-      final uid = (r['user_id'] as String?) ?? '';
-      final minutes = _secondsToMinutes(r['moving_time'] as num?);
+    final rows = (actRows as List)
+        .map((r) {
+          final uid = (r['user_id'] as String?) ?? '';
+          return _GroupActivityRow(
+            userId: uid,
+            startDate: (r['start_date'] as String?),
+            type: (r['type'] as String?),
+            minutes: ((r['minutes'] as num?) ?? 0).toDouble(),
+            fullName: _nameByUserId[uid],
+          );
+        })
+        .where((a) => _isInRange(_parseDate(a.startDate)))
+        .toList();
 
-      return _GroupActivityRow(
-        userId: uid,
-        startDate: (r['start_date'] as String?),
-        type: (r['type'] as String?),
-        minutes: minutes,
-        fullName: _nameByUserId[uid],
-      );
-    }).toList();
+    rows.sort((a, b) {
+      final da = _parseDate(a.startDate);
+      final db = _parseDate(b.startDate);
+      final ta = da?.millisecondsSinceEpoch ?? 0;
+      final tb = db?.millisecondsSinceEpoch ?? 0;
+      return tb.compareTo(ta);
+    });
 
-    final filtered = rows.where((a) {
-      final dt = _parseDate(a.startDate);
-      return _isInRange(dt, _range);
-    }).toList();
-
-    _groupActivities = filtered;
-
-    _ranking = _buildRanking(filtered);
-    _evolution = _buildEvolution(filtered, _ranking);
+    _groupActivities = rows;
+    _ranking = _buildRanking(rows);
+    _evolution = _buildEvolution(rows, _ranking);
 
     setState(() {});
   }
 
   List<_RankingEntry> _buildRanking(List<_GroupActivityRow> acts) {
-    if (acts.isEmpty) return [];
-
     final map = <String, _RankingAgg>{};
+    for (final uid in _memberUserIds) {
+      map[uid] = _RankingAgg(points: 0, hours: 0, name: _nameByUserId[uid]);
+    }
 
     for (final a in acts) {
-      final id = a.userId;
-      if (id.isEmpty) continue;
+      map.putIfAbsent(
+        a.userId,
+        () => _RankingAgg(points: 0, hours: 0, name: _nameByUserId[a.userId]),
+      );
 
+      final prev = map[a.userId]!;
       final pts = _pointsFor(a.type, a.minutes);
-      final hours = a.minutes / 60.0;
+      final hrs = a.minutes / 60.0;
 
-      final prev = map[id];
-      if (prev == null) {
-        map[id] = _RankingAgg(
-          points: pts,
-          hours: hours,
-          name: a.fullName ?? _nameByUserId[id],
-        );
-      } else {
-        map[id] = _RankingAgg(
-          points: prev.points + pts,
-          hours: prev.hours + hours,
-          name: (a.fullName ?? prev.name),
-        );
-      }
+      map[a.userId] = _RankingAgg(
+        points: prev.points + pts,
+        hours: prev.hours + hrs,
+        name: prev.name ?? a.fullName,
+      );
     }
 
     final entries = map.entries.map((e) {
@@ -322,7 +299,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: v.name ?? 'Atleta ${uid.substring(0, min(8, uid.length))}',
         totalPoints: v.points.round(),
         totalHours: v.hours,
-        isCurrent: _currentUserId == uid,
+        isCurrent: uid == _currentUserId,
       );
     }).toList();
 
@@ -346,7 +323,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (final a in acts) {
       final dt = _parseDate(a.startDate);
       if (dt == null) continue;
-      final key = dt.toIso8601String().substring(0, 10); // YYYY-MM-DD
+      final key = dt.toIso8601String().substring(0, 10);
 
       final g = groupMap[key] ??
           _GroupDayAgg(totalMinutes: 0, userIds: <String>{});
@@ -357,20 +334,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (currentId != null && a.userId == currentId) {
         userMap[key] = (userMap[key] ?? 0) + a.minutes;
       }
-
       if (leaderId != null && a.userId == leaderId) {
         leaderMap[key] = (leaderMap[key] ?? 0) + a.minutes;
       }
     }
 
-    final allKeys = <String>{}
+    final keys = <String>{}
       ..addAll(groupMap.keys)
       ..addAll(userMap.keys)
       ..addAll(leaderMap.keys);
 
-    final keys = allKeys.toList()..sort();
+    final sorted = keys.toList()..sort();
 
-    return keys.map((k) {
+    return sorted.map((k) {
       final d = DateTime.tryParse(k) ?? DateTime.now();
       final label = _fmtShortDate(d);
 
@@ -379,7 +355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final g = groupMap[k];
       final avg = (g != null && g.userIds.isNotEmpty)
-          ? (g.totalMinutes / g.userIds.length)
+          ? (g.totalMinutes / g.userIds.length.toDouble())
           : 0;
 
       return _EvolutionPoint(
@@ -428,6 +404,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // =========================================================
+  // UI
+  // =========================================================
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -442,17 +422,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final selected = _selectedGroup;
-
     final lastPlace = _ranking.isNotEmpty ? _ranking.last : null;
-    final _RankingEntry? myEntry = _ranking.where((r) => r.isCurrent).isEmpty
-        ? null
-        : _ranking.firstWhere((r) => r.isCurrent);
 
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _HeaderCard(
+          _Header(
             groups: _groups,
             selectedGroup: selected,
             onChanged: _changeGroup,
@@ -467,18 +443,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   "Você ainda não participa de nenhum grupo. Entre em um grupo para ver ranking e evolução.",
             )
           else ...[
-            _StatsRow(
-              groupTitle: selected.title,
-              rangeLabel: _rangeLabel(_range),
-              totalMembers: _memberUserIds.length,
-              myEntry: myEntry,
-            ),
-            const SizedBox(height: 12),
             if (lastPlace != null) _MemeCard(lastPlaceName: lastPlace.label),
             if (lastPlace != null) const SizedBox(height: 12),
+
             _RankingCard(ranking: _ranking),
             const SizedBox(height: 12),
-            _EvolutionCard(evolution: _evolution),
+
+            _EvolutionChart(evolution: _evolution),
+            const SizedBox(height: 12),
+
+            _ActivitiesCard(
+              activities: _groupActivities,
+              view: _activitiesView,
+              onToggle: (v) => setState(() => _activitiesView = v),
+              currentUserId: _currentUserId,
+              parseDate: _parseDate,
+              fmtDateTime: _fmtDateTime,
+            ),
           ],
         ],
       ),
@@ -486,11 +467,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-/* =========================================================
-   Widgets
-========================================================= */
+// =========================================================
+// WIDGETS
+// =========================================================
 
-class _HeaderCard extends StatelessWidget {
+class _Header extends StatelessWidget {
   final List<_TrainingGroupOption> groups;
   final _TrainingGroupOption? selectedGroup;
   final Future<void> Function(_TrainingGroupOption?) onChanged;
@@ -498,13 +479,28 @@ class _HeaderCard extends StatelessWidget {
   final RangeKey range;
   final Future<void> Function(RangeKey) onRangeChanged;
 
-  const _HeaderCard({
+  const _Header({
     required this.groups,
     required this.selectedGroup,
     required this.onChanged,
     required this.range,
     required this.onRangeChanged,
   });
+
+  String _rangeLabel(RangeKey r) {
+    switch (r) {
+      case RangeKey.all:
+        return 'Tudo';
+      case RangeKey.today:
+        return 'Hoje';
+      case RangeKey.d7:
+        return '7 dias';
+      case RangeKey.d30:
+        return '30 dias';
+      case RangeKey.m6:
+        return '6 meses';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -528,20 +524,18 @@ class _HeaderCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Dashboard",
+            "Dashboard de Performance",
             style: theme.textTheme.titleLarge
                 ?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
-            "Ranking do grupo, meme do churrasco e evolução diária (minutos).",
+            "Ranking do grupo, meme do churrasco, gráfico e últimas atividades.",
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 14),
-
-          // Grupo selector (training_groups)
           Row(
             children: [
               const Icon(Icons.groups),
@@ -569,201 +563,18 @@ class _HeaderCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // Range chips
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: [
-              _RangeChip(
-                label: "Tudo",
-                active: range == RangeKey.all,
-                onTap: () => onRangeChanged(RangeKey.all),
-              ),
-              _RangeChip(
-                label: "Hoje",
-                active: range == RangeKey.today,
-                onTap: () => onRangeChanged(RangeKey.today),
-              ),
-              _RangeChip(
-                label: "7 dias",
-                active: range == RangeKey.d7,
-                onTap: () => onRangeChanged(RangeKey.d7),
-              ),
-              _RangeChip(
-                label: "30 dias",
-                active: range == RangeKey.d30,
-                onTap: () => onRangeChanged(RangeKey.d30),
-              ),
-              _RangeChip(
-                label: "6 meses",
-                active: range == RangeKey.m6,
-                onTap: () => onRangeChanged(RangeKey.m6),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RangeChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _RangeChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: active
-                ? theme.colorScheme.primary.withOpacity(0.8)
-                : theme.dividerColor.withOpacity(0.5),
-          ),
-          color: active ? theme.colorScheme.primary.withOpacity(0.08) : null,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: active ? theme.colorScheme.primary : null,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  final String groupTitle;
-  final String rangeLabel;
-  final int totalMembers;
-  final _RankingEntry? myEntry;
-
-  const _StatsRow({
-    required this.groupTitle,
-    required this.rangeLabel,
-    required this.totalMembers,
-    required this.myEntry,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _MiniStat(
-            title: "Grupo",
-            value: groupTitle,
-            icon: Icons.tag,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MiniStat(
-            title: "Período",
-            value: rangeLabel,
-            icon: Icons.date_range,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MiniStat(
-            title: "Membros",
-            value: "$totalMembers",
-            icon: Icons.people,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MiniStat(
-            title: "Sua posição",
-            value: myEntry == null ? "-" : "Você",
-            icon: Icons.emoji_events,
-            subtitle: myEntry == null ? null : "${myEntry!.totalPoints} pts",
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  final String title;
-  final String value;
-  final String? subtitle;
-  final IconData icon;
-
-  const _MiniStat({
-    required this.title,
-    required this.value,
-    required this.icon,
-    this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.65),
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ]
-              ],
-            ),
+            children: RangeKey.values.map((r) {
+              final active = r == range;
+              return ChoiceChip(
+                label: Text(_rangeLabel(r)),
+                selected: active,
+                onSelected: (_) => onRangeChanged(r),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -835,15 +646,59 @@ class _MemeCard extends StatelessWidget {
   }
 }
 
-class _RankingCard extends StatelessWidget {
+class _RankingCard extends StatefulWidget {
   final List<_RankingEntry> ranking;
   const _RankingCard({required this.ranking});
+
+  @override
+  State<_RankingCard> createState() => _RankingCardState();
+}
+
+class _RankingCardState extends State<_RankingCard> {
+  RankingSort _sort = RankingSort.position;
+
+  // ✅ cores "reais" de medalha
+  static const Color _gold = Color(0xFFFFD700);
+  static const Color _silver = Color(0xFFC0C0C0);
+  static const Color _bronze = Color(0xFFCD7F32);
+
+  Widget _leadingForPos({
+    required int realPos,
+    required bool isCurrent,
+    required Color currentPrimary,
+  }) {
+    if (realPos == 1) {
+      return Icon(Icons.emoji_events, color: _gold, size: 22);
+    }
+    if (realPos == 2) {
+      return Icon(Icons.emoji_events, color: _silver, size: 22);
+    }
+    if (realPos == 3) {
+      return Icon(Icons.emoji_events, color: _bronze, size: 22);
+    }
+
+    // fallback: número
+    return Text(
+      "#$realPos",
+      style: TextStyle(
+        fontWeight: FontWeight.w900,
+        color: isCurrent ? currentPrimary : null,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final List<_RankingEntry> list = List.of(widget.ranking);
+
+    if (_sort == RankingSort.az) {
+      list.sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    }
+
     return Container(
+      height: 420,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
@@ -855,8 +710,7 @@ class _RankingCard extends StatelessWidget {
         children: [
           Text(
             "Ranking do grupo",
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w900),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
@@ -865,88 +719,152 @@ class _RankingCard extends StatelessWidget {
               color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
-          const SizedBox(height: 12),
-          if (ranking.isEmpty)
-            Text(
-              "Nenhuma atividade encontrada nesse período.",
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
+          const SizedBox(height: 10),
+
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text("Posição"),
+                selected: _sort == RankingSort.position,
+                onSelected: (_) => setState(() => _sort = RankingSort.position),
               ),
-            )
-          else
-            ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: ranking.length,
-              separatorBuilder: (_, __) =>
-                  Divider(color: theme.dividerColor.withOpacity(0.25)),
-              itemBuilder: (context, i) {
-                final r = ranking[i];
-                return ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: r.isCurrent
-                        ? theme.colorScheme.primary.withOpacity(0.12)
-                        : theme.colorScheme.onSurface.withOpacity(0.06),
-                    child: Text(
-                      "#${i + 1}",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: r.isCurrent ? theme.colorScheme.primary : null,
-                      ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text("A–Z"),
+                selected: _sort == RankingSort.az,
+                onSelected: (_) => setState(() => _sort = RankingSort.az),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          Expanded(
+            child: list.isEmpty
+                ? Text(
+                    "Nenhuma atividade encontrada nesse período.",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
                     ),
-                  ),
-                  title: Text(
-                    r.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight:
-                          r.isCurrent ? FontWeight.w900 : FontWeight.w700,
-                    ),
-                  ),
-                  subtitle: r.isCurrent
-                      ? Text(
-                          "Você",
-                          style: TextStyle(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w800,
+                  )
+                : ListView.separated(
+                    itemCount: list.length,
+                    separatorBuilder: (_, __) =>
+                        Divider(color: theme.dividerColor.withOpacity(0.25)),
+                    itemBuilder: (context, i) {
+                      final r = list[i];
+
+                      // posição REAL (por pontos) mesmo em A–Z
+                      final realPos =
+                          widget.ranking.indexWhere((x) => x.userId == r.userId) + 1;
+
+                      final leadingBg = r.isCurrent
+                          ? theme.colorScheme.primary.withOpacity(0.12)
+                          : theme.colorScheme.onSurface.withOpacity(0.06);
+
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: leadingBg,
+                          child: _leadingForPos(
+                            realPos: realPos,
+                            isCurrent: r.isCurrent,
+                            currentPrimary: theme.colorScheme.primary,
                           ),
-                        )
-                      : null,
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        "${r.totalPoints} pts",
-                        style: const TextStyle(fontWeight: FontWeight.w900),
-                      ),
-                      Text(
-                        "${r.totalHours.toStringAsFixed(1)} h",
-                        style: TextStyle(
-                          color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                    ],
+                        title: Text(
+                          r.label,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: r.isCurrent ? FontWeight.w900 : FontWeight.w700,
+                          ),
+                        ),
+                        subtitle: r.isCurrent
+                            ? Text(
+                                "Você",
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              )
+                            : null,
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              "${r.totalPoints} pts",
+                              style: const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                            Text(
+                              "${r.totalHours.toStringAsFixed(1)} h",
+                              style: TextStyle(
+                                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _EvolutionCard extends StatelessWidget {
+class _EvolutionChart extends StatelessWidget {
   final List<_EvolutionPoint> evolution;
-  const _EvolutionCard({required this.evolution});
+  const _EvolutionChart({required this.evolution});
+
+  static const Color _orange = Color(0xFFF97316);
+  static const Color _blue = Color(0xFF60A5FA);
+  static const Color _green = Color(0xFF4ADE80);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (evolution.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: theme.colorScheme.surface,
+          border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+        ),
+        child: Text(
+          "Sem dados suficientes para montar a evolução nesse período.",
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ),
+        ),
+      );
+    }
+
+    final leader = evolution.map((e) => e.leaderMinutes).toList();
+    final avg = evolution.map((e) => e.groupAvgMinutes).toList();
+    final me = evolution.map((e) => e.userMinutes).toList();
+
+    final topYNum = evolution
+        .map((e) => max(e.userMinutes, max(e.groupAvgMinutes, e.leaderMinutes)))
+        .reduce(max);
+
+    final maxY = (topYNum + 10).toDouble();
+
+    final xCount = evolution.length;
+    final xInterval = max(1, (xCount / 6).floor());
+    final yInterval = max(10.0, (maxY / 4.0));
+
+    final axisTextStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurface.withOpacity(0.65),
+      fontWeight: FontWeight.w700,
+    );
+
+    final gridColor = theme.colorScheme.onSurface.withOpacity(0.06);
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -960,45 +878,251 @@ class _EvolutionCard extends StatelessWidget {
         children: [
           Text(
             "Evolução (minutos por dia)",
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w900),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),
           Text(
-            "Você x Média do grupo x Líder — por dia (MVP sem gráfico).",
+            "Você x Média do grupo x Líder — por dia (linhas sinuosas).",
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurface.withOpacity(0.7),
             ),
           ),
           const SizedBox(height: 12),
-          if (evolution.isEmpty)
+          SizedBox(
+            height: 280,
+            child: LineChart(
+              LineChartData(
+                maxY: maxY,
+                minY: 0,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: true,
+                  drawHorizontalLine: true,
+                  horizontalInterval: yInterval,
+                  verticalInterval: xInterval.toDouble(),
+                  getDrawingHorizontalLine: (_) => FlLine(
+                    color: gridColor,
+                    strokeWidth: 1,
+                  ),
+                  getDrawingVerticalLine: (_) => FlLine(
+                    color: gridColor,
+                    strokeWidth: 1,
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 38,
+                      interval: yInterval,
+                      getTitlesWidget: (value, meta) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Text(value.toStringAsFixed(0), style: axisTextStyle),
+                        );
+                      },
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 26,
+                      interval: xInterval.toDouble(),
+                      getTitlesWidget: (value, meta) {
+                        final idx = value.round();
+                        if (idx < 0 || idx >= evolution.length) {
+                          return const SizedBox.shrink();
+                        }
+                        if (idx % xInterval != 0 && idx != evolution.length - 1) {
+                          return const SizedBox.shrink();
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(evolution[idx].label, style: axisTextStyle),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(
+                  show: true,
+                  border: Border(
+                    left: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.12)),
+                    bottom: BorderSide(color: theme.colorScheme.onSurface.withOpacity(0.12)),
+                    top: BorderSide.none,
+                    right: BorderSide.none,
+                  ),
+                ),
+                lineTouchData: LineTouchData(
+                  enabled: true,
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipColor: (touchedSpot) => const Color(0xFF020617),
+                    tooltipRoundedRadius: 10,
+                  ),
+                ),
+                lineBarsData: [
+                  _line(_orange, leader),
+                  _line(_blue, avg),
+                  _line(_green, me),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _LegendDot(color: _orange, label: "Líder do ranking"),
+              SizedBox(width: 12),
+              _LegendDot(color: _blue, label: "Média do grupo"),
+              SizedBox(width: 12),
+              _LegendDot(color: _green, label: "Você"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  LineChartBarData _line(Color c, List<double> values) {
+    return LineChartBarData(
+      spots: values.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+      isCurved: true,
+      curveSmoothness: 0.25,
+      color: c,
+      barWidth: 3,
+      dotData: FlDotData(show: false),
+      belowBarData: BarAreaData(show: false),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
+    );
+  }
+}
+
+class _ActivitiesCard extends StatelessWidget {
+  final List<_GroupActivityRow> activities;
+  final ActivitiesView view;
+  final ValueChanged<ActivitiesView> onToggle;
+  final String? currentUserId;
+
+  final DateTime? Function(String?) parseDate;
+  final String Function(DateTime) fmtDateTime;
+
+  const _ActivitiesCard({
+    required this.activities,
+    required this.view,
+    required this.onToggle,
+    required this.currentUserId,
+    required this.parseDate,
+    required this.fmtDateTime,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final filtered = view == ActivitiesView.mine
+        ? activities.where((a) => a.userId == currentUserId).toList()
+        : activities;
+
+    filtered.sort((a, b) {
+      final da = parseDate(a.startDate);
+      final db = parseDate(b.startDate);
+      final ta = da?.millisecondsSinceEpoch ?? 0;
+      final tb = db?.millisecondsSinceEpoch ?? 0;
+      return tb.compareTo(ta);
+    });
+
+    final list = filtered.take(50).toList();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withOpacity(0.2)),
+        color: theme.colorScheme.surface,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Últimas atividades (dentro do período selecionado)",
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "As 50 atividades mais recentes do grupo/usuário selecionado.",
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              ChoiceChip(
+                label: const Text("Treinos do grupo"),
+                selected: view == ActivitiesView.group,
+                onSelected: (_) => onToggle(ActivitiesView.group),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text("Meus treinos"),
+                selected: view == ActivitiesView.mine,
+                onSelected: (_) => onToggle(ActivitiesView.mine),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (list.isEmpty)
             Text(
-              "Sem dados suficientes para montar a evolução nesse período.",
+              "Nenhuma atividade encontrada nesse período.",
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withOpacity(0.7),
               ),
             )
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text("Dia")),
-                  DataColumn(label: Text("Você (min)")),
-                  DataColumn(label: Text("Média (min)")),
-                  DataColumn(label: Text("Líder (min)")),
-                ],
-                rows: evolution.map((e) {
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(e.label)),
-                      DataCell(Text(e.userMinutes.toStringAsFixed(1))),
-                      DataCell(Text(e.groupAvgMinutes.toStringAsFixed(1))),
-                      DataCell(Text(e.leaderMinutes.toStringAsFixed(1))),
-                    ],
-                  );
-                }).toList(),
-              ),
+            Column(
+              children: list.map((a) {
+                final dt = parseDate(a.startDate);
+                final when = dt == null ? "-" : fmtDateTime(dt);
+
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    a.fullName ?? "Atleta",
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text("${a.type ?? "-"} • $when"),
+                  trailing: Text(
+                    "${a.minutes.toStringAsFixed(0)} min",
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                );
+              }).toList(),
             ),
         ],
       ),
@@ -1026,8 +1150,7 @@ class _InfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w900)),
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
           Text(
             body,
@@ -1074,12 +1197,12 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-/* =========================================================
-   Models internos do Dashboard
-========================================================= */
+// =========================================================
+// MODELS
+// =========================================================
 
 class _TrainingGroupOption {
-  final String id; // training_groups.id
+  final String id;
   final String title;
 
   _TrainingGroupOption({
@@ -1090,9 +1213,7 @@ class _TrainingGroupOption {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is _TrainingGroupOption &&
-          runtimeType == other.runtimeType &&
-          id == other.id;
+      other is _TrainingGroupOption && runtimeType == other.runtimeType && id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -1143,8 +1264,8 @@ class _RankingAgg {
 }
 
 class _EvolutionPoint {
-  final String dateKey; // YYYY-MM-DD
-  final String label; // dd/mm
+  final String dateKey;
+  final String label;
   final double userMinutes;
   final double groupAvgMinutes;
   final double leaderMinutes;

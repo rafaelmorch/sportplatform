@@ -74,6 +74,7 @@ function buildAddress(e: EventRow | null): string {
 
   const parts: string[] = [];
   if (street) parts.push(street);
+
   if (city && state) parts.push(`${city}, ${state}`);
   else if (city) parts.push(city);
   else if (state) parts.push(state);
@@ -99,6 +100,7 @@ export default function EventDetailPage() {
   const searchParams = useSearchParams();
 
   const [event, setEvent] = useState<EventRow | null>(null);
+
   const [registrations, setRegistrations] = useState<PublicRegistration[]>([]);
   const [registrationsCount, setRegistrationsCount] = useState(0);
 
@@ -128,14 +130,14 @@ export default function EventDetailPage() {
     outline: "none",
   };
 
+  const paid = searchParams?.get("paid") === "1";
+  const canceled = searchParams?.get("canceled") === "1";
+
   /* ===== Mensagens pós-checkout ===== */
   useEffect(() => {
-    const paid = searchParams?.get("paid");
-    const canceled = searchParams?.get("canceled");
-
-    if (paid === "1") setInfo("Payment received. Confirming your registration...");
-    if (canceled === "1") setInfo("Payment canceled.");
-  }, [searchParams]);
+    if (paid) setInfo("Payment received. Confirming your registration...");
+    else if (canceled) setInfo("Payment canceled.");
+  }, [paid, canceled]);
 
   /* ===== Carregar evento ===== */
   useEffect(() => {
@@ -174,76 +176,69 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
-  /* ===== Carregar inscritos ===== */
-  useEffect(() => {
+  /* ===== Carregar inscritos + minha inscrição ===== */
+  async function refreshRegistrations() {
     if (!eventId) return;
 
-    let cancelled = false;
+    setCountsLoading(true);
 
-    async function loadRegs() {
-      setCountsLoading(true);
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes.user;
 
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes.user;
+    // Lista pública (nicknames)
+    const { data: regs } = await supabase
+      .from("event_registrations_public")
+      .select("nickname, registered_at")
+      .eq("event_id", eventId)
+      .order("registered_at", { ascending: true })
+      .limit(200);
 
-      if (!user) {
-        if (!cancelled) {
-          setRegistrations([]);
-          setRegistrationsCount(0);
-          setIsRegistered(false);
-          setCountsLoading(false);
-        }
-        return;
-      }
+    // Contagem
+    const { count } = await supabase
+      .from("event_registrations_public")
+      .select("nickname", { count: "exact", head: true })
+      .eq("event_id", eventId);
 
-      const { data: regs } = await supabase
-        .from("event_registrations_public")
-        .select("nickname, registered_at")
-        .eq("event_id", eventId)
-        .order("registered_at", { ascending: true })
-        .limit(200);
+    setRegistrations((regs as PublicRegistration[]) ?? []);
+    setRegistrationsCount(count ?? ((regs as any[])?.length ?? 0));
 
-      const { count } = await supabase
-        .from("event_registrations_public")
-        .select("nickname", { count: "exact", head: true })
-        .eq("event_id", eventId);
-
+    // Minha inscrição (RLS permite só a minha linha)
+    if (user) {
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
         .eq("event_id", eventId)
         .maybeSingle();
 
-      if (!cancelled) {
-        setRegistrations((regs as PublicRegistration[]) ?? []);
-        setRegistrationsCount(count ?? 0);
-
-        if (me?.nickname) {
-          setIsRegistered(true);
-          setNickname(me.nickname);
-        } else {
-          setIsRegistered(false);
-        }
-
-        setCountsLoading(false);
+      if (me?.nickname) {
+        setIsRegistered(true);
+        setNickname(me.nickname);
+      } else {
+        setIsRegistered(false);
       }
+    } else {
+      setIsRegistered(false);
     }
 
-    loadRegs();
+    setCountsLoading(false);
+  }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, eventId]);
+  useEffect(() => {
+    refreshRegistrations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
-  /* ===== Polling pós-pagamento (quando voltar com paid=1) ===== */
+  /* ===== Polling pós-pagamento: espera webhook gravar e então recarrega ===== */
   useEffect(() => {
     if (!eventId) return;
-    if (searchParams?.get("paid") !== "1") return;
+    if (!paid) return;
 
     let stopped = false;
+    let tries = 0;
 
     async function poll() {
+      tries += 1;
+
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
@@ -256,32 +251,30 @@ export default function EventDetailPage() {
         setIsRegistered(true);
         setNickname(me.nickname);
         setInfo("Registration confirmed!");
-
-        const { data: regs } = await supabase
-          .from("event_registrations_public")
-          .select("nickname, registered_at")
-          .eq("event_id", eventId)
-          .order("registered_at", { ascending: true })
-          .limit(200);
-
-        setRegistrations((regs as PublicRegistration[]) ?? []);
-        setRegistrationsCount((regs as any[])?.length ?? 0);
+        await refreshRegistrations();
         return;
       }
 
-      setTimeout(() => !stopped && poll(), 1500);
+      // tenta por ~40s e para
+      if (tries < 20) {
+        setTimeout(() => !stopped && poll(), 2000);
+      } else {
+        setInfo("Payment received. Waiting for confirmation... refresh the page in a moment.");
+      }
     }
 
     poll();
+
     return () => {
       stopped = true;
     };
-  }, [supabase, eventId, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, paid]);
 
   /* ================= REGISTER ================= */
 
   async function handleRegister() {
-    if (!eventId) return;
+    if (!event || !eventId) return;
 
     setBusy(true);
     setError(null);
@@ -297,12 +290,10 @@ export default function EventDetailPage() {
         throw new Error("Nickname must be between 2 and 24 characters.");
       }
 
-      const price = event?.price_cents ?? 0;
+      const price = event.price_cents ?? 0;
 
-      /* ===== EVENTO PAGO (SEM POPUP) ===== */
+      /* ===== EVENTO PAGO ===== */
       if (price > 0) {
-        setInfo("Redirecting to checkout...");
-
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -321,14 +312,14 @@ export default function EventDetailPage() {
         const { url } = await resp.json();
         if (!url) throw new Error("Missing checkout url.");
 
-        // ✅ mais confiável: mesma aba
-        window.location.href = url;
+        // ✅ abre numa nova aba/janela
+        window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
 
       /* ===== EVENTO GRÁTIS ===== */
-      const cap = event?.capacity ?? 0;
-      const waitCap = event?.waitlist_capacity ?? 0;
+      const cap = event.capacity ?? 0;
+      const waitCap = event.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
 
       if (cap > 0 && totalAllowed > 0 && registrationsCount >= totalAllowed) {
@@ -340,6 +331,7 @@ export default function EventDetailPage() {
         user_id: user.id,
         nickname: nick,
         registered_at: new Date().toISOString(),
+        status: "confirmed",
         payment_provider: "free",
         payment_status: "free",
         amount_cents: 0,
@@ -347,8 +339,7 @@ export default function EventDetailPage() {
       });
 
       if (insErr) {
-        const msg = (insErr.message || "").toLowerCase();
-        if (msg.includes("duplicate")) {
+        if ((insErr.message || "").toLowerCase().includes("duplicate")) {
           setInfo("You are already registered.");
           setIsRegistered(true);
           return;
@@ -358,16 +349,7 @@ export default function EventDetailPage() {
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
-
-      const { data: regs } = await supabase
-        .from("event_registrations_public")
-        .select("nickname, registered_at")
-        .eq("event_id", eventId)
-        .order("registered_at", { ascending: true })
-        .limit(200);
-
-      setRegistrations((regs as PublicRegistration[]) ?? []);
-      setRegistrationsCount((prev) => prev + 1);
+      await refreshRegistrations();
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
     } finally {
@@ -375,17 +357,18 @@ export default function EventDetailPage() {
     }
   }
 
-  /* ================= Render ================= */
+  /* ================= Derived ================= */
 
   const address = buildAddress(event);
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 
   const priceLabel = formatPrice(event?.price_cents ?? 0);
-
   const cap = event?.capacity ?? 0;
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
   const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
+
+  /* ================= Render ================= */
 
   return (
     <main
@@ -606,8 +589,7 @@ export default function EventDetailPage() {
 
           {/* Nickname */}
           <label style={labelStyle}>
-            Nickname <span style={{ color: "#93c5fd" }}>*</span>{" "}
-            <span style={{ color: "#9ca3af" }}>(visível para todos)</span>
+            Nickname <span style={{ color: "#e5e7eb" }}>*</span> (visível para todos)
             <input
               style={inputStyle}
               placeholder="Ex: Rafa Runner"
@@ -636,7 +618,7 @@ export default function EventDetailPage() {
               {isRegistered
                 ? "Você já está inscrito."
                 : (event?.price_cents ?? 0) > 0
-                ? "Evento pago: você será redirecionado ao checkout."
+                ? "Evento pago: você será direcionado ao checkout."
                 : "Evento grátis: inscrição em 1 clique."}
             </p>
 
@@ -665,16 +647,14 @@ export default function EventDetailPage() {
             </button>
           </div>
 
-          {/* Lista pública de nicknames */}
+          {/* Lista pública */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
               Participantes
             </h2>
 
             {registrations.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-                Nenhum inscrito ainda.
-              </p>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Nenhum inscrito ainda.</p>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {registrations
