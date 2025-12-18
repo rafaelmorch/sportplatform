@@ -1,14 +1,17 @@
+// app/events/new/page.tsx
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+
+export const dynamic = "force-dynamic";
 
 function toCents(input: string): number {
   const raw = input.trim();
   if (!raw) return 0;
-  // aceita "10", "10.5", "10.50"
   const normalized = raw.replace(",", ".");
   const value = Number(normalized);
   if (!Number.isFinite(value) || value < 0) return 0;
@@ -16,7 +19,6 @@ function toCents(input: string): number {
 }
 
 function normalizeWhatsApp(input: string): string {
-  // validação leve: mantém + e dígitos
   const trimmed = input.trim();
   if (!trimmed) return "";
   const plus = trimmed.startsWith("+") ? "+" : "";
@@ -42,8 +44,6 @@ export default function NewEventPage() {
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
   const [stateUS, setStateUS] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
 
   const [capacity, setCapacity] = useState("20");
   const [waitlistCapacity, setWaitlistCapacity] = useState("0");
@@ -82,9 +82,7 @@ export default function NewEventPage() {
     });
 
     if (error) throw new Error(error.message);
-
-    // salvar apenas o path dentro do bucket (mais simples)
-    return path;
+    return path; // path dentro do bucket
   }
 
   async function submit(publishNow: boolean) {
@@ -97,7 +95,6 @@ export default function NewEventPage() {
       const user = userRes.user;
       if (!user) throw new Error("You must be logged in to create an event.");
 
-      // validações
       const t = title.trim();
       if (!t) throw new Error("Title is required.");
 
@@ -109,16 +106,7 @@ export default function NewEventPage() {
       const st = street.trim();
       const ct = city.trim();
       const stUS = stateUS.trim().toUpperCase();
-
-      if (!st || !ct || !stUS) {
-        throw new Error("Address is required (Street, City, State).");
-      }
-
-      const latNum = Number(lat);
-      const lngNum = Number(lng);
-      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
-        throw new Error("Lat/Lng is required (numbers).");
-      }
+      if (!st || !ct || !stUS) throw new Error("Address is required (Street, City, State).");
 
       const cap = Number(capacity);
       if (!Number.isFinite(cap) || cap < 1) throw new Error("Capacity must be at least 1.");
@@ -132,10 +120,8 @@ export default function NewEventPage() {
       }
 
       const priceCents = toCents(price);
-
       const addressText = `${st}, ${ct}, ${stUS}`;
 
-      // upload imagem primeiro (se tiver)
       const imagePath = await uploadEventImage(user.id);
 
       const payload: any = {
@@ -145,17 +131,15 @@ export default function NewEventPage() {
         description: description.trim(),
         created_by: user.id,
 
-        // legado / compat
-        location: addressText,
-        location_name: addressText,
-        address_text: addressText,
-
+        // endereço (padrão EUA)
         street: st,
         city: ct,
         state: stUS,
+        address_text: addressText,
 
-        lat: latNum,
-        lng: lngNum,
+        // legado/compat
+        location: addressText,
+        location_name: addressText,
 
         capacity: cap,
         waitlist_capacity: wcap,
@@ -164,7 +148,11 @@ export default function NewEventPage() {
         organizer_whatsapp: normalizeWhatsApp(organizerWhatsapp),
         published: publishNow,
 
-        image_path: imagePath, // path dentro do bucket
+        image_path: imagePath,
+
+        // mapa vem depois -> lat/lng ficam null
+        lat: null,
+        lng: null,
       };
 
       const { data: inserted, error: insErr } = await supabase
@@ -184,167 +172,106 @@ export default function NewEventPage() {
   }
 
   return (
-    <main style={{ padding: 16, paddingBottom: 90 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Create Event</h1>
-        <Link href="/events" style={{ textDecoration: "none", opacity: 0.9 }}>
-          ← Back
-        </Link>
-      </div>
+    <main
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#020617",
+        color: "#e5e7eb",
+        padding: "16px",
+        paddingBottom: "80px",
+      }}
+    >
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        {/* Header no estilo de Grupos */}
+        <header
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              margin: 0,
+            }}
+          >
+            Eventos
+          </p>
 
-      {error ? <p style={{ opacity: 0.9 }}>Error: {error}</p> : null}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Criar evento</h1>
 
-      <div
-        style={{
-          border: "1px solid rgba(31,41,55,0.9)",
-          borderRadius: 16,
-          padding: 12,
-          background: "linear-gradient(to bottom, rgba(15,23,42,0.92), rgba(15,23,42,0.88))",
-          maxWidth: 820,
-        }}
-      >
-        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-          <label style={{ fontSize: 12, opacity: 0.9 }}>
-            Title
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-              placeholder="OCSC 5K Group Run"
-            />
-          </label>
-
-          <label style={{ fontSize: 12, opacity: 0.9 }}>
-            Sport
-            <input
-              value={sport}
-              onChange={(e) => setSport(e.target.value)}
-              style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-              placeholder="Running / Cycling / Triathlon..."
-            />
-          </label>
-
-          <label style={{ fontSize: 12, opacity: 0.9 }}>
-            Date & time
-            <input
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-            />
-          </label>
-
-          <label style={{ fontSize: 12, opacity: 0.9 }}>
-            Description
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10, minHeight: 100 }}
-              placeholder="What is this event about?"
-            />
-          </label>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Capacity
-              <input
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                inputMode="numeric"
-              />
-            </label>
-
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Waitlist capacity
-              <input
-                value={waitlistCapacity}
-                onChange={(e) => setWaitlistCapacity(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                inputMode="numeric"
-              />
-            </label>
+            <Link
+              href="/events"
+              style={{
+                fontSize: 12,
+                color: "#93c5fd",
+                textDecoration: "underline",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Voltar
+            </Link>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Price (USD) — use 0 for free
-              <input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="0"
-                inputMode="decimal"
-              />
-            </label>
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            Crie uma atividade para a comunidade. Depois a gente adiciona seleção de local no mapa (clique no mapa).
+          </p>
+        </header>
 
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Organizer WhatsApp (visible only after confirmation)
-              <input
-                value={organizerWhatsapp}
-                onChange={(e) => setOrganizerWhatsapp(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="+1 407 000 0000"
-              />
-            </label>
+        {error ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
+            {error}
+          </p>
+        ) : null}
+
+        {/* Card no mesmo estilo */}
+        <section
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "14px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          {/* Imagem */}
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: 4 }}>
+                Informações do evento
+              </h2>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                Imagem se ajusta automaticamente (não corta).
+              </p>
+            </div>
+
+            <span
+              style={{
+                fontSize: 11,
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(56,189,248,0.5)",
+                background:
+                  "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
+                color: "#e0f2fe",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Draft / Publish
+            </span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: 10 }}>
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Street (US format)
-              <input
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="3516 President Barack Obama Pkwy"
-              />
-            </label>
-
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              City
-              <input
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="Orlando"
-              />
-            </label>
-
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              State
-              <input
-                value={stateUS}
-                onChange={(e) => setStateUS(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="FL"
-              />
-            </label>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Latitude
-              <input
-                value={lat}
-                onChange={(e) => setLat(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="28.5..."
-              />
-            </label>
-
-            <label style={{ fontSize: 12, opacity: 0.9 }}>
-              Longitude
-              <input
-                value={lng}
-                onChange={(e) => setLng(e.target.value)}
-                style={{ width: "100%", marginTop: 6, padding: 10, borderRadius: 10 }}
-                placeholder="-81.3..."
-              />
-            </label>
-          </div>
-
-          <label style={{ fontSize: 12, opacity: 0.9 }}>
-            Event image (optional)
+          <label style={{ fontSize: 12, color: "#9ca3af" }}>
+            Imagem (opcional)
             <input
               type="file"
               accept="image/*"
@@ -358,13 +285,13 @@ export default function NewEventPage() {
               style={{
                 width: "100%",
                 height: 180,
-                borderRadius: 12,
-                border: "1px solid rgba(31,41,55,0.9)",
+                borderRadius: 14,
+                border: "1px solid rgba(148,163,184,0.25)",
                 overflow: "hidden",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "rgba(0,0,0,0.2)",
+                background: "rgba(0,0,0,0.25)",
               }}
             >
               <img
@@ -375,38 +302,286 @@ export default function NewEventPage() {
             </div>
           ) : null}
 
-          <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap" }}>
-            <button
-              onClick={() => submit(false)}
-              disabled={busy}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                cursor: busy ? "not-allowed" : "pointer",
-              }}
-            >
-              {busy ? "Saving..." : "Save as Draft"}
-            </button>
+          {/* Campos */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+            <label style={{ fontSize: 12, color: "#9ca3af" }}>
+              Título
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="OCSC 5K Group Run"
+                style={{
+                  width: "100%",
+                  marginTop: 6,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(148,163,184,0.25)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  outline: "none",
+                }}
+              />
+            </label>
 
-            <button
-              onClick={() => submit(true)}
-              disabled={busy}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                Esporte
+                <input
+                  value={sport}
+                  onChange={(e) => setSport(e.target.value)}
+                  placeholder="Running / Cycling / Triathlon..."
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                Data & hora
+                <input
+                  type="datetime-local"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+            </div>
+
+            <label style={{ fontSize: 12, color: "#9ca3af" }}>
+              Descrição
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="O que vai acontecer? Ritmo, público, regras, etc."
+                style={{
+                  width: "100%",
+                  marginTop: 6,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(148,163,184,0.25)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  outline: "none",
+                  minHeight: 110,
+                  resize: "vertical",
+                }}
+              />
+            </label>
+
+            {/* Endereço padrão EUA */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: 10 }}>
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                Street (US format)
+                <input
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  placeholder="3516 President Barack Obama Pkwy"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                City
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Orlando"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                State
+                <input
+                  value={stateUS}
+                  onChange={(e) => setStateUS(e.target.value)}
+                  placeholder="FL"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                    textTransform: "uppercase",
+                  }}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                Capacidade
+                <input
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  inputMode="numeric"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                Waitlist capacity
+                <input
+                  value={waitlistCapacity}
+                  onChange={(e) => setWaitlistCapacity(e.target.value)}
+                  inputMode="numeric"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                Preço (USD) — 0 = Free
+                <input
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, color: "#9ca3af" }}>
+                WhatsApp do organizador
+                <input
+                  value={organizerWhatsapp}
+                  onChange={(e) => setOrganizerWhatsapp(e.target.value)}
+                  placeholder="+1 407 000 0000"
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(148,163,184,0.25)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    outline: "none",
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* Ações */}
+            <div
               style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                cursor: busy ? "not-allowed" : "pointer",
-                fontWeight: 700,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                marginTop: 6,
+                gap: 10,
+                flexWrap: "wrap",
               }}
             >
-              {busy ? "Publishing..." : "Publish"}
-            </button>
+              <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+                Você pode salvar como draft e publicar depois.
+              </p>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  onClick={() => submit(false)}
+                  disabled={busy}
+                  style={{
+                    fontSize: 12,
+                    padding: "10px 12px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(148,163,184,0.35)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    cursor: busy ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {busy ? "Salvando..." : "Salvar draft"}
+                </button>
+
+                <button
+                  onClick={() => submit(true)}
+                  disabled={busy}
+                  style={{
+                    fontSize: 12,
+                    padding: "10px 12px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(56,189,248,0.55)",
+                    background:
+                      "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                    color: "#e0f2fe",
+                    cursor: busy ? "not-allowed" : "pointer",
+                    fontWeight: 700,
+                  }}
+                >
+                  {busy ? "Publicando..." : "Publicar"}
+                </button>
+              </div>
+            </div>
           </div>
-
-          <p style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
-            Note: Map selection (click-to-pick) can come later. For now, fill lat/lng.
-          </p>
-        </div>
+        </section>
       </div>
+
+      <BottomNavbar />
     </main>
   );
 }
