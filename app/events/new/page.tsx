@@ -9,81 +9,70 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
 
-/* ================= Helpers ================= */
+type FormState = {
+  title: string;
+  sport: string;
+  description: string;
+  date: string; // datetime-local
+  street: string;
+  city: string;
+  state: string;
+  address_text: string;
+  capacity: string; // number as string
+  waitlist_capacity: string; // number as string
+  price: string; // dollars as string
+  organizer_whatsapp: string;
+};
 
-function toCents(input: string): number {
-  const raw = input.trim();
-  if (!raw) return 0;
-  const normalized = raw.replace(",", ".");
-  const value = Number(normalized);
-  if (!Number.isFinite(value) || value < 0) return 0;
-  return Math.round(value * 100);
+function dollarsToCents(v: string): number {
+  const n = Number(String(v).replace(",", "."));
+  if (!isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100);
 }
 
-function normalizeWhatsApp(input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) return "";
-  const plus = trimmed.startsWith("+") ? "+" : "";
-  const digits = trimmed.replace(/[^\d]/g, "");
-  return plus + digits;
+function isValidUsState(state: string): boolean {
+  const s = state.trim().toUpperCase();
+  // Aceita 2 letras (FL, CA etc). Você pode tornar mais rígido depois.
+  return /^[A-Z]{2}$/.test(s);
 }
 
-function isValidWhatsApp(input: string): boolean {
-  const norm = normalizeWhatsApp(input);
-  const digits = norm.replace(/[^\d]/g, "");
-  return digits.length >= 8 && digits.length <= 15;
-}
-
-/* ===== Label com asterisco ===== */
-function Label({
-  text,
-  required = false,
-}: {
-  text: string;
-  required?: boolean;
-}) {
-  return (
-    <span>
-      {text}
-      {required && (
-        <span style={{ color: "#2563eb", marginLeft: 4 }}>*</span>
-      )}
-    </span>
-  );
+function sanitizeFileName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "")
+    .slice(0, 120);
 }
 
 export default function NewEventPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
 
-  /* ================= State ================= */
-
-  const [title, setTitle] = useState("");
-  const [sport, setSport] = useState("");
-  const [date, setDate] = useState("");
-  const [description, setDescription] = useState("");
-
-  const [street, setStreet] = useState("");
-  const [city, setCity] = useState("");
-  const [stateUS, setStateUS] = useState("");
-
-  const [capacity, setCapacity] = useState("20");
-  const [waitlistCapacity, setWaitlistCapacity] = useState("0");
-  const [price, setPrice] = useState("0");
-
-  const [organizerWhatsapp, setOrganizerWhatsapp] = useState("");
+  const [form, setForm] = useState<FormState>({
+    title: "",
+    sport: "",
+    description: "",
+    date: "",
+    street: "",
+    city: "",
+    state: "",
+    address_text: "",
+    capacity: "20",
+    waitlist_capacity: "0",
+    price: "0",
+    organizer_whatsapp: "",
+  });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  /* ================= Styles ================= */
+  const [info, setInfo] = useState<string | null>(null);
 
   const labelStyle: React.CSSProperties = {
     fontSize: 12,
-    color: "#60a5fa",
+    color: "#60a5fa", // azul
   };
 
   const inputStyle: React.CSSProperties = {
@@ -92,113 +81,142 @@ export default function NewEventPage() {
     padding: "10px 12px",
     borderRadius: 12,
     border: "1px solid rgba(148,163,184,0.25)",
-    background: "#374151",
-    color: "#ffffff",
+    background: "#374151", // cinza escuro
+    color: "#ffffff", // texto branco
     outline: "none",
   };
 
-  const textareaStyle: React.CSSProperties = {
-    ...inputStyle,
-    minHeight: 110,
-    resize: "vertical",
+  const helperStyle: React.CSSProperties = {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9ca3af",
   };
 
-  /* ================= Image ================= */
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
-  function onPickImage(file: File | null) {
+  function requiredAsterisk() {
+    return <span style={{ color: "#93c5fd" }}> *</span>;
+  }
+
+  async function handlePickImage(file: File | null) {
     setImageFile(file);
     setError(null);
+    setInfo(null);
+
     if (!file) {
       setImagePreview(null);
       return;
     }
-    setImagePreview(URL.createObjectURL(file));
+
+    // Preview local
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
   }
 
-  async function uploadEventImage(userId: string): Promise<string | null> {
-    if (!imageFile) return null;
-
-    const bucket = "event-images";
-    const safeName = imageFile.name.replace(/[^\w.\-]+/g, "_");
-    const path = `${userId}/${Date.now()}-${safeName}`;
-
-    const { error } = await supabase.storage
-      .from(bucket)
-      .upload(path, imageFile, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: imageFile.type || "image/jpeg",
-      });
-
-    if (error) throw new Error(error.message);
-    return path;
-  }
-
-  /* ================= Submit ================= */
-
-  async function submit(publishNow: boolean) {
+  async function handleCreate() {
     setBusy(true);
     setError(null);
+    setInfo(null);
 
     try {
-      const { data: userRes } = await supabase.auth.getUser();
+      const { data: userRes, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw new Error(userErr.message);
       const user = userRes.user;
-      if (!user) throw new Error("You must be logged in.");
+      if (!user) throw new Error("Você precisa estar logado para criar eventos.");
 
-      if (!title.trim()) throw new Error("Title is required.");
-      if (!sport.trim()) throw new Error("Sport is required.");
-      if (!date) throw new Error("Date & time is required.");
-      if (!street || !city || !stateUS)
-        throw new Error("Complete address is required.");
-      if (!capacity || Number(capacity) < 1)
-        throw new Error("Capacity must be at least 1.");
-      if (!isValidWhatsApp(organizerWhatsapp))
-        throw new Error("Invalid WhatsApp.");
+      // ===== Validações (todos obrigatórios, exceto imagem) =====
+      const title = form.title.trim();
+      const sport = form.sport.trim();
+      const description = form.description.trim();
+      const date = form.date.trim();
+      const street = form.street.trim();
+      const city = form.city.trim();
+      const state = form.state.trim().toUpperCase();
+      const address_text = form.address_text.trim();
+      const organizer_whatsapp = form.organizer_whatsapp.trim();
 
-      const imagePath = await uploadEventImage(user.id);
-      const addressText = `${street}, ${city}, ${stateUS.toUpperCase()}`;
+      const capacity = Math.max(Number(form.capacity || 0), 0);
+      const waitlist_capacity = Math.max(Number(form.waitlist_capacity || 0), 0);
 
-      const { data, error } = await supabase
+      if (!title) throw new Error("Título é obrigatório.");
+      if (!sport) throw new Error("Esporte é obrigatório.");
+      if (!date) throw new Error("Data/Hora é obrigatório.");
+      if (!street) throw new Error("Street (número + rua) é obrigatório.");
+      if (!city) throw new Error("City é obrigatório.");
+      if (!state) throw new Error("State é obrigatório.");
+      if (!isValidUsState(state)) throw new Error("State deve ter 2 letras (ex: FL).");
+      if (!address_text) throw new Error("Address (texto completo) é obrigatório.");
+      if (!description) throw new Error("Descrição é obrigatória.");
+      if (!organizer_whatsapp) throw new Error("WhatsApp do organizador é obrigatório.");
+
+      if (!Number.isFinite(capacity) || capacity < 0) throw new Error("Capacity inválida.");
+      if (!Number.isFinite(waitlist_capacity) || waitlist_capacity < 0)
+        throw new Error("Waitlist capacity inválida.");
+
+      const price_cents = dollarsToCents(form.price);
+
+      // ===== Upload da imagem (opcional) =====
+      let image_path: string | null = null;
+
+      if (imageFile) {
+        const extName = sanitizeFileName(imageFile.name);
+        const randomId =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : String(Date.now());
+
+        image_path = `${user.id}/${randomId}-${extName}`;
+
+        const { error: upErr } = await supabase.storage
+          .from("event-images")
+          .upload(image_path, imageFile, {
+            cacheControl: "3600",
+            upsert: true,
+            contentType: imageFile.type || "image/*",
+          });
+
+        if (upErr) {
+          throw new Error(`Falha no upload da imagem: ${upErr.message}`);
+        }
+      }
+
+      // ===== Insert do evento =====
+      // date: converter de datetime-local -> ISO
+      const dateIso = new Date(date).toISOString();
+
+      const { data: inserted, error: insErr } = await supabase
         .from("events")
         .insert({
-          title: title.trim(),
-          sport: sport.trim(),
-          date: new Date(date).toISOString(),
-          description: description.trim(),
-          created_by: user.id,
-
+          title,
+          sport,
+          description,
+          date: dateIso,
           street,
           city,
-          state: stateUS.toUpperCase(),
-          address_text: addressText,
-          location: addressText,
-          location_name: addressText,
-
-          capacity: Number(capacity),
-          waitlist_capacity: Number(waitlistCapacity),
-          price_cents: toCents(price),
-
-          organizer_whatsapp: normalizeWhatsApp(organizerWhatsapp),
-          published: publishNow,
-          image_path: imagePath,
-
-          lat: null,
-          lng: null,
+          state,
+          address_text,
+          capacity,
+          waitlist_capacity,
+          price_cents,
+          organizer_whatsapp,
+          image_path,
         })
         .select("id")
         .single();
 
-      if (error) throw error;
+      if (insErr) throw new Error(insErr.message);
+      if (!inserted?.id) throw new Error("Evento criado, mas não retornou ID.");
 
-      router.push(`/events/${data.id}`);
+      setInfo("Evento criado com sucesso!");
+      router.push(`/events/${inserted.id}`);
     } catch (e: any) {
-      setError(e.message || "Failed to create event.");
+      setError(e?.message || "Erro ao criar evento.");
     } finally {
       setBusy(false);
     }
   }
-
-  /* ================= Render ================= */
 
   return (
     <main
@@ -206,12 +224,20 @@ export default function NewEventPage() {
         minHeight: "100vh",
         backgroundColor: "#020617",
         color: "#e5e7eb",
-        padding: 16,
-        paddingBottom: 80,
+        padding: "16px",
+        paddingBottom: "80px",
       }}
     >
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <header style={{ marginBottom: 20 }}>
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        {/* Header igual ao Groups */}
+        <header
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
           <p
             style={{
               fontSize: 11,
@@ -224,177 +250,273 @@ export default function NewEventPage() {
             Eventos
           </p>
 
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
             <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
               Criar evento
             </h1>
+
             <Link
               href="/events"
-              style={{ fontSize: 12, color: "#93c5fd", textDecoration: "underline" }}
+              style={{
+                fontSize: 12,
+                color: "#93c5fd",
+                textDecoration: "underline",
+                whiteSpace: "nowrap",
+              }}
             >
               Voltar
             </Link>
           </div>
 
-          <p style={{ fontSize: 13, color: "#9ca3af" }}>
-            Campos marcados com * são obrigatórios.
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            Preencha os campos obrigatórios (*) e publique seu evento.
           </p>
         </header>
 
-        {error && (
-          <p style={{ fontSize: 13, color: "#fca5a5", marginBottom: 12 }}>
+        {error ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
             {error}
           </p>
-        )}
+        ) : null}
+
+        {info ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
+            {info}
+          </p>
+        ) : null}
 
         <section
           style={{
             borderRadius: 18,
             border: "1px solid rgba(148,163,184,0.35)",
             background:
-              "radial-gradient(circle at top left, #020617, #020617 50%, #000 100%)",
-            padding: 14,
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "14px 14px",
             display: "flex",
             flexDirection: "column",
             gap: 12,
           }}
         >
-          <label style={labelStyle}>
-            <Label text="Título" required />
-            <input
-              style={inputStyle}
-              placeholder="OCSC 5K Group Run"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
+          {/* Imagem */}
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>
+                  Imagem do evento (opcional)
+                </p>
+                <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "#9ca3af" }}>
+                  PNG/JPG — ideal 1200×630.
+                </p>
+              </div>
+            </div>
 
-          <label style={labelStyle}>
-            <Label text="Esporte" required />
-            <input
-              style={inputStyle}
-              placeholder="Running, Cycling, Triathlon..."
-              value={sport}
-              onChange={(e) => setSport(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="Data & hora" required />
-            <input
-              type="datetime-local"
-              style={inputStyle}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="Descrição" />
-            <textarea
-              style={textareaStyle}
-              placeholder="Descreva o evento, ritmo, público-alvo, regras, etc."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="Street (US format)" required />
-            <input
-              style={inputStyle}
-              placeholder="3516 President Barack Obama Pkwy"
-              value={street}
-              onChange={(e) => setStreet(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="City" required />
-            <input
-              style={inputStyle}
-              placeholder="Orlando"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="State" required />
-            <input
-              style={{ ...inputStyle, textTransform: "uppercase" }}
-              placeholder="FL"
-              value={stateUS}
-              onChange={(e) => setStateUS(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="Capacity" required />
-            <input
-              style={inputStyle}
-              placeholder="20"
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="Waitlist capacity" />
-            <input
-              style={inputStyle}
-              placeholder="0"
-              value={waitlistCapacity}
-              onChange={(e) => setWaitlistCapacity(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="Price (USD)" />
-            <input
-              style={inputStyle}
-              placeholder="0 (Free)"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-          </label>
-
-          <label style={labelStyle}>
-            <Label text="WhatsApp do organizador" required />
-            <input
-              style={inputStyle}
-              placeholder="+1 407 000 0000"
-              value={organizerWhatsapp}
-              onChange={(e) => setOrganizerWhatsapp(e.target.value)}
-            />
-          </label>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button
-              onClick={() => submit(false)}
-              disabled={busy}
+            <div
               style={{
-                padding: "10px 14px",
-                borderRadius: 999,
-                background: "#1f2937",
-                color: "#e5e7eb",
+                marginTop: 10,
+                width: "100%",
+                height: 220,
+                borderRadius: 14,
+                border: "1px solid rgba(148,163,184,0.25)",
+                overflow: "hidden",
+                background: "rgba(0,0,0,0.25)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              Salvar draft
-            </button>
+              {imagePreview ? (
+                <img
+                  src={imagePreview}
+                  alt="preview"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                />
+              ) : (
+                <span style={{ fontSize: 12, color: "#9ca3af" }}>Sem imagem</span>
+              )}
+            </div>
+
+            <input
+              type="file"
+              accept="image/*"
+              style={{ marginTop: 10, ...inputStyle }}
+              onChange={(e) => handlePickImage(e.target.files?.[0] ?? null)}
+            />
+          </div>
+
+          {/* Campos */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
+            <label style={labelStyle}>
+              Título{requiredAsterisk()}
+              <input
+                style={inputStyle}
+                placeholder="Ex: Treino 5K + Café da Manhã"
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Esporte{requiredAsterisk()}
+              <input
+                style={inputStyle}
+                placeholder="Ex: Running"
+                value={form.sport}
+                onChange={(e) => set("sport", e.target.value)}
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Data e hora{requiredAsterisk()}
+              <input
+                type="datetime-local"
+                style={inputStyle}
+                value={form.date}
+                onChange={(e) => set("date", e.target.value)}
+              />
+              <div style={helperStyle}>Formato local do seu computador.</div>
+            </label>
+
+            <label style={labelStyle}>
+              Street (número + rua){requiredAsterisk()}
+              <input
+                style={inputStyle}
+                placeholder="Ex: 12639 Langstaff Dr"
+                value={form.street}
+                onChange={(e) => set("street", e.target.value)}
+              />
+            </label>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 12 }}>
+              <label style={labelStyle}>
+                City{requiredAsterisk()}
+                <input
+                  style={inputStyle}
+                  placeholder="Ex: Windermere"
+                  value={form.city}
+                  onChange={(e) => set("city", e.target.value)}
+                />
+              </label>
+
+              <label style={labelStyle}>
+                State{requiredAsterisk()}
+                <input
+                  style={inputStyle}
+                  placeholder="Ex: FL"
+                  value={form.state}
+                  onChange={(e) => set("state", e.target.value.toUpperCase())}
+                  maxLength={2}
+                />
+              </label>
+            </div>
+
+            <label style={labelStyle}>
+              Address (texto completo){requiredAsterisk()}
+              <input
+                style={inputStyle}
+                placeholder="Ex: 12639 Langstaff Dr, Windermere, FL"
+                value={form.address_text}
+                onChange={(e) => set("address_text", e.target.value)}
+              />
+              <div style={helperStyle}>
+                Esse campo é usado para o mapa e para exibir o endereço formatado.
+              </div>
+            </label>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <label style={labelStyle}>
+                Preço (USD){requiredAsterisk()}
+                <input
+                  style={inputStyle}
+                  placeholder="Ex: 15"
+                  value={form.price}
+                  onChange={(e) => set("price", e.target.value)}
+                  inputMode="decimal"
+                />
+                <div style={helperStyle}>Use 0 para “Free”.</div>
+              </label>
+
+              <label style={labelStyle}>
+                Capacity{requiredAsterisk()}
+                <input
+                  style={inputStyle}
+                  placeholder="Ex: 20"
+                  value={form.capacity}
+                  onChange={(e) => set("capacity", e.target.value)}
+                  inputMode="numeric"
+                />
+              </label>
+
+              <label style={labelStyle}>
+                Waitlist cap.{requiredAsterisk()}
+                <input
+                  style={inputStyle}
+                  placeholder="Ex: 10"
+                  value={form.waitlist_capacity}
+                  onChange={(e) => set("waitlist_capacity", e.target.value)}
+                  inputMode="numeric"
+                />
+              </label>
+            </div>
+
+            <label style={labelStyle}>
+              WhatsApp do organizador{requiredAsterisk()}
+              <input
+                style={inputStyle}
+                placeholder="Ex: +16892480582"
+                value={form.organizer_whatsapp}
+                onChange={(e) => set("organizer_whatsapp", e.target.value)}
+              />
+            </label>
+
+            <label style={labelStyle}>
+              Descrição{requiredAsterisk()}
+              <textarea
+                style={{ ...inputStyle, minHeight: 120, resize: "vertical" }}
+                placeholder="Ex: Treino guiado + café da manhã. Chegue 15 min antes..."
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+              />
+            </label>
+          </div>
+
+          {/* CTA */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
+              marginTop: 6,
+            }}
+          >
+            <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+              Ao criar, o evento já aparece na lista e abre em /events/[id].
+            </p>
 
             <button
-              onClick={() => submit(true)}
+              onClick={handleCreate}
               disabled={busy}
               style={{
-                padding: "10px 14px",
+                fontSize: 12,
+                padding: "10px 12px",
                 borderRadius: 999,
-                background: "#2563eb",
-                color: "#fff",
+                border: "1px solid rgba(56,189,248,0.55)",
+                background:
+                  "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                color: "#e0f2fe",
+                cursor: busy ? "not-allowed" : "pointer",
                 fontWeight: 700,
               }}
             >
-              Publicar
+              {busy ? "Criando..." : "Criar evento"}
             </button>
           </div>
         </section>
