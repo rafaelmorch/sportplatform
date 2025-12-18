@@ -30,8 +30,13 @@ type EventRow = {
   organizer_whatsapp: string | null;
 
   image_path: string | null;
-  image_url: string | null; // legado
+  image_url: string | null;
   created_by: string | null;
+};
+
+type PublicRegistration = {
+  nickname: string | null;
+  registered_at: string | null;
 };
 
 function formatDateTime(dt: string | null): string {
@@ -99,14 +104,33 @@ export default function EventDetailPage() {
 
   const [event, setEvent] = useState<EventRow | null>(null);
   const [loading, setLoading] = useState(true);
-  const [countsLoading, setCountsLoading] = useState(true);
 
   const [registrationsCount, setRegistrationsCount] = useState<number>(0);
+  const [publicRegs, setPublicRegs] = useState<PublicRegistration[]>([]);
+  const [countsLoading, setCountsLoading] = useState(true);
+
   const [isRegistered, setIsRegistered] = useState(false);
+  const [nickname, setNickname] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#60a5fa",
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    marginTop: 6,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "#374151",
+    color: "#ffffff",
+    outline: "none",
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -154,11 +178,16 @@ export default function EventDetailPage() {
 
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
+      if (!user) {
+        setIsRegistered(false);
+        setCountsLoading(false);
+        return;
+      }
 
-      // Count registrations
+      // 1) Count (via view pública: conta rows)
       const { count, error: countErr } = await supabase
-        .from("event_registrations")
-        .select("id", { count: "exact", head: true })
+        .from("event_registrations_public")
+        .select("nickname", { count: "exact", head: true })
         .eq("event_id", eventId);
 
       if (!cancelled) {
@@ -170,25 +199,33 @@ export default function EventDetailPage() {
         }
       }
 
-      // Check if current user registered
-      if (user) {
-        const { data: reg, error: regErr } = await supabase
-          .from("event_registrations")
-          .select("id")
-          .eq("event_id", eventId)
-          .eq("user_id", user.id)
-          .maybeSingle();
+      // 2) Lista de nicknames (via view pública)
+      const { data: regs, error: regsErr } = await supabase
+        .from("event_registrations_public")
+        .select("nickname, registered_at")
+        .eq("event_id", eventId)
+        .order("registered_at", { ascending: true })
+        .limit(200);
 
-        if (!cancelled) {
-          if (regErr) {
-            // se der erro, não trava a página
-            setIsRegistered(false);
-          } else {
-            setIsRegistered(!!reg?.id);
-          }
+      if (!cancelled) {
+        if (!regsErr) setPublicRegs((regs as PublicRegistration[]) ?? []);
+      }
+
+      // 3) "Eu já estou inscrito?" (na tabela, mas policy permite só a própria linha)
+      const { data: me, error: meErr } = await supabase
+        .from("event_registrations")
+        .select("id, nickname")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        if (!meErr && me?.id) {
+          setIsRegistered(true);
+          if (me.nickname) setNickname(me.nickname);
+        } else {
+          setIsRegistered(false);
         }
-      } else {
-        if (!cancelled) setIsRegistered(false);
       }
 
       if (!cancelled) setCountsLoading(false);
@@ -212,31 +249,36 @@ export default function EventDetailPage() {
       const user = userRes.user;
       if (!user) throw new Error("You must be logged in to register.");
 
-      // Recarrega contagem para decisão de vagas
+      const nick = nickname.trim();
+      if (nick.length < 2 || nick.length > 24) {
+        throw new Error("Nickname must be between 2 and 24 characters.");
+      }
+
+      // Atualiza contagem para decisão de vagas
       const { count } = await supabase
-        .from("event_registrations")
-        .select("id", { count: "exact", head: true })
+        .from("event_registrations_public")
+        .select("nickname", { count: "exact", head: true })
         .eq("event_id", eventId);
 
       const currentCount = count ?? 0;
 
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
+      const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
 
-      const totalAllowed = cap + waitCap;
       if (cap > 0 && totalAllowed > 0 && currentCount >= totalAllowed) {
         throw new Error("Event is full (including waitlist).");
       }
 
-      // Insere inscrição (único por usuário graças ao índice)
+      // Insere inscrição com nickname
       const { error: insErr } = await supabase.from("event_registrations").insert({
         event_id: eventId,
         user_id: user.id,
+        nickname: nick,
         registered_at: new Date().toISOString(),
       });
 
       if (insErr) {
-        // Se já inscrito
         if ((insErr.message || "").toLowerCase().includes("duplicate")) {
           setInfo("You are already registered.");
           setIsRegistered(true);
@@ -247,9 +289,17 @@ export default function EventDetailPage() {
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
-
-      // Atualiza contagem local
       setRegistrationsCount((prev) => prev + 1);
+
+      // Recarrega lista pública (nickname aparece para todos logados)
+      const { data: regs } = await supabase
+        .from("event_registrations_public")
+        .select("nickname, registered_at")
+        .eq("event_id", eventId)
+        .order("registered_at", { ascending: true })
+        .limit(200);
+
+      setPublicRegs((regs as PublicRegistration[]) ?? []);
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
     } finally {
@@ -262,9 +312,8 @@ export default function EventDetailPage() {
 
   const cap = event?.capacity ?? 0;
   const waitCap = event?.waitlist_capacity ?? 0;
-  const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
-  const spotsLeft =
-    cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
+
+  const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
   const mapQuery = encodeURIComponent(address || "");
   const mapEmbedUrl = `https://www.google.com/maps?q=${mapQuery}&output=embed`;
@@ -283,7 +332,6 @@ export default function EventDetailPage() {
       }}
     >
       <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-        {/* Header */}
         <header
           style={{
             marginBottom: 20,
@@ -340,7 +388,6 @@ export default function EventDetailPage() {
           </p>
         ) : null}
 
-        {/* Card principal */}
         <section
           style={{
             borderRadius: 18,
@@ -353,7 +400,6 @@ export default function EventDetailPage() {
             gap: 12,
           }}
         >
-          {/* Imagem */}
           <div
             style={{
               width: "100%",
@@ -378,7 +424,6 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* Badges */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             <span
               style={{
@@ -442,7 +487,6 @@ export default function EventDetailPage() {
             ) : null}
           </div>
 
-          {/* Endereço + mapa */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>
               Local
@@ -457,7 +501,6 @@ export default function EventDetailPage() {
                 border: "1px solid rgba(148,163,184,0.25)",
               }}
             >
-              {/* mapa por endereço (sem lat/lng por enquanto) */}
               <iframe
                 title="map"
                 src={mapEmbedUrl}
@@ -480,7 +523,6 @@ export default function EventDetailPage() {
             </div>
           </div>
 
-          {/* Descrição */}
           {event?.description ? (
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
@@ -492,7 +534,6 @@ export default function EventDetailPage() {
             </div>
           ) : null}
 
-          {/* WhatsApp do organizador (somente inscrito) */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
               Contato do organizador
@@ -512,7 +553,55 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* CTA */}
+          {/* Lista pública de nicknames */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
+              Participantes
+            </h2>
+
+            {publicRegs.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                Nenhum inscrito ainda.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {publicRegs
+                  .map((r, idx) => (r.nickname ?? "").trim())
+                  .filter((n) => n.length > 0)
+                  .slice(0, 200)
+                  .map((n, idx) => (
+                    <span
+                      key={`${n}-${idx}`}
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        border: "1px solid rgba(148,163,184,0.35)",
+                        background: "rgba(2,6,23,0.65)",
+                        color: "#e5e7eb",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {n}
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Nickname + CTA */}
+          {!isRegistered ? (
+            <label style={labelStyle}>
+              Nickname (visível para todos)
+              <input
+                style={inputStyle}
+                placeholder="Ex: Rafa Runner"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+              />
+            </label>
+          ) : null}
+
           <div
             style={{
               display: "flex",
