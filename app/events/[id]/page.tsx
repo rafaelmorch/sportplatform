@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -86,7 +86,9 @@ function buildAddress(e: EventRow | null): string {
 
 function getPublicImageUrl(path: string | null): string | null {
   if (!path) return null;
-  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
+  const { data } = supabaseBrowser.storage
+    .from("event-images")
+    .getPublicUrl(path);
   return data?.publicUrl ?? null;
 }
 
@@ -95,6 +97,7 @@ function getPublicImageUrl(path: string | null): string | null {
 export default function EventDetailPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const { id: eventId } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
 
   const [event, setEvent] = useState<EventRow | null>(null);
   const [registrations, setRegistrations] = useState<PublicRegistration[]>([]);
@@ -126,6 +129,18 @@ export default function EventDetailPage() {
     outline: "none",
   };
 
+  // Mensagens pós-checkout (opcional)
+  useEffect(() => {
+    const paid = searchParams?.get("paid");
+    const canceled = searchParams?.get("canceled");
+
+    if (paid === "1") {
+      setInfo("Payment received. Confirming your registration...");
+    } else if (canceled === "1") {
+      setInfo("Payment canceled.");
+    }
+  }, [searchParams]);
+
   useEffect(() => {
     if (!eventId) return;
 
@@ -134,7 +149,6 @@ export default function EventDetailPage() {
     async function loadEvent() {
       setLoading(true);
       setError(null);
-      setInfo(null);
 
       const { data, error } = await supabase
         .from("events")
@@ -171,7 +185,6 @@ export default function EventDetailPage() {
     async function loadRegs() {
       setCountsLoading(true);
 
-      // Só aparece para logados (conforme você definiu)
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
 
@@ -228,6 +241,7 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
+  // ✅ CORRIGIDO: pago -> Stripe Checkout | grátis -> insert direto
   async function handleRegister() {
     if (!eventId) return;
 
@@ -245,7 +259,33 @@ export default function EventDetailPage() {
         throw new Error("Nickname must be between 2 and 24 characters.");
       }
 
-      // Regras simples de vagas (cap + waitlist)
+      const price = event?.price_cents ?? 0;
+
+      // ✅ EVENTO PAGO: NUNCA faz insert no client (RLS vai bloquear)
+      if (price > 0) {
+        const resp = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventId,
+            nickname: nick,
+            userId: user.id,
+          }),
+        });
+
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(t || "Failed to start checkout.");
+        }
+
+        const { url } = await resp.json();
+        if (!url) throw new Error("Missing checkout url.");
+
+        window.location.href = url;
+        return;
+      }
+
+      // ✅ EVENTO GRÁTIS: inscreve direto
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
@@ -254,12 +294,15 @@ export default function EventDetailPage() {
         throw new Error("Event is full (including waitlist).");
       }
 
-      // ✅ IMPORTANTE: enviar user_id para passar no RLS
       const { error: insErr } = await supabase.from("event_registrations").insert({
         event_id: eventId,
         user_id: user.id,
         nickname: nick,
         registered_at: new Date().toISOString(),
+        payment_provider: "free",
+        payment_status: "free",
+        amount_cents: 0,
+        currency: "usd",
       });
 
       if (insErr) {
@@ -274,7 +317,6 @@ export default function EventDetailPage() {
       setIsRegistered(true);
       setInfo("Registration confirmed!");
 
-      // Recarrega lista pública e contagem
       const { data: regs } = await supabase
         .from("event_registrations_public")
         .select("nickname, registered_at")
@@ -292,13 +334,17 @@ export default function EventDetailPage() {
   }
 
   const address = buildAddress(event);
-  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(
+    address
+  )}&output=embed`;
+
   const priceLabel = formatPrice(event?.price_cents ?? 0);
 
   const cap = event?.capacity ?? 0;
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
-  const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
+  const img =
+    getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
 
   return (
     <main
@@ -332,7 +378,14 @@ export default function EventDetailPage() {
             Evento
           </p>
 
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
             <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
               {loading ? "Carregando..." : event?.title ?? "Evento"}
             </h1>
@@ -356,11 +409,15 @@ export default function EventDetailPage() {
         </header>
 
         {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p>
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
+            {error}
+          </p>
         ) : null}
 
         {info ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
+            {info}
+          </p>
         ) : null}
 
         {/* Card */}
@@ -451,8 +508,12 @@ export default function EventDetailPage() {
 
           {/* Local + mapa */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
-            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>
+              Local
+            </h2>
+            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+              {address}
+            </p>
 
             <div
               style={{
@@ -462,15 +523,37 @@ export default function EventDetailPage() {
                 border: "1px solid rgba(148,163,184,0.25)",
               }}
             >
-              <iframe title="map" src={mapUrl} width="100%" height="240" style={{ border: 0 }} loading="lazy" />
+              <iframe
+                title="map"
+                src={mapUrl}
+                width="100%"
+                height="240"
+                style={{ border: 0 }}
+                loading="lazy"
+              />
             </div>
           </div>
 
           {/* Descrição */}
           {event?.description ? (
             <div>
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Descrição</h2>
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, whiteSpace: "pre-wrap" }}>
+              <h2
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  margin: "10px 0 6px 0",
+                }}
+              >
+                Descrição
+              </h2>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {event.description}
               </p>
             </div>
@@ -484,7 +567,10 @@ export default function EventDetailPage() {
 
             {isRegistered ? (
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-                WhatsApp: <span style={{ color: "#e5e7eb" }}>{event?.organizer_whatsapp ?? "—"}</span>
+                WhatsApp:{" "}
+                <span style={{ color: "#e5e7eb" }}>
+                  {event?.organizer_whatsapp ?? "—"}
+                </span>
               </p>
             ) : (
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
@@ -493,7 +579,7 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* ✅ Nickname sempre visível */}
+          {/* Nickname sempre visível */}
           <label style={labelStyle}>
             Nickname (visível para todos)
             <input
@@ -504,16 +590,35 @@ export default function EventDetailPage() {
               disabled={isRegistered}
             />
             {isRegistered ? (
-              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 6,
+                  fontSize: 12,
+                  color: "#9ca3af",
+                }}
+              >
                 Você já está inscrito. (nickname bloqueado por enquanto)
               </span>
             ) : null}
           </label>
 
           {/* CTA */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
             <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-              {isRegistered ? "Você já está inscrito." : "Inscrição em 1 clique (pagamento entra na próxima etapa)."}
+              {isRegistered
+                ? "Você já está inscrito."
+                : (event?.price_cents ?? 0) > 0
+                ? "Evento pago: você será direcionado ao pagamento."
+                : "Evento grátis: inscrição em 1 clique."}
             </p>
 
             <button
@@ -524,22 +629,33 @@ export default function EventDetailPage() {
                 padding: "10px 12px",
                 borderRadius: 999,
                 border: "1px solid rgba(56,189,248,0.55)",
-                background: "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                background:
+                  "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
                 color: "#e0f2fe",
                 cursor: busy || isRegistered ? "not-allowed" : "pointer",
                 fontWeight: 700,
               }}
             >
-              {isRegistered ? "Inscrito" : busy ? "Inscrevendo..." : "Inscrever-se"}
+              {isRegistered
+                ? "Inscrito"
+                : busy
+                ? "Processando..."
+                : (event?.price_cents ?? 0) > 0
+                ? "Pagar e Inscrever-se"
+                : "Inscrever-se"}
             </button>
           </div>
 
           {/* Lista pública de nicknames */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Participantes</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
+              Participantes
+            </h2>
 
             {registrations.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Nenhum inscrito ainda.</p>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                Nenhum inscrito ainda.
+              </p>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {registrations
