@@ -30,7 +30,7 @@ type EventRow = {
   organizer_whatsapp: string | null;
 
   image_path: string | null;
-  image_url: string | null;
+  image_url: string | null; // legado
 };
 
 type PublicRegistration = {
@@ -42,14 +42,18 @@ type PublicRegistration = {
 
 function formatDateTime(dt: string | null): string {
   if (!dt) return "Date TBD";
-  return new Date(dt).toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  try {
+    return new Date(dt).toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return dt;
+  }
 }
 
 function formatPrice(priceCents: number | null): string {
@@ -63,18 +67,33 @@ function formatPrice(priceCents: number | null): string {
 
 function buildAddress(e: EventRow | null): string {
   if (!e) return "Location TBD";
+
+  const street = (e.street ?? "").trim();
+  const city = (e.city ?? "").trim();
+  const state = (e.state ?? "").trim();
+
   const parts: string[] = [];
-  if (e.street) parts.push(e.street);
-  if (e.city && e.state) parts.push(`${e.city}, ${e.state}`);
-  return parts.join(", ") || e.address_text || "Location TBD";
+  if (street) parts.push(street);
+  if (city && state) parts.push(`${city}, ${state}`);
+  else if (city) parts.push(city);
+  else if (state) parts.push(state);
+
+  const composed = parts.join(", ").trim();
+  if (composed) return composed;
+
+  const fallback = (e.address_text ?? "").trim();
+  return fallback || "Location TBD";
 }
 
 function getPublicImageUrl(path: string | null): string | null {
   if (!path) return null;
-  const { data } = supabaseBrowser.storage
-    .from("event-images")
-    .getPublicUrl(path);
+  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
   return data?.publicUrl ?? null;
+}
+
+function isDuplicateError(msg: string | undefined | null): boolean {
+  const m = (msg || "").toLowerCase();
+  return m.includes("duplicate") || m.includes("already exists") || m.includes("unique");
 }
 
 /* ================= Page ================= */
@@ -85,6 +104,7 @@ export default function EventDetailPage() {
   const searchParams = useSearchParams();
 
   const [event, setEvent] = useState<EventRow | null>(null);
+
   const [registrations, setRegistrations] = useState<PublicRegistration[]>([]);
   const [registrationsCount, setRegistrationsCount] = useState(0);
 
@@ -98,47 +118,95 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#60a5fa",
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    marginTop: 6,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "#374151",
+    color: "#ffffff",
+    outline: "none",
+  };
+
   /* ===== Mensagens pós-checkout ===== */
   useEffect(() => {
-    if (searchParams?.get("paid") === "1") {
-      setInfo("Payment received. Confirming your registration...");
-    }
-    if (searchParams?.get("canceled") === "1") {
-      setInfo("Payment canceled.");
-    }
+    const paid = searchParams?.get("paid");
+    const canceled = searchParams?.get("canceled");
+
+    if (paid === "1") setInfo("Payment received. Confirming your registration...");
+    if (canceled === "1") setInfo("Payment canceled.");
   }, [searchParams]);
 
   /* ===== Carregar evento ===== */
   useEffect(() => {
     if (!eventId) return;
 
-    (async () => {
+    let cancelled = false;
+
+    async function loadEvent() {
       setLoading(true);
+      setError(null);
+
       const { data, error } = await supabase
         .from("events")
-        .select("*")
+        .select(
+          "id,title,sport,description,date,street,city,state,address_text,capacity,waitlist_capacity,price_cents,organizer_whatsapp,image_path,image_url"
+        )
         .eq("id", eventId)
         .single();
 
-      if (error) setError(error.message);
-      else setEvent(data as EventRow);
+      if (cancelled) return;
+
+      if (error) {
+        setError(error.message || "Failed to load event.");
+        setEvent(null);
+      } else {
+        setEvent((data as EventRow) ?? null);
+      }
 
       setLoading(false);
-    })();
+    }
+
+    loadEvent();
+    return () => {
+      cancelled = true;
+    };
   }, [supabase, eventId]);
 
-  /* ===== Carregar inscritos ===== */
+  /* ===== Carregar inscritos + minha inscrição ===== */
   useEffect(() => {
     if (!eventId) return;
 
-    (async () => {
+    let cancelled = false;
+
+    async function loadRegs() {
       setCountsLoading(true);
+
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes.user;
+
+      if (!user) {
+        if (!cancelled) {
+          setRegistrations([]);
+          setRegistrationsCount(0);
+          setIsRegistered(false);
+          setCountsLoading(false);
+        }
+        return;
+      }
 
       const { data: regs } = await supabase
         .from("event_registrations_public")
         .select("nickname, registered_at")
         .eq("event_id", eventId)
-        .order("registered_at", { ascending: true });
+        .order("registered_at", { ascending: true })
+        .limit(200);
 
       const { count } = await supabase
         .from("event_registrations_public")
@@ -151,19 +219,28 @@ export default function EventDetailPage() {
         .eq("event_id", eventId)
         .maybeSingle();
 
-      setRegistrations((regs as PublicRegistration[]) ?? []);
-      setRegistrationsCount(count ?? 0);
+      if (!cancelled) {
+        setRegistrations((regs as PublicRegistration[]) ?? []);
+        setRegistrationsCount(count ?? 0);
 
-      if (me?.nickname) {
-        setIsRegistered(true);
-        setNickname(me.nickname);
+        if (me?.nickname) {
+          setIsRegistered(true);
+          setNickname(me.nickname);
+        } else {
+          setIsRegistered(false);
+        }
+
+        setCountsLoading(false);
       }
+    }
 
-      setCountsLoading(false);
-    })();
+    loadRegs();
+    return () => {
+      cancelled = true;
+    };
   }, [supabase, eventId]);
 
-  /* ===== Polling pós-pagamento ===== */
+  /* ===== Polling pós-pagamento (?paid=1) ===== */
   useEffect(() => {
     if (!eventId) return;
     if (searchParams?.get("paid") !== "1") return;
@@ -171,6 +248,10 @@ export default function EventDetailPage() {
     let stopped = false;
 
     async function poll() {
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes.user;
+      if (!user) return;
+
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
@@ -188,26 +269,30 @@ export default function EventDetailPage() {
           .from("event_registrations_public")
           .select("nickname, registered_at")
           .eq("event_id", eventId)
-          .order("registered_at", { ascending: true });
+          .order("registered_at", { ascending: true })
+          .limit(200);
 
         setRegistrations((regs as PublicRegistration[]) ?? []);
-        setRegistrationsCount((regs as any[])?.length ?? 0);
+        setRegistrationsCount((regs as any[])?.length ?? registrationsCount);
         return;
       }
 
-      setTimeout(() => !stopped && poll(), 2000);
+      setTimeout(() => {
+        if (!stopped) poll();
+      }, 2000);
     }
 
     poll();
     return () => {
       stopped = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, eventId, searchParams]);
 
-  /* ================= REGISTER ================= */
+  /* ================= Register ================= */
 
   async function handleRegister() {
-    if (!event || !eventId) return;
+    if (!eventId) return;
 
     setBusy(true);
     setError(null);
@@ -216,24 +301,19 @@ export default function EventDetailPage() {
     try {
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
-      if (!user) throw new Error("Login required.");
+      if (!user) throw new Error("You must be logged in to register.");
 
       const nick = nickname.trim();
       if (nick.length < 2 || nick.length > 24) {
-        throw new Error("Nickname must be 2–24 characters.");
+        throw new Error("Nickname must be between 2 and 24 characters.");
       }
 
-      /* ===== EVENTO PAGO ===== */
-      if ((event.price_cents ?? 0) > 0) {
-        // abrir popup ANTES do await (evita bloqueio)
-        const popup = window.open(
-          "about:blank",
-          "_blank",
-          "noopener,noreferrer"
-        );
-        if (!popup) {
-          throw new Error("Popup blocked. Allow popups for this site.");
-        }
+      const price = event?.price_cents ?? 0;
+
+      // ✅ EVENTO PAGO: abre uma aba ANTES do fetch (evita popup blocker)
+      if (price > 0) {
+        const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+        if (!popup) throw new Error("Popup blocked. Allow popups for this site.");
 
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -247,42 +327,83 @@ export default function EventDetailPage() {
 
         if (!resp.ok) {
           const t = await resp.text();
-          popup.close();
-          throw new Error(`Checkout error: ${t}`);
+          try {
+            popup.close();
+          } catch {}
+          throw new Error(`Checkout error: ${t || resp.status}`);
         }
 
         const { url } = await resp.json();
+        if (!url) {
+          try {
+            popup.close();
+          } catch {}
+          throw new Error("Missing checkout url.");
+        }
+
         popup.location.href = url;
         return;
       }
 
-      /* ===== EVENTO GRÁTIS ===== */
-      const { error: insErr } = await supabase
-        .from("event_registrations")
-        .insert({
-          event_id: eventId,
-          user_id: user.id,
-          nickname: nick,
-          registered_at: new Date().toISOString(),
-          payment_provider: "free",
-          payment_status: "free",
-          amount_cents: 0,
-          currency: "usd",
-        });
+      // ✅ EVENTO GRÁTIS: insere direto
+      const cap = event?.capacity ?? 0;
+      const waitCap = event?.waitlist_capacity ?? 0;
+      const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
 
-      if (insErr) throw insErr;
+      if (cap > 0 && totalAllowed > 0 && registrationsCount >= totalAllowed) {
+        throw new Error("Event is full (including waitlist).");
+      }
+
+      const { error: insErr } = await supabase.from("event_registrations").insert({
+        event_id: eventId,
+        user_id: user.id,
+        nickname: nick,
+        registered_at: new Date().toISOString(),
+        payment_provider: "free",
+        payment_status: "free",
+        amount_cents: 0,
+        currency: "usd",
+      });
+
+      if (insErr) {
+        if (isDuplicateError(insErr.message)) {
+          setInfo("You are already registered.");
+          setIsRegistered(true);
+          return;
+        }
+        throw new Error(insErr.message);
+      }
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
+
+      const { data: regs } = await supabase
+        .from("event_registrations_public")
+        .select("nickname, registered_at")
+        .eq("event_id", eventId)
+        .order("registered_at", { ascending: true })
+        .limit(200);
+
+      setRegistrations((regs as PublicRegistration[]) ?? []);
+      setRegistrationsCount((prev) => prev + 1);
     } catch (e: any) {
-      setError(e.message ?? "Registration failed.");
+      setError(e?.message ?? "Failed to register.");
     } finally {
       setBusy(false);
     }
   }
 
-  const img =
-    getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
+  /* ================= Derived ================= */
+
+  const address = buildAddress(event);
+  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+
+  const priceLabel = formatPrice(event?.price_cents ?? 0);
+
+  const cap = event?.capacity ?? 0;
+  const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
+
+  const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
 
   /* ================= Render ================= */
 
@@ -290,79 +411,317 @@ export default function EventDetailPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#020617",
+        backgroundColor: "#020617",
         color: "#e5e7eb",
-        padding: 16,
-        paddingBottom: 80,
+        padding: "16px",
+        paddingBottom: "80px",
       }}
     >
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <header style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 11, color: "#64748b" }}>Evento</p>
-          <h1 style={{ fontSize: 24 }}>
-            {loading ? "Loading..." : event?.title}
-          </h1>
-          <p style={{ fontSize: 13, color: "#9ca3af" }}>
-            {event?.sport} • {formatDateTime(event?.date ?? null)}
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        {/* Header */}
+        <header
+          style={{
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+          }}
+        >
+          <p
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              margin: 0,
+            }}
+          >
+            Evento
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              alignItems: "center",
+            }}
+          >
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+              {loading ? "Carregando..." : event?.title ?? "Evento"}
+            </h1>
+
+            <Link
+              href="/events"
+              style={{
+                fontSize: 12,
+                color: "#93c5fd",
+                textDecoration: "underline",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Voltar
+            </Link>
+          </div>
+
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            {(event?.sport ?? "")} • {formatDateTime(event?.date ?? null)}
           </p>
         </header>
 
-        {error && <p style={{ color: "#fca5a5" }}>{error}</p>}
-        {info && <p style={{ color: "#86efac" }}>{info}</p>}
+        {error ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p>
+        ) : null}
 
+        {info ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
+        ) : null}
+
+        {/* Card */}
         <section
           style={{
             borderRadius: 18,
             border: "1px solid rgba(148,163,184,0.35)",
-            padding: 14,
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "14px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
           }}
         >
-          {img && (
-            <img
-              src={img}
-              alt="event"
-              style={{ width: "100%", maxHeight: 220, objectFit: "contain" }}
-            />
-          )}
+          {/* Imagem */}
+          <div
+            style={{
+              width: "100%",
+              height: 220,
+              borderRadius: 14,
+              border: "1px solid rgba(148,163,184,0.25)",
+              overflow: "hidden",
+              background: "rgba(0,0,0,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {img ? (
+              <img
+                src={img}
+                alt={event?.title ?? "event image"}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            ) : (
+              <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
+            )}
+          </div>
 
-          <p>{buildAddress(event)}</p>
-          <p>{formatPrice(event?.price_cents ?? 0)}</p>
+          {/* Badges */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <span
+              style={{
+                fontSize: 11,
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(56,189,248,0.5)",
+                background:
+                  "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
+                color: "#e0f2fe",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {priceLabel}
+            </span>
 
-          <label>
-            Nickname *
+            <span
+              style={{
+                fontSize: 11,
+                padding: "4px 10px",
+                borderRadius: 999,
+                border: "1px solid rgba(148,163,184,0.35)",
+                background: "rgba(2,6,23,0.65)",
+                color: "#e5e7eb",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Inscritos: {countsLoading ? "..." : registrationsCount}
+            </span>
+
+            {cap > 0 ? (
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Vagas: {spotsLeft}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Local + mapa */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
+            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
+
+            <div
+              style={{
+                marginTop: 10,
+                borderRadius: 14,
+                overflow: "hidden",
+                border: "1px solid rgba(148,163,184,0.25)",
+              }}
+            >
+              <iframe
+                title="map"
+                src={mapUrl}
+                width="100%"
+                height="240"
+                style={{ border: 0 }}
+                loading="lazy"
+              />
+            </div>
+          </div>
+
+          {/* Descrição */}
+          {event?.description ? (
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
+                Descrição
+              </h2>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#9ca3af",
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {event.description}
+              </p>
+            </div>
+          ) : null}
+
+          {/* WhatsApp do organizador */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
+              Contato do organizador
+            </h2>
+
+            {isRegistered ? (
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                WhatsApp:{" "}
+                <span style={{ color: "#e5e7eb" }}>
+                  {event?.organizer_whatsapp ?? "—"}
+                </span>
+              </p>
+            ) : (
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                Faça a inscrição para liberar o WhatsApp do organizador.
+              </p>
+            )}
+          </div>
+
+          {/* Nickname */}
+          <label style={labelStyle}>
+            Nickname <span style={{ color: "#93c5fd" }}>*</span>{" "}
+            <span style={{ color: "#9ca3af" }}>(visível para todos)</span>
             <input
+              style={inputStyle}
+              placeholder="Ex: Rafa Runner"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               disabled={isRegistered}
-              style={{
-                width: "100%",
-                padding: 10,
-                marginTop: 4,
-                background: "#374151",
-                color: "#fff",
-                borderRadius: 8,
-              }}
             />
+            {isRegistered ? (
+              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
+                Você já está inscrito. (nickname bloqueado por enquanto)
+              </span>
+            ) : null}
           </label>
 
-          <button
-            onClick={handleRegister}
-            disabled={busy || isRegistered}
+          {/* CTA */}
+          <div
             style={{
-              marginTop: 12,
-              padding: "10px 16px",
-              borderRadius: 999,
-              fontWeight: 700,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
             }}
           >
-            {isRegistered
-              ? "Inscrito"
-              : busy
-              ? "Processando..."
-              : (event?.price_cents ?? 0) > 0
-              ? "Pagar e Inscrever-se"
-              : "Inscrever-se"}
-          </button>
+            <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+              {isRegistered
+                ? "Você já está inscrito."
+                : (event?.price_cents ?? 0) > 0
+                ? "Evento pago: o pagamento abrirá em uma nova aba/janela."
+                : "Evento grátis: inscrição em 1 clique."}
+            </p>
+
+            <button
+              onClick={handleRegister}
+              disabled={busy || isRegistered}
+              style={{
+                fontSize: 12,
+                padding: "10px 12px",
+                borderRadius: 999,
+                border: "1px solid rgba(56,189,248,0.55)",
+                background:
+                  "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                color: "#e0f2fe",
+                cursor: busy || isRegistered ? "not-allowed" : "pointer",
+                fontWeight: 700,
+              }}
+            >
+              {isRegistered
+                ? "Inscrito"
+                : busy
+                ? "Processando..."
+                : (event?.price_cents ?? 0) > 0
+                ? "Pagar e Inscrever-se"
+                : "Inscrever-se"}
+            </button>
+          </div>
+
+          {/* Lista pública */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
+              Participantes
+            </h2>
+
+            {registrations.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                Nenhum inscrito ainda.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {registrations
+                  .map((r) => (r.nickname ?? "").trim())
+                  .filter((n) => n.length > 0)
+                  .slice(0, 200)
+                  .map((n, idx) => (
+                    <span
+                      key={`${n}-${idx}`}
+                      style={{
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        border: "1px solid rgba(148,163,184,0.35)",
+                        background: "rgba(2,6,23,0.65)",
+                        color: "#e5e7eb",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {n}
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
         </section>
       </div>
 
