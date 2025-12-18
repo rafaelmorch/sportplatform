@@ -63,10 +63,10 @@ function formatPrice(priceCents: number | null): string {
 
 function buildAddress(e: EventRow | null): string {
   if (!e) return "Location TBD";
-  const parts = [e.street, e.city && e.state ? `${e.city}, ${e.state}` : null]
-    .filter(Boolean)
-    .join(", ");
-  return parts || e.address_text || "Location TBD";
+  const parts: string[] = [];
+  if (e.street) parts.push(e.street);
+  if (e.city && e.state) parts.push(`${e.city}, ${e.state}`);
+  return parts.join(", ") || e.address_text || "Location TBD";
 }
 
 function getPublicImageUrl(path: string | null): string | null {
@@ -98,7 +98,7 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  /* ===== Load messages from checkout ===== */
+  /* ===== Mensagens pós-checkout ===== */
   useEffect(() => {
     if (searchParams?.get("paid") === "1") {
       setInfo("Payment received. Confirming your registration...");
@@ -108,9 +108,10 @@ export default function EventDetailPage() {
     }
   }, [searchParams]);
 
-  /* ===== Load event ===== */
+  /* ===== Carregar evento ===== */
   useEffect(() => {
     if (!eventId) return;
+
     (async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -126,9 +127,10 @@ export default function EventDetailPage() {
     })();
   }, [supabase, eventId]);
 
-  /* ===== Load registrations ===== */
+  /* ===== Carregar inscritos ===== */
   useEffect(() => {
     if (!eventId) return;
+
     (async () => {
       setCountsLoading(true);
 
@@ -136,7 +138,7 @@ export default function EventDetailPage() {
         .from("event_registrations_public")
         .select("nickname, registered_at")
         .eq("event_id", eventId)
-        .order("registered_at");
+        .order("registered_at", { ascending: true });
 
       const { count } = await supabase
         .from("event_registrations_public")
@@ -161,6 +163,47 @@ export default function EventDetailPage() {
     })();
   }, [supabase, eventId]);
 
+  /* ===== Polling pós-pagamento ===== */
+  useEffect(() => {
+    if (!eventId) return;
+    if (searchParams?.get("paid") !== "1") return;
+
+    let stopped = false;
+
+    async function poll() {
+      const { data: me } = await supabase
+        .from("event_registrations")
+        .select("nickname")
+        .eq("event_id", eventId)
+        .maybeSingle();
+
+      if (stopped) return;
+
+      if (me?.nickname) {
+        setIsRegistered(true);
+        setNickname(me.nickname);
+        setInfo("Registration confirmed!");
+
+        const { data: regs } = await supabase
+          .from("event_registrations_public")
+          .select("nickname, registered_at")
+          .eq("event_id", eventId)
+          .order("registered_at", { ascending: true });
+
+        setRegistrations((regs as PublicRegistration[]) ?? []);
+        setRegistrationsCount((regs as any[])?.length ?? 0);
+        return;
+      }
+
+      setTimeout(() => !stopped && poll(), 2000);
+    }
+
+    poll();
+    return () => {
+      stopped = true;
+    };
+  }, [supabase, eventId, searchParams]);
+
   /* ================= REGISTER ================= */
 
   async function handleRegister() {
@@ -180,16 +223,16 @@ export default function EventDetailPage() {
         throw new Error("Nickname must be 2–24 characters.");
       }
 
-      /* ===== PAID EVENT ===== */
+      /* ===== EVENTO PAGO ===== */
       if ((event.price_cents ?? 0) > 0) {
-        // ⚠️ popup MUST open before await
+        // abrir popup ANTES do await (evita bloqueio)
         const popup = window.open(
           "about:blank",
           "_blank",
           "noopener,noreferrer"
         );
         if (!popup) {
-          throw new Error("Popup blocked. Allow popups and try again.");
+          throw new Error("Popup blocked. Allow popups for this site.");
         }
 
         const resp = await fetch("/api/stripe/checkout", {
@@ -213,7 +256,7 @@ export default function EventDetailPage() {
         return;
       }
 
-      /* ===== FREE EVENT ===== */
+      /* ===== EVENTO GRÁTIS ===== */
       const { error: insErr } = await supabase
         .from("event_registrations")
         .insert({
@@ -241,7 +284,7 @@ export default function EventDetailPage() {
   const img =
     getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
 
-  /* ================= RENDER ================= */
+  /* ================= Render ================= */
 
   return (
     <main
