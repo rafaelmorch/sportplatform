@@ -196,7 +196,6 @@ export default function EventDetailPage() {
         return;
       }
 
-      // Lista pública (nicknames)
       const { data: regs } = await supabase
         .from("event_registrations_public")
         .select("nickname, registered_at")
@@ -204,13 +203,11 @@ export default function EventDetailPage() {
         .order("registered_at", { ascending: true })
         .limit(200);
 
-      // Contagem
       const { count } = await supabase
         .from("event_registrations_public")
         .select("nickname", { count: "exact", head: true })
         .eq("event_id", eventId);
 
-      // Minha inscrição
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
@@ -302,21 +299,9 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
-      /* ===== EVENTO PAGO ===== */
+      /* ===== EVENTO PAGO (SEM POPUP) ===== */
       if (price > 0) {
-        // ✅ tenta abrir popup imediatamente (antes do await)
-        const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-
-        if (!popup) {
-          alert(
-            "Seu navegador bloqueou o pop-up do pagamento.\n\n" +
-              "Como resolver:\n" +
-              "1) Clique no ícone de pop-up bloqueado na barra de endereço.\n" +
-              "2) Permita pop-ups para sportsplatform.app.\n" +
-              "3) Tente novamente."
-          );
-          throw new Error("Popup blocked. Allow popups for this site.");
-        }
+        setInfo("Redirecting to checkout...");
 
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -330,18 +315,14 @@ export default function EventDetailPage() {
 
         if (!resp.ok) {
           const t = await resp.text();
-          popup.close();
           throw new Error(`Checkout error: ${t || resp.status}`);
         }
 
         const { url } = await resp.json();
-        if (!url) {
-          popup.close();
-          throw new Error("Missing checkout url.");
-        }
+        if (!url) throw new Error("Missing checkout url.");
 
-        popup.location.href = url; // ✅ abre o Stripe na aba nova
-        setInfo("Checkout opened in a new tab.");
+        // ✅ mais confiável: mesma aba
+        window.location.href = url;
         return;
       }
 
@@ -655,7 +636,7 @@ export default function EventDetailPage() {
               {isRegistered
                 ? "Você já está inscrito."
                 : (event?.price_cents ?? 0) > 0
-                ? "Evento pago: o checkout abrirá em uma nova aba."
+                ? "Evento pago: você será redirecionado ao checkout."
                 : "Evento grátis: inscrição em 1 clique."}
             </p>
 
