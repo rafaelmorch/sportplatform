@@ -1,4 +1,4 @@
-// components/BottomNavbar.tsx 
+// components/BottomNavbar.tsx
 "use client";
 
 import Link from "next/link";
@@ -7,28 +7,40 @@ import { usePathname } from "next/navigation";
 type NavItem = {
   label: string;
   href: string;
+  enabled?: boolean; // feature flag
+};
+
+// ✅ SINALIZAÇÃO (fácil de reativar no futuro)
+const FEATURES = {
+  performanceTab: false,
+  groupsTab: false,
 };
 
 const navItems: NavItem[] = [
   {
     label: "Performance",
     href: "/dashboard",
+    enabled: FEATURES.performanceTab,
   },
   {
     label: "Feed",
     href: "/feed",
+    enabled: true,
   },
   {
     label: "Grupos",
     href: "/groups",
+    enabled: FEATURES.groupsTab,
   },
   {
-    label: "Planos",
-    href: "/plans",
+    label: "Eventos",
+    href: "/events",
+    enabled: true,
   },
   {
     label: "Perfil",
     href: "/profile",
+    enabled: true,
   },
 ];
 
@@ -59,41 +71,43 @@ export default function BottomNavbar() {
           gap: 8,
         }}
       >
-        {navItems.map((item) => {
-          const isActive =
-            pathname === item.href ||
-            (item.href !== "/" && pathname?.startsWith(item.href));
+        {navItems
+          .filter((item) => item.enabled !== false) // ✅ esconde sem apagar (sinalizado)
+          .map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname?.startsWith(item.href));
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                fontSize: 12,
-                padding: "8px 4px",
-                borderRadius: 999,
-                textDecoration: "none",
-                border: isActive
-                  ? "1px solid rgba(34,197,94,0.7)"
-                  : "1px solid transparent",
-                background: isActive
-                  ? "radial-gradient(circle at top, #22c55e25, transparent)"
-                  : "transparent",
-                color: isActive ? "#bbf7d0" : "#e5e7eb",
-                cursor: "pointer",
-                transition: "all 0.15s ease-out",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  fontSize: 12,
+                  padding: "8px 4px",
+                  borderRadius: 999,
+                  textDecoration: "none",
+                  border: isActive
+                    ? "1px solid rgba(34,197,94,0.7)"
+                    : "1px solid transparent",
+                  background: isActive
+                    ? "radial-gradient(circle at top, #22c55e25, transparent)"
+                    : "transparent",
+                  color: isActive ? "#bbf7d0" : "#e5e7eb",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease-out",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
       </div>
     </nav>
   );
