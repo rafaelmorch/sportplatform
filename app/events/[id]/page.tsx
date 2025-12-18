@@ -91,11 +91,6 @@ function getPublicImageUrl(path: string | null): string | null {
   return data?.publicUrl ?? null;
 }
 
-function isDuplicateError(msg: string | undefined | null): boolean {
-  const m = (msg || "").toLowerCase();
-  return m.includes("duplicate") || m.includes("already exists") || m.includes("unique");
-}
-
 /* ================= Page ================= */
 
 export default function EventDetailPage() {
@@ -104,7 +99,6 @@ export default function EventDetailPage() {
   const searchParams = useSearchParams();
 
   const [event, setEvent] = useState<EventRow | null>(null);
-
   const [registrations, setRegistrations] = useState<PublicRegistration[]>([]);
   const [registrationsCount, setRegistrationsCount] = useState(0);
 
@@ -174,12 +168,13 @@ export default function EventDetailPage() {
     }
 
     loadEvent();
+
     return () => {
       cancelled = true;
     };
   }, [supabase, eventId]);
 
-  /* ===== Carregar inscritos + minha inscrição ===== */
+  /* ===== Carregar inscritos ===== */
   useEffect(() => {
     if (!eventId) return;
 
@@ -201,6 +196,7 @@ export default function EventDetailPage() {
         return;
       }
 
+      // Lista pública (nicknames)
       const { data: regs } = await supabase
         .from("event_registrations_public")
         .select("nickname, registered_at")
@@ -208,11 +204,13 @@ export default function EventDetailPage() {
         .order("registered_at", { ascending: true })
         .limit(200);
 
+      // Contagem
       const { count } = await supabase
         .from("event_registrations_public")
         .select("nickname", { count: "exact", head: true })
         .eq("event_id", eventId);
 
+      // Minha inscrição
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
@@ -235,12 +233,13 @@ export default function EventDetailPage() {
     }
 
     loadRegs();
+
     return () => {
       cancelled = true;
     };
   }, [supabase, eventId]);
 
-  /* ===== Polling pós-pagamento (?paid=1) ===== */
+  /* ===== Polling pós-pagamento (quando voltar com paid=1) ===== */
   useEffect(() => {
     if (!eventId) return;
     if (searchParams?.get("paid") !== "1") return;
@@ -248,10 +247,6 @@ export default function EventDetailPage() {
     let stopped = false;
 
     async function poll() {
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes.user;
-      if (!user) return;
-
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
@@ -273,23 +268,20 @@ export default function EventDetailPage() {
           .limit(200);
 
         setRegistrations((regs as PublicRegistration[]) ?? []);
-        setRegistrationsCount((regs as any[])?.length ?? registrationsCount);
+        setRegistrationsCount((regs as any[])?.length ?? 0);
         return;
       }
 
-      setTimeout(() => {
-        if (!stopped) poll();
-      }, 2000);
+      setTimeout(() => !stopped && poll(), 1500);
     }
 
     poll();
     return () => {
       stopped = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, eventId, searchParams]);
 
-  /* ================= Register ================= */
+  /* ================= REGISTER ================= */
 
   async function handleRegister() {
     if (!eventId) return;
@@ -310,10 +302,21 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
-      // ✅ EVENTO PAGO: abre uma aba ANTES do fetch (evita popup blocker)
+      /* ===== EVENTO PAGO ===== */
       if (price > 0) {
+        // ✅ tenta abrir popup imediatamente (antes do await)
         const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-        if (!popup) throw new Error("Popup blocked. Allow popups for this site.");
+
+        if (!popup) {
+          alert(
+            "Seu navegador bloqueou o pop-up do pagamento.\n\n" +
+              "Como resolver:\n" +
+              "1) Clique no ícone de pop-up bloqueado na barra de endereço.\n" +
+              "2) Permita pop-ups para sportsplatform.app.\n" +
+              "3) Tente novamente."
+          );
+          throw new Error("Popup blocked. Allow popups for this site.");
+        }
 
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -327,25 +330,22 @@ export default function EventDetailPage() {
 
         if (!resp.ok) {
           const t = await resp.text();
-          try {
-            popup.close();
-          } catch {}
+          popup.close();
           throw new Error(`Checkout error: ${t || resp.status}`);
         }
 
         const { url } = await resp.json();
         if (!url) {
-          try {
-            popup.close();
-          } catch {}
+          popup.close();
           throw new Error("Missing checkout url.");
         }
 
-        popup.location.href = url;
+        popup.location.href = url; // ✅ abre o Stripe na aba nova
+        setInfo("Checkout opened in a new tab.");
         return;
       }
 
-      // ✅ EVENTO GRÁTIS: insere direto
+      /* ===== EVENTO GRÁTIS ===== */
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
@@ -366,7 +366,8 @@ export default function EventDetailPage() {
       });
 
       if (insErr) {
-        if (isDuplicateError(insErr.message)) {
+        const msg = (insErr.message || "").toLowerCase();
+        if (msg.includes("duplicate")) {
           setInfo("You are already registered.");
           setIsRegistered(true);
           return;
@@ -393,7 +394,7 @@ export default function EventDetailPage() {
     }
   }
 
-  /* ================= Derived ================= */
+  /* ================= Render ================= */
 
   const address = buildAddress(event);
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
@@ -404,8 +405,6 @@ export default function EventDetailPage() {
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
   const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
-
-  /* ================= Render ================= */
 
   return (
     <main
@@ -615,9 +614,7 @@ export default function EventDetailPage() {
             {isRegistered ? (
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
                 WhatsApp:{" "}
-                <span style={{ color: "#e5e7eb" }}>
-                  {event?.organizer_whatsapp ?? "—"}
-                </span>
+                <span style={{ color: "#e5e7eb" }}>{event?.organizer_whatsapp ?? "—"}</span>
               </p>
             ) : (
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
@@ -658,7 +655,7 @@ export default function EventDetailPage() {
               {isRegistered
                 ? "Você já está inscrito."
                 : (event?.price_cents ?? 0) > 0
-                ? "Evento pago: o pagamento abrirá em uma nova aba/janela."
+                ? "Evento pago: o checkout abrirá em uma nova aba."
                 : "Evento grátis: inscrição em 1 clique."}
             </p>
 
@@ -687,7 +684,7 @@ export default function EventDetailPage() {
             </button>
           </div>
 
-          {/* Lista pública */}
+          {/* Lista pública de nicknames */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
               Participantes
