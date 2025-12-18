@@ -114,6 +114,12 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  // quando popup for bloqueado, mostramos um link pra abrir o checkout
+  const [manualCheckoutUrl, setManualCheckoutUrl] = useState<string | null>(null);
+
+  const paid = searchParams?.get("paid") === "1";
+  const canceled = searchParams?.get("canceled") === "1";
+
   const labelStyle: React.CSSProperties = {
     fontSize: 12,
     color: "#60a5fa",
@@ -130,13 +136,50 @@ export default function EventDetailPage() {
     outline: "none",
   };
 
-  const paid = searchParams?.get("paid") === "1";
-  const canceled = searchParams?.get("canceled") === "1";
+  async function refreshRegs() {
+    if (!eventId) return;
+
+    setCountsLoading(true);
+
+    // lista pública
+    const { data: regs, error: regsErr } = await supabase
+      .from("event_registrations_public")
+      .select("nickname, registered_at")
+      .eq("event_id", eventId)
+      .order("registered_at", { ascending: true })
+      .limit(200);
+
+    // contagem
+    const { count, error: countErr } = await supabase
+      .from("event_registrations_public")
+      .select("nickname", { count: "exact", head: true })
+      .eq("event_id", eventId);
+
+    if (!regsErr) setRegistrations((regs as PublicRegistration[]) ?? []);
+    if (!countErr) setRegistrationsCount(count ?? 0);
+
+    // minha inscrição (RLS)
+    const { data: me } = await supabase
+      .from("event_registrations")
+      .select("nickname")
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (me?.nickname) {
+      setIsRegistered(true);
+      setNickname(me.nickname);
+    }
+
+    setCountsLoading(false);
+  }
 
   /* ===== Mensagens pós-checkout ===== */
   useEffect(() => {
-    if (paid) setInfo("Payment received. Confirming your registration...");
-    else if (canceled) setInfo("Payment canceled.");
+    if (paid) {
+      setInfo("Payment received. Confirming your registration...");
+    } else if (canceled) {
+      setInfo("Payment canceled.");
+    }
   }, [paid, canceled]);
 
   /* ===== Carregar evento ===== */
@@ -145,7 +188,7 @@ export default function EventDetailPage() {
 
     let cancelled = false;
 
-    async function loadEvent() {
+    (async () => {
       setLoading(true);
       setError(null);
 
@@ -167,68 +210,21 @@ export default function EventDetailPage() {
       }
 
       setLoading(false);
-    }
-
-    loadEvent();
+    })();
 
     return () => {
       cancelled = true;
     };
   }, [supabase, eventId]);
 
-  /* ===== Carregar inscritos + minha inscrição ===== */
-  async function refreshRegistrations() {
-    if (!eventId) return;
-
-    setCountsLoading(true);
-
-    const { data: userRes } = await supabase.auth.getUser();
-    const user = userRes.user;
-
-    // Lista pública (nicknames)
-    const { data: regs } = await supabase
-      .from("event_registrations_public")
-      .select("nickname, registered_at")
-      .eq("event_id", eventId)
-      .order("registered_at", { ascending: true })
-      .limit(200);
-
-    // Contagem
-    const { count } = await supabase
-      .from("event_registrations_public")
-      .select("nickname", { count: "exact", head: true })
-      .eq("event_id", eventId);
-
-    setRegistrations((regs as PublicRegistration[]) ?? []);
-    setRegistrationsCount(count ?? ((regs as any[])?.length ?? 0));
-
-    // Minha inscrição (RLS permite só a minha linha)
-    if (user) {
-      const { data: me } = await supabase
-        .from("event_registrations")
-        .select("nickname")
-        .eq("event_id", eventId)
-        .maybeSingle();
-
-      if (me?.nickname) {
-        setIsRegistered(true);
-        setNickname(me.nickname);
-      } else {
-        setIsRegistered(false);
-      }
-    } else {
-      setIsRegistered(false);
-    }
-
-    setCountsLoading(false);
-  }
-
+  /* ===== Carregar inscritos (normal) ===== */
   useEffect(() => {
-    refreshRegistrations();
+    if (!eventId) return;
+    refreshRegs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
-  /* ===== Polling pós-pagamento: espera webhook gravar e então recarrega ===== */
+  /* ===== Polling pós-pagamento (espera webhook escrever/atualizar registro) ===== */
   useEffect(() => {
     if (!eventId) return;
     if (!paid) return;
@@ -237,8 +233,10 @@ export default function EventDetailPage() {
     let tries = 0;
 
     async function poll() {
+      if (stopped) return;
       tries += 1;
 
+      // checa minha inscrição (RLS)
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
@@ -251,34 +249,40 @@ export default function EventDetailPage() {
         setIsRegistered(true);
         setNickname(me.nickname);
         setInfo("Registration confirmed!");
-        await refreshRegistrations();
+        await refreshRegs();
         return;
       }
 
-      // tenta por ~40s e para
-      if (tries < 20) {
-        setTimeout(() => !stopped && poll(), 2000);
-      } else {
-        setInfo("Payment received. Waiting for confirmation... refresh the page in a moment.");
+      // tenta atualizar a lista pública também
+      await refreshRegs();
+
+      // depois de algumas tentativas, para de spammar e deixa o usuário com botão "Atualizar"
+      if (tries >= 10) {
+        setInfo(
+          "Payment received. Waiting for confirmation (webhook). If it doesn’t update, click Refresh."
+        );
+        return;
       }
+
+      setTimeout(() => poll(), 2000);
     }
 
     poll();
-
     return () => {
       stopped = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId, paid]);
+  }, [supabase, eventId, paid]);
 
   /* ================= REGISTER ================= */
 
   async function handleRegister() {
-    if (!event || !eventId) return;
+    if (!eventId) return;
 
     setBusy(true);
     setError(null);
     setInfo(null);
+    setManualCheckoutUrl(null);
 
     try {
       const { data: userRes } = await supabase.auth.getUser();
@@ -290,9 +294,9 @@ export default function EventDetailPage() {
         throw new Error("Nickname must be between 2 and 24 characters.");
       }
 
-      const price = event.price_cents ?? 0;
+      const price = event?.price_cents ?? 0;
 
-      /* ===== EVENTO PAGO ===== */
+      // ✅ EVENTO PAGO: cria sessão e tenta abrir em nova aba
       if (price > 0) {
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -312,14 +316,19 @@ export default function EventDetailPage() {
         const { url } = await resp.json();
         if (!url) throw new Error("Missing checkout url.");
 
-        // ✅ abre numa nova aba/janela
-        window.open(url, "_blank", "noopener,noreferrer");
+        const w = window.open(url, "_blank", "noopener,noreferrer");
+        if (!w) {
+          // popup bloqueado -> mostra link
+          setManualCheckoutUrl(url);
+          throw new Error("Popup blocked. Click the link below to open checkout.");
+        }
+
         return;
       }
 
-      /* ===== EVENTO GRÁTIS ===== */
-      const cap = event.capacity ?? 0;
-      const waitCap = event.waitlist_capacity ?? 0;
+      // ✅ EVENTO GRÁTIS: tenta inserir (se RLS bloquear, você verá o erro)
+      const cap = event?.capacity ?? 0;
+      const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
 
       if (cap > 0 && totalAllowed > 0 && registrationsCount >= totalAllowed) {
@@ -331,7 +340,6 @@ export default function EventDetailPage() {
         user_id: user.id,
         nickname: nick,
         registered_at: new Date().toISOString(),
-        status: "confirmed",
         payment_provider: "free",
         payment_status: "free",
         amount_cents: 0,
@@ -349,7 +357,7 @@ export default function EventDetailPage() {
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
-      await refreshRegistrations();
+      await refreshRegs();
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
     } finally {
@@ -363,6 +371,7 @@ export default function EventDetailPage() {
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 
   const priceLabel = formatPrice(event?.price_cents ?? 0);
+
   const cap = event?.capacity ?? 0;
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
@@ -438,6 +447,19 @@ export default function EventDetailPage() {
 
         {info ? (
           <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
+        ) : null}
+
+        {manualCheckoutUrl ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#93c5fd" }}>
+            <a
+              href={manualCheckoutUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "#93c5fd", textDecoration: "underline" }}
+            >
+              Abrir checkout do Stripe
+            </a>
+          </p>
         ) : null}
 
         {/* Card */}
@@ -528,7 +550,9 @@ export default function EventDetailPage() {
 
           {/* Local + mapa */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>
+              Local
+            </h2>
             <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
 
             <div
@@ -589,7 +613,7 @@ export default function EventDetailPage() {
 
           {/* Nickname */}
           <label style={labelStyle}>
-            Nickname <span style={{ color: "#e5e7eb" }}>*</span> (visível para todos)
+            Nickname <span style={{ color: "#93c5fd" }}>*</span> (visível para todos)
             <input
               style={inputStyle}
               placeholder="Ex: Rafa Runner"
@@ -604,7 +628,7 @@ export default function EventDetailPage() {
             ) : null}
           </label>
 
-          {/* CTA */}
+          {/* CTA + Refresh */}
           <div
             style={{
               display: "flex",
@@ -614,13 +638,32 @@ export default function EventDetailPage() {
               flexWrap: "wrap",
             }}
           >
-            <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-              {isRegistered
-                ? "Você já está inscrito."
-                : (event?.price_cents ?? 0) > 0
-                ? "Evento pago: você será direcionado ao checkout."
-                : "Evento grátis: inscrição em 1 clique."}
-            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+                {isRegistered
+                  ? "Você já está inscrito."
+                  : (event?.price_cents ?? 0) > 0
+                  ? "Evento pago: você será direcionado ao checkout."
+                  : "Evento grátis: inscrição em 1 clique."}
+              </p>
+
+              <button
+                onClick={() => refreshRegs()}
+                type="button"
+                style={{
+                  fontSize: 12,
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  cursor: "pointer",
+                  width: "fit-content",
+                }}
+              >
+                Atualizar participantes
+              </button>
+            </div>
 
             <button
               onClick={handleRegister}
@@ -654,7 +697,9 @@ export default function EventDetailPage() {
             </h2>
 
             {registrations.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Nenhum inscrito ainda.</p>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                Nenhum inscrito ainda.
+              </p>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {registrations
