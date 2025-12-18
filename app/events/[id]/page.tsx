@@ -275,7 +275,7 @@ export default function EventDetailPage() {
 
         if (!resp.ok) {
           const t = await resp.text();
-          throw new Error(t || "Failed to start checkout.");
+          throw new Error(`Checkout error: ${t || resp.status}`);
         }
 
         const { url } = await resp.json();
