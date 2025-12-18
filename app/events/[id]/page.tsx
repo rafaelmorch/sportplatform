@@ -1,4 +1,3 @@
-// app/events/[id]/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -67,14 +66,12 @@ function formatPrice(priceCents: number | null): string {
 
 function buildAddress(e: EventRow | null): string {
   if (!e) return "Location TBD";
-
   const street = (e.street ?? "").trim();
   const city = (e.city ?? "").trim();
   const state = (e.state ?? "").trim();
 
   const parts: string[] = [];
   if (street) parts.push(street);
-
   if (city && state) parts.push(`${city}, ${state}`);
   else if (city) parts.push(city);
   else if (state) parts.push(state);
@@ -114,16 +111,7 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // quando popup for bloqueado, mostramos um link pra abrir o checkout
-  const [manualCheckoutUrl, setManualCheckoutUrl] = useState<string | null>(null);
-
-  const paid = searchParams?.get("paid") === "1";
-  const canceled = searchParams?.get("canceled") === "1";
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#60a5fa",
-  };
+  const labelStyle: React.CSSProperties = { fontSize: 12, color: "#60a5fa" };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -136,59 +124,16 @@ export default function EventDetailPage() {
     outline: "none",
   };
 
-  async function refreshRegs() {
-    if (!eventId) return;
-
-    setCountsLoading(true);
-
-    // lista pública
-    const { data: regs, error: regsErr } = await supabase
-      .from("event_registrations_public")
-      .select("nickname, registered_at")
-      .eq("event_id", eventId)
-      .order("registered_at", { ascending: true })
-      .limit(200);
-
-    // contagem
-    const { count, error: countErr } = await supabase
-      .from("event_registrations_public")
-      .select("nickname", { count: "exact", head: true })
-      .eq("event_id", eventId);
-
-    if (!regsErr) setRegistrations((regs as PublicRegistration[]) ?? []);
-    if (!countErr) setRegistrationsCount(count ?? 0);
-
-    // minha inscrição (RLS)
-    const { data: me } = await supabase
-      .from("event_registrations")
-      .select("nickname")
-      .eq("event_id", eventId)
-      .maybeSingle();
-
-    if (me?.nickname) {
-      setIsRegistered(true);
-      setNickname(me.nickname);
-    }
-
-    setCountsLoading(false);
-  }
-
-  /* ===== Mensagens pós-checkout ===== */
-  useEffect(() => {
-    if (paid) {
-      setInfo("Payment received. Confirming your registration...");
-    } else if (canceled) {
-      setInfo("Payment canceled.");
-    }
-  }, [paid, canceled]);
+  const paid = searchParams?.get("paid") === "1";
+  const canceled = searchParams?.get("canceled") === "1";
+  const sessionId = searchParams?.get("session_id") || "";
 
   /* ===== Carregar evento ===== */
   useEffect(() => {
     if (!eventId) return;
-
     let cancelled = false;
 
-    (async () => {
+    async function loadEvent() {
       setLoading(true);
       setError(null);
 
@@ -210,71 +155,109 @@ export default function EventDetailPage() {
       }
 
       setLoading(false);
-    })();
+    }
 
+    loadEvent();
     return () => {
       cancelled = true;
     };
   }, [supabase, eventId]);
 
-  /* ===== Carregar inscritos (normal) ===== */
-  useEffect(() => {
+  /* ===== Carregar inscritos + minha inscrição ===== */
+  async function refreshRegs() {
     if (!eventId) return;
-    refreshRegs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
 
-  /* ===== Polling pós-pagamento (espera webhook escrever/atualizar registro) ===== */
-  useEffect(() => {
-    if (!eventId) return;
-    if (!paid) return;
+    setCountsLoading(true);
 
-    let stopped = false;
-    let tries = 0;
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes.user;
 
-    async function poll() {
-      if (stopped) return;
-      tries += 1;
+    // Lista pública (nicknames)
+    const { data: regs } = await supabase
+      .from("event_registrations_public")
+      .select("nickname, registered_at")
+      .eq("event_id", eventId)
+      .order("registered_at", { ascending: true })
+      .limit(200);
 
-      // checa minha inscrição (RLS)
+    // Contagem
+    const { count } = await supabase
+      .from("event_registrations_public")
+      .select("nickname", { count: "exact", head: true })
+      .eq("event_id", eventId);
+
+    // Minha inscrição (RLS permite só a minha linha)
+    if (user) {
       const { data: me } = await supabase
         .from("event_registrations")
         .select("nickname")
         .eq("event_id", eventId)
         .maybeSingle();
 
-      if (stopped) return;
-
       if (me?.nickname) {
         setIsRegistered(true);
         setNickname(me.nickname);
-        setInfo("Registration confirmed!");
-        await refreshRegs();
-        return;
+      } else {
+        setIsRegistered(false);
       }
-
-      // tenta atualizar a lista pública também
-      await refreshRegs();
-
-      // depois de algumas tentativas, para de spammar e deixa o usuário com botão "Atualizar"
-      if (tries >= 10) {
-        setInfo(
-          "Payment received. Waiting for confirmation (webhook). If it doesn’t update, click Refresh."
-        );
-        return;
-      }
-
-      setTimeout(() => poll(), 2000);
+    } else {
+      setIsRegistered(false);
     }
 
-    poll();
+    setRegistrations((regs as PublicRegistration[]) ?? []);
+    setRegistrationsCount(count ?? ((regs as any[])?.length ?? 0));
+    setCountsLoading(false);
+  }
+
+  useEffect(() => {
+    refreshRegs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
+  /* ===== Mensagens pós-checkout ===== */
+  useEffect(() => {
+    if (paid) setInfo("Payment received. Confirming your registration...");
+    if (canceled) setInfo("Payment canceled.");
+  }, [paid, canceled]);
+
+  /* ===== Confirmar pagamento via session_id (sem depender do webhook) ===== */
+  useEffect(() => {
+    if (!paid) return;
+    if (!sessionId) return;
+
+    let stopped = false;
+
+    async function confirmAndRefresh() {
+      try {
+        // chama API server-side que grava no Supabase
+        const resp = await fetch(`/api/stripe/confirm?session_id=${encodeURIComponent(sessionId)}`, {
+          method: "GET",
+        });
+
+        if (!resp.ok) {
+          const t = await resp.text();
+          if (!stopped) setError(`Confirm error: ${t || resp.status}`);
+          return;
+        }
+
+        if (!stopped) {
+          setInfo("Registration confirmed!");
+          await refreshRegs();
+        }
+      } catch (e: any) {
+        if (!stopped) setError(e?.message || "Confirm failed.");
+      }
+    }
+
+    confirmAndRefresh();
+
     return () => {
       stopped = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, eventId, paid]);
+  }, [paid, sessionId]);
 
-  /* ================= REGISTER ================= */
+  /* ================= Register ================= */
 
   async function handleRegister() {
     if (!eventId) return;
@@ -282,7 +265,6 @@ export default function EventDetailPage() {
     setBusy(true);
     setError(null);
     setInfo(null);
-    setManualCheckoutUrl(null);
 
     try {
       const { data: userRes } = await supabase.auth.getUser();
@@ -296,8 +278,11 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
-      // ✅ EVENTO PAGO: cria sessão e tenta abrir em nova aba
+      // ✅ EVENTO PAGO
       if (price > 0) {
+        // Abre popup "em branco" imediatamente (melhor chance de não bloquear)
+        const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -310,23 +295,28 @@ export default function EventDetailPage() {
 
         if (!resp.ok) {
           const t = await resp.text();
+          if (popup) popup.close();
           throw new Error(`Checkout error: ${t || resp.status}`);
         }
 
         const { url } = await resp.json();
-        if (!url) throw new Error("Missing checkout url.");
-
-        const w = window.open(url, "_blank", "noopener,noreferrer");
-        if (!w) {
-          // popup bloqueado -> mostra link
-          setManualCheckoutUrl(url);
-          throw new Error("Popup blocked. Click the link below to open checkout.");
+        if (!url) {
+          if (popup) popup.close();
+          throw new Error("Missing checkout url.");
         }
 
+        // Se popup foi bloqueado, cai no mesmo-tab (pra não travar seu fluxo)
+        if (!popup) {
+          setInfo("Popup blocked — opening checkout in this tab.");
+          window.location.href = url;
+          return;
+        }
+
+        popup.location.href = url;
         return;
       }
 
-      // ✅ EVENTO GRÁTIS: tenta inserir (se RLS bloquear, você verá o erro)
+      // ✅ EVENTO GRÁTIS
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
@@ -344,16 +334,10 @@ export default function EventDetailPage() {
         payment_status: "free",
         amount_cents: 0,
         currency: "usd",
-      });
+        status: "confirmed",
+      } as any);
 
-      if (insErr) {
-        if ((insErr.message || "").toLowerCase().includes("duplicate")) {
-          setInfo("You are already registered.");
-          setIsRegistered(true);
-          return;
-        }
-        throw new Error(insErr.message);
-      }
+      if (insErr) throw new Error(insErr.message);
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
@@ -365,7 +349,7 @@ export default function EventDetailPage() {
     }
   }
 
-  /* ================= Derived ================= */
+  /* ================= Render ================= */
 
   const address = buildAddress(event);
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
@@ -376,8 +360,6 @@ export default function EventDetailPage() {
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
   const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
-
-  /* ================= Render ================= */
 
   return (
     <main
@@ -447,19 +429,6 @@ export default function EventDetailPage() {
 
         {info ? (
           <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
-        ) : null}
-
-        {manualCheckoutUrl ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#93c5fd" }}>
-            <a
-              href={manualCheckoutUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#93c5fd", textDecoration: "underline" }}
-            >
-              Abrir checkout do Stripe
-            </a>
-          </p>
         ) : null}
 
         {/* Card */}
@@ -550,9 +519,7 @@ export default function EventDetailPage() {
 
           {/* Local + mapa */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>
-              Local
-            </h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
             <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
 
             <div
@@ -563,31 +530,15 @@ export default function EventDetailPage() {
                 border: "1px solid rgba(148,163,184,0.25)",
               }}
             >
-              <iframe
-                title="map"
-                src={mapUrl}
-                width="100%"
-                height="240"
-                style={{ border: 0 }}
-                loading="lazy"
-              />
+              <iframe title="map" src={mapUrl} width="100%" height="240" style={{ border: 0 }} loading="lazy" />
             </div>
           </div>
 
           {/* Descrição */}
           {event?.description ? (
             <div>
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
-                Descrição
-              </h2>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#9ca3af",
-                  margin: 0,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Descrição</h2>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, whiteSpace: "pre-wrap" }}>
                 {event.description}
               </p>
             </div>
@@ -601,8 +552,7 @@ export default function EventDetailPage() {
 
             {isRegistered ? (
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-                WhatsApp:{" "}
-                <span style={{ color: "#e5e7eb" }}>{event?.organizer_whatsapp ?? "—"}</span>
+                WhatsApp: <span style={{ color: "#e5e7eb" }}>{event?.organizer_whatsapp ?? "—"}</span>
               </p>
             ) : (
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
@@ -613,7 +563,7 @@ export default function EventDetailPage() {
 
           {/* Nickname */}
           <label style={labelStyle}>
-            Nickname <span style={{ color: "#93c5fd" }}>*</span> (visível para todos)
+            Nickname <span style={{ color: "#e5e7eb" }}>*</span> (visível para todos)
             <input
               style={inputStyle}
               placeholder="Ex: Rafa Runner"
@@ -621,14 +571,18 @@ export default function EventDetailPage() {
               onChange={(e) => setNickname(e.target.value)}
               disabled={isRegistered}
             />
-            {isRegistered ? (
+            {!isRegistered ? (
+              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
+                2–24 caracteres.
+              </span>
+            ) : (
               <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
                 Você já está inscrito. (nickname bloqueado por enquanto)
               </span>
-            ) : null}
+            )}
           </label>
 
-          {/* CTA + Refresh */}
+          {/* CTA */}
           <div
             style={{
               display: "flex",
@@ -638,32 +592,13 @@ export default function EventDetailPage() {
               flexWrap: "wrap",
             }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-                {isRegistered
-                  ? "Você já está inscrito."
-                  : (event?.price_cents ?? 0) > 0
-                  ? "Evento pago: você será direcionado ao checkout."
-                  : "Evento grátis: inscrição em 1 clique."}
-              </p>
-
-              <button
-                onClick={() => refreshRegs()}
-                type="button"
-                style={{
-                  fontSize: 12,
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(148,163,184,0.35)",
-                  background: "rgba(2,6,23,0.65)",
-                  color: "#e5e7eb",
-                  cursor: "pointer",
-                  width: "fit-content",
-                }}
-              >
-                Atualizar participantes
-              </button>
-            </div>
+            <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+              {isRegistered
+                ? "Você já está inscrito."
+                : (event?.price_cents ?? 0) > 0
+                ? "Evento pago: você será direcionado ao checkout."
+                : "Evento grátis: inscrição em 1 clique."}
+            </p>
 
             <button
               onClick={handleRegister}
@@ -690,16 +625,12 @@ export default function EventDetailPage() {
             </button>
           </div>
 
-          {/* Lista pública */}
+          {/* Participantes */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>
-              Participantes
-            </h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Participantes</h2>
 
             {registrations.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-                Nenhum inscrito ainda.
-              </p>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Nenhum inscrito ainda.</p>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {registrations
