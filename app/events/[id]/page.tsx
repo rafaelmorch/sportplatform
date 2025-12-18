@@ -281,7 +281,7 @@ export default function EventDetailPage() {
         const { url } = await resp.json();
         if (!url) throw new Error("Missing checkout url.");
 
-        window.location.href = url;
+        window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
 
