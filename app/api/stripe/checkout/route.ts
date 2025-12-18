@@ -31,24 +31,23 @@ export async function POST(req: Request) {
       return new NextResponse("Nickname must be between 2 and 24 characters.", { status: 400 });
     }
 
-    // Busca dados do evento (preço / título)
+    // ✅ Não selecionar currency (coluna não existe)
     const { data: ev, error: evErr } = await supabase
       .from("events")
-      .select("id,title,price_cents,currency")
+      .select("id,title,price_cents")
       .eq("id", eventId)
       .single();
 
     if (evErr || !ev) return new NextResponse(`Event not found: ${evErr?.message || ""}`, { status: 404 });
 
-    const priceCents = Number(ev.price_cents ?? 0);
+    const priceCents = Number((ev as any).price_cents ?? 0);
     if (!(priceCents > 0)) return new NextResponse("This event is free. No checkout needed.", { status: 400 });
 
-    const currency = String((ev as any).currency ?? "usd").toLowerCase();
-    const title = String(ev.title ?? "Event");
+    const currency = "usd"; // ✅ fixo
+    const title = String((ev as any).title ?? "Event");
 
     const origin = req.headers.get("origin") || "https://sportsplatform.app";
 
-    // ✅ session_id volta no success_url
     const successUrl = `${origin}/events/${eventId}?paid=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/events/${eventId}?canceled=1`;
 
@@ -61,15 +60,12 @@ export async function POST(req: Request) {
           price_data: {
             currency,
             unit_amount: priceCents,
-            product_data: {
-              name: `${title} (Sports Platform)`,
-            },
+            product_data: { name: `${title} (Sports Platform)` },
           },
         },
       ],
       success_url: successUrl,
       cancel_url: cancelUrl,
-      // ✅ metadata que a gente usa na confirmação
       metadata: {
         event_id: eventId,
         user_id: userId,
