@@ -12,17 +12,35 @@ type EventRow = {
   title: string | null;
   sport: string | null;
   date: string | null;
-  address: string | null;
+
+  address_text: string | null;
   city: string | null;
   state: string | null;
+
   capacity: number | null;
-  waitlist: boolean | null;
-  price: number | null;
-  whatsapp: string | null;
-  image_url: string | null; // se você já usa outro nome, troca aqui e no select
+  waitlist_capacity: number | null;
+
+  price_cents: number | null;
+  organizer_whatsapp: string | null;
+
+  image_path: string | null;
+  image_url: string | null; // legado (se existir)
+
   organizer_id: string;
   created_at?: string | null;
 };
+
+function getPublicImageUrl(path: string | null): string | null {
+  if (!path) return null;
+  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
+  return data?.publicUrl ?? null;
+}
+
+function formatPrice(priceCents: number | null): string {
+  const cents = priceCents ?? 0;
+  if (cents <= 0) return "Free";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cents / 100);
+}
 
 export default function ManageMyEventsPage() {
   const router = useRouter();
@@ -33,10 +51,7 @@ export default function ManageMyEventsPage() {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const empty = useMemo(
-    () => !loading && events.length === 0 && !error,
-    [loading, events, error]
-  );
+  const empty = useMemo(() => !loading && events.length === 0 && !error, [loading, events, error]);
 
   useEffect(() => {
     let mounted = true;
@@ -62,7 +77,7 @@ export default function ManageMyEventsPage() {
       const { data, error: qErr } = await supabase
         .from("events")
         .select(
-          "id,title,sport,date,address,city,state,capacity,waitlist,price,whatsapp,image_url,organizer_id,created_at"
+          "id,title,sport,date,address_text,city,state,capacity,waitlist_capacity,price_cents,organizer_whatsapp,image_path,image_url,organizer_id,created_at"
         )
         .eq("organizer_id", uid)
         .order("date", { ascending: true, nullsFirst: false });
@@ -87,9 +102,7 @@ export default function ManageMyEventsPage() {
   }, [router]);
 
   async function handleDelete(eventId: string) {
-    const ok = window.confirm(
-      "Tem certeza que deseja apagar este evento? Essa ação não pode ser desfeita."
-    );
+    const ok = window.confirm("Tem certeza que deseja apagar este evento? Essa ação não pode ser desfeita.");
     if (!ok) return;
 
     try {
@@ -115,130 +128,98 @@ export default function ManageMyEventsPage() {
         <h1 className="text-2xl font-semibold">Meus eventos</h1>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/events/new"
-            className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50"
-          >
+          <Link href="/events/new" className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50">
             Criar evento
           </Link>
 
-          <Link
-            href="/events"
-            className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50"
-          >
+          <Link href="/events" className="rounded-lg border px-3 py-2 text-sm font-medium hover:bg-gray-50">
             Voltar
           </Link>
         </div>
       </div>
 
       {loading && (
-        <div className="mt-6 rounded-lg border p-4 text-sm text-gray-600">
-          Carregando seus eventos…
-        </div>
+        <div className="mt-6 rounded-lg border p-4 text-sm text-gray-600">Carregando seus eventos…</div>
       )}
 
       {!loading && error && (
-        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Erro: {error}
-        </div>
+        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">Erro: {error}</div>
       )}
 
       {empty && (
-        <div className="mt-6 rounded-lg border p-4 text-sm text-gray-600">
-          Você ainda não criou nenhum evento.
-        </div>
+        <div className="mt-6 rounded-lg border p-4 text-sm text-gray-600">Você ainda não criou nenhum evento.</div>
       )}
 
       {!loading && !error && events.length > 0 && (
         <ul className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          {events.map((ev) => (
-            <li key={ev.id} className="rounded-xl border p-4">
-              <div className="flex gap-4">
-                {/* ✅ Agora a “área do card” é clicável e vai para a página de inscrição */}
-                <Link
-                  href={`/events/${ev.id}`}
-                  className="flex gap-4 min-w-0 flex-1"
-                  style={{ textDecoration: "none", color: "inherit" }}
-                >
-                  {ev.image_url ? (
-                    <img
-                      src={ev.image_url}
-                      alt={ev.title ?? "Evento"}
-                      className="h-20 w-20 flex-shrink-0 rounded-lg object-cover"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 flex-shrink-0 rounded-lg border bg-gray-50" />
-                  )}
+          {events.map((ev) => {
+            const img = getPublicImageUrl(ev.image_path) || ev.image_url || null;
+            const addr = [ev.address_text, ev.city, ev.state].filter(Boolean).join(", ");
+            const priceLabel = formatPrice(ev.price_cents);
+            const waitOn = (ev.waitlist_capacity ?? 0) > 0;
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="truncate text-base font-semibold">
-                          {ev.title ?? "Sem título"}
-                        </h2>
+            return (
+              <li key={ev.id} className="rounded-xl border p-4">
+                <div className="flex gap-4">
+                  {/* Card clicável vai pra página do evento (inscrição) */}
+                  <Link href={`/events/${ev.id}`} className="flex min-w-0 flex-1 gap-4" style={{ textDecoration: "none", color: "inherit" }}>
+                    {img ? (
+                      <img src={img} alt={ev.title ?? "Evento"} className="h-20 w-20 flex-shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className="h-20 w-20 flex-shrink-0 rounded-lg border bg-gray-50" />
+                    )}
 
-                        <p className="mt-1 text-sm text-gray-600">
-                          {ev.sport ? ev.sport : "Esporte livre"}
-                          {ev.date ? ` • ${new Date(ev.date).toLocaleString()}` : ""}
-                        </p>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="truncate text-base font-semibold">{ev.title ?? "Sem título"}</h2>
 
-                        <p className="mt-1 text-sm text-gray-600">
-                          {[ev.address, ev.city, ev.state].filter(Boolean).join(", ")}
-                        </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {ev.sport ? ev.sport : "Esporte livre"}
+                        {ev.date ? ` • ${new Date(ev.date).toLocaleString()}` : ""}
+                      </p>
 
-                        <p className="mt-2 text-sm text-gray-700">
-                          Capacidade: {ev.capacity ?? "-"}{" "}
-                          {ev.waitlist ? "• Waitlist: ON" : ""}
-                          {" • "}
-                          Preço:{" "}
-                          {ev.price != null ? `$${Number(ev.price).toFixed(2)}` : "-"}
-                        </p>
-                      </div>
+                      <p className="mt-1 text-sm text-gray-600">{addr || "Location TBD"}</p>
+
+                      <p className="mt-2 text-sm text-gray-700">
+                        Capacidade: {ev.capacity ?? "-"} {waitOn ? "• Waitlist: ON" : ""}
+                        {" • "}
+                        Preço: {priceLabel}
+                      </p>
                     </div>
-                  </div>
-                </Link>
-              </div>
+                  </Link>
+                </div>
 
-              {/* ✅ Botões continuam separados (não mudam) */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href={`/events/${ev.id}`}
-                  className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50"
-                >
-                  Ver página
-                </Link>
+                {/* Botões */}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href={`/events/${ev.id}`} className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50">
+                    Ver página
+                  </Link>
 
-                <Link
-                  href={`/events/${ev.id}/edit`}
-                  className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50"
-                >
-                  Editar
-                </Link>
+                  <Link href={`/events/${ev.id}/edit`} className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50">
+                    Editar
+                  </Link>
 
-                <Link
-                  href={`/events/manage/${ev.id}/registrations`}
-                  className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50"
-                >
-                  Ver inscritos
-                </Link>
+                  <Link
+                    href={`/events/manage/${ev.id}/registrations`}
+                    className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50"
+                  >
+                    Ver inscritos
+                  </Link>
 
-                <button
-                  onClick={() => handleDelete(ev.id)}
-                  disabled={deletingId === ev.id}
-                  className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
-                >
-                  {deletingId === ev.id ? "Apagando..." : "Apagar"}
-                </button>
-              </div>
-            </li>
-          ))}
+                  <button
+                    onClick={() => handleDelete(ev.id)}
+                    disabled={deletingId === ev.id}
+                    className="rounded-lg border px-3 py-2 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    {deletingId === ev.id ? "Apagando..." : "Apagar"}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      {/* só pra debug rápido, pode remover depois */}
-      {!loading && userId && (
-        <p className="mt-8 text-xs text-gray-400">organizer_id = {userId}</p>
-      )}
+      {!loading && userId && <p className="mt-8 text-xs text-gray-400">organizer_id = {userId}</p>}
     </main>
   );
 }
