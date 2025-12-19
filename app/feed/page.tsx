@@ -358,9 +358,22 @@ export default function FeedPage() {
                 style={{
                   fontSize: "13px",
                   color: "#94a3b8",
+                  marginBottom: "6px",
                 }}
               >
                 Registros em tempo real das sessões de treino dos atletas.
+              </p>
+
+              {/* ✅ NOVO: mensagem energética */}
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#60a5fa",
+                  margin: 0,
+                  fontWeight: 700,
+                }}
+              >
+                Desafios te levam a um novo nível. Compartilhe o seu no esporte hoje.
               </p>
             </div>
 
@@ -499,13 +512,19 @@ export default function FeedPage() {
                     {post.content}
                   </p>
 
-                  {/* Imagem, se existir */}
+                  {/* ✅ Imagem auto-ajustada estilo eventos */}
                   {post.image_url && (
                     <div
                       style={{
-                        borderRadius: "14px",
-                        overflow: "hidden",
+                        width: "100%",
+                        height: 220,
+                        borderRadius: 14,
                         border: "1px solid #1e293b",
+                        overflow: "hidden",
+                        background: "rgba(0,0,0,0.25)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         marginBottom: "8px",
                       }}
                     >
@@ -514,7 +533,7 @@ export default function FeedPage() {
                         alt="Foto do treino"
                         style={{
                           width: "100%",
-                          height: "220px",
+                          height: "100%",
                           objectFit: "cover",
                           display: "block",
                         }}
