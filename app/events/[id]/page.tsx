@@ -38,14 +38,6 @@ type PublicRegistration = {
   registered_at: string | null;
 };
 
-type ManageRegistrationRow = {
-  nickname: string | null;
-  attendee_name: string | null;
-  attendee_email: string | null;
-  attendee_whatsapp: string | null;
-  registered_at: string | null;
-};
-
 /* ================= Utils ================= */
 
 function formatDateTime(dt: string | null): string {
@@ -98,45 +90,9 @@ function getPublicImageUrl(path: string | null): string | null {
   return data?.publicUrl ?? null;
 }
 
-function sanitizePhone(s: string): string {
-  // mantém + e dígitos
-  return (s ?? "").trim().replace(/[^\d+]/g, "");
-}
-
-function downloadCsv(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function toCsv(rows: ManageRegistrationRow[]): string {
-  const header = ["Nickname", "Name", "Email", "WhatsApp", "Registered At"];
-  const escape = (v: any) => {
-    const s = String(v ?? "");
-    if (s.includes('"') || s.includes(",") || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  };
-
-  const lines = [
-    header.join(","),
-    ...rows.map((r) =>
-      [
-        escape(r.nickname),
-        escape(r.attendee_name),
-        escape(r.attendee_email),
-        escape(r.attendee_whatsapp),
-        escape(r.registered_at),
-      ].join(",")
-    ),
-  ];
-
-  return lines.join("\n");
+function normalizePhone(input: string): string {
+  // bem simples: mantém + e dígitos
+  return input.trim().replace(/[^\d+]/g, "");
 }
 
 /* ================= Page ================= */
@@ -153,6 +109,8 @@ export default function EventDetailPage() {
 
   const [isRegistered, setIsRegistered] = useState(false);
   const [nickname, setNickname] = useState("");
+
+  // ✅ NOVO: WhatsApp obrigatório do inscrito
   const [attendeeWhatsapp, setAttendeeWhatsapp] = useState("");
 
   const [isOwner, setIsOwner] = useState(false);
@@ -165,11 +123,11 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // owner table
-  const [manageLoading, setManageLoading] = useState(false);
-  const [manageRows, setManageRows] = useState<ManageRegistrationRow[]>([]);
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#60a5fa",
+  };
 
-  const labelStyle: React.CSSProperties = { fontSize: 12, color: "#60a5fa" };
   const inputStyle: React.CSSProperties = {
     width: "100%",
     marginTop: 6,
@@ -186,8 +144,11 @@ export default function EventDetailPage() {
     const paid = searchParams?.get("paid");
     const canceled = searchParams?.get("canceled");
 
-    if (paid === "1") setInfo("Payment received. Confirming your registration...");
-    else if (canceled === "1") setInfo("Payment canceled.");
+    if (paid === "1") {
+      setInfo("Payment received. Confirming your registration...");
+    } else if (canceled === "1") {
+      setInfo("Payment canceled.");
+    }
   }, [searchParams]);
 
   // Carrega evento + define isOwner
@@ -245,18 +206,21 @@ export default function EventDetailPage() {
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
 
-      const { data: regs } = await supabase
+      // Lista pública (nicknames)
+      const { data: regs, error: regsErr } = await supabase
         .from("event_registrations_public")
         .select("nickname, registered_at")
         .eq("event_id", eventId)
         .order("registered_at", { ascending: true })
         .limit(200);
 
-      const { count } = await supabase
+      // Contagem
+      const { count, error: countErr } = await supabase
         .from("event_registrations_public")
         .select("nickname", { count: "exact", head: true })
         .eq("event_id", eventId);
 
+      // Minha inscrição (se logado)
       if (user) {
         const { data: me } = await supabase
           .from("event_registrations")
@@ -268,7 +232,7 @@ export default function EventDetailPage() {
           if (me?.nickname) {
             setIsRegistered(true);
             setNickname(me.nickname);
-            setAttendeeWhatsapp(me.attendee_whatsapp ?? "");
+            if (me?.attendee_whatsapp) setAttendeeWhatsapp(me.attendee_whatsapp);
           } else {
             setIsRegistered(false);
           }
@@ -278,8 +242,8 @@ export default function EventDetailPage() {
       }
 
       if (!cancelled) {
-        setRegistrations((regs as PublicRegistration[]) ?? []);
-        setRegistrationsCount(count ?? 0);
+        if (!regsErr) setRegistrations((regs as PublicRegistration[]) ?? []);
+        if (!countErr) setRegistrationsCount(count ?? 0);
         setCountsLoading(false);
       }
     }
@@ -290,35 +254,7 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
-  // Carrega lista completa (somente dono)
-  useEffect(() => {
-    if (!eventId) return;
-    if (!isOwner) return;
-
-    let cancelled = false;
-
-    async function loadManageList() {
-      setManageLoading(true);
-
-      const { data, error } = await supabase
-        .from("event_registrations")
-        .select("nickname, attendee_name, attendee_email, attendee_whatsapp, registered_at")
-        .eq("event_id", eventId)
-        .order("registered_at", { ascending: true })
-        .limit(5000);
-
-      if (!cancelled) {
-        if (!error) setManageRows((data as ManageRegistrationRow[]) ?? []);
-        setManageLoading(false);
-      }
-    }
-
-    loadManageList();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, eventId, isOwner]);
-
+  // ✅ Inscrever (pago abre Stripe em NOVA ABA; grátis insere direto)
   async function handleRegister() {
     if (!eventId) return;
 
@@ -336,14 +272,21 @@ export default function EventDetailPage() {
         throw new Error("Nickname must be between 2 and 24 characters.");
       }
 
-      const wa = sanitizePhone(attendeeWhatsapp);
+      // ✅ WhatsApp obrigatório
+      const wa = normalizePhone(attendeeWhatsapp);
       if (wa.length < 8) {
-        throw new Error("WhatsApp is required (include country code, ex: +1407...).");
+        throw new Error("WhatsApp is required (example: +14075551234).");
       }
+
+      const attendeeEmail = user.email ?? "";
+      const attendeeName =
+        (user.user_metadata?.full_name as string | undefined) ||
+        (user.user_metadata?.name as string | undefined) ||
+        "";
 
       const price = event?.price_cents ?? 0;
 
-      // Evento pago: chama API e abre URL (NOVA ABA)
+      // Evento pago
       if (price > 0) {
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -352,7 +295,9 @@ export default function EventDetailPage() {
             eventId,
             nickname: nick,
             userId: user.id,
-            attendeeWhatsapp: wa, // ✅ novo
+            attendeeWhatsapp: wa,
+            attendeeEmail,
+            attendeeName,
           }),
         });
 
@@ -378,19 +323,15 @@ export default function EventDetailPage() {
         throw new Error("Event is full (including waitlist).");
       }
 
-      const nameFromMeta =
-        (user.user_metadata?.full_name as string) ||
-        (user.user_metadata?.name as string) ||
-        "";
-
       const { error: insErr } = await supabase.from("event_registrations").insert({
         event_id: eventId,
         user_id: user.id,
         nickname: nick,
-        attendee_whatsapp: wa, // ✅
-        attendee_name: nameFromMeta || null, // ✅
-        attendee_email: user.email || null, // ✅
+        attendee_whatsapp: wa,
+        attendee_email: attendeeEmail || null,
+        attendee_name: attendeeName || null,
         registered_at: new Date().toISOString(),
+        status: "confirmed",
         payment_provider: "free",
         payment_status: "free",
         amount_cents: 0,
@@ -411,17 +352,6 @@ export default function EventDetailPage() {
 
       setRegistrations((regs as PublicRegistration[]) ?? []);
       setRegistrationsCount((prev) => prev + 1);
-
-      // refresh owner table se o dono estiver testando (não atrapalha)
-      if (isOwner) {
-        const { data } = await supabase
-          .from("event_registrations")
-          .select("nickname, attendee_name, attendee_email, attendee_whatsapp, registered_at")
-          .eq("event_id", eventId)
-          .order("registered_at", { ascending: true })
-          .limit(5000);
-        setManageRows((data as ManageRegistrationRow[]) ?? []);
-      }
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
     } finally {
@@ -429,6 +359,7 @@ export default function EventDetailPage() {
     }
   }
 
+  // Dono: apagar evento
   async function handleDelete() {
     if (!eventId) return;
     if (!isOwner) return;
@@ -452,14 +383,9 @@ export default function EventDetailPage() {
     }
   }
 
-  function handleExport() {
-    const csv = toCsv(manageRows);
-    const safeTitle = (event?.title ?? "event").replace(/[^a-z0-9\-_ ]/gi, "").trim() || "event";
-    downloadCsv(`registrations-${safeTitle}-${eventId}.csv`, csv);
-  }
-
   const address = buildAddress(event);
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+
   const priceLabel = formatPrice(event?.price_cents ?? 0);
 
   const cap = event?.capacity ?? 0;
@@ -468,8 +394,8 @@ export default function EventDetailPage() {
   const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
 
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: "#020617", color: "#e5e7eb", padding: 16, paddingBottom: 80 }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+    <main style={{ minHeight: "100vh", backgroundColor: "#020617", color: "#e5e7eb", padding: "16px", paddingBottom: "80px" }}>
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
         <header style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: 6 }}>
           <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b", margin: 0 }}>
             Evento
@@ -507,6 +433,22 @@ export default function EventDetailPage() {
                 Editar
               </Link>
 
+              <Link
+                href={`/events/${eventId}/registrations`}
+                style={{
+                  fontSize: 12,
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  textDecoration: "none",
+                  fontWeight: 800,
+                }}
+              >
+                Inscritos
+              </Link>
+
               <button
                 onClick={handleDelete}
                 disabled={deleteBusy}
@@ -535,13 +477,12 @@ export default function EventDetailPage() {
             borderRadius: 18,
             border: "1px solid rgba(148,163,184,0.35)",
             background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: 14,
+            padding: "14px 14px",
             display: "flex",
             flexDirection: "column",
             gap: 12,
           }}
         >
-          {/* Imagem */}
           <div
             style={{
               width: "100%",
@@ -562,7 +503,6 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* Badges */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             <span
               style={{
@@ -609,7 +549,6 @@ export default function EventDetailPage() {
             ) : null}
           </div>
 
-          {/* Local + mapa */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
             <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
@@ -619,7 +558,6 @@ export default function EventDetailPage() {
             </div>
           </div>
 
-          {/* Descrição */}
           {event?.description ? (
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Descrição</h2>
@@ -627,7 +565,6 @@ export default function EventDetailPage() {
             </div>
           ) : null}
 
-          {/* WhatsApp do organizador */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Contato do organizador</h2>
 
@@ -640,7 +577,6 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* Nickname */}
           <label style={labelStyle}>
             Nickname (visível para todos)
             <input
@@ -652,28 +588,29 @@ export default function EventDetailPage() {
             />
           </label>
 
-          {/* WhatsApp do atleta (obrigatório) */}
+          {/* ✅ NOVO: WhatsApp obrigatório */}
           <label style={labelStyle}>
-            Seu WhatsApp <span style={{ color: "#93c5fd", fontWeight: 800 }}>*</span>
+            Your WhatsApp <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
             <input
               style={inputStyle}
-              placeholder="Ex: +1 407 555 1234"
+              placeholder="Ex: +14075551234"
               value={attendeeWhatsapp}
               onChange={(e) => setAttendeeWhatsapp(e.target.value)}
               disabled={isRegistered}
             />
-            <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
-              Obrigatório para o organizador conseguir falar com você.
-            </span>
+            {!isRegistered ? (
+              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
+                Required for the organizer to contact you.
+              </span>
+            ) : null}
           </label>
 
-          {/* CTA */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
             <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
               {isRegistered
                 ? "Você já está inscrito."
                 : (event?.price_cents ?? 0) > 0
-                ? "Evento pago: você será direcionado ao checkout."
+                ? "Evento pago: você será direcionado ao checkout (nova aba)."
                 : "Evento grátis: inscrição em 1 clique."}
             </p>
 
@@ -695,7 +632,6 @@ export default function EventDetailPage() {
             </button>
           </div>
 
-          {/* Lista pública */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Participantes</h2>
 
@@ -726,95 +662,6 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
-
-          {/* ✅ OWNER: tabela completa + export */}
-          {isOwner ? (
-            <div style={{ marginTop: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Inscrições (organizador)</h2>
-
-                <button
-                  onClick={handleExport}
-                  disabled={manageLoading || manageRows.length === 0}
-                  style={{
-                    fontSize: 12,
-                    padding: "10px 12px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(148,163,184,0.35)",
-                    background: "rgba(2,6,23,0.65)",
-                    color: "#e5e7eb",
-                    fontWeight: 800,
-                    cursor: manageLoading || manageRows.length === 0 ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Exportar (Excel)
-                </button>
-              </div>
-
-              <p style={{ margin: "8px 0 10px 0", fontSize: 12, color: "#9ca3af" }}>
-                Exporta um CSV que abre no Excel.
-              </p>
-
-              <div style={{ width: "100%", overflowX: "auto", borderRadius: 14, border: "1px solid rgba(148,163,184,0.25)" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
-                  <thead>
-                    <tr style={{ background: "rgba(2,6,23,0.65)" }}>
-                      {["Nickname", "Name", "Email", "WhatsApp", "Registered"].map((h) => (
-                        <th
-                          key={h}
-                          style={{
-                            textAlign: "left",
-                            padding: "10px 12px",
-                            fontSize: 12,
-                            color: "#93c5fd",
-                            borderBottom: "1px solid rgba(148,163,184,0.25)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {manageLoading ? (
-                      <tr>
-                        <td colSpan={5} style={{ padding: 12, fontSize: 12, color: "#9ca3af" }}>
-                          Carregando...
-                        </td>
-                      </tr>
-                    ) : manageRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} style={{ padding: 12, fontSize: 12, color: "#9ca3af" }}>
-                          Nenhuma inscrição ainda.
-                        </td>
-                      </tr>
-                    ) : (
-                      manageRows.map((r, idx) => (
-                        <tr key={`${r.attendee_email ?? r.nickname ?? "row"}-${idx}`} style={{ borderTop: "1px solid rgba(148,163,184,0.12)" }}>
-                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#e5e7eb", whiteSpace: "nowrap" }}>
-                            {r.nickname ?? ""}
-                          </td>
-                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#e5e7eb", whiteSpace: "nowrap" }}>
-                            {r.attendee_name ?? ""}
-                          </td>
-                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#e5e7eb", whiteSpace: "nowrap" }}>
-                            {r.attendee_email ?? ""}
-                          </td>
-                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#e5e7eb", whiteSpace: "nowrap" }}>
-                            {r.attendee_whatsapp ?? ""}
-                          </td>
-                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#9ca3af", whiteSpace: "nowrap" }}>
-                            {r.registered_at ? new Date(r.registered_at).toLocaleString() : ""}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : null}
         </section>
       </div>
 

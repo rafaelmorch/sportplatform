@@ -1,4 +1,3 @@
-// app/api/stripe/webhook/route.ts
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
@@ -20,7 +19,6 @@ export async function POST(req: Request) {
   const stripe = new Stripe(secretKey, { apiVersion: "2025-02-24.acacia" as any });
   const supabase = createClient(supabaseUrl, serviceRole);
 
-  // Stripe precisa do body raw para verificar assinatura
   const rawBody = await req.text();
   const sig = req.headers.get("stripe-signature");
   if (!sig) return new NextResponse("Missing stripe-signature header", { status: 400 });
@@ -29,31 +27,26 @@ export async function POST(req: Request) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
   } catch (err: any) {
-    return new NextResponse(`Webhook signature verification failed: ${err?.message}`, {
-      status: 400,
-    });
+    return new NextResponse(`Webhook signature verification failed: ${err?.message}`, { status: 400 });
   }
 
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      const metadata = (session.metadata || {}) as Record<string, string>;
-      const eventId = metadata.event_id;
-      const userId = metadata.user_id;
-      const nickname = (metadata.nickname || "").trim();
+      const md = (session.metadata || {}) as Record<string, string>;
 
-      // ✅ novo
-      const attendeeWhatsapp = (metadata.attendee_whatsapp || "").trim();
-      const attendeeEmail = (metadata.attendee_email || "").trim();
+      const eventId = md.event_id;
+      const userId = md.user_id;
+      const nickname = (md.nickname || "").trim();
+
+      // ✅ novos do metadata
+      const attendeeWhatsapp = (md.attendee_whatsapp || "").trim();
+      const attendeeEmail = (md.attendee_email || "").trim();
+      const attendeeName = (md.attendee_name || "").trim();
 
       if (!eventId || !userId || !nickname) {
         return new NextResponse("Missing metadata: event_id/user_id/nickname", { status: 400 });
-      }
-
-      // ✅ whatsapp obrigatório (você pediu isso)
-      if (!attendeeWhatsapp || attendeeWhatsapp.length < 8) {
-        return new NextResponse("Missing metadata: attendee_whatsapp", { status: 400 });
       }
 
       const amountCents = session.amount_total ?? null;
@@ -61,7 +54,6 @@ export async function POST(req: Request) {
       const paymentIntentId =
         typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-      // ✅ Idempotência por (event_id,user_id)
       const { error: upsertErr } = await supabase
         .from("event_registrations")
         .upsert(
@@ -78,10 +70,12 @@ export async function POST(req: Request) {
             amount_cents: amountCents,
             currency,
             provider_payment_intent_id: paymentIntentId,
+            provider_session_id: session.id,
 
-            // ✅ novo (precisa existir como coluna na tabela)
-            attendee_whatsapp: attendeeWhatsapp,
+            // ✅ grava os novos campos
+            attendee_whatsapp: attendeeWhatsapp || null,
             attendee_email: attendeeEmail || null,
+            attendee_name: attendeeName || null,
           },
           { onConflict: "event_id,user_id" }
         );
