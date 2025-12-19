@@ -20,24 +20,21 @@ export default function NewEventPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
 
-  // Campos (não mexer)
   const [title, setTitle] = useState("");
   const [sport, setSport] = useState("");
-  const [date, setDate] = useState(""); // datetime-local
+  const [date, setDate] = useState("");
 
   const [addressText, setAddressText] = useState("");
   const [city, setCity] = useState("");
   const [stateUS, setStateUS] = useState("");
 
-  const [capacity, setCapacity] = useState(""); // obrigatório (vazio)
-  const [waitlist, setWaitlist] = useState(""); // opcional (vazio)
-  const [priceUsd, setPriceUsd] = useState(""); // obrigatório (vazio)
+  const [capacity, setCapacity] = useState("");
+  const [waitlist, setWaitlist] = useState(""); // opcional
+  const [priceUsd, setPriceUsd] = useState("");
 
   const [whatsapp, setWhatsapp] = useState("");
-
   const [description, setDescription] = useState("");
 
-  // Imagem (opcional)
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [busy, setBusy] = useState(false);
@@ -71,7 +68,6 @@ export default function NewEventPage() {
       const user = userRes.user;
       if (!user) throw new Error("Você precisa estar logado para criar evento.");
 
-      // validações (todos obrigatórios exceto waitlist/description/image)
       const t = title.trim();
       const sp = sport.trim();
       const ad = addressText.trim();
@@ -91,7 +87,8 @@ export default function NewEventPage() {
       const capN = Number(capacity);
       if (!Number.isFinite(capN) || capN <= 0) throw new Error("Capacity deve ser um número > 0.");
 
-      let waitN: number | null = null;
+      // ✅ WAITLIST opcional, mas o DB está NOT NULL -> manda 0 quando vazio
+      let waitN = 0;
       if (waitlist.trim()) {
         const wn = Number(waitlist);
         if (!Number.isFinite(wn) || wn < 0) throw new Error("Waitlist deve ser vazio ou número >= 0.");
@@ -104,7 +101,7 @@ export default function NewEventPage() {
 
       if (wa.length < 6) throw new Error("WhatsApp do organizador * é obrigatório.");
 
-      // Upload (opcional)
+      // Upload opcional
       let imagePath: string | null = null;
       if (imageFile) {
         const ext = imageFile.name.split(".").pop() || "jpg";
@@ -114,28 +111,24 @@ export default function NewEventPage() {
           .from("event-images")
           .upload(fileName, imageFile, { cacheControl: "3600", upsert: false });
 
-        if (upErr) {
-          throw new Error(upErr.message || "Falha no upload da imagem.");
-        }
+        if (upErr) throw new Error(upErr.message || "Falha no upload da imagem.");
 
         imagePath = fileName;
       }
 
-      // Salvar (IMPORTANTÍSSIMO: organizer_id)
       const { data, error: insErr } = await supabase
         .from("events")
         .insert({
-          organizer_id: user.id, // ✅ AQUI
+          organizer_id: user.id,
           title: t,
           sport: sp,
           description: description.trim() || null,
-          // salva ISO
           date: `${date}:00.000Z`,
           address_text: ad,
           city: ci,
           state: st,
           capacity: capN,
-          waitlist_capacity: waitN,
+          waitlist_capacity: waitN, // ✅ sempre número
           price_cents: cents,
           organizer_whatsapp: wa,
           image_path: imagePath,
@@ -165,7 +158,6 @@ export default function NewEventPage() {
       }}
     >
       <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-        {/* Header no mesmo estilo do Groups */}
         <header
           style={{
             marginBottom: 20,
@@ -230,7 +222,6 @@ export default function NewEventPage() {
           </p>
         ) : null}
 
-        {/* Card padrão Groups */}
         <section
           style={{
             borderRadius: 18,
@@ -243,7 +234,6 @@ export default function NewEventPage() {
             gap: 12,
           }}
         >
-          {/* Title */}
           <label style={labelStyle}>
             Title <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
             <input
@@ -254,7 +244,6 @@ export default function NewEventPage() {
             />
           </label>
 
-          {/* Sport */}
           <label style={labelStyle}>
             Sport <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
             <input
@@ -265,10 +254,8 @@ export default function NewEventPage() {
             />
           </label>
 
-          {/* Date */}
           <label style={labelStyle}>
-            Date & Time{" "}
-            <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            Date & Time <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
             <input
               style={inputStyle}
               type="datetime-local"
@@ -277,7 +264,6 @@ export default function NewEventPage() {
             />
           </label>
 
-          {/* Address */}
           <label style={labelStyle}>
             Address (texto completo){" "}
             <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
@@ -289,7 +275,6 @@ export default function NewEventPage() {
             />
           </label>
 
-          {/* City + State */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <label style={{ ...labelStyle, flex: "1 1 220px" }}>
               City <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
@@ -312,11 +297,9 @@ export default function NewEventPage() {
             </label>
           </div>
 
-          {/* Capacity + Waitlist + Price */}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <label style={{ ...labelStyle, flex: "1 1 180px" }}>
-              Capacity{" "}
-              <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+              Capacity <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
               <input
                 style={inputStyle}
                 inputMode="numeric"
@@ -338,8 +321,7 @@ export default function NewEventPage() {
             </label>
 
             <label style={{ ...labelStyle, flex: "1 1 180px" }}>
-              Price (USD){" "}
-              <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+              Price (USD) <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
               <input
                 style={inputStyle}
                 inputMode="decimal"
@@ -350,7 +332,6 @@ export default function NewEventPage() {
             </label>
           </div>
 
-          {/* WhatsApp */}
           <label style={labelStyle}>
             WhatsApp do organizador{" "}
             <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
@@ -365,42 +346,29 @@ export default function NewEventPage() {
             />
           </label>
 
-          {/* Description */}
           <label style={labelStyle}>
             Description (opcional)
             <textarea
               style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
-              placeholder="Descreva o evento, ponto de encontro, ritmo, regras, etc."
+              placeholder="Descreva o evento..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </label>
 
-          {/* Image */}
           <label style={labelStyle}>
             Imagem do evento (opcional)
             <input
-              style={{
-                ...inputStyle,
-                padding: "10px 12px",
-              }}
+              style={inputStyle}
               type="file"
               accept="image/png,image/jpeg,image/jpg"
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
             />
-            <span
-              style={{
-                display: "block",
-                marginTop: 6,
-                fontSize: 12,
-                color: "#9ca3af",
-              }}
-            >
-              Dica: use uma imagem em formato horizontal para ficar bonita na lista.
+            <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
+              Dica: use uma imagem horizontal.
             </span>
           </label>
 
-          {/* CTA no padrão */}
           <div
             style={{
               display: "flex",

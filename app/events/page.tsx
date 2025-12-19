@@ -1,4 +1,3 @@
-// app/events/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -23,8 +22,8 @@ type EventRow = {
   waitlist_capacity: number | null;
   price_cents: number | null;
 
-  image_path: string | null; // ✅ novo (Storage)
-  image_url: string | null;  // legado (se existir)
+  image_path: string | null; // Storage
+  image_url: string | null; // legado (se existir)
 };
 
 function formatDateTime(dt: string | null): string {
@@ -74,7 +73,6 @@ function getPublicImageUrl(path: string | null): string | null {
 
 export default function EventsPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
-
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,22 +146,41 @@ export default function EventsPage() {
           >
             <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Eventos</h1>
 
-            <Link
-              href="/events/new"
-              style={{
-                fontSize: 12,
-                padding: "10px 14px",
-                borderRadius: 999,
-                border: "1px solid rgba(56,189,248,0.55)",
-                background:
-                  "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
-                color: "#e0f2fe",
-                textDecoration: "none",
-                fontWeight: 800,
-              }}
-            >
-              Criar evento
-            </Link>
+            {/* Botões lado a lado (mínima mudança) */}
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <Link
+                href="/events/new"
+                style={{
+                  fontSize: 12,
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(56,189,248,0.55)",
+                  background:
+                    "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                  color: "#e0f2fe",
+                  textDecoration: "none",
+                  fontWeight: 800,
+                }}
+              >
+                Criar evento
+              </Link>
+
+              <Link
+                href="/events/manage"
+                style={{
+                  fontSize: 12,
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  textDecoration: "none",
+                  fontWeight: 800,
+                }}
+              >
+                Meus eventos
+              </Link>
+            </div>
           </div>
 
           <p style={{ fontSize: 13, color: "#9ca3af", margin: "8px 0 0 0" }}>
@@ -184,8 +201,7 @@ export default function EventsPage() {
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
             {events.map((e) => {
-              const img =
-                getPublicImageUrl(e.image_path) || (e.image_url ?? null);
+              const img = getPublicImageUrl(e.image_path) || (e.image_url ?? null);
 
               const priceLabel = formatPrice(e.price_cents ?? 0);
               const when = formatDateTime(e.date);
@@ -235,9 +251,7 @@ export default function EventsPage() {
                           }}
                         />
                       ) : (
-                        <span style={{ fontSize: 12, color: "#9ca3af" }}>
-                          No image
-                        </span>
+                        <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
                       )}
                     </div>
 
