@@ -22,7 +22,9 @@ export default function NewEventPage() {
 
   const [title, setTitle] = useState("");
   const [sport, setSport] = useState("");
-  const [date, setDate] = useState("");
+
+  // ✅ múltiplas datas
+  const [dates, setDates] = useState<string[]>([""]); // datetime-local
 
   const [addressText, setAddressText] = useState("");
   const [city, setCity] = useState("");
@@ -58,6 +60,21 @@ export default function NewEventPage() {
     outline: "none",
   };
 
+  function updateDateAt(idx: number, value: string) {
+    setDates((prev) => prev.map((d, i) => (i === idx ? value : d)));
+  }
+
+  function addDate() {
+    setDates((prev) => [...prev, ""]);
+  }
+
+  function removeDate(idx: number) {
+    setDates((prev) => {
+      if (prev.length <= 1) return prev; // mantém pelo menos 1
+      return prev.filter((_, i) => i !== idx);
+    });
+  }
+
   async function handleCreate() {
     setBusy(true);
     setError(null);
@@ -77,7 +94,16 @@ export default function NewEventPage() {
 
       if (t.length < 3) throw new Error("Title * é obrigatório.");
       if (sp.length < 2) throw new Error("Sport * é obrigatório.");
-      if (!date.trim()) throw new Error("Date & Time * é obrigatório.");
+
+      // ✅ valida datas
+      const cleanDates = dates.map((d) => (d ?? "").trim()).filter(Boolean);
+      if (cleanDates.length === 0) throw new Error("Adicione pelo menos 1 Date & Time *.");
+
+      // opcional: impedir datas duplicadas
+      const uniqueDates = Array.from(new Set(cleanDates));
+      if (uniqueDates.length !== cleanDates.length) {
+        throw new Error("Você adicionou datas repetidas. Remova as duplicadas.");
+      }
 
       if (ad.length < 5) throw new Error("Address (texto completo) * é obrigatório.");
       if (ci.length < 2) throw new Error("City * é obrigatório.");
@@ -101,7 +127,7 @@ export default function NewEventPage() {
 
       if (wa.length < 6) throw new Error("WhatsApp do organizador * é obrigatório.");
 
-      // Upload opcional
+      // ✅ Upload opcional (1x) — reaproveita para todos os eventos
       let imagePath: string | null = null;
       if (imageFile) {
         const ext = imageFile.name.split(".").pop() || "jpg";
@@ -116,38 +142,41 @@ export default function NewEventPage() {
         imagePath = fileName;
       }
 
-      const { data, error: insErr } = await supabase
-        .from("events")
-        .insert({
-          organizer_id: user.id,
-          title: t,
-          sport: sp,
-          description: description.trim() || null,
-          date: `${date}:00.000Z`,
-          address_text: ad,
-          city: ci,
-          state: st,
-          capacity: capN,
-          waitlist_capacity: waitN, // ✅ sempre número
-          price_cents: cents,
-          organizer_whatsapp: wa,
-          image_path: imagePath,
-        })
-        .select("id")
-        .single();
+      // ✅ cria 1 evento por data
+      const rows = uniqueDates.map((dtLocal) => ({
+        organizer_id: user.id,
+        title: t,
+        sport: sp,
+        description: description.trim() || null,
+        date: `${dtLocal}:00.000Z`,
+        address_text: ad,
+        city: ci,
+        state: st,
+        capacity: capN,
+        waitlist_capacity: waitN,
+        price_cents: cents,
+        organizer_whatsapp: wa,
+        image_path: imagePath,
+      }));
 
+      const { data, error: insErr } = await supabase.from("events").insert(rows).select("id");
       if (insErr) throw new Error(insErr.message);
 
-      setInfo("Evento publicado!");
-      router.push(`/events/${data.id}`);
+      const created = (data ?? []) as { id: string }[];
+
+      setInfo(`Eventos publicados: ${created.length}`);
+      // ✅ abre o primeiro evento criado
+      if (created.length > 0) {
+        router.push(`/events/${created[0].id}`);
+      } else {
+        router.push("/events/manage");
+      }
     } catch (e: any) {
       setError(e?.message ?? "Falha ao criar evento.");
     } finally {
       setBusy(false);
     }
   }
-
-  const priceCentsPreview = toCents(priceUsd) ?? 0;
 
   return (
     <main
@@ -160,14 +189,7 @@ export default function NewEventPage() {
       }}
     >
       <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-        <header
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
+        <header style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: 6 }}>
           <p
             style={{
               fontSize: 11,
@@ -180,25 +202,12 @@ export default function NewEventPage() {
             Eventos
           </p>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Criar evento</h1>
 
             <Link
               href="/events"
-              style={{
-                fontSize: 12,
-                color: "#93c5fd",
-                textDecoration: "underline",
-                whiteSpace: "nowrap",
-              }}
+              style={{ fontSize: 12, color: "#93c5fd", textDecoration: "underline", whiteSpace: "nowrap" }}
             >
               Voltar
             </Link>
@@ -209,13 +218,8 @@ export default function NewEventPage() {
           </p>
         </header>
 
-        {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p>
-        ) : null}
-
-        {info ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
-        ) : null}
+        {error ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p> : null}
+        {info ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p> : null}
 
         <section
           style={{
@@ -248,15 +252,62 @@ export default function NewEventPage() {
             />
           </label>
 
-          <label style={labelStyle}>
-            Date & Time <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
-            <input
-              style={inputStyle}
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
+          {/* ✅ múltiplas datas */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <p style={{ ...labelStyle, marginBottom: 0 }}>
+              Date & Time <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
+              <span style={{ color: "#9ca3af", fontWeight: 400 }}>(adicione várias datas se for repetitivo)</span>
+            </p>
+
+            {dates.map((d, idx) => (
+              <div key={idx} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <input
+                  style={{ ...inputStyle, marginTop: 0, flex: "1 1 260px" }}
+                  type="datetime-local"
+                  value={d}
+                  onChange={(e) => updateDateAt(idx, e.target.value)}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => removeDate(idx)}
+                  disabled={dates.length <= 1}
+                  style={{
+                    fontSize: 12,
+                    padding: "10px 12px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(148,163,184,0.35)",
+                    background: "rgba(2,6,23,0.65)",
+                    color: "#e5e7eb",
+                    fontWeight: 800,
+                    cursor: dates.length <= 1 ? "not-allowed" : "pointer",
+                    opacity: dates.length <= 1 ? 0.6 : 1,
+                  }}
+                >
+                  Remover
+                </button>
+              </div>
+            ))}
+
+            <div>
+              <button
+                type="button"
+                onClick={addDate}
+                style={{
+                  fontSize: 12,
+                  padding: "10px 12px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(56,189,248,0.55)",
+                  background: "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                  color: "#e0f2fe",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                + Adicionar outra data
+              </button>
+            </div>
+          </div>
 
           <label style={labelStyle}>
             Address (texto completo) <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
@@ -325,39 +376,34 @@ export default function NewEventPage() {
             </label>
           </div>
 
-          {/* ✅ AVISO (mostra só se for pago) */}
-          {priceCentsPreview > 0 ? (
-            <div
-              style={{
-                marginTop: 2,
-                borderRadius: 14,
-                border: "1px solid rgba(56,189,248,0.35)",
-                background: "rgba(8,47,73,0.25)",
-                padding: 12,
-              }}
-            >
-              <p style={{ margin: 0, fontSize: 12, color: "#e0f2fe", fontWeight: 900 }}>
-                Payments & payout (important)
-              </p>
+          {/* ✅ AVISO DO DINHEIRO — sempre visível */}
+          <div
+            style={{
+              borderRadius: 14,
+              border: "1px solid rgba(56,189,248,0.35)",
+              background: "rgba(8,47,73,0.25)",
+              padding: 12,
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 12, color: "#e0f2fe", fontWeight: 900 }}>
+              Payments & payout (important)
+            </p>
 
-              <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#9ca3af", lineHeight: 1.4 }}>
-                All paid registrations are processed through the{" "}
-                <span style={{ color: "#e5e7eb" }}>Sports Platform</span> Stripe account.
-                Event revenue will be deposited into the Sports Platform account.
-                <br />
-                <br />
-                The organizer may request a payout at any time. Payments are sent via{" "}
-                <span style={{ color: "#e5e7eb" }}>Zelle</span> within{" "}
-                <span style={{ color: "#e5e7eb" }}>24 hours</span> after the request.
-              </p>
-            </div>
-          ) : null}
+            <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#9ca3af", lineHeight: 1.4 }}>
+              All paid registrations are processed through the{" "}
+              <span style={{ color: "#e5e7eb" }}>Sports Platform</span> Stripe account.
+              Event revenue will be deposited into the Sports Platform account.
+              <br />
+              <br />
+              The organizer may request a payout at any time. Payments are sent via{" "}
+              <span style={{ color: "#e5e7eb" }}>Zelle</span> within{" "}
+              <span style={{ color: "#e5e7eb" }}>24 hours</span> after the request.
+            </p>
+          </div>
 
           <label style={labelStyle}>
             WhatsApp do organizador <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
-            <span style={{ color: "#9ca3af", fontWeight: 400 }}>
-              (Só aparecerá para quem confirmar a inscrição)
-            </span>
+            <span style={{ color: "#9ca3af", fontWeight: 400 }}>(Só aparecerá para quem confirmar a inscrição)</span>
             <input
               style={inputStyle}
               placeholder="Ex: +1 407 555 1234"
@@ -389,18 +435,9 @@ export default function NewEventPage() {
             </span>
           </label>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-end",
-              gap: 10,
-              flexWrap: "wrap",
-              marginTop: 6,
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
             <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-              Ao publicar, o evento fica visível para usuários logados.
+              Ao publicar, será criado 1 evento para cada data informada.
             </p>
 
             <button
