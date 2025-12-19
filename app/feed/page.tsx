@@ -361,7 +361,7 @@ export default function FeedPage() {
                   marginBottom: "6px",
                 }}
               >
-                Registros em tempo real das sessões de treino dos atletas.
+                
               </p>
 
               {/* ✅ NOVO: mensagem energética */}
