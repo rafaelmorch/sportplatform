@@ -91,6 +91,7 @@ function getPublicImageUrl(path: string | null): string | null {
 }
 
 function normalizePhone(input: string): string {
+  // bem simples: mantém + e dígitos
   return input.trim().replace(/[^\d+]/g, "");
 }
 
@@ -118,20 +119,23 @@ export default function EventDetailPage() {
   const [busy, setBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // ✅ erro “global” (stripe/supabase/network)
+  // erro global (stripe/supabase/network)
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // ✅ erro do formulário (nickname/whatsapp) — aparece perto dos inputs
+  // erro do formulário (nickname/whatsapp) — aparece perto dos inputs
   const [formError, setFormError] = useState<string | null>(null);
 
-  // evita confirmar 2x
+  // confirma pós-checkout
   const [confirming, setConfirming] = useState(false);
 
-  // ✅ referência pra rolar até o form
+  // âncora para rolar até o form
   const formAnchorRef = useRef<HTMLDivElement | null>(null);
 
-  const labelStyle: React.CSSProperties = { fontSize: 12, color: "#60a5fa" };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#60a5fa",
+  };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -145,7 +149,6 @@ export default function EventDetailPage() {
   };
 
   function scrollToForm() {
-    // Scroll suave para o bloco do nickname/whatsapp
     setTimeout(() => {
       formAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 0);
@@ -168,7 +171,7 @@ export default function EventDetailPage() {
     setRegistrationsCount(count ?? 0);
   }
 
-  // ✅ CONFIRMAÇÃO pós-checkout
+  // ✅ CONFIRMAÇÃO pós-checkout (remove o "travado" no Payment received)
   useEffect(() => {
     if (!eventId) return;
 
@@ -202,6 +205,7 @@ export default function EventDetailPage() {
             throw new Error(t || "Failed to confirm payment.");
           }
 
+          // atualiza estado local
           const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
 
@@ -222,6 +226,7 @@ export default function EventDetailPage() {
           if (!cancelled) {
             await refreshPublicRegs(eventId);
             setInfo("Registration confirmed!");
+            // limpa query string para não ficar preso no estado
             router.replace(`/events/${eventId}`);
           }
         } catch (e: any) {
@@ -338,6 +343,7 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
+  // ✅ Inscrever (pago abre Stripe em NOVA ABA; grátis insere direto)
   async function handleRegister() {
     if (!eventId) return;
 
@@ -373,6 +379,7 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
+      // Evento pago
       if (price > 0) {
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -400,6 +407,7 @@ export default function EventDetailPage() {
         return;
       }
 
+      // Evento grátis: insert direto
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
@@ -429,6 +437,7 @@ export default function EventDetailPage() {
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
+
       await refreshPublicRegs(eventId);
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
@@ -437,6 +446,7 @@ export default function EventDetailPage() {
     }
   }
 
+  // Dono: apagar evento
   async function handleDelete() {
     if (!eventId) return;
     if (!isOwner) return;
@@ -464,6 +474,7 @@ export default function EventDetailPage() {
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 
   const priceLabel = formatPrice(event?.price_cents ?? 0);
+
   const cap = event?.capacity ?? 0;
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
@@ -529,7 +540,6 @@ export default function EventDetailPage() {
           ) : null}
         </header>
 
-        {/* ✅ erro global fica aqui */}
         {error ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p> : null}
         {info ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p> : null}
 
@@ -558,7 +568,11 @@ export default function EventDetailPage() {
             }}
           >
             {img ? (
-              <img src={img} alt={event?.title ?? "event image"} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img
+                src={img}
+                alt={event?.title ?? "event image"}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
             ) : (
               <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
             )}
@@ -610,9 +624,38 @@ export default function EventDetailPage() {
             ) : null}
           </div>
 
-          {/* ... resto do card (local, descrição, etc) ... */}
+          {/* ✅ Local + mapa (voltou) */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
+            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
 
-          {/* ✅ âncora para scroll */}
+            <div style={{ marginTop: 10, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(148,163,184,0.25)" }}>
+              <iframe title="map" src={mapUrl} width="100%" height="240" style={{ border: 0 }} loading="lazy" />
+            </div>
+          </div>
+
+          {/* ✅ Descrição (voltou) */}
+          {event?.description ? (
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Descrição</h2>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, whiteSpace: "pre-wrap" }}>{event.description}</p>
+            </div>
+          ) : null}
+
+          {/* ✅ Contato do organizador (voltou) */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Contato do organizador</h2>
+
+            {isRegistered ? (
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                WhatsApp: <span style={{ color: "#e5e7eb" }}>{event?.organizer_whatsapp ?? "—"}</span>
+              </p>
+            ) : (
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Faça a inscrição para liberar o WhatsApp do organizador.</p>
+            )}
+          </div>
+
+          {/* âncora para scroll do erro */}
           <div ref={formAnchorRef} />
 
           <label style={labelStyle}>
@@ -626,8 +669,10 @@ export default function EventDetailPage() {
             />
           </label>
 
+          {/* ✅ WhatsApp com texto ao lado */}
           <label style={labelStyle}>
-            Your WhatsApp <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            Your WhatsApp <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
+            <span style={{ color: "#9ca3af", fontWeight: 400 }}>(visível só para o organizador)</span>
             <input
               style={inputStyle}
               placeholder="Ex: +14075551234"
@@ -635,9 +680,14 @@ export default function EventDetailPage() {
               onChange={(e) => setAttendeeWhatsapp(e.target.value)}
               disabled={isRegistered}
             />
+            {!isRegistered ? (
+              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
+                Required for the organizer to contact you.
+              </span>
+            ) : null}
           </label>
 
-          {/* ✅ erro do form aparece aqui, perto do nickname/whatsapp */}
+          {/* ✅ erro do form perto do nickname/whatsapp */}
           {formError ? (
             <div
               style={{
@@ -656,7 +706,11 @@ export default function EventDetailPage() {
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
             <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-              {isRegistered ? "Você já está inscrito." : (event?.price_cents ?? 0) > 0 ? "Evento pago: checkout abre em nova aba." : "Evento grátis: inscrição em 1 clique."}
+              {isRegistered
+                ? "Você já está inscrito."
+                : (event?.price_cents ?? 0) > 0
+                ? "Evento pago: checkout abre em nova aba."
+                : "Evento grátis: inscrição em 1 clique."}
             </p>
 
             <button
@@ -673,11 +727,17 @@ export default function EventDetailPage() {
                 fontWeight: 700,
               }}
             >
-              {isRegistered ? "Inscrito" : busy ? "Processando..." : (event?.price_cents ?? 0) > 0 ? "Pagar e Inscrever-se" : "Inscrever-se"}
+              {isRegistered
+                ? "Inscrito"
+                : busy
+                ? "Processando..."
+                : (event?.price_cents ?? 0) > 0
+                ? "Pagar e Inscrever-se"
+                : "Inscrever-se"}
             </button>
           </div>
 
-          {/* Participantes (nicknames) */}
+          {/* Participantes (só nickname) */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Participantes</h2>
 
