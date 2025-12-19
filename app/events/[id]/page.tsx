@@ -733,26 +733,88 @@ export default function EventDetailPage() {
             ) : null}
           </div>
 
-          {/* Detalhes do evento */}
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 8px 0" }}>Detalhes do evento</h2>
+{/* Detalhes do evento */}
+<div
+  style={{
+    borderRadius: 14,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(2,6,23,0.45)",
+    padding: 14,
+  }}
+>
+  <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px 0" }}>
+    Detalhes do evento
+  </h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-              {[
-                ["Title", titleText],
-                ["Sport", sportText],
-                ["Date & Time", dateText],
-                ["Address", addressText],
-                ["City", cityText],
-                ["State", stateText],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ fontSize: 13, color: "#9ca3af" }}>{k}</span>
-                  <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+  <div style={{ display: "flex", flexDirection: "column" }}>
+    {[
+      ["Title", titleText],
+      ["Sport", sportText],
+      ["Date & Time", dateText],
+      ["Address", addressText],
+      ["City", cityText],
+      ["State", stateText],
+    ].map(([k, v], idx, arr) => (
+      <div key={k} style={{ padding: "10px 0" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "160px 1fr",
+            gap: 12,
+            alignItems: "start",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              color: "#94a3b8",
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+            }}
+          >
+            {k}
+          </span>
+
+          <span
+            style={{
+              fontSize: 14,
+              color: "#e5e7eb",
+              fontWeight: 700,
+              textAlign: "right",
+              wordBreak: "break-word",
+            }}
+          >
+            {v}
+          </span>
+        </div>
+
+        {idx !== arr.length - 1 ? (
+          <div
+            style={{
+              marginTop: 10,
+              height: 1,
+              background: "rgba(148,163,184,0.12)",
+              width: "100%",
+            }}
+          />
+        ) : null}
+      </div>
+    ))}
+  </div>
+
+  {/* Mobile: melhora o layout (labels em cima, valor embaixo) */}
+  <style jsx>{`
+    @media (max-width: 520px) {
+      .detailsRow {
+        grid-template-columns: 1fr !important;
+      }
+      .detailsValue {
+        text-align: left !important;
+      }
+    }
+  `}</style>
+</div>
+
 
           {/* Local + mapa */}
           <div>
