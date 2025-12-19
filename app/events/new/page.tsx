@@ -22,7 +22,9 @@ export default function NewEventPage() {
 
   const [title, setTitle] = useState("");
   const [sport, setSport] = useState("");
-  const [date, setDate] = useState("");
+
+  // ✅ Agora suporta várias datas
+  const [dates, setDates] = useState<string[]>([""]);
 
   const [addressText, setAddressText] = useState("");
   const [city, setCity] = useState("");
@@ -58,6 +60,22 @@ export default function NewEventPage() {
     outline: "none",
   };
 
+  function addDateField() {
+    setDates((prev) => [...prev, ""]);
+  }
+
+  function removeDateField(index: number) {
+    setDates((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateDateField(index: number, value: string) {
+    setDates((prev) => {
+      const copy = [...prev];
+      copy[index] = value;
+      return copy;
+    });
+  }
+
   async function handleCreate() {
     setBusy(true);
     setError(null);
@@ -77,7 +95,16 @@ export default function NewEventPage() {
 
       if (t.length < 3) throw new Error("Title * é obrigatório.");
       if (sp.length < 2) throw new Error("Sport * é obrigatório.");
-      if (!date.trim()) throw new Error("Date & Time * é obrigatório.");
+
+      // ✅ validação das datas (múltiplas)
+      const cleanDates = dates.map((d) => (d ?? "").trim()).filter(Boolean);
+      if (cleanDates.length === 0) throw new Error("Adicione pelo menos uma Date & Time *.");
+
+      // evitar datas duplicadas iguais
+      const uniqueDates = Array.from(new Set(cleanDates));
+      if (uniqueDates.length !== cleanDates.length) {
+        throw new Error("Você adicionou datas repetidas. Remova as duplicadas.");
+      }
 
       if (ad.length < 5) throw new Error("Address (texto completo) * é obrigatório.");
       if (ci.length < 2) throw new Error("City * é obrigatório.");
@@ -101,7 +128,7 @@ export default function NewEventPage() {
 
       if (wa.length < 6) throw new Error("WhatsApp do organizador * é obrigatório.");
 
-      // Upload opcional
+      // Upload opcional (1 imagem para toda a série)
       let imagePath: string | null = null;
       if (imageFile) {
         const ext = imageFile.name.split(".").pop() || "jpg";
@@ -116,30 +143,52 @@ export default function NewEventPage() {
         imagePath = fileName;
       }
 
-      const { data, error: insErr } = await supabase
-        .from("events")
-        .insert({
-          organizer_id: user.id,
-          title: t,
-          sport: sp,
-          description: description.trim() || null,
-          date: `${date}:00.000Z`,
-          address_text: ad,
-          city: ci,
-          state: st,
-          capacity: capN,
-          waitlist_capacity: waitN, // ✅ sempre número
-          price_cents: cents,
-          organizer_whatsapp: wa,
-          image_path: imagePath,
-        })
-        .select("id")
-        .single();
+      // ✅ série: cria um id único que conecta todos os eventos
+      const seriesId = crypto.randomUUID();
+
+      // ordena as datas para ficar bonitinho (do mais cedo pro mais tarde)
+      const sortedDates = uniqueDates
+        .slice()
+        .sort((a, b) => new Date(`${a}:00.000Z`).getTime() - new Date(`${b}:00.000Z`).getTime());
+
+      const rows = sortedDates.map((d, idx) => ({
+        organizer_id: user.id,
+        title: t,
+        sport: sp,
+        description: description.trim() || null,
+        date: `${d}:00.000Z`,
+        address_text: ad,
+        city: ci,
+        state: st,
+        capacity: capN,
+        waitlist_capacity: waitN,
+        price_cents: cents,
+        organizer_whatsapp: wa,
+        image_path: imagePath,
+
+        // ✅ novos campos (garanta que existem no DB)
+        series_id: seriesId,
+        series_index: idx + 1,
+      }));
+
+      const { data, error: insErr } = await supabase.from("events").insert(rows).select("id,date");
 
       if (insErr) throw new Error(insErr.message);
 
-      setInfo("Evento publicado!");
-      router.push(`/events/${data.id}`);
+      if (!data || data.length === 0) throw new Error("Evento criado, mas não consegui obter o ID.");
+
+      setInfo(
+        rows.length > 1
+          ? `Eventos publicados! (${rows.length} datas)`
+          : "Evento publicado!"
+      );
+
+      // abre o primeiro evento criado (mais cedo)
+      const first = data
+        .slice()
+        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+      router.push(`/events/${first.id}`);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao criar evento.");
     } finally {
@@ -187,9 +236,7 @@ export default function NewEventPage() {
               flexWrap: "wrap",
             }}
           >
-            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
-              Criar evento
-            </h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Criar evento</h1>
 
             <Link
               href="/events"
@@ -205,29 +252,23 @@ export default function NewEventPage() {
           </div>
 
           <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-            Campos com <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
-            são obrigatórios.
+            Campos com <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span> são obrigatórios.
           </p>
         </header>
 
         {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
-            {error}
-          </p>
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p>
         ) : null}
 
         {info ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
-            {info}
-          </p>
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
         ) : null}
 
         <section
           style={{
             borderRadius: 18,
             border: "1px solid rgba(148,163,184,0.35)",
-            background:
-              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
             padding: "14px 14px",
             display: "flex",
             flexDirection: "column",
@@ -254,19 +295,70 @@ export default function NewEventPage() {
             />
           </label>
 
-          <label style={labelStyle}>
-            Date & Time <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
-            <input
-              style={inputStyle}
-              type="datetime-local"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
+          {/* ✅ Múltiplas datas */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p style={labelStyle}>
+              Dates & Times <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
+              <span style={{ color: "#9ca3af", fontWeight: 400 }}>
+                (adicione várias datas se for repetitivo)
+              </span>
+            </p>
+
+            {dates.map((d, idx) => (
+              <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  style={inputStyle}
+                  type="datetime-local"
+                  value={d}
+                  onChange={(e) => updateDateField(idx, e.target.value)}
+                />
+
+                {dates.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => removeDateField(idx)}
+                    style={{
+                      height: 42,
+                      padding: "0 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(248,113,113,0.55)",
+                      background: "rgba(127,29,29,0.35)",
+                      color: "#fecaca",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      marginTop: 6,
+                    }}
+                    title="Remover esta data"
+                  >
+                    Remover
+                  </button>
+                ) : null}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addDateField}
+              style={{
+                alignSelf: "flex-start",
+                fontSize: 12,
+                padding: "8px 12px",
+                borderRadius: 999,
+                border: "1px solid rgba(148,163,184,0.35)",
+                background: "rgba(2,6,23,0.65)",
+                color: "#e5e7eb",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              + Adicionar data
+            </button>
+          </div>
 
           <label style={labelStyle}>
-            Address (texto completo){" "}
-            <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            Address (texto completo) <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
             <input
               style={inputStyle}
               placeholder="Ex: 123 Main St"
@@ -333,8 +425,7 @@ export default function NewEventPage() {
           </div>
 
           <label style={labelStyle}>
-            WhatsApp do organizador{" "}
-            <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
+            WhatsApp do organizador <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
             <span style={{ color: "#9ca3af", fontWeight: 400 }}>
               (Só aparecerá para quem confirmar a inscrição)
             </span>
@@ -365,7 +456,7 @@ export default function NewEventPage() {
               onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
             />
             <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
-              Dica: use uma imagem horizontal.
+              Dica: use uma imagem horizontal. (a mesma imagem será usada para todas as datas)
             </span>
           </label>
 
@@ -380,7 +471,7 @@ export default function NewEventPage() {
             }}
           >
             <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-              Ao publicar, o evento fica visível para usuários logados.
+              Ao publicar, será criado 1 evento por data.
             </p>
 
             <button
@@ -391,8 +482,7 @@ export default function NewEventPage() {
                 padding: "10px 12px",
                 borderRadius: 999,
                 border: "1px solid rgba(56,189,248,0.55)",
-                background:
-                  "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                background: "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
                 color: "#e0f2fe",
                 cursor: busy ? "not-allowed" : "pointer",
                 fontWeight: 800,
