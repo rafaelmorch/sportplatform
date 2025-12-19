@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -14,29 +14,29 @@ export async function GET(req: Request) {
     if (!supabaseUrl || !serviceRole)
       return new NextResponse("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY", { status: 500 });
 
-    const url = new URL(req.url);
-    const sessionId = url.searchParams.get("session_id");
-
-    if (!sessionId) return new NextResponse("Missing session_id", { status: 400 });
-
     const stripe = new Stripe(secretKey, { apiVersion: "2025-02-24.acacia" as any });
     const supabase = createClient(supabaseUrl, serviceRole);
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent"],
-    });
+    const body = await req.json().catch(() => null);
+    const sessionId: string | undefined = body?.session_id;
+
+    if (!sessionId) return new NextResponse("Missing session_id", { status: 400 });
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (!session) return new NextResponse("Session not found", { status: 404 });
-
-    // Stripe pode retornar payment_status: "paid" quando completou
     if (session.payment_status !== "paid") {
-      return new NextResponse(`Not paid (payment_status=${session.payment_status})`, { status: 402 });
+      return new NextResponse(`Payment not completed: ${session.payment_status}`, { status: 400 });
     }
 
-    const md = (session.metadata || {}) as Record<string, string>;
-    const eventId = (md.event_id || "").trim();
-    const userId = (md.user_id || "").trim();
-    const nickname = (md.nickname || "").trim();
+    const metadata = (session.metadata || {}) as Record<string, string>;
+    const eventId = metadata.event_id;
+    const userId = metadata.user_id;
+    const nickname = (metadata.nickname || "").trim();
+
+    const attendeeWhatsapp = (metadata.attendee_whatsapp || "").trim() || null;
+    const attendeeEmail = (metadata.attendee_email || "").trim() || null;
+    const attendeeName = (metadata.attendee_name || "").trim() || null;
 
     if (!eventId || !userId || !nickname) {
       return new NextResponse("Missing metadata: event_id/user_id/nickname", { status: 400 });
@@ -45,13 +45,9 @@ export async function GET(req: Request) {
     const amountCents = session.amount_total ?? null;
     const currency = (session.currency ?? "usd").toLowerCase();
     const paymentIntentId =
-      typeof session.payment_intent === "string"
-        ? session.payment_intent
-        : (session.payment_intent as any)?.id || null;
+      typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-    const providerSessionId = session.id;
-
-    // ✅ Upsert idempotente (precisa ter unique(event_id,user_id) ou pelo menos não duplicar)
+    // ✅ Idempotente: se já tiver, só atualiza
     const { error: upsertErr } = await supabase
       .from("event_registrations")
       .upsert(
@@ -59,15 +55,18 @@ export async function GET(req: Request) {
           event_id: eventId,
           user_id: userId,
           nickname,
+          attendee_whatsapp: attendeeWhatsapp,
+          attendee_email: attendeeEmail,
+          attendee_name: attendeeName,
           registered_at: new Date().toISOString(),
+          status: "confirmed",
           payment_provider: "stripe",
           payment_status: "paid",
           amount_cents: amountCents,
           currency,
-          provider_session_id: providerSessionId,
+          provider_session_id: session.id,
           provider_payment_intent_id: paymentIntentId,
-          status: "confirmed",
-        } as any,
+        },
         { onConflict: "event_id,user_id" }
       );
 
@@ -75,8 +74,8 @@ export async function GET(req: Request) {
       return new NextResponse(`Supabase upsert failed: ${upsertErr.message}`, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, eventId, userId });
   } catch (e: any) {
-    return new NextResponse(e?.message || "Confirm error", { status: 500 });
+    return new NextResponse(e?.message || "Confirm failed", { status: 500 });
   }
 }

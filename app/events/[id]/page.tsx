@@ -109,7 +109,6 @@ export default function EventDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [nickname, setNickname] = useState("");
 
-  // WhatsApp obrigatório do inscrito
   const [attendeeWhatsapp, setAttendeeWhatsapp] = useState("");
 
   const [isOwner, setIsOwner] = useState(false);
@@ -122,10 +121,10 @@ export default function EventDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#60a5fa",
-  };
+  // evita confirmar 2x
+  const [confirming, setConfirming] = useState(false);
+
+  const labelStyle: React.CSSProperties = { fontSize: 12, color: "#60a5fa" };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -138,14 +137,93 @@ export default function EventDetailPage() {
     outline: "none",
   };
 
-  // Mensagens pós-checkout
+  async function refreshPublicRegs(targetEventId: string) {
+    const { data: regs } = await supabase
+      .from("event_registrations_public")
+      .select("nickname, registered_at")
+      .eq("event_id", targetEventId)
+      .order("registered_at", { ascending: true })
+      .limit(200);
+
+    const { count } = await supabase
+      .from("event_registrations_public")
+      .select("nickname", { count: "exact", head: true })
+      .eq("event_id", targetEventId);
+
+    setRegistrations((regs as PublicRegistration[]) ?? []);
+    setRegistrationsCount(count ?? 0);
+  }
+
+  // ✅ CONFIRMAÇÃO pós-checkout (resolve o “travado”)
   useEffect(() => {
+    if (!eventId) return;
+
     const paid = searchParams?.get("paid");
+    const sessionId = searchParams?.get("session_id");
     const canceled = searchParams?.get("canceled");
 
-    if (paid === "1") setInfo("Payment received. Confirming your registration...");
-    else if (canceled === "1") setInfo("Payment canceled.");
-  }, [searchParams]);
+    if (canceled === "1") {
+      setInfo("Payment canceled.");
+      return;
+    }
+
+    if (paid === "1" && sessionId && !confirming) {
+      let cancelled = false;
+
+      async function confirm() {
+        setConfirming(true);
+        setError(null);
+        setInfo("Payment received. Confirming your registration...");
+
+        try {
+          const resp = await fetch("/api/stripe/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: sessionId }),
+          });
+
+          if (!resp.ok) {
+            const t = await resp.text();
+            throw new Error(t || "Failed to confirm payment.");
+          }
+
+          // Atualiza meu status + lista pública
+          const { data: userRes } = await supabase.auth.getUser();
+          const user = userRes.user;
+
+          if (user) {
+            const { data: me } = await supabase
+              .from("event_registrations")
+              .select("nickname, attendee_whatsapp")
+              .eq("event_id", eventId)
+              .maybeSingle();
+
+            if (!cancelled && me?.nickname) {
+              setIsRegistered(true);
+              setNickname(me.nickname);
+              if (me?.attendee_whatsapp) setAttendeeWhatsapp(me.attendee_whatsapp);
+            }
+          }
+
+          if (!cancelled) {
+            await refreshPublicRegs(eventId);
+            setInfo("Registration confirmed!");
+            // ✅ limpa paid/session_id da URL (evita loop)
+            router.replace(`/events/${eventId}`);
+          }
+        } catch (e: any) {
+          if (!cancelled) setError(e?.message ?? "Failed to confirm registration.");
+        } finally {
+          if (!cancelled) setConfirming(false);
+        }
+      }
+
+      confirm();
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [eventId, searchParams, confirming, router, supabase]);
 
   // Carrega evento + define isOwner
   useEffect(() => {
@@ -173,7 +251,6 @@ export default function EventDetailPage() {
       if (error) {
         setError(error.message || "Failed to load event.");
         setEvent(null);
-        setIsOwner(false);
       } else {
         const e = (data as EventRow) ?? null;
         setEvent(e);
@@ -203,7 +280,6 @@ export default function EventDetailPage() {
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
 
-      // Lista pública (nicknames)
       const { data: regs, error: regsErr } = await supabase
         .from("event_registrations_public")
         .select("nickname, registered_at")
@@ -211,13 +287,11 @@ export default function EventDetailPage() {
         .order("registered_at", { ascending: true })
         .limit(200);
 
-      // Contagem
       const { count, error: countErr } = await supabase
         .from("event_registrations_public")
         .select("nickname", { count: "exact", head: true })
         .eq("event_id", eventId);
 
-      // Minha inscrição (se logado)
       if (user) {
         const { data: me } = await supabase
           .from("event_registrations")
@@ -251,7 +325,6 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
-  // Inscrever (pago abre Stripe em NOVA ABA; grátis insere direto)
   async function handleRegister() {
     if (!eventId) return;
 
@@ -265,15 +338,10 @@ export default function EventDetailPage() {
       if (!user) throw new Error("You must be logged in to register.");
 
       const nick = nickname.trim();
-      if (nick.length < 2 || nick.length > 24) {
-        throw new Error("Nickname must be between 2 and 24 characters.");
-      }
+      if (nick.length < 2 || nick.length > 24) throw new Error("Nickname must be between 2 and 24 characters.");
 
-      // WhatsApp obrigatório
       const wa = normalizePhone(attendeeWhatsapp);
-      if (wa.length < 8) {
-        throw new Error("WhatsApp is required (example: +14075551234).");
-      }
+      if (wa.length < 8) throw new Error("WhatsApp is required (example: +14075551234).");
 
       const attendeeEmail = user.email ?? "";
       const attendeeName =
@@ -283,7 +351,6 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
-      // Evento pago -> Stripe (nova aba) e NÃO redireciona a página atual
       if (price > 0) {
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -307,14 +374,10 @@ export default function EventDetailPage() {
         if (!url) throw new Error("Missing checkout url.");
 
         const win = window.open(url, "_blank", "noopener,noreferrer");
-        if (!win) {
-          // fallback: se popup bloqueado, aí sim usa a mesma aba
-          window.location.assign(url);
-        }
+        if (!win) window.location.assign(url);
         return;
       }
 
-      // Evento grátis: insert direto
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
@@ -342,16 +405,7 @@ export default function EventDetailPage() {
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
-
-      const { data: regs } = await supabase
-        .from("event_registrations_public")
-        .select("nickname, registered_at")
-        .eq("event_id", eventId)
-        .order("registered_at", { ascending: true })
-        .limit(200);
-
-      setRegistrations((regs as PublicRegistration[]) ?? []);
-      setRegistrationsCount((prev) => prev + 1);
+      await refreshPublicRegs(eventId);
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
     } finally {
@@ -359,7 +413,6 @@ export default function EventDetailPage() {
     }
   }
 
-  // Dono: apagar evento
   async function handleDelete() {
     if (!eventId) return;
     if (!isOwner) return;
@@ -562,13 +615,7 @@ export default function EventDetailPage() {
 
           <label style={labelStyle}>
             Nickname (visível para todos)
-            <input
-              style={inputStyle}
-              placeholder="Ex: Rafa Runner"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              disabled={isRegistered}
-            />
+            <input style={inputStyle} placeholder="Ex: Rafa Runner" value={nickname} onChange={(e) => setNickname(e.target.value)} disabled={isRegistered} />
           </label>
 
           <label style={labelStyle}>
@@ -580,20 +627,11 @@ export default function EventDetailPage() {
               onChange={(e) => setAttendeeWhatsapp(e.target.value)}
               disabled={isRegistered}
             />
-            {!isRegistered ? (
-              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
-                Required for the organizer to contact you.
-              </span>
-            ) : null}
           </label>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
             <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
-              {isRegistered
-                ? "Você já está inscrito."
-                : (event?.price_cents ?? 0) > 0
-                ? "Evento pago: você será direcionado ao checkout (nova aba)."
-                : "Evento grátis: inscrição em 1 clique."}
+              {isRegistered ? "Você já está inscrito." : (event?.price_cents ?? 0) > 0 ? "Evento pago: checkout abre em nova aba." : "Evento grátis: inscrição em 1 clique."}
             </p>
 
             <button
