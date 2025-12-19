@@ -38,6 +38,18 @@ type PublicRegistration = {
   registered_at: string | null;
 };
 
+type OwnerRegistration = {
+  nickname: string | null;
+  attendee_name: string | null;
+  attendee_email: string | null;
+  attendee_whatsapp: string | null;
+  registered_at: string | null;
+  payment_provider: string | null;
+  payment_status: string | null;
+  amount_cents: number | null;
+  currency: string | null;
+};
+
 /* ================= Utils ================= */
 
 function formatDateTime(dt: string | null): string {
@@ -99,6 +111,21 @@ function fieldValue(v: string | null | undefined): string {
   return t.length ? t : "—";
 }
 
+function centsToUsdLabel(amountCents: number | null, currency: string | null): string {
+  const c = Number(amountCents ?? 0);
+  const cur = (currency ?? "usd").toUpperCase();
+  if (!Number.isFinite(c) || c <= 0) return "Free";
+  return `${cur} ${(c / 100).toFixed(2)}`;
+}
+
+function csvEscape(v: any): string {
+  const s = String(v ?? "");
+  if (s.includes('"') || s.includes(",") || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
 /* ================= Page ================= */
 
 export default function EventDetailPage() {
@@ -113,7 +140,6 @@ export default function EventDetailPage() {
 
   const [isRegistered, setIsRegistered] = useState(false);
   const [nickname, setNickname] = useState("");
-
   const [attendeeWhatsapp, setAttendeeWhatsapp] = useState("");
 
   const [isOwner, setIsOwner] = useState(false);
@@ -127,6 +153,11 @@ export default function EventDetailPage() {
   const [info, setInfo] = useState<string | null>(null);
 
   const [formError, setFormError] = useState<string | null>(null);
+
+  // ✅ Owner-only registrations
+  const [ownerRegs, setOwnerRegs] = useState<OwnerRegistration[]>([]);
+  const [ownerRegsLoading, setOwnerRegsLoading] = useState(false);
+  const [ownerRegsError, setOwnerRegsError] = useState<string | null>(null);
 
   const [confirming, setConfirming] = useState(false);
 
@@ -171,7 +202,79 @@ export default function EventDetailPage() {
     setRegistrationsCount(count ?? 0);
   }
 
-  // ✅ CONFIRMAÇÃO pós-checkout
+  async function loadOwnerRegs(targetEventId: string) {
+    setOwnerRegsLoading(true);
+    setOwnerRegsError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from("event_registrations")
+        .select(
+          "nickname,attendee_name,attendee_email,attendee_whatsapp,registered_at,payment_provider,payment_status,amount_cents,currency"
+        )
+        .eq("event_id", targetEventId)
+        .order("registered_at", { ascending: true })
+        .limit(2000);
+
+      if (error) throw new Error(error.message);
+
+      setOwnerRegs((data as OwnerRegistration[]) ?? []);
+    } catch (e: any) {
+      setOwnerRegs([]);
+      setOwnerRegsError(e?.message ?? "Failed to load registrations.");
+    } finally {
+      setOwnerRegsLoading(false);
+    }
+  }
+
+  function exportOwnerRegsToExcelCsv() {
+    const rows = ownerRegs ?? [];
+    const header = [
+      "Nickname",
+      "Name",
+      "Email",
+      "WhatsApp",
+      "Registered At",
+      "Payment Provider",
+      "Payment Status",
+      "Amount",
+    ];
+
+    const lines = [
+      header.map(csvEscape).join(","),
+      ...rows.map((r) =>
+        [
+          r.nickname ?? "",
+          r.attendee_name ?? "",
+          r.attendee_email ?? "",
+          r.attendee_whatsapp ?? "",
+          r.registered_at ? new Date(r.registered_at).toISOString() : "",
+          r.payment_provider ?? "",
+          r.payment_status ?? "",
+          centsToUsdLabel(r.amount_cents, r.currency),
+        ]
+          .map(csvEscape)
+          .join(",")
+      ),
+    ];
+
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+
+    const safeTitle = (event?.title ?? "event").replace(/[^\w\-]+/g, "_").slice(0, 60);
+    const filename = `${safeTitle}_registrations.csv`; // Excel abre direto
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // ✅ CONFIRMAÇÃO pós-checkout (mantido)
   useEffect(() => {
     if (!eventId) return;
 
@@ -267,12 +370,18 @@ export default function EventDetailPage() {
       if (error) {
         setError(error.message || "Failed to load event.");
         setEvent(null);
+        setIsOwner(false);
       } else {
         const e = (data as EventRow) ?? null;
         setEvent(e);
 
         const owner = !!(user?.id && e?.organizer_id && user.id === e.organizer_id);
         setIsOwner(owner);
+
+        // ✅ Se for owner, já carrega as inscrições privadas
+        if (owner) {
+          loadOwnerRegs(eventId);
+        }
       }
 
       setLoading(false);
@@ -282,9 +391,10 @@ export default function EventDetailPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, eventId]);
 
-  // Carrega lista pública + contagem + minha inscrição
+  // Lista pública + contagem + minha inscrição
   useEffect(() => {
     if (!eventId) return;
 
@@ -433,6 +543,9 @@ export default function EventDetailPage() {
       setIsRegistered(true);
       setInfo("Registration confirmed!");
       await refreshPublicRegs(eventId);
+
+      // ✅ Se owner estiver olhando o próprio evento, refresca tabela também
+      if (isOwner) await loadOwnerRegs(eventId);
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
     } finally {
@@ -473,7 +586,6 @@ export default function EventDetailPage() {
 
   const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
 
-  // ✅ Campos explícitos (do organizador)
   const titleText = fieldValue(event?.title ?? null);
   const sportText = fieldValue(event?.sport ?? null);
   const dateText = event?.date ? formatDateTime(event.date) : "—";
@@ -621,50 +733,28 @@ export default function EventDetailPage() {
             ) : null}
           </div>
 
-          {/* ✅ NOVO: Detalhes do evento (campos do organizador) */}
+          {/* Detalhes do evento */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 8px 0" }}>Detalhes do evento</h2>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr",
-                gap: 10,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>Title</span>
-                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{titleText}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>Sport</span>
-                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{sportText}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>Date &amp; Time</span>
-                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{dateText}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>Address</span>
-                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{addressText}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>City</span>
-                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{cityText}</span>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <span style={{ fontSize: 13, color: "#9ca3af" }}>State</span>
-                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{stateText}</span>
-              </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+              {[
+                ["Title", titleText],
+                ["Sport", sportText],
+                ["Date & Time", dateText],
+                ["Address", addressText],
+                ["City", cityText],
+                ["State", stateText],
+              ].map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <span style={{ fontSize: 13, color: "#9ca3af" }}>{k}</span>
+                  <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{v}</span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Local + mapa continua (ótimo) */}
+          {/* Local + mapa */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Local</h2>
             <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{addressFull}</p>
@@ -681,6 +771,7 @@ export default function EventDetailPage() {
             </div>
           ) : null}
 
+          {/* Contato do organizador */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Contato do organizador</h2>
 
@@ -695,6 +786,7 @@ export default function EventDetailPage() {
 
           <div ref={formAnchorRef} />
 
+          {/* Form inscrição */}
           <label style={labelStyle}>
             Nickname (visível para todos)
             <input
@@ -716,11 +808,6 @@ export default function EventDetailPage() {
               onChange={(e) => setAttendeeWhatsapp(e.target.value)}
               disabled={isRegistered}
             />
-            {!isRegistered ? (
-              <span style={{ display: "block", marginTop: 6, fontSize: 12, color: "#9ca3af" }}>
-                Required for the organizer to contact you.
-              </span>
-            ) : null}
           </label>
 
           {formError ? (
@@ -762,16 +849,11 @@ export default function EventDetailPage() {
                 fontWeight: 700,
               }}
             >
-              {isRegistered
-                ? "Inscrito"
-                : busy
-                ? "Processando..."
-                : (event?.price_cents ?? 0) > 0
-                ? "Pagar e Inscrever-se"
-                : "Inscrever-se"}
+              {isRegistered ? "Inscrito" : busy ? "Processando..." : (event?.price_cents ?? 0) > 0 ? "Pagar e Inscrever-se" : "Inscrever-se"}
             </button>
           </div>
 
+          {/* Participantes (público: só nickname) */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Participantes</h2>
 
@@ -802,6 +884,131 @@ export default function EventDetailPage() {
               </div>
             )}
           </div>
+
+          {/* ✅ Owner-only: tabela + export */}
+          {isOwner ? (
+            <div style={{ marginTop: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Inscritos (Organizador)</h2>
+                  <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+                    Nickname, Name, Email e WhatsApp (privado).
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <button
+                    onClick={() => loadOwnerRegs(eventId)}
+                    disabled={ownerRegsLoading}
+                    style={{
+                      fontSize: 12,
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(148,163,184,0.35)",
+                      background: "rgba(2,6,23,0.65)",
+                      color: "#e5e7eb",
+                      cursor: ownerRegsLoading ? "not-allowed" : "pointer",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {ownerRegsLoading ? "Atualizando..." : "Atualizar"}
+                  </button>
+
+                  <button
+                    onClick={exportOwnerRegsToExcelCsv}
+                    disabled={ownerRegsLoading || ownerRegs.length === 0}
+                    style={{
+                      fontSize: 12,
+                      padding: "8px 12px",
+                      borderRadius: 999,
+                      border: "1px solid rgba(56,189,248,0.55)",
+                      background: "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                      color: "#e0f2fe",
+                      cursor: ownerRegsLoading || ownerRegs.length === 0 ? "not-allowed" : "pointer",
+                      fontWeight: 800,
+                    }}
+                  >
+                    Exportar Excel
+                  </button>
+                </div>
+              </div>
+
+              {ownerRegsError ? (
+                <p style={{ margin: "10px 0 0 0", fontSize: 13, color: "#fca5a5" }}>{ownerRegsError}</p>
+              ) : null}
+
+              <div
+                style={{
+                  marginTop: 10,
+                  borderRadius: 14,
+                  border: "1px solid rgba(148,163,184,0.25)",
+                  overflowX: "auto",
+                  background: "rgba(2,6,23,0.35)",
+                }}
+              >
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+                  <thead>
+                    <tr>
+                      {["Nickname", "Name", "Email", "WhatsApp", "Registered", "Payment"].map((h) => (
+                        <th
+                          key={h}
+                          style={{
+                            textAlign: "left",
+                            padding: "10px 12px",
+                            fontSize: 12,
+                            color: "#93c5fd",
+                            borderBottom: "1px solid rgba(148,163,184,0.20)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ownerRegsLoading ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: "12px", fontSize: 13, color: "#9ca3af" }}>
+                          Carregando inscritos...
+                        </td>
+                      </tr>
+                    ) : ownerRegs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: "12px", fontSize: 13, color: "#9ca3af" }}>
+                          Nenhuma inscrição ainda.
+                        </td>
+                      </tr>
+                    ) : (
+                      ownerRegs.map((r, idx) => (
+                        <tr key={`${r.nickname ?? "row"}-${idx}`}>
+                          <td style={{ padding: "10px 12px", fontSize: 13, color: "#e5e7eb", borderBottom: "1px solid rgba(148,163,184,0.12)" }}>
+                            {fieldValue(r.nickname)}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontSize: 13, color: "#e5e7eb", borderBottom: "1px solid rgba(148,163,184,0.12)" }}>
+                            {fieldValue(r.attendee_name)}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontSize: 13, color: "#e5e7eb", borderBottom: "1px solid rgba(148,163,184,0.12)" }}>
+                            {fieldValue(r.attendee_email)}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontSize: 13, color: "#e5e7eb", borderBottom: "1px solid rgba(148,163,184,0.12)" }}>
+                            {fieldValue(r.attendee_whatsapp)}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#9ca3af", borderBottom: "1px solid rgba(148,163,184,0.12)" }}>
+                            {r.registered_at ? formatDateTime(r.registered_at) : "—"}
+                          </td>
+                          <td style={{ padding: "10px 12px", fontSize: 12, color: "#9ca3af", borderBottom: "1px solid rgba(148,163,184,0.12)" }}>
+                            {(r.payment_provider ?? "—").toUpperCase()} • {(r.payment_status ?? "—").toUpperCase()} •{" "}
+                            {centsToUsdLabel(r.amount_cents, r.currency)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </section>
       </div>
 
