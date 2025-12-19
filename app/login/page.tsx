@@ -48,7 +48,8 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        router.push("/dashboard");
+        // ✅ antes: router.push("/dashboard");
+        router.push("/events");
       } else {
         setErrorMsg(
           "Login realizado, mas não foi possível criar sessão. Tente novamente."
