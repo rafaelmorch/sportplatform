@@ -4,6 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
+function sanitizePhone(s: string): string {
+  return (s ?? "").trim().replace(/[^\d+]/g, "");
+}
+
 export async function POST(req: Request) {
   try {
     const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -22,6 +26,9 @@ export async function POST(req: Request) {
     const userId: string | undefined = body?.userId;
     const nicknameRaw: string | undefined = body?.nickname;
 
+    // ✅ novo
+    const attendeeWhatsappRaw: string | undefined = body?.attendeeWhatsapp;
+
     if (!eventId || !userId || !nicknameRaw) {
       return new NextResponse("Missing eventId/userId/nickname", { status: 400 });
     }
@@ -29,6 +36,12 @@ export async function POST(req: Request) {
     const nickname = String(nicknameRaw).trim();
     if (nickname.length < 2 || nickname.length > 24) {
       return new NextResponse("Nickname must be between 2 and 24 characters.", { status: 400 });
+    }
+
+    // ✅ WhatsApp obrigatório (para eventos pagos também)
+    const attendeeWhatsapp = sanitizePhone(String(attendeeWhatsappRaw ?? ""));
+    if (attendeeWhatsapp.length < 8) {
+      return new NextResponse("Missing/invalid attendeeWhatsapp (include country code, ex: +1407...)", { status: 400 });
     }
 
     // ✅ Não selecionar currency (coluna não existe)
@@ -51,6 +64,15 @@ export async function POST(req: Request) {
     const successUrl = `${origin}/events/${eventId}?paid=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/events/${eventId}?canceled=1`;
 
+    // ✅ opcional: puxar email do user no auth (admin) pra guardar no metadata também
+    let attendeeEmail: string | null = null;
+    try {
+      const { data } = await supabase.auth.admin.getUserById(userId);
+      attendeeEmail = data?.user?.email ?? null;
+    } catch {
+      attendeeEmail = null;
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -70,6 +92,8 @@ export async function POST(req: Request) {
         event_id: eventId,
         user_id: userId,
         nickname,
+        attendee_whatsapp: attendeeWhatsapp, // ✅ novo
+        attendee_email: attendeeEmail ?? "", // ✅ opcional
       },
     });
 
