@@ -513,33 +513,33 @@ export default function FeedPage() {
                   </p>
 
                   {/* ✅ Imagem auto-ajustada estilo eventos */}
-                  {post.image_url && (
-                    <div
-                      style={{
-                        width: "100%",
-                        height: 220,
-                        borderRadius: 14,
-                        border: "1px solid #1e293b",
-                        overflow: "hidden",
-                        background: "rgba(0,0,0,0.25)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <img
-                        src={post.image_url}
-                        alt="Foto do treino"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                      />
-                    </div>
-                  )}
+{post.image_url && (
+  <div
+    style={{
+      borderRadius: "14px",
+      overflow: "hidden",
+      border: "1px solid #1e293b",
+      marginBottom: "8px",
+      background: "rgba(0,0,0,0.25)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      maxHeight: "420px", // evita imagens gigantes
+    }}
+  >
+    <img
+      src={post.image_url}
+      alt="Foto do treino"
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "contain", // ✅ NÃO corta
+        display: "block",
+      }}
+    />
+  </div>
+)}
+
 
                   {/* Ações */}
                   <div
