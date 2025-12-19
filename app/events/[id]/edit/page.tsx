@@ -1,3 +1,4 @@
+// app/events/[id]/edit/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -25,6 +26,7 @@ type EventRow = {
 
   organizer_whatsapp: string | null;
   image_path: string | null;
+  image_url: string | null; // legado (se existir)
   organizer_id: string | null;
 };
 
@@ -54,39 +56,30 @@ export default function EditEventPage() {
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // campos (mantendo seu padrão: city+state voltaram, sport texto, etc.)
+  // campos (mantendo seu padrão)
   const [title, setTitle] = useState("");
   const [sport, setSport] = useState("");
   const [description, setDescription] = useState("");
-  const [date, setDate] = useState(""); // input datetime-local (ISO sem timezone)
+  const [date, setDate] = useState(""); // datetime-local
 
   const [addressText, setAddressText] = useState("");
   const [city, setCity] = useState("");
   const [stateUS, setStateUS] = useState("");
 
   const [capacity, setCapacity] = useState("");
-  const [waitlist, setWaitlist] = useState(""); // opcional
+  const [waitlist, setWaitlist] = useState("");
   const [priceUsd, setPriceUsd] = useState("");
-
   const [whatsapp, setWhatsapp] = useState("");
 
-  // ✅ imagem: manter layout, apenas adicionar troca
+  // imagem
   const [currentImagePath, setCurrentImagePath] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-
-  function onPickImage(file: File | null) {
-    setImageFile(file);
-    if (!file) {
-      setImagePreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setImagePreview(url);
-  }
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [newPreviewUrl, setNewPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -108,7 +101,7 @@ export default function EditEventPage() {
       const { data, error: e } = await supabase
         .from("events")
         .select(
-          "id,title,sport,description,date,address_text,city,state,capacity,waitlist_capacity,price_cents,organizer_whatsapp,image_path,organizer_id"
+          "id,title,sport,description,date,address_text,city,state,capacity,waitlist_capacity,price_cents,organizer_whatsapp,image_path,image_url,organizer_id"
         )
         .eq("id", eventId)
         .single();
@@ -123,7 +116,6 @@ export default function EditEventPage() {
 
       const ev = data as EventRow;
 
-      // segurança: se não for o dono, vai falhar no update depois via RLS, mas já avisamos aqui
       if (ev.organizer_id && ev.organizer_id !== user.id) {
         setError("Você não é o organizador deste evento.");
         setLoading(false);
@@ -134,8 +126,6 @@ export default function EditEventPage() {
       setSport(ev.sport ?? "");
       setDescription(ev.description ?? "");
 
-      // transformar ISO -> datetime-local
-      // (sem ficar doido com timezone: pega os primeiros 16 chars)
       setDate(ev.date ? ev.date.slice(0, 16) : "");
 
       setAddressText(ev.address_text ?? "");
@@ -148,8 +138,9 @@ export default function EditEventPage() {
 
       setWhatsapp(ev.organizer_whatsapp ?? "");
 
-      // ✅ guardar imagem atual
       setCurrentImagePath(ev.image_path ?? null);
+      const img = getPublicImageUrl(ev.image_path ?? null) || ev.image_url || null;
+      setCurrentImageUrl(img);
 
       setLoading(false);
     })();
@@ -159,6 +150,79 @@ export default function EditEventPage() {
     };
   }, [supabase, eventId]);
 
+  // preview local do file escolhido
+  useEffect(() => {
+    if (!newFile) {
+      setNewPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(newFile);
+    setNewPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [newFile]);
+
+  async function handleUploadImage() {
+    if (!eventId) return;
+    if (!newFile) {
+      setError("Selecione uma imagem primeiro.");
+      return;
+    }
+
+    setUploadBusy(true);
+    setError(null);
+    setInfo(null);
+
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes.user;
+      if (!user) throw new Error("Você precisa estar logado.");
+
+      // validação simples
+      if (!newFile.type.startsWith("image/")) {
+        throw new Error("Arquivo inválido. Envie uma imagem.");
+      }
+
+      // caminho no bucket
+      const safeName = newFile.name.replace(/\s+/g, "-");
+      const newPath = `events/${eventId}/${Date.now()}-${safeName}`;
+
+      // upload
+      const { error: upErr } = await supabase.storage
+        .from("event-images")
+        .upload(newPath, newFile, { upsert: true, contentType: newFile.type });
+
+      if (upErr) throw new Error(upErr.message);
+
+      // atualizar tabela
+      const { error: dbErr } = await supabase
+        .from("events")
+        .update({
+          image_path: newPath,
+          // se você quiser “matar” legado:
+          // image_url: null,
+        })
+        .eq("id", eventId);
+
+      if (dbErr) throw new Error(dbErr.message);
+
+      // opcional: remove a antiga (não falha o fluxo se der erro)
+      if (currentImagePath && currentImagePath !== newPath) {
+        await supabase.storage.from("event-images").remove([currentImagePath]);
+      }
+
+      setCurrentImagePath(newPath);
+      const publicUrl = getPublicImageUrl(newPath);
+      setCurrentImageUrl(publicUrl);
+
+      setNewFile(null);
+      setInfo("Imagem atualizada com sucesso!");
+    } catch (e: any) {
+      setError(e?.message ?? "Falha ao atualizar imagem.");
+    } finally {
+      setUploadBusy(false);
+    }
+  }
+
   async function handleSave() {
     if (!eventId) return;
 
@@ -167,7 +231,6 @@ export default function EditEventPage() {
     setInfo(null);
 
     try {
-      // validações
       if (title.trim().length < 3) throw new Error("Título é obrigatório (mín. 3).");
       if (sport.trim().length < 2) throw new Error("Esporte é obrigatório.");
       if (!date.trim()) throw new Error("Data e hora são obrigatórias.");
@@ -190,28 +253,10 @@ export default function EditEventPage() {
       const priceCents = centsFromUsd(priceUsd);
       if (priceCents == null) throw new Error("Price (USD) inválido.");
 
-      // ✅ se escolheu imagem, faz upload e define novo image_path
-      let newImagePath: string | null = null;
-
-      if (imageFile) {
-        const ext = imageFile.name.split(".").pop()?.toLowerCase() || "jpg";
-        const fileName = `${eventId}-${Date.now()}.${ext}`;
-        const filePath = `${eventId}/${fileName}`;
-
-        const { error: upErr } = await supabase.storage
-          .from("event-images")
-          .upload(filePath, imageFile, { upsert: true });
-
-        if (upErr) throw new Error(upErr.message);
-
-        newImagePath = filePath;
-      }
-
-      const payload: any = {
+      const payload = {
         title: title.trim(),
         sport: sport.trim(),
         description: description.trim() || null,
-        // salvar ISO com timezone Z: adiciona ":00Z" se vier datetime-local
         date: `${date}:00.000Z`,
         address_text: addressText.trim(),
         city: city.trim(),
@@ -220,17 +265,10 @@ export default function EditEventPage() {
         waitlist_capacity: waitN,
         price_cents: priceCents,
         organizer_whatsapp: whatsapp.trim() || null,
-        ...(newImagePath ? { image_path: newImagePath } : {}),
       };
 
       const { error: upErr } = await supabase.from("events").update(payload).eq("id", eventId);
       if (upErr) throw new Error(upErr.message);
-
-      if (newImagePath) {
-        setCurrentImagePath(newImagePath);
-        setImageFile(null);
-        setImagePreview(null);
-      }
 
       setInfo("Evento atualizado com sucesso!");
     } catch (e: any) {
@@ -252,8 +290,15 @@ export default function EditEventPage() {
     outline: "none",
   };
 
-  const currentImageUrl =
-    imagePreview || getPublicImageUrl(currentImagePath) || null;
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 18,
+    border: "1px solid rgba(148,163,184,0.35)",
+    background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+    padding: 14,
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  };
 
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#020617", color: "#e5e7eb", padding: 16, paddingBottom: 80 }}>
@@ -263,9 +308,7 @@ export default function EditEventPage() {
             <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b", margin: 0 }}>
               Eventos
             </p>
-            <h1 style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 0 0" }}>
-              Alterar evento
-            </h1>
+            <h1 style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 0 0" }}>Alterar evento</h1>
           </div>
 
           <div style={{ display: "flex", gap: 10 }}>
@@ -281,66 +324,71 @@ export default function EditEventPage() {
         {error ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p> : null}
         {info ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p> : null}
 
-        <section
-          style={{
-            borderRadius: 18,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: 14,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        {/* IMAGEM */}
+        <section style={cardStyle}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Imagem do evento</h2>
+
+          <div
+            style={{
+              width: "100%",
+              height: 220,
+              borderRadius: 14,
+              border: "1px solid rgba(148,163,184,0.25)",
+              overflow: "hidden",
+              background: "rgba(0,0,0,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {(newPreviewUrl || currentImageUrl) ? (
+              <img
+                src={newPreviewUrl || currentImageUrl || ""}
+                alt="event image"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            ) : (
+              <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
+            )}
+          </div>
+
+          <label style={labelStyle}>
+            Trocar imagem
+            <input
+              style={inputStyle}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNewFile(e.target.files?.[0] ?? null)}
+              disabled={loading || uploadBusy}
+            />
+          </label>
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={handleUploadImage}
+              disabled={loading || uploadBusy || !newFile}
+              style={{
+                fontSize: 12,
+                padding: "10px 12px",
+                borderRadius: 999,
+                border: "1px solid rgba(56,189,248,0.55)",
+                background: "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                color: "#e0f2fe",
+                fontWeight: 900,
+                cursor: loading || uploadBusy || !newFile ? "not-allowed" : "pointer",
+              }}
+            >
+              {uploadBusy ? "Enviando..." : "Salvar imagem"}
+            </button>
+          </div>
+        </section>
+
+        {/* FORM */}
+        <section style={{ ...cardStyle, marginTop: 12 }}>
           {loading ? (
             <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Carregando...</p>
           ) : (
             <>
-              {/* ✅ IMAGEM (novo) */}
-              <div>
-                <p style={{ ...labelStyle, margin: 0 }}>Imagem do evento</p>
-
-                <div
-                  style={{
-                    marginTop: 10,
-                    width: "100%",
-                    height: 180,
-                    borderRadius: 14,
-                    border: "1px solid rgba(148,163,184,0.25)",
-                    overflow: "hidden",
-                    background: "rgba(0,0,0,0.25)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {currentImageUrl ? (
-                    <img
-                      src={currentImageUrl}
-                      alt="Event image"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
-                  )}
-                </div>
-
-                <div style={{ marginTop: 10 }}>
-                  <label style={labelStyle}>
-                    Trocar imagem
-                    <input
-                      style={inputStyle}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#9ca3af" }}>
-                    Dica: escolha uma imagem e clique em <b>Salvar alterações</b>.
-                  </p>
-                </div>
-              </div>
-
               <label style={labelStyle}>
                 Title *
                 <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -392,9 +440,7 @@ export default function EditEventPage() {
 
               <label style={labelStyle}>
                 WhatsApp do organizador *{" "}
-                <span style={{ color: "#9ca3af", fontWeight: 400 }}>
-                  (Só aparecerá para quem confirmar a inscrição)
-                </span>
+                <span style={{ color: "#9ca3af", fontWeight: 400 }}>(Só aparecerá para quem confirmar a inscrição)</span>
                 <input style={inputStyle} placeholder="+1..." value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
               </label>
 
