@@ -1,224 +1,439 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
 
+function toCents(usdText: string): number | null {
+  const v = (usdText ?? "").trim();
+  if (!v) return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+}
+
 export default function NewEventPage() {
-  const supabase = supabaseBrowser;
+  const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
 
+  // Campos (não mexer)
   const [title, setTitle] = useState("");
   const [sport, setSport] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(""); // datetime-local
 
-  const [address, setAddress] = useState("");
+  const [addressText, setAddressText] = useState("");
   const [city, setCity] = useState("");
-  const [state, setState] = useState("");
+  const [stateUS, setStateUS] = useState("");
 
-  const [capacity, setCapacity] = useState("");
-  const [waitlist, setWaitlist] = useState("");
-  const [price, setPrice] = useState("");
+  const [capacity, setCapacity] = useState(""); // obrigatório (vazio)
+  const [waitlist, setWaitlist] = useState(""); // opcional (vazio)
+  const [priceUsd, setPriceUsd] = useState(""); // obrigatório (vazio)
 
   const [whatsapp, setWhatsapp] = useState("");
 
+  const [description, setDescription] = useState("");
+
+  // Imagem (opcional)
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
-  async function handleSubmit() {
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#60a5fa",
+    margin: 0,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    marginTop: 6,
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "#374151",
+    color: "#ffffff",
+    outline: "none",
+  };
+
+  async function handleCreate() {
+    setBusy(true);
     setError(null);
-    setLoading(true);
+    setInfo(null);
 
     try {
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes.user;
-      if (!user) throw new Error("Você precisa estar logado.");
+      if (!user) throw new Error("Você precisa estar logado para criar evento.");
 
-      if (
-        !title ||
-        !sport ||
-        !date ||
-        !address ||
-        !city ||
-        !state ||
-        !capacity ||
-        !price ||
-        !whatsapp
-      ) {
-        throw new Error("Preencha todos os campos obrigatórios.");
+      // validações (todos obrigatórios exceto waitlist/description/image)
+      const t = title.trim();
+      const sp = sport.trim();
+      const ad = addressText.trim();
+      const ci = city.trim();
+      const st = stateUS.trim();
+      const wa = whatsapp.trim();
+
+      if (t.length < 3) throw new Error("Title * é obrigatório.");
+      if (sp.length < 2) throw new Error("Sport * é obrigatório.");
+      if (!date.trim()) throw new Error("Date & Time * é obrigatório.");
+
+      if (ad.length < 5) throw new Error("Address (texto completo) * é obrigatório.");
+      if (ci.length < 2) throw new Error("City * é obrigatório.");
+      if (st.length < 2) throw new Error("State * é obrigatório.");
+
+      if (!capacity.trim()) throw new Error("Capacity * é obrigatório.");
+      const capN = Number(capacity);
+      if (!Number.isFinite(capN) || capN <= 0) throw new Error("Capacity deve ser um número > 0.");
+
+      let waitN: number | null = null;
+      if (waitlist.trim()) {
+        const wn = Number(waitlist);
+        if (!Number.isFinite(wn) || wn < 0) throw new Error("Waitlist deve ser vazio ou número >= 0.");
+        waitN = wn;
       }
 
+      if (!priceUsd.trim()) throw new Error("Price (USD) * é obrigatório.");
+      const cents = toCents(priceUsd);
+      if (cents == null) throw new Error("Price (USD) inválido.");
+
+      if (wa.length < 6) throw new Error("WhatsApp do organizador * é obrigatório.");
+
+      // Upload (opcional)
       let imagePath: string | null = null;
-
       if (imageFile) {
-        const fileExt = imageFile.name.split(".").pop();
-        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const ext = imageFile.name.split(".").pop() || "jpg";
+        const fileName = `${crypto.randomUUID()}.${ext}`;
 
-        const { error: uploadErr } = await supabase.storage
+        const { error: upErr } = await supabase.storage
           .from("event-images")
-          .upload(fileName, imageFile, {
-            cacheControl: "3600",
-            upsert: false,
-          });
+          .upload(fileName, imageFile, { cacheControl: "3600", upsert: false });
 
-        if (uploadErr) {
-          throw new Error("Falha no upload da imagem.");
+        if (upErr) {
+          throw new Error(upErr.message || "Falha no upload da imagem.");
         }
 
         imagePath = fileName;
       }
 
+      // Salvar (IMPORTANTÍSSIMO: organizer_id)
       const { data, error: insErr } = await supabase
         .from("events")
         .insert({
-          organizer_id: user.id, // ✅ FUNDAMENTAL
-          title: title.trim(),
-          sport: sport.trim(),
+          organizer_id: user.id, // ✅ AQUI
+          title: t,
+          sport: sp,
           description: description.trim() || null,
-          date: new Date(date).toISOString(),
-
-          address_text: address.trim(),
-          city: city.trim(),
-          state: state.trim(),
-
-          capacity: Number(capacity),
-          waitlist_capacity: waitlist ? Number(waitlist) : null,
-          price_cents: Math.round(Number(price) * 100),
-
-          organizer_whatsapp: whatsapp.trim(),
+          // salva ISO
+          date: `${date}:00.000Z`,
+          address_text: ad,
+          city: ci,
+          state: st,
+          capacity: capN,
+          waitlist_capacity: waitN,
+          price_cents: cents,
+          organizer_whatsapp: wa,
           image_path: imagePath,
         })
         .select("id")
         .single();
 
-      if (insErr) throw insErr;
+      if (insErr) throw new Error(insErr.message);
 
+      setInfo("Evento publicado!");
       router.push(`/events/${data.id}`);
     } catch (e: any) {
-      setError(e.message || "Erro ao criar evento.");
+      setError(e?.message ?? "Falha ao criar evento.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   }
-
-  const labelStyle = {
-    fontSize: 12,
-    color: "#60a5fa",
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 12,
-    background: "#374151",
-    color: "#ffffff",
-    border: "1px solid rgba(148,163,184,0.25)",
-    outline: "none",
-  };
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#020617",
+        backgroundColor: "#020617",
         color: "#e5e7eb",
-        padding: 16,
-        paddingBottom: 80,
+        padding: "16px",
+        paddingBottom: "80px",
       }}
     >
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>
-          Criar evento
-        </h1>
-        <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 16 }}>
-          Preencha os campos obrigatórios (*) e publique seu evento.
-        </p>
-
-        {error && (
-          <p style={{ fontSize: 13, color: "#fca5a5", marginBottom: 12 }}>
-            {error}
-          </p>
-        )}
-
-        {/* Básico */}
-        <label style={labelStyle}>Título *</label>
-        <input style={inputStyle} value={title} onChange={(e) => setTitle(e.target.value)} />
-
-        <label style={labelStyle}>Esporte *</label>
-        <input style={inputStyle} value={sport} onChange={(e) => setSport(e.target.value)} />
-
-        <label style={labelStyle}>Data e horário *</label>
-        <input type="datetime-local" style={inputStyle} value={date} onChange={(e) => setDate(e.target.value)} />
-
-        {/* Local */}
-        <label style={labelStyle}>Address (texto completo) *</label>
-        <input style={inputStyle} value={address} onChange={(e) => setAddress(e.target.value)} />
-
-        <label style={labelStyle}>City *</label>
-        <input style={inputStyle} value={city} onChange={(e) => setCity(e.target.value)} />
-
-        <label style={labelStyle}>State *</label>
-        <input style={inputStyle} value={state} onChange={(e) => setState(e.target.value)} />
-
-        {/* Capacidade */}
-        <label style={labelStyle}>Capacity *</label>
-        <input type="number" style={inputStyle} value={capacity} onChange={(e) => setCapacity(e.target.value)} />
-
-        <label style={labelStyle}>Waitlist (opcional)</label>
-        <input type="number" style={inputStyle} value={waitlist} onChange={(e) => setWaitlist(e.target.value)} />
-
-        {/* Preço */}
-        <label style={labelStyle}>Price (USD) *</label>
-        <input type="number" step="0.01" style={inputStyle} value={price} onChange={(e) => setPrice(e.target.value)} />
-
-        {/* WhatsApp */}
-        <label style={labelStyle}>
-          WhatsApp do organizador *{" "}
-          <span style={{ color: "#9ca3af" }}>
-            (Só aparecerá para quem confirmar a inscrição)
-          </span>
-        </label>
-        <input style={inputStyle} value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} />
-
-        {/* Descrição */}
-        <label style={labelStyle}>Descrição</label>
-        <textarea
-          style={{ ...inputStyle, minHeight: 80 }}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-
-        {/* Imagem */}
-        <label style={labelStyle}>Imagem do evento (opcional)</label>
-        <input
-          type="file"
-          accept="image/png,image/jpeg"
-          onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-        />
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        {/* Header no mesmo estilo do Groups */}
+        <header
           style={{
-            marginTop: 20,
-            padding: "12px 20px",
-            borderRadius: 999,
-            fontWeight: 700,
-            background:
-              "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
-            border: "1px solid rgba(56,189,248,0.6)",
-            color: "#e0f2fe",
-            cursor: loading ? "not-allowed" : "pointer",
+            marginBottom: 20,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
           }}
         >
-          {loading ? "Publicando..." : "Publicar evento"}
-        </button>
+          <p
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "#64748b",
+              margin: 0,
+            }}
+          >
+            Eventos
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+              Criar evento
+            </h1>
+
+            <Link
+              href="/events"
+              style={{
+                fontSize: 12,
+                color: "#93c5fd",
+                textDecoration: "underline",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Voltar
+            </Link>
+          </div>
+
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            Campos com <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
+            são obrigatórios.
+          </p>
+        </header>
+
+        {error ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
+            {error}
+          </p>
+        ) : null}
+
+        {info ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
+            {info}
+          </p>
+        ) : null}
+
+        {/* Card padrão Groups */}
+        <section
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background:
+              "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+            padding: "14px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+          }}
+        >
+          {/* Title */}
+          <label style={labelStyle}>
+            Title <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            <input
+              style={inputStyle}
+              placeholder="Ex: Long Run de Domingo"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+
+          {/* Sport */}
+          <label style={labelStyle}>
+            Sport <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            <input
+              style={inputStyle}
+              placeholder="Ex: Running, Cycling, Functional..."
+              value={sport}
+              onChange={(e) => setSport(e.target.value)}
+            />
+          </label>
+
+          {/* Date */}
+          <label style={labelStyle}>
+            Date & Time{" "}
+            <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            <input
+              style={inputStyle}
+              type="datetime-local"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+
+          {/* Address */}
+          <label style={labelStyle}>
+            Address (texto completo){" "}
+            <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+            <input
+              style={inputStyle}
+              placeholder="Ex: 123 Main St"
+              value={addressText}
+              onChange={(e) => setAddressText(e.target.value)}
+            />
+          </label>
+
+          {/* City + State */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <label style={{ ...labelStyle, flex: "1 1 220px" }}>
+              City <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+              <input
+                style={inputStyle}
+                placeholder="Ex: Orlando"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </label>
+
+            <label style={{ ...labelStyle, flex: "1 1 140px" }}>
+              State <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+              <input
+                style={inputStyle}
+                placeholder="Ex: FL"
+                value={stateUS}
+                onChange={(e) => setStateUS(e.target.value)}
+              />
+            </label>
+          </div>
+
+          {/* Capacity + Waitlist + Price */}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <label style={{ ...labelStyle, flex: "1 1 180px" }}>
+              Capacity{" "}
+              <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+              <input
+                style={inputStyle}
+                inputMode="numeric"
+                placeholder="Ex: 20"
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
+              />
+            </label>
+
+            <label style={{ ...labelStyle, flex: "1 1 180px" }}>
+              Waitlist (opcional)
+              <input
+                style={inputStyle}
+                inputMode="numeric"
+                placeholder="Ex: 10"
+                value={waitlist}
+                onChange={(e) => setWaitlist(e.target.value)}
+              />
+            </label>
+
+            <label style={{ ...labelStyle, flex: "1 1 180px" }}>
+              Price (USD){" "}
+              <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
+              <input
+                style={inputStyle}
+                inputMode="decimal"
+                placeholder="Ex: 15.00 (0 = Free)"
+                value={priceUsd}
+                onChange={(e) => setPriceUsd(e.target.value)}
+              />
+            </label>
+          </div>
+
+          {/* WhatsApp */}
+          <label style={labelStyle}>
+            WhatsApp do organizador{" "}
+            <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
+            <span style={{ color: "#9ca3af", fontWeight: 400 }}>
+              (Só aparecerá para quem confirmar a inscrição)
+            </span>
+            <input
+              style={inputStyle}
+              placeholder="Ex: +1 407 555 1234"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+            />
+          </label>
+
+          {/* Description */}
+          <label style={labelStyle}>
+            Description (opcional)
+            <textarea
+              style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
+              placeholder="Descreva o evento, ponto de encontro, ritmo, regras, etc."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </label>
+
+          {/* Image */}
+          <label style={labelStyle}>
+            Imagem do evento (opcional)
+            <input
+              style={{
+                ...inputStyle,
+                padding: "10px 12px",
+              }}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+            />
+            <span
+              style={{
+                display: "block",
+                marginTop: 6,
+                fontSize: 12,
+                color: "#9ca3af",
+              }}
+            >
+              Dica: use uma imagem em formato horizontal para ficar bonita na lista.
+            </span>
+          </label>
+
+          {/* CTA no padrão */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
+              marginTop: 6,
+            }}
+          >
+            <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+              Ao publicar, o evento fica visível para usuários logados.
+            </p>
+
+            <button
+              onClick={handleCreate}
+              disabled={busy}
+              style={{
+                fontSize: 12,
+                padding: "10px 12px",
+                borderRadius: 999,
+                border: "1px solid rgba(56,189,248,0.55)",
+                background:
+                  "linear-gradient(135deg, rgba(8,47,73,0.95), rgba(12,74,110,0.95))",
+                color: "#e0f2fe",
+                cursor: busy ? "not-allowed" : "pointer",
+                fontWeight: 800,
+              }}
+            >
+              {busy ? "Publicando..." : "Publicar"}
+            </button>
+          </div>
+        </section>
       </div>
 
       <BottomNavbar />
