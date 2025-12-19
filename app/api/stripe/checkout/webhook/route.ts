@@ -17,7 +17,6 @@ export async function POST(req: Request) {
     return new NextResponse("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY", { status: 500 });
   }
 
-  // ✅ Use a versão que você já está usando no projeto (não precisa mexer nisso agora)
   const stripe = new Stripe(secretKey, { apiVersion: "2025-02-24.acacia" as any });
   const supabase = createClient(supabaseUrl, serviceRole);
 
@@ -44,8 +43,17 @@ export async function POST(req: Request) {
       const userId = metadata.user_id;
       const nickname = (metadata.nickname || "").trim();
 
+      // ✅ novo
+      const attendeeWhatsapp = (metadata.attendee_whatsapp || "").trim();
+      const attendeeEmail = (metadata.attendee_email || "").trim();
+
       if (!eventId || !userId || !nickname) {
         return new NextResponse("Missing metadata: event_id/user_id/nickname", { status: 400 });
+      }
+
+      // ✅ whatsapp obrigatório (você pediu isso)
+      if (!attendeeWhatsapp || attendeeWhatsapp.length < 8) {
+        return new NextResponse("Missing metadata: attendee_whatsapp", { status: 400 });
       }
 
       const amountCents = session.amount_total ?? null;
@@ -53,9 +61,7 @@ export async function POST(req: Request) {
       const paymentIntentId =
         typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-      // ✅ IMPORTANTÍSSIMO:
-      // - marca também status = confirmed
-      // - mantém idempotência com onConflict event_id,user_id
+      // ✅ Idempotência por (event_id,user_id)
       const { error: upsertErr } = await supabase
         .from("event_registrations")
         .upsert(
@@ -65,13 +71,17 @@ export async function POST(req: Request) {
             nickname,
             registered_at: new Date().toISOString(),
 
-            status: "confirmed", // ✅ garante que aparece no fluxo/painel se você filtrar por status
+            status: "confirmed",
 
             payment_provider: "stripe",
             payment_status: "paid",
             amount_cents: amountCents,
             currency,
             provider_payment_intent_id: paymentIntentId,
+
+            // ✅ novo (precisa existir como coluna na tabela)
+            attendee_whatsapp: attendeeWhatsapp,
+            attendee_email: attendeeEmail || null,
           },
           { onConflict: "event_id,user_id" }
         );
