@@ -91,8 +91,12 @@ function getPublicImageUrl(path: string | null): string | null {
 }
 
 function normalizePhone(input: string): string {
-  // bem simples: mantém + e dígitos
   return input.trim().replace(/[^\d+]/g, "");
+}
+
+function fieldValue(v: string | null | undefined): string {
+  const t = (v ?? "").trim();
+  return t.length ? t : "—";
 }
 
 /* ================= Page ================= */
@@ -119,17 +123,13 @@ export default function EventDetailPage() {
   const [busy, setBusy] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // erro global (stripe/supabase/network)
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // erro do formulário (nickname/whatsapp) — aparece perto dos inputs
   const [formError, setFormError] = useState<string | null>(null);
 
-  // confirma pós-checkout
   const [confirming, setConfirming] = useState(false);
 
-  // âncora para rolar até o form
   const formAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const labelStyle: React.CSSProperties = {
@@ -171,7 +171,7 @@ export default function EventDetailPage() {
     setRegistrationsCount(count ?? 0);
   }
 
-  // ✅ CONFIRMAÇÃO pós-checkout (remove o "travado" no Payment received)
+  // ✅ CONFIRMAÇÃO pós-checkout
   useEffect(() => {
     if (!eventId) return;
 
@@ -205,7 +205,6 @@ export default function EventDetailPage() {
             throw new Error(t || "Failed to confirm payment.");
           }
 
-          // atualiza estado local
           const { data: userRes } = await supabase.auth.getUser();
           const user = userRes.user;
 
@@ -226,7 +225,6 @@ export default function EventDetailPage() {
           if (!cancelled) {
             await refreshPublicRegs(eventId);
             setInfo("Registration confirmed!");
-            // limpa query string para não ficar preso no estado
             router.replace(`/events/${eventId}`);
           }
         } catch (e: any) {
@@ -243,7 +241,7 @@ export default function EventDetailPage() {
     }
   }, [eventId, searchParams, confirming, router, supabase]);
 
-  // Carrega evento + define isOwner
+  // Carrega evento + isOwner
   useEffect(() => {
     if (!eventId) return;
 
@@ -343,7 +341,6 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
-  // ✅ Inscrever (pago abre Stripe em NOVA ABA; grátis insere direto)
   async function handleRegister() {
     if (!eventId) return;
 
@@ -379,7 +376,6 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
-      // Evento pago
       if (price > 0) {
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -407,7 +403,6 @@ export default function EventDetailPage() {
         return;
       }
 
-      // Evento grátis: insert direto
       const cap = event?.capacity ?? 0;
       const waitCap = event?.waitlist_capacity ?? 0;
       const totalAllowed = (cap > 0 ? cap : 0) + (waitCap > 0 ? waitCap : 0);
@@ -437,7 +432,6 @@ export default function EventDetailPage() {
 
       setIsRegistered(true);
       setInfo("Registration confirmed!");
-
       await refreshPublicRegs(eventId);
     } catch (e: any) {
       setError(e?.message ?? "Failed to register.");
@@ -446,7 +440,6 @@ export default function EventDetailPage() {
     }
   }
 
-  // Dono: apagar evento
   async function handleDelete() {
     if (!eventId) return;
     if (!isOwner) return;
@@ -470,8 +463,8 @@ export default function EventDetailPage() {
     }
   }
 
-  const address = buildAddress(event);
-  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
+  const addressFull = buildAddress(event);
+  const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(addressFull)}&output=embed`;
 
   const priceLabel = formatPrice(event?.price_cents ?? 0);
 
@@ -479,6 +472,14 @@ export default function EventDetailPage() {
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
   const img = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
+
+  // ✅ Campos explícitos (do organizador)
+  const titleText = fieldValue(event?.title ?? null);
+  const sportText = fieldValue(event?.sport ?? null);
+  const dateText = event?.date ? formatDateTime(event.date) : "—";
+  const addressText = fieldValue((event?.street ?? "").trim() || (event?.address_text ?? "").trim() || null);
+  const cityText = fieldValue(event?.city ?? null);
+  const stateText = fieldValue(event?.state ?? null);
 
   return (
     <main style={{ minHeight: "100vh", backgroundColor: "#020617", color: "#e5e7eb", padding: "16px", paddingBottom: "80px" }}>
@@ -568,11 +569,7 @@ export default function EventDetailPage() {
             }}
           >
             {img ? (
-              <img
-                src={img}
-                alt={event?.title ?? "event image"}
-                style={{ width: "100%", height: "100%", objectFit: "contain" }}
-              />
+              <img src={img} alt={event?.title ?? "event image"} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             ) : (
               <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
             )}
@@ -624,17 +621,59 @@ export default function EventDetailPage() {
             ) : null}
           </div>
 
-          {/* ✅ Local + mapa (voltou) */}
+          {/* ✅ NOVO: Detalhes do evento (campos do organizador) */}
           <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 6px 0" }}>Local</h2>
-            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{address}</p>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "8px 0 8px 0" }}>Detalhes do evento</h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: 10,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>Title</span>
+                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{titleText}</span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>Sport</span>
+                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{sportText}</span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>Date &amp; Time</span>
+                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{dateText}</span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>Address</span>
+                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{addressText}</span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>City</span>
+                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{cityText}</span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>State</span>
+                <span style={{ fontSize: 13, color: "#e5e7eb", fontWeight: 700, textAlign: "right" }}>{stateText}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Local + mapa continua (ótimo) */}
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Local</h2>
+            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>{addressFull}</p>
 
             <div style={{ marginTop: 10, borderRadius: 14, overflow: "hidden", border: "1px solid rgba(148,163,184,0.25)" }}>
               <iframe title="map" src={mapUrl} width="100%" height="240" style={{ border: 0 }} loading="lazy" />
             </div>
           </div>
 
-          {/* ✅ Descrição (voltou) */}
           {event?.description ? (
             <div>
               <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Descrição</h2>
@@ -642,7 +681,6 @@ export default function EventDetailPage() {
             </div>
           ) : null}
 
-          {/* ✅ Contato do organizador (voltou) */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Contato do organizador</h2>
 
@@ -655,7 +693,6 @@ export default function EventDetailPage() {
             )}
           </div>
 
-          {/* âncora para scroll do erro */}
           <div ref={formAnchorRef} />
 
           <label style={labelStyle}>
@@ -669,7 +706,6 @@ export default function EventDetailPage() {
             />
           </label>
 
-          {/* ✅ WhatsApp com texto ao lado */}
           <label style={labelStyle}>
             Your WhatsApp <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>{" "}
             <span style={{ color: "#9ca3af", fontWeight: 400 }}>(visível só para o organizador)</span>
@@ -687,7 +723,6 @@ export default function EventDetailPage() {
             ) : null}
           </label>
 
-          {/* ✅ erro do form perto do nickname/whatsapp */}
           {formError ? (
             <div
               style={{
@@ -737,7 +772,6 @@ export default function EventDetailPage() {
             </button>
           </div>
 
-          {/* Participantes (só nickname) */}
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: "10px 0 6px 0" }}>Participantes</h2>
 
