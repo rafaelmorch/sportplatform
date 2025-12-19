@@ -91,7 +91,6 @@ function getPublicImageUrl(path: string | null): string | null {
 }
 
 function normalizePhone(input: string): string {
-  // bem simples: mantém + e dígitos
   return input.trim().replace(/[^\d+]/g, "");
 }
 
@@ -110,7 +109,7 @@ export default function EventDetailPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [nickname, setNickname] = useState("");
 
-  // ✅ NOVO: WhatsApp obrigatório do inscrito
+  // WhatsApp obrigatório do inscrito
   const [attendeeWhatsapp, setAttendeeWhatsapp] = useState("");
 
   const [isOwner, setIsOwner] = useState(false);
@@ -144,11 +143,8 @@ export default function EventDetailPage() {
     const paid = searchParams?.get("paid");
     const canceled = searchParams?.get("canceled");
 
-    if (paid === "1") {
-      setInfo("Payment received. Confirming your registration...");
-    } else if (canceled === "1") {
-      setInfo("Payment canceled.");
-    }
+    if (paid === "1") setInfo("Payment received. Confirming your registration...");
+    else if (canceled === "1") setInfo("Payment canceled.");
   }, [searchParams]);
 
   // Carrega evento + define isOwner
@@ -177,6 +173,7 @@ export default function EventDetailPage() {
       if (error) {
         setError(error.message || "Failed to load event.");
         setEvent(null);
+        setIsOwner(false);
       } else {
         const e = (data as EventRow) ?? null;
         setEvent(e);
@@ -254,7 +251,7 @@ export default function EventDetailPage() {
     };
   }, [supabase, eventId]);
 
-  // ✅ Inscrever (pago abre Stripe em NOVA ABA; grátis insere direto)
+  // Inscrever (pago abre Stripe em NOVA ABA; grátis insere direto)
   async function handleRegister() {
     if (!eventId) return;
 
@@ -272,7 +269,7 @@ export default function EventDetailPage() {
         throw new Error("Nickname must be between 2 and 24 characters.");
       }
 
-      // ✅ WhatsApp obrigatório
+      // WhatsApp obrigatório
       const wa = normalizePhone(attendeeWhatsapp);
       if (wa.length < 8) {
         throw new Error("WhatsApp is required (example: +14075551234).");
@@ -286,7 +283,7 @@ export default function EventDetailPage() {
 
       const price = event?.price_cents ?? 0;
 
-      // Evento pago
+      // Evento pago -> Stripe (nova aba) e NÃO redireciona a página atual
       if (price > 0) {
         const resp = await fetch("/api/stripe/checkout", {
           method: "POST",
@@ -310,7 +307,10 @@ export default function EventDetailPage() {
         if (!url) throw new Error("Missing checkout url.");
 
         const win = window.open(url, "_blank", "noopener,noreferrer");
-        if (!win) window.location.href = url;
+        if (!win) {
+          // fallback: se popup bloqueado, aí sim usa a mesma aba
+          window.location.assign(url);
+        }
         return;
       }
 
@@ -387,7 +387,6 @@ export default function EventDetailPage() {
   const mapUrl = `https://www.google.com/maps?q=${encodeURIComponent(address)}&output=embed`;
 
   const priceLabel = formatPrice(event?.price_cents ?? 0);
-
   const cap = event?.capacity ?? 0;
   const spotsLeft = cap > 0 ? Math.max(cap - registrationsCount, 0) : null;
 
@@ -431,22 +430,6 @@ export default function EventDetailPage() {
                 }}
               >
                 Editar
-              </Link>
-
-              <Link
-                href={`/events/${eventId}/registrations`}
-                style={{
-                  fontSize: 12,
-                  padding: "8px 12px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(148,163,184,0.35)",
-                  background: "rgba(2,6,23,0.65)",
-                  color: "#e5e7eb",
-                  textDecoration: "none",
-                  fontWeight: 800,
-                }}
-              >
-                Inscritos
               </Link>
 
               <button
@@ -588,7 +571,6 @@ export default function EventDetailPage() {
             />
           </label>
 
-          {/* ✅ NOVO: WhatsApp obrigatório */}
           <label style={labelStyle}>
             Your WhatsApp <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
             <input
