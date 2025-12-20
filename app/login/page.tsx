@@ -1,14 +1,13 @@
 // app/login/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import LoginTopMenu from "@/components/LoginTopMenu";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
@@ -20,13 +19,28 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  /* 🔥 REDIRECT DEFINITIVO APÓS LOGIN (EMAIL OU GOOGLE) */
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        router.replace("/events");
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -36,20 +50,9 @@ export default function LoginPage() {
           setErrorMsg(
             "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada."
           );
-        } else if (error.message.toLowerCase().includes("invalid login")) {
-          setErrorMsg("E-mail ou senha inválidos.");
         } else {
-          setErrorMsg(error.message);
+          setErrorMsg("E-mail ou senha inválidos.");
         }
-        return;
-      }
-
-      if (data.session) {
-        router.push("/events");
-      } else {
-        setErrorMsg(
-          "Login realizado, mas não foi possível criar sessão. Tente novamente."
-        );
       }
     } catch {
       setErrorMsg("Erro inesperado ao fazer login.");
@@ -63,15 +66,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const redirectTo = `${window.location.origin}/events`;
-
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: { redirectTo },
+        options: {
+          redirectTo: `${window.location.origin}/login`,
+        },
       });
 
       if (error) {
-        setErrorMsg("Não foi possível iniciar o login social.");
+        setErrorMsg("Erro ao iniciar login social.");
         setLoading(false);
       }
     } catch {
@@ -108,45 +111,24 @@ export default function LoginPage() {
             padding: "22px 20px 20px",
           }}
         >
-          <div style={{ marginBottom: "18px" }}>
-            <div
-              style={{
-                fontSize: "12px",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "#6b7280",
-                marginBottom: "4px",
-              }}
-            >
-              SPORTPLATFORM
-            </div>
-
-            <h1
-              style={{
-                fontSize: "22px",
-                fontWeight: 700,
-                letterSpacing: "-0.04em",
-                marginBottom: "4px",
-              }}
-            >
-              Entrar na sua conta
-            </h1>
-
-            <p style={{ fontSize: "13px", color: "#9ca3af" }}>
-              Acesse seu painel para visualizar treinos, grupos e dados.
-            </p>
-          </div>
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: 700,
+              marginBottom: "12px",
+            }}
+          >
+            Entrar
+          </h1>
 
           {errorMsg && (
             <div
               style={{
                 marginBottom: "12px",
-                padding: "8px 10px",
-                borderRadius: "10px",
-                border: "1px solid rgba(239,68,68,0.45)",
-                background: "rgba(153,27,27,0.25)",
-                fontSize: "12px",
-                color: "#fecaca",
+                padding: "8px",
+                borderRadius: "8px",
+                background: "rgba(220,38,38,0.25)",
+                fontSize: "13px",
               }}
             >
               {errorMsg}
@@ -155,12 +137,7 @@ export default function LoginPage() {
 
           <form
             onSubmit={handleLogin}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              marginBottom: "14px",
-            }}
+            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
           >
             <input
               type="email"
@@ -170,10 +147,10 @@ export default function LoginPage() {
               required
               style={{
                 padding: "10px",
-                borderRadius: "12px",
-                border: "1px solid #1f2933",
-                backgroundColor: "#020617",
-                color: "#e5e7eb",
+                borderRadius: "10px",
+                border: "1px solid #1f2937",
+                background: "#020617",
+                color: "#fff",
               }}
             />
 
@@ -185,10 +162,10 @@ export default function LoginPage() {
               required
               style={{
                 padding: "10px",
-                borderRadius: "12px",
-                border: "1px solid #1f2933",
-                backgroundColor: "#020617",
-                color: "#e5e7eb",
+                borderRadius: "10px",
+                border: "1px solid #1f2937",
+                background: "#020617",
+                color: "#fff",
               }}
             />
 
@@ -200,8 +177,8 @@ export default function LoginPage() {
                 border: "none",
                 color: "#9ca3af",
                 fontSize: "12px",
-                cursor: "pointer",
                 textAlign: "right",
+                cursor: "pointer",
               }}
             >
               {showPassword ? "Esconder senha" : "Mostrar senha"}
@@ -211,10 +188,11 @@ export default function LoginPage() {
               type="submit"
               disabled={loading}
               style={{
+                marginTop: "6px",
                 padding: "10px",
                 borderRadius: "999px",
                 border: "none",
-                background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                background: "linear-gradient(135deg,#22c55e,#16a34a)",
                 color: "#020617",
                 fontWeight: 600,
                 cursor: "pointer",
@@ -224,16 +202,22 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div
+            style={{
+              marginTop: "16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+            }}
+          >
             <button
               onClick={() => handleOAuth("google")}
-              disabled={loading}
               style={{
                 padding: "10px",
                 borderRadius: "999px",
                 border: "1px solid #374151",
                 background: "transparent",
-                color: "#e5e7eb",
+                color: "#fff",
                 cursor: "pointer",
               }}
             >
@@ -242,13 +226,12 @@ export default function LoginPage() {
 
             <button
               onClick={() => handleOAuth("facebook")}
-              disabled={loading}
               style={{
                 padding: "10px",
                 borderRadius: "999px",
                 border: "1px solid #374151",
                 background: "transparent",
-                color: "#e5e7eb",
+                color: "#fff",
                 cursor: "pointer",
               }}
             >
