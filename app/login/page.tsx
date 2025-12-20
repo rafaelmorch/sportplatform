@@ -63,7 +63,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const redirectTo = `${window.location.origin}/api/auth/callback/`;
+      const redirectTo = `${window.location.origin}/events`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
