@@ -17,11 +17,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  console.log("LOGIN /login RENDERIZADO"); // debug
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -48,27 +45,39 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        // ✅ antes: router.push("/dashboard");
         router.push("/events");
       } else {
         setErrorMsg(
           "Login realizado, mas não foi possível criar sessão. Tente novamente."
         );
       }
-    } catch (err: any) {
+    } catch {
       setErrorMsg("Erro inesperado ao fazer login.");
-      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  function handleGoToSignup() {
-    router.push("/signup");
-  }
+  async function handleOAuth(provider: "google" | "facebook") {
+    setErrorMsg(null);
+    setLoading(true);
 
-  function handleForgotPassword() {
-    router.push("/forgot-password");
+    try {
+      const redirectTo = `${window.location.origin}/api/auth/callback/`;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
+
+      if (error) {
+        setErrorMsg("Não foi possível iniciar o login social.");
+        setLoading(false);
+      }
+    } catch {
+      setErrorMsg("Erro inesperado no login social.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -84,7 +93,7 @@ export default function LoginPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "120px 16px 24px", // espaço por causa do menu fixo
+          padding: "120px 16px 24px",
         }}
       >
         <div
@@ -99,12 +108,7 @@ export default function LoginPage() {
             padding: "22px 20px 20px",
           }}
         >
-          {/* Logo / título */}
-          <div
-            style={{
-              marginBottom: "18px",
-            }}
-          >
+          <div style={{ marginBottom: "18px" }}>
             <div
               style={{
                 fontSize: "12px",
@@ -116,6 +120,7 @@ export default function LoginPage() {
             >
               SPORTPLATFORM
             </div>
+
             <h1
               style={{
                 fontSize: "22px",
@@ -126,18 +131,12 @@ export default function LoginPage() {
             >
               Entrar na sua conta
             </h1>
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#9ca3af",
-              }}
-            >
-              Acesse seu painel para visualizar treinos, grupos e dados do
-              Strava.
+
+            <p style={{ fontSize: "13px", color: "#9ca3af" }}>
+              Acesse seu painel para visualizar treinos, grupos e dados.
             </p>
           </div>
 
-          {/* Mensagem de erro */}
           {errorMsg && (
             <div
               style={{
@@ -154,7 +153,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Formulário */}
           <form
             onSubmit={handleLogin}
             style={{
@@ -164,198 +162,97 @@ export default function LoginPage() {
               marginBottom: "14px",
             }}
           >
-            {/* E-mail */}
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-            >
-              <label
-                htmlFor="email"
-                style={{ fontSize: "13px", color: "#d1d5db" }}
-              >
-                E-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                placeholder="voce@exemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 11px",
-                  borderRadius: "12px",
-                  border: "1px solid #1f2933",
-                  backgroundColor: "#020617",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
-                  outline: "none",
-                }}
-              />
-            </div>
-
-            {/* Senha */}
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
-            >
-              <label
-                htmlFor="password"
-                style={{ fontSize: "13px", color: "#d1d5db" }}
-              >
-                Senha
-              </label>
-              <div
-                style={{
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  placeholder="Digite sua senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 36px 10px 11px",
-                    borderRadius: "12px",
-                    border: "1px solid #1f2933",
-                    backgroundColor: "#020617",
-                    color: "#e5e7eb",
-                    fontSize: "13px",
-                    outline: "none",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  style={{
-                    position: "absolute",
-                    right: "10px",
-                    background: "transparent",
-                    border: "none",
-                    color: "#9ca3af",
-                    cursor: "pointer",
-                    fontSize: "11px",
-                    padding: "4px",
-                  }}
-                >
-                  {showPassword ? "Esconder" : "Mostrar"}
-                </button>
-              </div>
-            </div>
-
-            {/* Esqueci senha */}
-            <div
+            <input
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginTop: "2px",
+                padding: "10px",
+                borderRadius: "12px",
+                border: "1px solid #1f2933",
+                backgroundColor: "#020617",
+                color: "#e5e7eb",
+              }}
+            />
+
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                padding: "10px",
+                borderRadius: "12px",
+                border: "1px solid #1f2933",
+                backgroundColor: "#020617",
+                color: "#e5e7eb",
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((p) => !p)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#9ca3af",
+                fontSize: "12px",
+                cursor: "pointer",
+                textAlign: "right",
               }}
             >
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  fontSize: "12px",
-                  color: "#9ca3af",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                }}
-              >
-                Esqueceu a senha?
-              </button>
-            </div>
+              {showPassword ? "Esconder senha" : "Mostrar senha"}
+            </button>
 
-            {/* Botão de login */}
             <button
               type="submit"
               disabled={loading}
               style={{
-                marginTop: "2px",
-                width: "100%",
-                padding: "10px 14px",
+                padding: "10px",
                 borderRadius: "999px",
                 border: "none",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: loading ? "wait" : "pointer",
                 background: "linear-gradient(135deg, #22c55e, #16a34a)",
                 color: "#020617",
-                boxShadow: "0 14px 40px rgba(34,197,94,0.45)",
+                fontWeight: 600,
+                cursor: "pointer",
               }}
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
 
-          {/* Separador */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <div
-              style={{
-                flex: 1,
-                height: "1px",
-                background: "linear-gradient(to right, transparent, #1f2937)",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "11px",
-                color: "#6b7280",
-                textTransform: "uppercase",
-                letterSpacing: "0.14em",
-              }}
-            >
-              ou
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: "1px",
-                background: "linear-gradient(to right, #1f2937, transparent)",
-              }}
-            />
-          </div>
-
-          {/* Link para cadastro */}
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#9ca3af",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <span>Ainda não tem conta?</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             <button
-              type="button"
-              onClick={handleGoToSignup}
+              onClick={() => handleOAuth("google")}
+              disabled={loading}
               style={{
+                padding: "10px",
                 borderRadius: "999px",
                 border: "1px solid #374151",
-                backgroundColor: "transparent",
+                background: "transparent",
                 color: "#e5e7eb",
-                padding: "7px 12px",
-                fontSize: "12px",
                 cursor: "pointer",
               }}
             >
-              Criar conta
+              Continuar com Google
+            </button>
+
+            <button
+              onClick={() => handleOAuth("facebook")}
+              disabled={loading}
+              style={{
+                padding: "10px",
+                borderRadius: "999px",
+                border: "1px solid #374151",
+                background: "transparent",
+                color: "#e5e7eb",
+                cursor: "pointer",
+              }}
+            >
+              Continuar com Facebook
             </button>
           </div>
         </div>
