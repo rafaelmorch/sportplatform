@@ -21,7 +21,6 @@ export default function LoginPage() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  /* 🔥 REDIRECT DEFINITIVO APÓS LOGIN */
   useEffect(() => {
     const {
       data: { subscription },
@@ -97,10 +96,32 @@ export default function LoginPage() {
           color: "#e5e7eb",
           padding: "120px 16px 24px",
           display: "flex",
-          justifyContent: "center",
+          flexDirection: "column",
           alignItems: "center",
         }}
       >
+        {/* LOGO FORA DO CARD - PARTE PRETA DE CIMA */}
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            marginBottom: 18,
+          }}
+        >
+          <img
+            src="/logo-sports-platform.png"
+            alt="Sports Platform"
+            style={{
+              width: 640, // 4x do 160 (referência)
+              maxWidth: "92vw", // não estoura no mobile
+              height: "auto",
+              display: "block",
+            }}
+          />
+        </div>
+
+        {/* CARD CENTRAL */}
         <div
           style={{
             width: "100%",
@@ -113,18 +134,6 @@ export default function LoginPage() {
             padding: "24px 22px 22px",
           }}
         >
-          {/* LOGO */}
-          <div style={{ textAlign: "center", marginBottom: 18 }}>
-            <img
-              src="/logo-sports-platform.png"
-              alt="Sports Platform"
-              style={{
-                width: 160,
-                marginBottom: 6,
-              }}
-            />
-          </div>
-
           <h1
             style={{
               fontSize: 22,
@@ -140,7 +149,7 @@ export default function LoginPage() {
             <div
               style={{
                 marginBottom: 12,
-                padding: "8px",
+                padding: 8,
                 borderRadius: 8,
                 background: "rgba(220,38,38,0.25)",
                 fontSize: 13,
@@ -212,12 +221,13 @@ export default function LoginPage() {
                 color: "#020617",
                 fontWeight: 700,
                 cursor: anyLoading ? "not-allowed" : "pointer",
+                opacity: anyLoading ? 0.85 : 1,
               }}
             >
               {loadingEmail ? "Entrando..." : "Entrar"}
             </button>
 
-            {/* GOOGLE LOGO ABAIXO – VERMELHO */}
+            {/* GOOGLE ABAIXO DO ENTRAR - VERMELHO */}
             <button
               type="button"
               onClick={handleGoogle}
@@ -231,6 +241,7 @@ export default function LoginPage() {
                 color: "#ffffff",
                 fontWeight: 700,
                 cursor: anyLoading ? "not-allowed" : "pointer",
+                opacity: anyLoading ? 0.85 : 1,
               }}
             >
               {loadingGoogle ? "Conectando..." : "Continuar com Google"}
