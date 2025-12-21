@@ -101,7 +101,7 @@ export async function GET(req: Request) {
 
     // ====== Save tokens on Supabase (server-side) ======
     const supabaseUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-    const serviceRole = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const serviceRole = requiredEnv("SUPABASE_SERVICE_ROLE");
 
     const admin = createClient(supabaseUrl, serviceRole, {
       auth: { persistSession: false },
