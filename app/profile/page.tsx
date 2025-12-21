@@ -1,8 +1,8 @@
-// app/profile/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 import BottomNavbar from "@/components/BottomNavbar";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -14,10 +14,13 @@ type Profile = {
 };
 
 export default function ProfilePage() {
+  const router = useRouter();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -62,7 +65,6 @@ export default function ProfilePage() {
           (user.user_metadata as any)?.full_name ||
           (user.user_metadata as any)?.name ||
           "";
-
 
         setName(currentName);
       } catch (err) {
@@ -125,6 +127,28 @@ export default function ProfilePage() {
     }
   };
 
+  const handleLogout = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setLoggingOut(true);
+
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Erro ao deslogar:", error);
+        setErrorMsg("Não foi possível sair. Tente novamente.");
+        setLoggingOut(false);
+        return;
+      }
+
+      router.replace("/login");
+    } catch (err) {
+      console.error("Erro inesperado ao deslogar:", err);
+      setErrorMsg("Erro inesperado ao sair.");
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <main
       style={{
@@ -155,45 +179,69 @@ export default function ProfilePage() {
               display: "flex",
               gap: 12,
               alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "999px",
-                background:
-                  "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#0b1120",
-              }}
-            >
-              {name ? name.charAt(0).toUpperCase() : "A"}
-            </div>
-            <div>
-              <h1
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div
                 style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "999px",
+                  background:
+                    "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   fontSize: 20,
                   fontWeight: 700,
-                  margin: 0,
+                  color: "#0b1120",
                 }}
               >
-                Meu Perfil
-              </h1>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: "#9ca3af",
-                  margin: 0,
-                }}
-              >
-                Gerencie o nome exibido na SportPlatform.
-              </p>
+                {name ? name.charAt(0).toUpperCase() : "A"}
+              </div>
+
+              <div>
+                <h1
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    margin: 0,
+                  }}
+                >
+                  Meu Perfil
+                </h1>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    margin: 0,
+                  }}
+                >
+                  Gerencie o nome exibido na SportPlatform.
+                </p>
+              </div>
             </div>
+
+            {/* Botão Sair */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              style={{
+                borderRadius: 999,
+                padding: "8px 14px",
+                border: "1px solid rgba(148,163,184,0.35)",
+                background: "rgba(2,6,23,0.6)",
+                color: "#e5e7eb",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: loggingOut ? "not-allowed" : "pointer",
+                opacity: loggingOut ? 0.7 : 1,
+              }}
+            >
+              {loggingOut ? "Saindo..." : "Sair"}
+            </button>
           </div>
         </header>
 
