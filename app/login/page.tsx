@@ -21,7 +21,7 @@ export default function LoginPage() {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  /* 🔥 REDIRECT DEFINITIVO APÓS LOGIN (EMAIL OU GOOGLE) */
+  /* 🔥 REDIRECT DEFINITIVO APÓS LOGIN */
   useEffect(() => {
     const {
       data: { subscription },
@@ -31,9 +31,7 @@ export default function LoginPage() {
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -71,7 +69,6 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // deixa o Supabase voltar para /login e o onAuthStateChange manda para /events
           redirectTo: `${window.location.origin}/login`,
         },
       });
@@ -98,152 +95,147 @@ export default function LoginPage() {
           background:
             "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
           color: "#e5e7eb",
-          padding: "120px 16px 24px", // espaço por causa do menu fixo
+          padding: "120px 16px 24px",
           display: "flex",
-          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
         }}
       >
-        {/* Área central (card) */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "420px",
-              borderRadius: "24px",
-              border: "1px solid #111827",
-              background:
-                "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
-              boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
-              padding: "22px 20px 20px",
-            }}
-          >
-            <h1
-              style={{
-                fontSize: "22px",
-                fontWeight: 700,
-                marginBottom: "12px",
-              }}
-            >
-              Entrar
-            </h1>
-
-            {errorMsg && (
-              <div
-                style={{
-                  marginBottom: "12px",
-                  padding: "8px",
-                  borderRadius: "8px",
-                  background: "rgba(220,38,38,0.25)",
-                  fontSize: "13px",
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
-
-            <form
-              onSubmit={handleLogin}
-              style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-            >
-              <input
-                type="email"
-                placeholder="E-mail"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "1px solid #1f2937",
-                  background: "#020617",
-                  color: "#fff",
-                }}
-              />
-
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "1px solid #1f2937",
-                  background: "#020617",
-                  color: "#fff",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPassword((p) => !p)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#9ca3af",
-                  fontSize: "12px",
-                  textAlign: "right",
-                  cursor: "pointer",
-                }}
-              >
-                {showPassword ? "Esconder senha" : "Mostrar senha"}
-              </button>
-
-              <button
-                type="submit"
-                disabled={anyLoading}
-                style={{
-                  marginTop: "6px",
-                  padding: "10px",
-                  borderRadius: "999px",
-                  border: "none",
-                  background: "linear-gradient(135deg,#22c55e,#16a34a)",
-                  color: "#020617",
-                  fontWeight: 600,
-                  cursor: anyLoading ? "not-allowed" : "pointer",
-                  opacity: anyLoading ? 0.8 : 1,
-                }}
-              >
-                {loadingEmail ? "Entrando..." : "Entrar"}
-              </button>
-            </form>
-          </div>
-        </div>
-
-        {/* Rodapé: Google fixo embaixo */}
         <div
           style={{
             width: "100%",
             maxWidth: "420px",
-            margin: "0 auto",
-            paddingTop: "14px",
+            borderRadius: "24px",
+            border: "1px solid #111827",
+            background:
+              "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
+            boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
+            padding: "24px 22px 22px",
           }}
         >
-          <button
-            onClick={handleGoogle}
-            disabled={anyLoading}
+          {/* LOGO */}
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <img
+              src="/logo-sports-platform.png"
+              alt="Sports Platform"
+              style={{
+                width: 160,
+                marginBottom: 6,
+              }}
+            />
+          </div>
+
+          <h1
             style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "999px",
-              border: "1px solid #374151",
-              background: "rgba(2,6,23,0.55)",
-              color: "#fff",
-              cursor: anyLoading ? "not-allowed" : "pointer",
-              opacity: anyLoading ? 0.8 : 1,
-              fontWeight: 600,
+              fontSize: 22,
+              fontWeight: 700,
+              marginBottom: 12,
+              textAlign: "center",
             }}
           >
-            {loadingGoogle ? "Conectando..." : "Continuar com Google"}
-          </button>
+            Entrar
+          </h1>
+
+          {errorMsg && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "8px",
+                borderRadius: 8,
+                background: "rgba(220,38,38,0.25)",
+                fontSize: 13,
+              }}
+            >
+              {errorMsg}
+            </div>
+          )}
+
+          <form
+            onSubmit={handleLogin}
+            style={{ display: "flex", flexDirection: "column", gap: 10 }}
+          >
+            <input
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              style={{
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid #1f2937",
+                background: "#020617",
+                color: "#fff",
+              }}
+            />
+
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid #1f2937",
+                background: "#020617",
+                color: "#fff",
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowPassword((p) => !p)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#9ca3af",
+                fontSize: 12,
+                textAlign: "right",
+                cursor: "pointer",
+              }}
+            >
+              {showPassword ? "Esconder senha" : "Mostrar senha"}
+            </button>
+
+            {/* BOTÃO ENTRAR */}
+            <button
+              type="submit"
+              disabled={anyLoading}
+              style={{
+                marginTop: 6,
+                padding: 11,
+                borderRadius: 999,
+                border: "none",
+                background: "linear-gradient(135deg,#22c55e,#16a34a)",
+                color: "#020617",
+                fontWeight: 700,
+                cursor: anyLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loadingEmail ? "Entrando..." : "Entrar"}
+            </button>
+
+            {/* GOOGLE LOGO ABAIXO – VERMELHO */}
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={anyLoading}
+              style={{
+                marginTop: 8,
+                padding: 11,
+                borderRadius: 999,
+                border: "none",
+                background: "#dc2626",
+                color: "#ffffff",
+                fontWeight: 700,
+                cursor: anyLoading ? "not-allowed" : "pointer",
+              }}
+            >
+              {loadingGoogle ? "Conectando..." : "Continuar com Google"}
+            </button>
+          </form>
         </div>
       </main>
     </>
