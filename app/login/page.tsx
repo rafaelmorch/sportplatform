@@ -1,403 +1,136 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import LoginTopMenu from "@/components/LoginTopMenu";
+import { useState } from "react";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
-  const router = useRouter();
+  const [loading, setLoading] = useState<"google" | "apple" | null>(null);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const handleLogin = async (provider: "google" | "apple") => {
+    setLoading(provider);
 
-  const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<null | "google" | "facebook">(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: "https://sportsplatform.app/events",
+      },
+    });
 
-  useEffect(() => {
-    // Se já tiver sessão, manda direto pra /events
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) router.replace("/events");
-    })();
-  }, [router]);
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setErrorMsg(null);
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes("email not confirmed")) {
-          setErrorMsg("Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.");
-        } else if (msg.includes("invalid login")) {
-          setErrorMsg("E-mail ou senha inválidos.");
-        } else {
-          setErrorMsg(error.message);
-        }
-        return;
-      }
-
-      if (data.session) {
-        router.push("/events");
-      } else {
-        setErrorMsg("Login realizado, mas não foi possível criar sessão. Tente novamente.");
-      }
-    } catch (err) {
-      setErrorMsg("Erro inesperado ao fazer login.");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleOAuth(provider: "google" | "facebook") {
-    setErrorMsg(null);
-    setOauthLoading(provider);
-
-    try {
-      const redirectTo = `${window.location.origin}/auth/callback`;
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo,
-        },
-      });
-
-      if (error) {
-        setErrorMsg(error.message);
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Erro ao iniciar login social.");
-    } finally {
-      // Nota: normalmente o browser já sai daqui para o provider,
-      // mas se falhar, liberamos o botão.
-      setOauthLoading(null);
-    }
-  }
-
-  function handleGoToSignup() {
-    router.push("/signup");
-  }
-
-  function handleForgotPassword() {
-    router.push("/forgot-password");
-  }
+    setLoading(null);
+  };
 
   return (
-    <>
-      <LoginTopMenu />
-
-      <main
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#020617",
+        color: "#e5e7eb",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        padding: "24px",
+      }}
+    >
+      {/* Conteúdo superior */}
+      <div
         style={{
-          minHeight: "100vh",
-          background:
-            "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
-          color: "#e5e7eb",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "120px 16px 24px",
+          marginTop: 40,
+          textAlign: "center",
         }}
       >
-        <div
+        <h1
           style={{
-            width: "100%",
-            maxWidth: "420px",
-            borderRadius: "24px",
-            border: "1px solid #111827",
-            background:
-              "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
-            boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
-            padding: "22px 20px 20px",
+            fontSize: 26,
+            fontWeight: 800,
+            marginBottom: 10,
           }}
         >
-          {/* Logo / título */}
-          <div style={{ marginBottom: "18px" }}>
-            <div
-              style={{
-                fontSize: "12px",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "#6b7280",
-                marginBottom: "4px",
-              }}
-            >
-              SPORTPLATFORM
-            </div>
-            <h1
-              style={{
-                fontSize: "22px",
-                fontWeight: 700,
-                letterSpacing: "-0.04em",
-                marginBottom: "4px",
-              }}
-            >
-              Entrar na sua conta
-            </h1>
-            <p style={{ fontSize: "13px", color: "#9ca3af" }}>
-              Acesse seu painel para visualizar treinos, grupos e dados do Strava.
-            </p>
-          </div>
+          SportPlatform
+        </h1>
 
-          {/* Mensagem de erro */}
-          {errorMsg && (
-            <div
-              style={{
-                marginBottom: "12px",
-                padding: "8px 10px",
-                borderRadius: "10px",
-                border: "1px solid rgba(239,68,68,0.45)",
-                background: "rgba(153,27,27,0.25)",
-                fontSize: "12px",
-                color: "#fecaca",
-              }}
-            >
-              {errorMsg}
-            </div>
-          )}
+        <p
+          style={{
+            fontSize: 14,
+            color: "#9ca3af",
+            maxWidth: 320,
+            margin: "0 auto",
+          }}
+        >
+          Conecte-se para acompanhar seus eventos, performance e desafios.
+        </p>
+      </div>
 
-          {/* OAuth buttons */}
-          <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-            <button
-              type="button"
-              onClick={() => handleOAuth("google")}
-              disabled={oauthLoading !== null}
-              style={{
-                flex: 1,
-                padding: "10px 12px",
-                borderRadius: "999px",
-                border: "1px solid #374151",
-                background: "rgba(2,6,23,0.6)",
-                color: "#e5e7eb",
-                fontSize: "13px",
-                cursor: oauthLoading ? "wait" : "pointer",
-              }}
-            >
-              {oauthLoading === "google" ? "Conectando..." : "Entrar com Google"}
-            </button>
+      {/* Botões fixos embaixo */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
+        {/* Google */}
+        <button
+          onClick={() => handleLogin("google")}
+          disabled={loading !== null}
+          style={{
+            height: 48,
+            borderRadius: 999,
+            border: "1px solid #374151",
+            background: "#020617",
+            color: "#e5e7eb",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          {loading === "google"
+            ? "Conectando..."
+            : "Continuar com Google"}
+        </button>
 
-            <button
-              type="button"
-              onClick={() => handleOAuth("facebook")}
-              disabled={oauthLoading !== null}
-              style={{
-                flex: 1,
-                padding: "10px 12px",
-                borderRadius: "999px",
-                border: "1px solid #374151",
-                background: "rgba(2,6,23,0.6)",
-                color: "#e5e7eb",
-                fontSize: "13px",
-                cursor: oauthLoading ? "wait" : "pointer",
-              }}
-            >
-              {oauthLoading === "facebook" ? "Conectando..." : "Entrar com Facebook"}
-            </button>
-          </div>
+        {/* Apple */}
+        <button
+          onClick={() => handleLogin("apple")}
+          disabled={loading !== null}
+          style={{
+            height: 48,
+            borderRadius: 999,
+            border: "none",
+            background: "#dc2626", // vermelho
+            color: "#ffffff",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {loading === "apple"
+            ? "Conectando..."
+            : "Continuar com Apple"}
+        </button>
 
-          {/* Separador */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              marginBottom: "10px",
-            }}
-          >
-            <div
-              style={{
-                flex: 1,
-                height: "1px",
-                background: "linear-gradient(to right, transparent, #1f2937)",
-              }}
-            />
-            <span
-              style={{
-                fontSize: "11px",
-                color: "#6b7280",
-                textTransform: "uppercase",
-                letterSpacing: "0.14em",
-              }}
-            >
-              ou
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: "1px",
-                background: "linear-gradient(to right, #1f2937, transparent)",
-              }}
-            />
-          </div>
-
-          {/* Formulário */}
-          <form
-            onSubmit={handleLogin}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "10px",
-              marginBottom: "14px",
-            }}
-          >
-            {/* E-mail */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label htmlFor="email" style={{ fontSize: "13px", color: "#d1d5db" }}>
-                E-mail
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                placeholder="voce@exemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 11px",
-                  borderRadius: "12px",
-                  border: "1px solid #1f2933",
-                  backgroundColor: "#020617",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
-                  outline: "none",
-                }}
-              />
-            </div>
-
-            {/* Senha */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              <label
-                htmlFor="password"
-                style={{ fontSize: "13px", color: "#d1d5db" }}
-              >
-                Senha
-              </label>
-              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  placeholder="Digite sua senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 36px 10px 11px",
-                    borderRadius: "12px",
-                    border: "1px solid #1f2933",
-                    backgroundColor: "#020617",
-                    color: "#e5e7eb",
-                    fontSize: "13px",
-                    outline: "none",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  style={{
-                    position: "absolute",
-                    right: "10px",
-                    background: "transparent",
-                    border: "none",
-                    color: "#9ca3af",
-                    cursor: "pointer",
-                    fontSize: "11px",
-                    padding: "4px",
-                  }}
-                >
-                  {showPassword ? "Esconder" : "Mostrar"}
-                </button>
-              </div>
-            </div>
-
-            {/* Esqueci senha */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
-              <button
-                type="button"
-                onClick={handleForgotPassword}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  fontSize: "12px",
-                  color: "#9ca3af",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                }}
-              >
-                Esqueceu a senha?
-              </button>
-            </div>
-
-            {/* Botão de login */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                marginTop: "2px",
-                width: "100%",
-                padding: "10px 14px",
-                borderRadius: "999px",
-                border: "none",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: loading ? "wait" : "pointer",
-                background: "linear-gradient(135deg, #22c55e, #16a34a)",
-                color: "#020617",
-                boxShadow: "0 14px 40px rgba(34,197,94,0.45)",
-              }}
-            >
-              {loading ? "Entrando..." : "Entrar"}
-            </button>
-          </form>
-
-          {/* Link para cadastro */}
-          <div
-            style={{
-              fontSize: "13px",
-              color: "#9ca3af",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <span>Ainda não tem conta?</span>
-            <button
-              type="button"
-              onClick={handleGoToSignup}
-              style={{
-                borderRadius: "999px",
-                border: "1px solid #374151",
-                backgroundColor: "transparent",
-                color: "#e5e7eb",
-                padding: "7px 12px",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
-            >
-              Criar conta
-            </button>
-          </div>
-        </div>
-      </main>
-    </>
+        <p
+          style={{
+            fontSize: 11,
+            color: "#6b7280",
+            textAlign: "center",
+            marginTop: 6,
+          }}
+        >
+          Ao continuar, você concorda com nossos termos e política de privacidade.
+        </p>
+      </div>
+    </main>
   );
 }
