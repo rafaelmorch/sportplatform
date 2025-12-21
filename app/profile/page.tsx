@@ -1,450 +1,120 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
-import BottomNavbar from "@/components/BottomNavbar";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-type Profile = {
-  full_name: string | null;
+type Connection = {
+  provider: string;
+  expires_at: string | null;
 };
 
 export default function ProfilePage() {
-  const router = useRouter();
+  const supabase = supabaseBrowser;
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState<string | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [connections, setConnections] = useState<Record<string, Connection>>(
+    {}
+  );
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setErrorMsg(null);
-        setSuccessMsg(null);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) {
-          console.error("Erro ao buscar usuário:", userError);
-          setErrorMsg("Erro ao carregar usuário.");
-          setLoadingProfile(false);
-          return;
-        }
-
-        if (!user) {
-          setErrorMsg("Você precisa estar logado para acessar o perfil.");
-          setLoadingProfile(false);
-          return;
-        }
-
-        setEmail(user.email ?? null);
-
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", user.id)
-          .maybeSingle<Profile>();
-
-        if (profileError) {
-          console.error("Erro ao buscar perfil:", profileError);
-        }
-
-        const currentName =
-          profile?.full_name ||
-          (user.user_metadata as any)?.full_name ||
-          (user.user_metadata as any)?.name ||
-          "";
-
-        setName(currentName);
-      } catch (err) {
-        console.error("Erro inesperado ao carregar perfil:", err);
-        setErrorMsg("Erro inesperado ao carregar perfil.");
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
-    loadProfile();
+    loadConnections();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
+  async function loadConnections() {
+    setLoading(true);
 
-    if (!name.trim()) {
-      setErrorMsg("Por favor, preencha o nome.");
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setLoading(false);
       return;
     }
 
-    try {
-      setSaving(true);
+    const { data, error } = await supabase
+      .from("user_oauth_connections")
+      .select("provider, expires_at");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        setErrorMsg("Você precisa estar logado para salvar o perfil.");
-        setSaving(false);
-        return;
-      }
-
-      // upsert garante que o registro exista
-      const { error: upsertError } = await supabase.from("profiles").upsert(
-        {
-          id: user.id,
-          full_name: name.trim(),
-        },
-        { onConflict: "id" } // usa id como chave única
-      );
-
-      if (upsertError) {
-        console.error("Erro ao salvar perfil:", upsertError);
-        setErrorMsg("Erro ao salvar dados do perfil.");
-        setSaving(false);
-        return;
-      }
-
-      setSuccessMsg("Perfil atualizado com sucesso!");
-      setSaving(false);
-    } catch (err) {
-      console.error("Erro inesperado ao salvar perfil:", err);
-      setErrorMsg("Erro inesperado ao salvar o perfil.");
-      setSaving(false);
+    if (!error && data) {
+      const map: Record<string, Connection> = {};
+      data.forEach((c) => {
+        map[c.provider] = c;
+      });
+      setConnections(map);
     }
-  };
 
-  const handleLogout = async () => {
-    setErrorMsg(null);
-    setSuccessMsg(null);
-    setLoggingOut(true);
+    setLoading(false);
+  }
 
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Erro ao deslogar:", error);
-        setErrorMsg("Não foi possível sair. Tente novamente.");
-        setLoggingOut(false);
-        return;
-      }
+  function isConnected(provider: string) {
+    return Boolean(connections[provider]);
+  }
 
-      router.replace("/login");
-    } catch (err) {
-      console.error("Erro inesperado ao deslogar:", err);
-      setErrorMsg("Erro inesperado ao sair.");
-      setLoggingOut(false);
-    }
-  };
+  function isExpired(provider: string) {
+    const c = connections[provider];
+    if (!c?.expires_at) return false;
+    return new Date(c.expires_at) < new Date();
+  }
+
+  if (loading) {
+    return <div className="p-6 text-white">Carregando perfil…</div>;
+  }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        padding: "16px",
-        paddingBottom: "80px", // espaço para a bottom navbar fixa
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: "0 auto",
-        }}
-      >
-        {/* Header */}
-        <header
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: "999px",
-                  background:
-                    "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: "#0b1120",
-                }}
-              >
-                {name ? name.charAt(0).toUpperCase() : "A"}
-              </div>
+    <div className="p-6 text-white space-y-6">
+      <h1 className="text-xl font-bold">Perfil</h1>
 
-              <div>
-                <h1
-                  style={{
-                    fontSize: 20,
-                    fontWeight: 700,
-                    margin: 0,
-                  }}
-                >
-                  Meu Perfil
-                </h1>
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#9ca3af",
-                    margin: 0,
-                  }}
-                >
-                  Gerencie o nome exibido na SportPlatform.
-                </p>
-              </div>
-            </div>
+      {/* CONEXÕES */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Conexões</h2>
 
-            {/* Botão Sair */}
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              style={{
-                borderRadius: 999,
-                padding: "8px 14px",
-                border: "1px solid rgba(148,163,184,0.35)",
-                background: "rgba(2,6,23,0.6)",
-                color: "#e5e7eb",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: loggingOut ? "not-allowed" : "pointer",
-                opacity: loggingOut ? 0.7 : 1,
-              }}
-            >
-              {loggingOut ? "Saindo..." : "Sair"}
-            </button>
+        {/* STRAVA */}
+        <div className="flex items-center justify-between bg-neutral-900 rounded-lg p-4">
+          <div>
+            <p className="font-medium">Strava</p>
+            {isConnected("strava") ? (
+              <p className="text-sm text-green-400">
+                {isExpired("strava")
+                  ? "Conexão expirada"
+                  : "Conectado"}
+              </p>
+            ) : (
+              <p className="text-sm text-red-400">Não conectado</p>
+            )}
           </div>
-        </header>
 
-        {/* Card de edição de nome */}
-        <section
-          style={{
-            borderRadius: 18,
-            padding: "16px 14px",
-            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-            border: "1px solid rgba(148,163,184,0.4)",
-            marginBottom: 20,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              margin: 0,
-              marginBottom: 10,
-            }}
+          <a
+            href="/api/strava/connect"
+            className="bg-orange-500 hover:bg-orange-600 text-black font-semibold px-4 py-2 rounded"
           >
-            Dados básicos
-          </h2>
+            {isConnected("strava") ? "Reconectar" : "Conectar"}
+          </a>
+        </div>
 
-          {loadingProfile ? (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              Carregando perfil...
-            </p>
-          ) : (
-            <form
-              onSubmit={handleSave}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
-                <label
-                  htmlFor="name"
-                  style={{
-                    fontSize: 12,
-                    color: "#d1d5db",
-                  }}
-                >
-                  Nome
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Seu nome"
-                  style={{
-                    borderRadius: 10,
-                    padding: "8px 10px",
-                    border: "1px solid rgba(55,65,81,0.9)",
-                    backgroundColor: "#020617",
-                    color: "#e5e7eb",
-                    fontSize: 13,
-                  }}
-                />
-                <p
-                  style={{
-                    fontSize: 11,
-                    color: "#6b7280",
-                    margin: 0,
-                    marginTop: 2,
-                  }}
-                >
-                  Este é o nome que aparecerá no feed, dashboard e em outras
-                  áreas do app.
-                </p>
-              </div>
+        {/* FITBIT */}
+        <div className="flex items-center justify-between bg-neutral-900 rounded-lg p-4">
+          <div>
+            <p className="font-medium">Fitbit</p>
+            {isConnected("fitbit") ? (
+              <p className="text-sm text-green-400">
+                {isExpired("fitbit")
+                  ? "Conexão expirada"
+                  : "Conectado"}
+              </p>
+            ) : (
+              <p className="text-sm text-red-400">Não conectado</p>
+            )}
+          </div>
 
-              {email && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "#d1d5db",
-                    }}
-                  >
-                    E-mail (somente leitura)
-                  </span>
-                  <div
-                    style={{
-                      borderRadius: 10,
-                      padding: "8px 10px",
-                      border: "1px solid rgba(31,41,55,0.9)",
-                      backgroundColor: "#020617",
-                      fontSize: 13,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    {email}
-                  </div>
-                </div>
-              )}
-
-              {errorMsg && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#fca5a5",
-                    margin: 0,
-                    marginTop: 4,
-                  }}
-                >
-                  {errorMsg}
-                </p>
-              )}
-
-              {successMsg && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#bbf7d0",
-                    margin: 0,
-                    marginTop: 4,
-                  }}
-                >
-                  {successMsg}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={saving}
-                style={{
-                  marginTop: 8,
-                  alignSelf: "flex-start",
-                  borderRadius: 999,
-                  padding: "8px 16px",
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background:
-                    "linear-gradient(to right, #22c55e, #16a34a, #15803d)",
-                  color: "#0b1120",
-                  cursor: saving ? "not-allowed" : "pointer",
-                  opacity: saving ? 0.7 : 1,
-                  transition: "opacity 0.15s ease-out",
-                }}
-              >
-                {saving ? "Salvando..." : "Salvar alterações"}
-              </button>
-            </form>
-          )}
-        </section>
-
-        {/* Card explicativo (opcional) */}
-        <section
-          style={{
-            borderRadius: 18,
-            padding: "16px 14px",
-            background: "radial-gradient(circle at top, #020617, #020617 60%)",
-            border: "1px solid rgba(148,163,184,0.35)",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              margin: 0,
-              marginBottom: 8,
-            }}
+          <a
+            href="/api/fitbit/connect"
+            className="bg-teal-400 hover:bg-teal-500 text-black font-semibold px-4 py-2 rounded"
           >
-            Como usamos seu nome
-          </h2>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              margin: 0,
-            }}
-          >
-            O nome definido aqui é utilizado para identificar você no feed, nos
-            rankings, no dashboard de performance e em outras áreas da
-            SportPlatform. Você pode alterá-lo a qualquer momento.
-          </p>
-        </section>
+            {isConnected("fitbit") ? "Reconectar" : "Conectar"}
+          </a>
+        </div>
       </div>
-
-      <BottomNavbar />
-    </main>
+    </div>
   );
 }
