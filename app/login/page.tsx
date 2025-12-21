@@ -1,7 +1,6 @@
-// app/login/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import LoginTopMenu from "@/components/LoginTopMenu";
@@ -16,22 +15,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState<null | "google" | "facebook">(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  /* 🔥 REDIRECT DEFINITIVO APÓS LOGIN (EMAIL OU GOOGLE) */
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        router.replace("/events");
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Se já tiver sessão, manda direto pra /events
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) router.replace("/events");
+    })();
   }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -40,22 +34,31 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        if (error.message.toLowerCase().includes("email not confirmed")) {
-          setErrorMsg(
-            "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada."
-          );
-        } else {
+        const msg = error.message.toLowerCase();
+        if (msg.includes("email not confirmed")) {
+          setErrorMsg("Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.");
+        } else if (msg.includes("invalid login")) {
           setErrorMsg("E-mail ou senha inválidos.");
+        } else {
+          setErrorMsg(error.message);
         }
+        return;
       }
-    } catch {
+
+      if (data.session) {
+        router.push("/events");
+      } else {
+        setErrorMsg("Login realizado, mas não foi possível criar sessão. Tente novamente.");
+      }
+    } catch (err) {
       setErrorMsg("Erro inesperado ao fazer login.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -63,24 +66,37 @@ export default function LoginPage() {
 
   async function handleOAuth(provider: "google" | "facebook") {
     setErrorMsg(null);
-    setLoading(true);
+    setOauthLoading(provider);
 
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo,
         },
       });
 
       if (error) {
-        setErrorMsg("Erro ao iniciar login social.");
-        setLoading(false);
+        setErrorMsg(error.message);
       }
-    } catch {
-      setErrorMsg("Erro inesperado no login social.");
-      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Erro ao iniciar login social.");
+    } finally {
+      // Nota: normalmente o browser já sai daqui para o provider,
+      // mas se falhar, liberamos o botão.
+      setOauthLoading(null);
     }
+  }
+
+  function handleGoToSignup() {
+    router.push("/signup");
+  }
+
+  function handleForgotPassword() {
+    router.push("/forgot-password");
   }
 
   return (
@@ -111,131 +127,273 @@ export default function LoginPage() {
             padding: "22px 20px 20px",
           }}
         >
-          <h1
-            style={{
-              fontSize: "22px",
-              fontWeight: 700,
-              marginBottom: "12px",
-            }}
-          >
-            Entrar
-          </h1>
+          {/* Logo / título */}
+          <div style={{ marginBottom: "18px" }}>
+            <div
+              style={{
+                fontSize: "12px",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "#6b7280",
+                marginBottom: "4px",
+              }}
+            >
+              SPORTPLATFORM
+            </div>
+            <h1
+              style={{
+                fontSize: "22px",
+                fontWeight: 700,
+                letterSpacing: "-0.04em",
+                marginBottom: "4px",
+              }}
+            >
+              Entrar na sua conta
+            </h1>
+            <p style={{ fontSize: "13px", color: "#9ca3af" }}>
+              Acesse seu painel para visualizar treinos, grupos e dados do Strava.
+            </p>
+          </div>
 
+          {/* Mensagem de erro */}
           {errorMsg && (
             <div
               style={{
                 marginBottom: "12px",
-                padding: "8px",
-                borderRadius: "8px",
-                background: "rgba(220,38,38,0.25)",
-                fontSize: "13px",
+                padding: "8px 10px",
+                borderRadius: "10px",
+                border: "1px solid rgba(239,68,68,0.45)",
+                background: "rgba(153,27,27,0.25)",
+                fontSize: "12px",
+                color: "#fecaca",
               }}
             >
               {errorMsg}
             </div>
           )}
 
-          <form
-            onSubmit={handleLogin}
-            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-          >
-            <input
-              type="email"
-              placeholder="E-mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+          {/* OAuth buttons */}
+          <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+            <button
+              type="button"
+              onClick={() => handleOAuth("google")}
+              disabled={oauthLoading !== null}
               style={{
-                padding: "10px",
-                borderRadius: "10px",
-                border: "1px solid #1f2937",
-                background: "#020617",
-                color: "#fff",
+                flex: 1,
+                padding: "10px 12px",
+                borderRadius: "999px",
+                border: "1px solid #374151",
+                background: "rgba(2,6,23,0.6)",
+                color: "#e5e7eb",
+                fontSize: "13px",
+                cursor: oauthLoading ? "wait" : "pointer",
               }}
-            />
-
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Senha"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{
-                padding: "10px",
-                borderRadius: "10px",
-                border: "1px solid #1f2937",
-                background: "#020617",
-                color: "#fff",
-              }}
-            />
+            >
+              {oauthLoading === "google" ? "Conectando..." : "Entrar com Google"}
+            </button>
 
             <button
               type="button"
-              onClick={() => setShowPassword((p) => !p)}
+              onClick={() => handleOAuth("facebook")}
+              disabled={oauthLoading !== null}
               style={{
-                background: "none",
-                border: "none",
-                color: "#9ca3af",
-                fontSize: "12px",
-                textAlign: "right",
-                cursor: "pointer",
+                flex: 1,
+                padding: "10px 12px",
+                borderRadius: "999px",
+                border: "1px solid #374151",
+                background: "rgba(2,6,23,0.6)",
+                color: "#e5e7eb",
+                fontSize: "13px",
+                cursor: oauthLoading ? "wait" : "pointer",
               }}
             >
-              {showPassword ? "Esconder senha" : "Mostrar senha"}
+              {oauthLoading === "facebook" ? "Conectando..." : "Entrar com Facebook"}
             </button>
+          </div>
 
+          {/* Separador */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "10px",
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                height: "1px",
+                background: "linear-gradient(to right, transparent, #1f2937)",
+              }}
+            />
+            <span
+              style={{
+                fontSize: "11px",
+                color: "#6b7280",
+                textTransform: "uppercase",
+                letterSpacing: "0.14em",
+              }}
+            >
+              ou
+            </span>
+            <div
+              style={{
+                flex: 1,
+                height: "1px",
+                background: "linear-gradient(to right, #1f2937, transparent)",
+              }}
+            />
+          </div>
+
+          {/* Formulário */}
+          <form
+            onSubmit={handleLogin}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+              marginBottom: "14px",
+            }}
+          >
+            {/* E-mail */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label htmlFor="email" style={{ fontSize: "13px", color: "#d1d5db" }}>
+                E-mail
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                placeholder="voce@exemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 11px",
+                  borderRadius: "12px",
+                  border: "1px solid #1f2933",
+                  backgroundColor: "#020617",
+                  color: "#e5e7eb",
+                  fontSize: "13px",
+                  outline: "none",
+                }}
+              />
+            </div>
+
+            {/* Senha */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <label
+                htmlFor="password"
+                style={{ fontSize: "13px", color: "#d1d5db" }}
+              >
+                Senha
+              </label>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 36px 10px 11px",
+                    borderRadius: "12px",
+                    border: "1px solid #1f2933",
+                    backgroundColor: "#020617",
+                    color: "#e5e7eb",
+                    fontSize: "13px",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    background: "transparent",
+                    border: "none",
+                    color: "#9ca3af",
+                    cursor: "pointer",
+                    fontSize: "11px",
+                    padding: "4px",
+                  }}
+                >
+                  {showPassword ? "Esconder" : "Mostrar"}
+                </button>
+              </div>
+            </div>
+
+            {/* Esqueci senha */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  fontSize: "12px",
+                  color: "#9ca3af",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                }}
+              >
+                Esqueceu a senha?
+              </button>
+            </div>
+
+            {/* Botão de login */}
             <button
               type="submit"
               disabled={loading}
               style={{
-                marginTop: "6px",
-                padding: "10px",
+                marginTop: "2px",
+                width: "100%",
+                padding: "10px 14px",
                 borderRadius: "999px",
                 border: "none",
-                background: "linear-gradient(135deg,#22c55e,#16a34a)",
-                color: "#020617",
+                fontSize: "14px",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: loading ? "wait" : "pointer",
+                background: "linear-gradient(135deg, #22c55e, #16a34a)",
+                color: "#020617",
+                boxShadow: "0 14px 40px rgba(34,197,94,0.45)",
               }}
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>
           </form>
 
+          {/* Link para cadastro */}
           <div
             style={{
-              marginTop: "16px",
+              fontSize: "13px",
+              color: "#9ca3af",
               display: "flex",
-              flexDirection: "column",
+              justifyContent: "space-between",
+              alignItems: "center",
               gap: "10px",
             }}
           >
+            <span>Ainda não tem conta?</span>
             <button
-              onClick={() => handleOAuth("google")}
+              type="button"
+              onClick={handleGoToSignup}
               style={{
-                padding: "10px",
                 borderRadius: "999px",
                 border: "1px solid #374151",
-                background: "transparent",
-                color: "#fff",
+                backgroundColor: "transparent",
+                color: "#e5e7eb",
+                padding: "7px 12px",
+                fontSize: "12px",
                 cursor: "pointer",
               }}
             >
-              Continuar com Google
-            </button>
-
-            <button
-              onClick={() => handleOAuth("facebook")}
-              style={{
-                padding: "10px",
-                borderRadius: "999px",
-                border: "1px solid #374151",
-                background: "transparent",
-                color: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              Continuar com Facebook
+              Criar conta
             </button>
           </div>
         </div>
