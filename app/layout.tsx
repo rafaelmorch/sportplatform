@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import FitbitAutoImport from "@/components/FitbitAutoImport";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        {/* Auto-import Fitbit (roda silenciosamente quando o app abre) */}
+        <FitbitAutoImport />
+
         {children}
       </body>
     </html>
