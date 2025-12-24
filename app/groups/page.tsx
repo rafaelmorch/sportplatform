@@ -1,4 +1,8 @@
 // app/groups/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
 import { trainingGroups } from "./groups-data";
@@ -6,6 +10,42 @@ import { trainingGroups } from "./groups-data";
 export const dynamic = "force-dynamic";
 
 export default function GroupsPage() {
+  const router = useRouter();
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const {
+        data: { session },
+      } = await (await import("@/lib/supabase-browser")).supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      setAllowed(true);
+    };
+
+    check();
+  }, [router]);
+
+  if (!allowed) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#020617",
+          color: "#e5e7eb",
+          padding: "16px",
+          paddingBottom: "80px",
+        }}
+      >
+        <p style={{ fontSize: 13, color: "#64748b" }}>Carregando…</p>
+      </main>
+    );
+  }
+
   return (
     <main
       style={{
@@ -22,7 +62,6 @@ export default function GroupsPage() {
           margin: "0 auto",
         }}
       >
-        {/* Header simples */}
         <header
           style={{
             marginBottom: 20,
@@ -63,7 +102,6 @@ export default function GroupsPage() {
           </p>
         </header>
 
-        {/* Lista de grupos */}
         <section
           style={{
             display: "grid",
@@ -122,7 +160,6 @@ export default function GroupsPage() {
                     </p>
                   </div>
 
-                  {/* Tagzinha azul no canto, só pra indicar grupo ativo */}
                   <span
                     style={{
                       fontSize: 11,
@@ -175,7 +212,6 @@ export default function GroupsPage() {
         </section>
       </div>
 
-      {/* ✅ Bottom navbar fixo, igual nas outras páginas principais */}
       <BottomNavbar />
     </main>
   );
