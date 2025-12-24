@@ -10,17 +10,17 @@ type NavItem = {
   enabled?: boolean; // feature flag
 };
 
-// ✅ SINALIZAÇÃO (fácil de reativar no futuro)
+// ✅ TABS ATIVAS (como você pediu)
 const FEATURES = {
-  performanceTab: false,
-  groupsTab: false,
+  dashboardTab: true,
+  groupsTab: true,
 };
 
 const navItems: NavItem[] = [
   {
-    label: "Performance",
+    label: "Dashboard",
     href: "/dashboard",
-    enabled: FEATURES.performanceTab,
+    enabled: FEATURES.dashboardTab,
   },
   {
     label: "Feed",
@@ -28,17 +28,17 @@ const navItems: NavItem[] = [
     enabled: true,
   },
   {
-    label: "Grupos",
+    label: "Groups",
     href: "/groups",
     enabled: FEATURES.groupsTab,
   },
   {
-    label: "Eventos",
+    label: "Events",
     href: "/events",
     enabled: true,
   },
   {
-    label: "Perfil",
+    label: "Profile",
     href: "/profile",
     enabled: true,
   },
@@ -72,7 +72,7 @@ export default function BottomNavbar() {
         }}
       >
         {navItems
-          .filter((item) => item.enabled !== false) // ✅ esconde sem apagar (sinalizado)
+          .filter((item) => item.enabled !== false)
           .map((item) => {
             const isActive =
               pathname === item.href ||
@@ -90,12 +90,12 @@ export default function BottomNavbar() {
                   borderRadius: 999,
                   textDecoration: "none",
                   border: isActive
-                    ? "1px solid rgba(34,197,94,0.7)"
+                    ? "1px solid rgba(59,130,246,0.7)" // azul
                     : "1px solid transparent",
                   background: isActive
-                    ? "radial-gradient(circle at top, #22c55e25, transparent)"
+                    ? "radial-gradient(circle at top, rgba(59,130,246,0.18), transparent)"
                     : "transparent",
-                  color: isActive ? "#bbf7d0" : "#e5e7eb",
+                  color: isActive ? "#bfdbfe" : "#e5e7eb",
                   cursor: "pointer",
                   transition: "all 0.15s ease-out",
                   display: "flex",
