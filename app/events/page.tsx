@@ -1,8 +1,12 @@
+// app/events/page.tsx
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import BottomNavbar from "@/components/BottomNavbar";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +43,42 @@ const EVENTS: EventItem[] = [
 ];
 
 export default function EventsPage() {
+  const router = useRouter();
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const {
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      setAllowed(true);
+    };
+
+    check();
+  }, [router]);
+
+  if (!allowed) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#020617",
+          color: "#e5e7eb",
+          padding: 16,
+          paddingBottom: 80,
+        }}
+      >
+        <p style={{ fontSize: 13, color: "#64748b" }}>Carregando…</p>
+      </main>
+    );
+  }
+
   return (
     <main
       style={{
@@ -95,15 +135,11 @@ export default function EventsPage() {
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800 }}>
-                    {ev.title}
-                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>{ev.title}</div>
                   <div style={{ fontSize: 12, color: "#9ca3af" }}>
                     {ev.city}, {ev.state}
                   </div>
-                  <div style={{ fontSize: 13, marginTop: 6 }}>
-                    {ev.dateLabel}
-                  </div>
+                  <div style={{ fontSize: 13, marginTop: 6 }}>{ev.dateLabel}</div>
                 </div>
 
                 <div
