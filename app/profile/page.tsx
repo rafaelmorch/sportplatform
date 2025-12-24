@@ -3,12 +3,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import BottomNavbar from "@/components/BottomNavbar";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type Profile = {
   full_name: string | null;
@@ -37,32 +33,26 @@ export default function ProfilePage() {
   );
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const run = async () => {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      // ✅ 0) BLOQUEIO: precisa estar logado
+      const {
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      const user = session.user;
+      setEmail(user.email ?? null);
+
+      // 1) Perfil
       try {
-        setErrorMsg(null);
-        setSuccessMsg(null);
-
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) {
-          console.error("Erro ao buscar usuário:", userError);
-          setErrorMsg("Erro ao carregar usuário.");
-          setLoadingProfile(false);
-          return;
-        }
-
-        if (!user) {
-          setErrorMsg("Você precisa estar logado para acessar o perfil.");
-          setLoadingProfile(false);
-          return;
-        }
-
-        setEmail(user.email ?? null);
-
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error: profileError } = await supabaseBrowser
           .from("profiles")
           .select("full_name")
           .eq("id", user.id)
@@ -85,37 +75,18 @@ export default function ProfilePage() {
       } finally {
         setLoadingProfile(false);
       }
-    };
 
-    const loadConnections = async () => {
+      // 2) Conexões
       try {
         setLoadingConnections(true);
 
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
-
-        if (userError) {
-          console.error("Erro ao buscar usuário (conexões):", userError);
-          setLoadingConnections(false);
-          return;
-        }
-
-        if (!user) {
-          setLoadingConnections(false);
-          return;
-        }
-
-        // Ajuste aqui se sua tabela tiver outro nome
-        const { data, error } = await supabase
+        const { data, error } = await supabaseBrowser
           .from("user_oauth_connections")
           .select("provider, expires_at")
           .eq("user_id", user.id);
 
         if (error) {
           console.error("Erro ao carregar conexões:", error);
-          setLoadingConnections(false);
           return;
         }
 
@@ -135,9 +106,8 @@ export default function ProfilePage() {
       }
     };
 
-    loadProfile();
-    loadConnections();
-  }, []);
+    run();
+  }, [router]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,17 +123,19 @@ export default function ProfilePage() {
       setSaving(true);
 
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
 
-      if (userError || !user) {
+      if (!session) {
         setErrorMsg("Você precisa estar logado para salvar o perfil.");
         setSaving(false);
+        router.push("/login");
         return;
       }
 
-      const { error: upsertError } = await supabase.from("profiles").upsert(
+      const user = session.user;
+
+      const { error: upsertError } = await supabaseBrowser.from("profiles").upsert(
         {
           id: user.id,
           full_name: name.trim(),
@@ -193,7 +165,7 @@ export default function ProfilePage() {
 
     try {
       setSigningOut(true);
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabaseBrowser.auth.signOut();
       if (error) {
         console.error("Erro ao deslogar:", error);
         setErrorMsg("Erro ao sair. Tente novamente.");
@@ -236,7 +208,6 @@ export default function ProfilePage() {
       }}
     >
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        {/* Header */}
         <header
           style={{
             display: "flex",
@@ -275,7 +246,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Logout */}
           <button
             onClick={handleSignOut}
             disabled={signingOut}
@@ -296,7 +266,6 @@ export default function ProfilePage() {
           </button>
         </header>
 
-        {/* Card de edição de nome */}
         <section
           style={{
             borderRadius: 18,
@@ -359,9 +328,7 @@ export default function ProfilePage() {
               </div>
 
               {email && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 4 }}
-                >
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <span style={{ fontSize: 12, color: "#d1d5db" }}>
                     E-mail (somente leitura)
                   </span>
@@ -381,27 +348,13 @@ export default function ProfilePage() {
               )}
 
               {errorMsg && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#fca5a5",
-                    margin: 0,
-                    marginTop: 4,
-                  }}
-                >
+                <p style={{ fontSize: 12, color: "#fca5a5", margin: 0, marginTop: 4 }}>
                   {errorMsg}
                 </p>
               )}
 
               {successMsg && (
-                <p
-                  style={{
-                    fontSize: 12,
-                    color: "#bbf7d0",
-                    margin: 0,
-                    marginTop: 4,
-                  }}
-                >
+                <p style={{ fontSize: 12, color: "#bbf7d0", margin: 0, marginTop: 4 }}>
                   {successMsg}
                 </p>
               )}
@@ -431,7 +384,6 @@ export default function ProfilePage() {
           )}
         </section>
 
-        {/* Card de Conexões (Strava + Fitbit) */}
         <section
           style={{
             borderRadius: 18,
@@ -441,7 +393,14 @@ export default function ProfilePage() {
             marginBottom: 20,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
             <div>
               <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, marginBottom: 6 }}>
                 Conexões
@@ -456,8 +415,14 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, marginTop: 14 }}>
-            {/* STRAVA */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 12,
+              marginTop: 14,
+            }}
+          >
             {(() => {
               const s = getStatus("strava");
               const connected = s.label === "Conectado";
@@ -506,7 +471,6 @@ export default function ProfilePage() {
               );
             })()}
 
-            {/* FITBIT */}
             {(() => {
               const s = getStatus("fitbit");
               const connected = s.label === "Conectado";
@@ -557,7 +521,6 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Card explicativo */}
         <section
           style={{
             borderRadius: 18,
@@ -566,14 +529,7 @@ export default function ProfilePage() {
             border: "1px solid rgba(148,163,184,0.35)",
           }}
         >
-          <h2
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              margin: 0,
-              marginBottom: 8,
-            }}
-          >
+          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, marginBottom: 8 }}>
             Como usamos seu nome
           </h2>
           <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
