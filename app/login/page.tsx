@@ -2,16 +2,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { useRouter, useSearchParams } from "next/navigation";
 import LoginTopMenu from "@/components/LoginTopMenu";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const nextPath = searchParams.get("next") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,16 +21,23 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    const supabase = supabaseBrowser;
+
+    // Se já estiver logado e caiu no /login por algum motivo, sai daqui
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session) router.replace(nextPath);
+    });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        router.replace("/events");
+        router.replace(nextPath);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, nextPath]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -39,7 +45,7 @@ export default function LoginPage() {
     setLoadingEmail(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabaseBrowser.auth.signInWithPassword({
         email,
         password,
       });
@@ -53,6 +59,7 @@ export default function LoginPage() {
           setErrorMsg("E-mail ou senha inválidos.");
         }
       }
+      // sucesso: o onAuthStateChange vai redirecionar
     } catch {
       setErrorMsg("Erro inesperado ao fazer login.");
     } finally {
@@ -65,10 +72,13 @@ export default function LoginPage() {
     setLoadingGoogle(true);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabaseBrowser.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          // depois do OAuth, volta pro login e o login manda pro nextPath
+          redirectTo: `${window.location.origin}/login?next=${encodeURIComponent(
+            nextPath
+          )}`,
         },
       });
 
@@ -113,8 +123,8 @@ export default function LoginPage() {
             src="/logo-sports-platform.png"
             alt="Sports Platform"
             style={{
-              width: 640, // 4x do 160 (referência)
-              maxWidth: "92vw", // não estoura no mobile
+              width: 640,
+              maxWidth: "92vw",
               height: "auto",
               display: "block",
             }}
