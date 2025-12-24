@@ -1,50 +1,74 @@
 // app/performance/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import DashboardClient from "@/components/DashboardClient";
-import { supabaseServer } from "@/lib/supabase-server";
-import { redirect } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
-export default async function PerformancePage() {
-  const supabase = await supabaseServer();
+export default function PerformancePage() {
+  const router = useRouter();
 
-  // garante login
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [activities, setActivities] = useState<any[]>([]);
+  const [eventsSummary, setEventsSummary] = useState({
+    availableEvents: 0,
+    userEvents: 0,
+  });
+  const [loading, setLoading] = useState(true);
 
-  if (!user) {
-    redirect("/login");
+  useEffect(() => {
+    const load = async () => {
+      const {
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
+      const userId = session.user.id;
+
+      const { data: activitiesData } = await supabaseBrowser
+        .from("strava_activities")
+        .select("*")
+        .order("start_date", { ascending: false })
+        .limit(500);
+
+      const { count: availableEvents } = await supabaseBrowser
+        .from("events")
+        .select("*", { head: true, count: "exact" });
+
+      const { count: userEvents } = await supabaseBrowser
+        .from("event_registrations")
+        .select("*", { head: true, count: "exact" })
+        .eq("user_id", userId);
+
+      setActivities(activitiesData ?? []);
+      setEventsSummary({
+        availableEvents: availableEvents ?? 0,
+        userEvents: userEvents ?? 0,
+      });
+
+      setLoading(false);
+    };
+
+    load();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div style={{ padding: 16, color: "#e5e7eb" }}>
+        Carregando performance...
+      </div>
+    );
   }
 
-  // busca atividades do usuário (ou grupo)
-  const { data: activities } = await supabase
-    .from("strava_activities")
-    .select("*")
-    .order("start_date", { ascending: false })
-    .limit(500);
-
-  // resumo de eventos
-  const { count: availableEvents } = await supabase
-    .from("events")
-    .select("*", { head: true, count: "exact" });
-
-  const { count: userEvents } = await supabase
-    .from("event_registrations")
-    .select("*", { head: true, count: "exact" })
-    .eq("user_id", user.id);
-
   return (
-    <main
-      style={{
-        padding: 16,
-        paddingBottom: 80,
-      }}
-    >
+    <main style={{ padding: 16, paddingBottom: 80 }}>
       <DashboardClient
-        activities={activities ?? []}
-        eventsSummary={{
-          availableEvents: availableEvents ?? 0,
-          userEvents: userEvents ?? 0,
-        }}
+        activities={activities}
+        eventsSummary={eventsSummary}
       />
     </main>
   );
