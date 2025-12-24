@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import BottomNavbar from "@/components/BottomNavbar";
 
@@ -25,6 +26,8 @@ type Comment = {
 };
 
 export default function FeedPage() {
+  const router = useRouter();
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,28 +60,36 @@ export default function FeedPage() {
   async function loadPosts() {
     setLoading(true);
 
-    // 1) usuário logado
+    // ✅ 0) garante sessão (bloqueia a página)
     const {
-      data: { user },
-      error: userError,
-    } = await supabaseBrowser.auth.getUser();
+      data: { session },
+      error: sessionError,
+    } = await supabaseBrowser.auth.getSession();
 
-    if (userError) {
-      console.error("Erro ao carregar usuário:", userError);
+    if (sessionError) {
+      console.error("Erro ao obter sessão:", sessionError);
     }
 
-    setUserId(user?.id ?? null);
+    if (!session) {
+      router.push("/login");
+      return; // ⛔ não continua
+    }
 
-    if (user) {
-      const { data: profile } = await supabaseBrowser
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .maybeSingle();
+    const user = session.user;
 
-      if (profile?.full_name) {
-        setUserName(profile.full_name);
-      }
+    setUserId(user.id);
+
+    // 1) nome do usuário (perfil)
+    const { data: profile } = await supabaseBrowser
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.full_name) {
+      setUserName(profile.full_name);
+    } else {
+      setUserName(null);
     }
 
     // 2) posts
@@ -114,7 +125,7 @@ export default function FeedPage() {
           const pid = row.post_id as string;
           likeCountMap[pid] = (likeCountMap[pid] ?? 0) + 1;
 
-          if (user && row.user_id === user.id) {
+          if (row.user_id === user.id) {
             likedByCurrentUser.add(pid);
           }
         });
@@ -148,6 +159,7 @@ export default function FeedPage() {
 
   useEffect(() => {
     loadPosts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---------- CURTIR / DESCURTIR (1 por usuário) ----------
@@ -320,12 +332,11 @@ export default function FeedPage() {
         flexDirection: "column",
       }}
     >
-      {/* CONTEÚDO PRINCIPAL */}
       <main
         style={{
           flex: 1,
           padding: "16px",
-          paddingBottom: "72px", // espaço para a bottom navbar
+          paddingBottom: "72px",
         }}
       >
         <div
@@ -334,7 +345,6 @@ export default function FeedPage() {
             margin: "0 auto",
           }}
         >
-          {/* TÍTULO DA PÁGINA */}
           <div
             style={{
               marginBottom: "12px",
@@ -360,11 +370,8 @@ export default function FeedPage() {
                   color: "#94a3b8",
                   marginBottom: "6px",
                 }}
-              >
-                
-              </p>
+              ></p>
 
-              {/* ✅ NOVO: mensagem energética */}
               <p
                 style={{
                   fontSize: "13px",
@@ -373,7 +380,8 @@ export default function FeedPage() {
                   fontWeight: 700,
                 }}
               >
-                Desafios te levam a um novo nível. Compartilhe o seu no esporte hoje.
+                Desafios te levam a um novo nível. Compartilhe o seu no esporte
+                hoje.
               </p>
             </div>
 
@@ -394,7 +402,6 @@ export default function FeedPage() {
             </a>
           </div>
 
-          {/* ESTADO DE CARREGAMENTO */}
           {loading && (
             <p
               style={{
@@ -407,7 +414,6 @@ export default function FeedPage() {
             </p>
           )}
 
-          {/* LISTA DE POSTS */}
           {!loading && posts.length === 0 && (
             <p
               style={{
@@ -443,7 +449,6 @@ export default function FeedPage() {
                     padding: "14px 14px 12px 14px",
                   }}
                 >
-                  {/* Header do post */}
                   <div
                     style={{
                       display: "flex",
@@ -500,7 +505,6 @@ export default function FeedPage() {
                     </div>
                   </div>
 
-                  {/* Texto */}
                   <p
                     style={{
                       fontSize: "13px",
@@ -512,36 +516,33 @@ export default function FeedPage() {
                     {post.content}
                   </p>
 
-                  {/* ✅ Imagem auto-ajustada estilo eventos */}
-{post.image_url && (
-  <div
-    style={{
-      borderRadius: "14px",
-      overflow: "hidden",
-      border: "1px solid #1e293b",
-      marginBottom: "8px",
-      background: "rgba(0,0,0,0.25)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      maxHeight: "420px", // evita imagens gigantes
-    }}
-  >
-    <img
-      src={post.image_url}
-      alt="Foto do treino"
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "contain", // ✅ NÃO corta
-        display: "block",
-      }}
-    />
-  </div>
-)}
+                  {post.image_url && (
+                    <div
+                      style={{
+                        borderRadius: "14px",
+                        overflow: "hidden",
+                        border: "1px solid #1e293b",
+                        marginBottom: "8px",
+                        background: "rgba(0,0,0,0.25)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        maxHeight: "420px",
+                      }}
+                    >
+                      <img
+                        src={post.image_url}
+                        alt="Foto do treino"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain",
+                          display: "block",
+                        }}
+                      />
+                    </div>
+                  )}
 
-
-                  {/* Ações */}
                   <div
                     style={{
                       display: "flex",
@@ -577,25 +578,14 @@ export default function FeedPage() {
                           opacity: likeLoadingPostId === post.id ? 0.7 : 1,
                         }}
                       >
-                        <span
-                          style={{
-                            fontSize: "14px",
-                            lineHeight: 1,
-                          }}
-                        >
+                        <span style={{ fontSize: "14px", lineHeight: 1 }}>
                           {isLiked ? "💚" : "🤍"}
                         </span>
                         <span>{isLiked ? "Você curtiu" : "Curtir"}</span>
                       </button>
 
-                      <span
-                        style={{
-                          fontSize: "12px",
-                          color: "#64748b",
-                        }}
-                      >
-                        {post.likes} curtida
-                        {post.likes === 1 ? "" : "s"}
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>
+                        {post.likes} curtida{post.likes === 1 ? "" : "s"}
                       </span>
                     </div>
 
@@ -622,7 +612,6 @@ export default function FeedPage() {
                     </button>
                   </div>
 
-                  {/* Campo de comentário */}
                   <div style={{ marginTop: "8px" }}>
                     <form
                       onSubmit={(e) => {
@@ -679,7 +668,6 @@ export default function FeedPage() {
                     </form>
                   </div>
 
-                  {/* Lista de comentários (colapsável) */}
                   {isCommentsOpen && (
                     <div
                       style={{
@@ -713,13 +701,7 @@ export default function FeedPage() {
                           }}
                         >
                           {comments.map((c) => (
-                            <li
-                              key={c.id}
-                              style={{
-                                display: "flex",
-                                gap: "8px",
-                              }}
-                            >
+                            <li key={c.id} style={{ display: "flex", gap: "8px" }}>
                               <div
                                 style={{
                                   width: "22px",
@@ -743,13 +725,7 @@ export default function FeedPage() {
                                   .slice(0, 2)
                                   .toUpperCase()}
                               </div>
-                              <div
-                                style={{
-                                  flex: 1,
-                                  fontSize: "12px",
-                                  lineHeight: 1.4,
-                                }}
-                              >
+                              <div style={{ flex: 1, fontSize: "12px", lineHeight: 1.4 }}>
                                 <div
                                   style={{
                                     display: "flex",
@@ -757,12 +733,7 @@ export default function FeedPage() {
                                     alignItems: "baseline",
                                   }}
                                 >
-                                  <span
-                                    style={{
-                                      fontWeight: 600,
-                                      color: "#e5e7eb",
-                                    }}
-                                  >
+                                  <span style={{ fontWeight: 600, color: "#e5e7eb" }}>
                                     {c.author_name || "Atleta"}
                                   </span>
                                   <span
@@ -772,22 +743,13 @@ export default function FeedPage() {
                                       marginLeft: "8px",
                                     }}
                                   >
-                                    {new Date(
-                                      c.created_at
-                                    ).toLocaleDateString("pt-BR", {
+                                    {new Date(c.created_at).toLocaleDateString("pt-BR", {
                                       day: "2-digit",
                                       month: "2-digit",
                                     })}
                                   </span>
                                 </div>
-                                <p
-                                  style={{
-                                    margin: 0,
-                                    color: "#d1d5db",
-                                  }}
-                                >
-                                  {c.content}
-                                </p>
+                                <p style={{ margin: 0, color: "#d1d5db" }}>{c.content}</p>
                               </div>
                             </li>
                           ))}
@@ -802,7 +764,6 @@ export default function FeedPage() {
         </div>
       </main>
 
-      {/* NAV INFERIOR */}
       <BottomNavbar />
     </div>
   );
