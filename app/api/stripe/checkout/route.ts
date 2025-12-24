@@ -4,10 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-function sanitizePhone(s: string): string {
-  return (s ?? "").trim().replace(/[^\d+]/g, "");
-}
-
 export async function POST(req: Request) {
   try {
     const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -22,12 +18,15 @@ export async function POST(req: Request) {
     const supabase = createClient(supabaseUrl, serviceRole);
 
     const body = await req.json().catch(() => null);
+
     const eventId: string | undefined = body?.eventId;
     const userId: string | undefined = body?.userId;
     const nicknameRaw: string | undefined = body?.nickname;
 
-    // ✅ novo
+    // ✅ novos
     const attendeeWhatsappRaw: string | undefined = body?.attendeeWhatsapp;
+    const attendeeEmailRaw: string | undefined = body?.attendeeEmail;
+    const attendeeNameRaw: string | undefined = body?.attendeeName;
 
     if (!eventId || !userId || !nicknameRaw) {
       return new NextResponse("Missing eventId/userId/nickname", { status: 400 });
@@ -38,13 +37,15 @@ export async function POST(req: Request) {
       return new NextResponse("Nickname must be between 2 and 24 characters.", { status: 400 });
     }
 
-    // ✅ WhatsApp obrigatório (para eventos pagos também)
-    const attendeeWhatsapp = sanitizePhone(String(attendeeWhatsappRaw ?? ""));
-    if (attendeeWhatsapp.length < 8) {
-      return new NextResponse("Missing/invalid attendeeWhatsapp (include country code, ex: +1407...)", { status: 400 });
+    // ✅ WhatsApp obrigatório
+    const attendeeWhatsapp = String(attendeeWhatsappRaw ?? "").trim();
+    if (attendeeWhatsapp.replace(/[^\d+]/g, "").length < 8) {
+      return new NextResponse("Missing attendeeWhatsapp (required).", { status: 400 });
     }
 
-    // ✅ Não selecionar currency (coluna não existe)
+    const attendeeEmail = String(attendeeEmailRaw ?? "").trim();
+    const attendeeName = String(attendeeNameRaw ?? "").trim();
+
     const { data: ev, error: evErr } = await supabase
       .from("events")
       .select("id,title,price_cents")
@@ -56,22 +57,12 @@ export async function POST(req: Request) {
     const priceCents = Number((ev as any).price_cents ?? 0);
     if (!(priceCents > 0)) return new NextResponse("This event is free. No checkout needed.", { status: 400 });
 
-    const currency = "usd"; // ✅ fixo
+    const currency = "usd";
     const title = String((ev as any).title ?? "Event");
 
     const origin = req.headers.get("origin") || "https://sportsplatform.app";
-
     const successUrl = `${origin}/events/${eventId}?paid=1&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${origin}/events/${eventId}?canceled=1`;
-
-    // ✅ opcional: puxar email do user no auth (admin) pra guardar no metadata também
-    let attendeeEmail: string | null = null;
-    try {
-      const { data } = await supabase.auth.admin.getUserById(userId);
-      attendeeEmail = data?.user?.email ?? null;
-    } catch {
-      attendeeEmail = null;
-    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -92,8 +83,11 @@ export async function POST(req: Request) {
         event_id: eventId,
         user_id: userId,
         nickname,
-        attendee_whatsapp: attendeeWhatsapp, // ✅ novo
-        attendee_email: attendeeEmail ?? "", // ✅ opcional
+
+        // ✅ NOVOS (para o webhook salvar)
+        attendee_whatsapp: attendeeWhatsapp,
+        attendee_email: attendeeEmail,
+        attendee_name: attendeeName,
       },
     });
 
