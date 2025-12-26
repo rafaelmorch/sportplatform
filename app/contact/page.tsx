@@ -7,14 +7,20 @@ export default function ContactPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
 
+  const [sent, setSent] = useState(false);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Mostra a confirmação na própria página
+    setSent(true);
 
     const subject = encodeURIComponent("Contato - SportsPlatform");
     const body = encodeURIComponent(
       `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`
     );
 
+    // Abre o app de e-mail do usuário com a mensagem pronta
     window.location.href = `mailto:contact@sportsplatform.app?subject=${subject}&body=${body}`;
   }
 
@@ -40,7 +46,6 @@ export default function ContactPage() {
           color: "#fff",
         }}
       >
-        {/* Header */}
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 42, marginBottom: 6 }}>📩</div>
           <h1 style={{ margin: 0, fontSize: 42, letterSpacing: 1 }}>
@@ -48,18 +53,31 @@ export default function ContactPage() {
           </h1>
         </div>
 
-        <p
-          style={{
-            textAlign: "center",
-            marginBottom: 20,
-            opacity: 0.95,
-          }}
-        >
-          Se você tiver alguma dúvida ou precisar de ajuda, entre em contato
-          conosco. Retornaremos o mais rápido possível!
+        <p style={{ textAlign: "center", marginBottom: 20, opacity: 0.95 }}>
+          Se você tiver alguma dúvida ou precisar de ajuda, envie uma mensagem.
         </p>
 
-        {/* Formulário */}
+        {sent && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: "rgba(34, 197, 94, 0.18)",
+              border: "1px solid rgba(34, 197, 94, 0.35)",
+              color: "#bbf7d0",
+              fontWeight: 700,
+              textAlign: "center",
+            }}
+          >
+            ✅ Pronto! Abrimos seu aplicativo de e-mail com a mensagem pronta.
+            <br />
+            <span style={{ fontWeight: 400, opacity: 0.9 }}>
+              Agora é só clicar em <b>Enviar</b>.
+            </span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <input
             value={name}
@@ -87,7 +105,6 @@ export default function ContactPage() {
             style={{ ...inputStyle, paddingTop: 14, resize: "vertical" }}
           />
 
-          {/* Botão */}
           <button
             type="submit"
             style={{
@@ -108,7 +125,6 @@ export default function ContactPage() {
           </button>
         </form>
 
-        {/* Informações */}
         <div style={{ marginTop: 20, textAlign: "center", lineHeight: 1.7 }}>
           <div>
             <b>Email:</b> contact@sportsplatform.app
