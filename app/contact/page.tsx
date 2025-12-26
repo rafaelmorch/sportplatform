@@ -10,12 +10,12 @@ export default function ContactPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const subject = encodeURIComponent("Contact - SportsPlatform");
+    const subject = encodeURIComponent("Contato - SportsPlatform");
     const body = encodeURIComponent(
-      `Name: ${name}\nEmail: ${email}\n\nMessage:\n${message}`
+      `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`
     );
 
-    window.location.href = `mailto:support@sportsplatform.app?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:contact@sportsplatform.app?subject=${subject}&body=${body}`;
   }
 
   return (
@@ -44,7 +44,7 @@ export default function ContactPage() {
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 42, marginBottom: 6 }}>📩</div>
           <h1 style={{ margin: 0, fontSize: 42, letterSpacing: 1 }}>
-            Get in Touch
+            Entre em Contato
           </h1>
         </div>
 
@@ -55,16 +55,16 @@ export default function ContactPage() {
             opacity: 0.95,
           }}
         >
-          If you have any questions or need assistance, feel free to reach out.
-          We'll get back to you as soon as possible!
+          Se você tiver alguma dúvida ou precisar de ajuda, entre em contato
+          conosco. Retornaremos o mais rápido possível!
         </p>
 
-        {/* Form */}
+        {/* Formulário */}
         <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your Name"
+            placeholder="Seu nome"
             required
             style={inputStyle}
           />
@@ -72,7 +72,7 @@ export default function ContactPage() {
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Your Email"
+            placeholder="Seu e-mail"
             type="email"
             required
             style={inputStyle}
@@ -81,13 +81,13 @@ export default function ContactPage() {
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Your Message"
+            placeholder="Sua mensagem"
             required
             rows={6}
             style={{ ...inputStyle, paddingTop: 14, resize: "vertical" }}
           />
 
-          {/* Gradient button */}
+          {/* Botão */}
           <button
             type="submit"
             style={{
@@ -104,28 +104,28 @@ export default function ContactPage() {
               boxShadow: "0 12px 28px rgba(0,0,0,0.4)",
             }}
           >
-            Send Message
+            Enviar Mensagem
           </button>
         </form>
 
-        {/* Footer info */}
+        {/* Informações */}
         <div style={{ marginTop: 20, textAlign: "center", lineHeight: 1.7 }}>
           <div>
-            <b>Email:</b> support@sportsplatform.app
+            <b>Email:</b> contact@sportsplatform.app
           </div>
           <div>
-            <b>Phone (WhatsApp):</b>{" "}
+            <b>Telefone (WhatsApp):</b>{" "}
             <a
-              href="https://wa.me/14074909381"
+              href="https://wa.me/16897992080"
               target="_blank"
               rel="noreferrer"
               style={{ color: "#8bff9d", textDecoration: "none", fontWeight: 700 }}
             >
-              (407) 490-9381
+              (689) 799-2080
             </a>
           </div>
           <div>
-            <b>Location:</b> Orlando, FL
+            <b>Localização:</b> Estados Unidos
           </div>
         </div>
       </div>
