@@ -1,5 +1,3 @@
-"use client";
-
 export default function Home() {
   return (
     <main
@@ -13,7 +11,7 @@ export default function Home() {
         padding: "24px",
       }}
     >
-      {/* Imagem */}
+      {/* Imagem (responsiva, ~20% menor) */}
       <a href="/register" style={{ width: "100%", maxWidth: "720px" }}>
         <img
           src="/run.png"
@@ -23,17 +21,19 @@ export default function Home() {
             height: "auto",
             marginBottom: "24px",
             cursor: "pointer",
+            display: "block",
           }}
         />
       </a>
 
-      {/* Botão com contorno degradê */}
+      {/* Botão (mesma largura da imagem, contorno degradê) */}
       <a
         href="/register"
         style={{
           width: "100%",
           maxWidth: "720px",
           textDecoration: "none",
+          display: "block",
         }}
       >
         <div
@@ -47,14 +47,16 @@ export default function Home() {
           <div
             style={{
               width: "100%",
-              padding: "16px 0",
+              padding: "18px 0",
               borderRadius: "12px",
-              background: "rgba(0,0,0,0.85)",
+              background: "rgba(0,0,0,0.9)",
               color: "#fff",
               textAlign: "center",
-              fontSize: "1.2rem",
-              fontWeight: 700,
-              letterSpacing: "0.5px",
+              fontSize: "1.25rem",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              fontWeight: 700, // Rowdies fica forte aqui
+              fontFamily: "'Rowdies', sans-serif",
             }}
           >
             REGISTRE-SE AGORA
