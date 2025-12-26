@@ -1,24 +1,67 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import BottomNavbar from "@/components/BottomNavbar";
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-
-  const hideBottomNav =
-    pathname === "/" || pathname.startsWith("/register");
-
+export default function Home() {
   return (
-    <html lang="en">
-      <body>
-        {children}
-        {!hideBottomNav && <BottomNavbar />}
-      </body>
-    </html>
+    <main
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#000",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+      }}
+    >
+      {/* Imagem */}
+      <a href="/register" style={{ width: "100%", maxWidth: "720px" }}>
+        <img
+          src="/run.png"
+          alt="Register"
+          style={{
+            width: "100%",
+            height: "auto",
+            marginBottom: "24px",
+            cursor: "pointer",
+          }}
+        />
+      </a>
+
+      {/* Botão com contorno degradê + fonte Bebas Neue */}
+      <a
+        href="/register"
+        style={{
+          width: "100%",
+          maxWidth: "720px",
+          textDecoration: "none",
+        }}
+      >
+        <div
+          style={{
+            padding: "2px",
+            borderRadius: "14px",
+            background:
+              "linear-gradient(135deg, #ff2d55, #ff9500, #ffd60a)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              padding: "18px 0",
+              borderRadius: "12px",
+              background: "rgba(0,0,0,0.9)",
+              color: "#ffffff",
+              textAlign: "center",
+              fontSize: "1.35rem",
+              letterSpacing: "2.5px",
+              textTransform: "uppercase",
+              fontWeight: 400, // Bebas Neue é sempre 400
+            }}
+          >
+            REGISTRE-SE AGORA
+          </div>
+        </div>
+      </a>
+    </main>
   );
 }
