@@ -1,3 +1,5 @@
+"use client";
+
 export default function Home() {
   return (
     <main
@@ -11,7 +13,7 @@ export default function Home() {
         padding: "24px",
       }}
     >
-      {/* Imagem (responsiva, ~20% menor) */}
+      {/* Imagem principal */}
       <a href="/register" style={{ width: "100%", maxWidth: "720px" }}>
         <img
           src="/run.png"
@@ -21,19 +23,18 @@ export default function Home() {
             height: "auto",
             marginBottom: "24px",
             cursor: "pointer",
-            display: "block",
           }}
         />
       </a>
 
-      {/* Botão (mesma largura da imagem, contorno degradê) */}
+      {/* Botão registrar */}
       <a
         href="/register"
         style={{
           width: "100%",
           maxWidth: "720px",
           textDecoration: "none",
-          display: "block",
+          marginBottom: "28px",
         }}
       >
         <div
@@ -50,12 +51,12 @@ export default function Home() {
               padding: "18px 0",
               borderRadius: "12px",
               background: "rgba(0,0,0,0.9)",
-              color: "#fff",
+              color: "#ffffff",
               textAlign: "center",
               fontSize: "1.25rem",
               letterSpacing: "1px",
               textTransform: "uppercase",
-              fontWeight: 700, // Rowdies fica forte aqui
+              fontWeight: 700,
               fontFamily: "'Rowdies', sans-serif",
             }}
           >
@@ -63,6 +64,36 @@ export default function Home() {
           </div>
         </div>
       </a>
+
+      {/* Patrocinador */}
+      <div
+        style={{
+          textAlign: "center",
+          marginTop: "8px",
+        }}
+      >
+        <div
+          style={{
+            color: "#ccc",
+            fontSize: "0.9rem",
+            marginBottom: "8px",
+            letterSpacing: "1px",
+          }}
+        >
+          Patrocinador oficial:
+        </div>
+
+        <img
+          src="/ip.PNG"
+          alt="Patrocinador oficial"
+          style={{
+            maxWidth: "180px",
+            width: "100%",
+            height: "auto",
+            opacity: 0.9,
+          }}
+        />
+      </div>
     </main>
   );
 }
