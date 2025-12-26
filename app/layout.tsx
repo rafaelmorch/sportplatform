@@ -27,7 +27,7 @@ export default function Home() {
         />
       </a>
 
-      {/* Botão com contorno degradê + fonte Bebas Neue */}
+      {/* Botão com contorno degradê + fonte Rowdies */}
       <a
         href="/register"
         style={{
@@ -52,10 +52,11 @@ export default function Home() {
               background: "rgba(0,0,0,0.9)",
               color: "#ffffff",
               textAlign: "center",
-              fontSize: "1.35rem",
-              letterSpacing: "2.5px",
+              fontSize: "1.25rem",
+              letterSpacing: "1.5px",
               textTransform: "uppercase",
-              fontWeight: 400, // Bebas Neue é sempre 400
+              fontWeight: 700, // Rowdies fica melhor em 700 no CTA
+              fontFamily: "'Rowdies', sans-serif",
             }}
           >
             REGISTRE-SE AGORA
