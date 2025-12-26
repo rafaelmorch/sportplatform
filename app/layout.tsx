@@ -19,7 +19,8 @@ export default function RootLayout({
   const hideBottomNav =
     pathname === "/" ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/login");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/contact");
 
   return (
     <html lang="en">
