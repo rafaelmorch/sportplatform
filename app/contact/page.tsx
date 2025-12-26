@@ -1,162 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 
 export default function ContactPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+    containerRef.current.innerHTML = "";
 
-    // Mostra a confirmação na própria página
-    setSent(true);
+    const script = document.createElement("script");
+    script.src = "https://form.jotform.com/jsform/253594326585064";
+    script.type = "text/javascript";
+    script.async = true;
 
-    const subject = encodeURIComponent("Contato - SportsPlatform");
-    const body = encodeURIComponent(
-      `Nome: ${name}\nEmail: ${email}\n\nMensagem:\n${message}`
-    );
-
-    // Abre o app de e-mail do usuário com a mensagem pronta
-    window.location.href = `mailto:contact@sportsplatform.app?subject=${subject}&body=${body}`;
-  }
+    containerRef.current.appendChild(script);
+  }, []);
 
   return (
     <main
       style={{
         minHeight: "100vh",
         backgroundColor: "#000",
+        padding: "24px 16px",
         display: "flex",
-        alignItems: "center",
         justifyContent: "center",
-        padding: "32px 16px",
       }}
     >
       <div
+        ref={containerRef}
         style={{
           width: "100%",
-          maxWidth: 760,
-          borderRadius: 18,
-          background: "rgba(0,0,0,0.85)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          padding: "28px 22px",
-          color: "#fff",
+          maxWidth: "720px",
+          background: "#fff",
+          borderRadius: "12px",
+          overflow: "hidden",
         }}
-      >
-        <div style={{ textAlign: "center", marginBottom: 16 }}>
-          <div style={{ fontSize: 42, marginBottom: 6 }}>📩</div>
-          <h1 style={{ margin: 0, fontSize: 42, letterSpacing: 1 }}>
-            Entre em Contato
-          </h1>
-        </div>
-
-        <p style={{ textAlign: "center", marginBottom: 20, opacity: 0.95 }}>
-          Se você tiver alguma dúvida ou precisar de ajuda, envie uma mensagem.
-        </p>
-
-        {sent && (
-          <div
-            style={{
-              marginBottom: 16,
-              padding: "12px 14px",
-              borderRadius: 10,
-              background: "rgba(34, 197, 94, 0.18)",
-              border: "1px solid rgba(34, 197, 94, 0.35)",
-              color: "#bbf7d0",
-              fontWeight: 700,
-              textAlign: "center",
-            }}
-          >
-            ✅ Pronto! Abrimos seu aplicativo de e-mail com a mensagem pronta.
-            <br />
-            <span style={{ fontWeight: 400, opacity: 0.9 }}>
-              Agora é só clicar em <b>Enviar</b>.
-            </span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Seu nome"
-            required
-            style={inputStyle}
-          />
-
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Seu e-mail"
-            type="email"
-            required
-            style={inputStyle}
-          />
-
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Sua mensagem"
-            required
-            rows={6}
-            style={{ ...inputStyle, paddingTop: 14, resize: "vertical" }}
-          />
-
-          <button
-            type="submit"
-            style={{
-              height: 56,
-              border: 0,
-              borderRadius: 10,
-              cursor: "pointer",
-              color: "#fff",
-              fontSize: 22,
-              fontWeight: 700,
-              letterSpacing: 1,
-              background:
-                "linear-gradient(90deg, #ff2d55 0%, #ff9500 50%, #ffd60a 100%)",
-              boxShadow: "0 12px 28px rgba(0,0,0,0.4)",
-            }}
-          >
-            Enviar Mensagem
-          </button>
-        </form>
-
-        <div style={{ marginTop: 20, textAlign: "center", lineHeight: 1.7 }}>
-          <div>
-            <b>Email:</b> contact@sportsplatform.app
-          </div>
-          <div>
-            <b>Telefone (WhatsApp):</b>{" "}
-            <a
-              href="https://wa.me/16897992080"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#8bff9d", textDecoration: "none", fontWeight: 700 }}
-            >
-              (689) 799-2080
-            </a>
-          </div>
-          <div>
-            <b>Localização:</b> Estados Unidos
-          </div>
-        </div>
-      </div>
+      />
     </main>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  height: 52,
-  borderRadius: 8,
-  border: "1px solid rgba(255,255,255,0.15)",
-  background: "#fff",
-  color: "#111",
-  padding: "0 14px",
-  fontSize: 18,
-  outline: "none",
-};
