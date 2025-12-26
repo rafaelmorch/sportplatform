@@ -15,18 +15,13 @@ export default function Home() {
         padding: "24px",
       }}
     >
-      <h1 style={{ fontSize: "2.5rem", marginBottom: "24px" }}>
-        SportsPlatform
-      </h1>
-
-      {/* Imagem maior e responsiva */}
-      <a href="/register" style={{ width: "100%", maxWidth: "900px" }}>
+      {/* Imagem (20% menor e responsiva) */}
+      <a href="/register" style={{ width: "100%", maxWidth: "720px" }}>
         <img
           src="/run.png"
           alt="Register"
           style={{
             width: "100%",
-            maxWidth: "900px",
             height: "auto",
             cursor: "pointer",
             marginBottom: "32px",
@@ -34,29 +29,32 @@ export default function Home() {
         />
       </a>
 
-      {/* Botão de registro */}
+      {/* Botão mais bonito */}
       <a
         href="/register"
         style={{
-          padding: "14px 36px",
-          backgroundColor: "#fff",
+          padding: "16px 44px",
+          background: "linear-gradient(135deg, #ffffff, #e5e5e5)",
           color: "#000",
-          borderRadius: "8px",
+          borderRadius: "999px",
           textDecoration: "none",
           fontWeight: 700,
-          fontSize: "1.1rem",
-          transition: "transform 0.2s ease, opacity 0.2s ease",
+          fontSize: "1.15rem",
+          boxShadow: "0 10px 30px rgba(255,255,255,0.25)",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.05)";
-          e.currentTarget.style.opacity = "0.9";
+          e.currentTarget.style.transform = "translateY(-2px)";
+          e.currentTarget.style.boxShadow =
+            "0 14px 40px rgba(255,255,255,0.35)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-          e.currentTarget.style.opacity = "1";
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.boxShadow =
+            "0 10px 30px rgba(255,255,255,0.25)";
         }}
       >
-        Registre-se aqui
+        Registre-se agora
       </a>
     </main>
   );
