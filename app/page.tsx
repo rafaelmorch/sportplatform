@@ -95,8 +95,8 @@ export default function Home() {
       <a
         href="/contact"
         style={{
-          fontSize: "0.9rem",
-          color: "#aaa",
+          fontSize: "1.08rem",
+          color: "#fff",
           textDecoration: "none",
           marginBottom: "28px",
         }}
