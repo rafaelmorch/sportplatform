@@ -101,7 +101,7 @@ export default function Home() {
           marginBottom: "28px",
         }}
       >
-        Fale conosco
+        Fale conosco →
       </a>
 
       {/* Patrocinador */}
