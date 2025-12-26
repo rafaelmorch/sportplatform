@@ -1,3 +1,5 @@
+"use client";
+
 export default function Home() {
   return (
     <main
@@ -24,7 +26,7 @@ export default function Home() {
           alt="Register"
           style={{
             width: "100%",
-            maxWidth: "900px", // ~80% maior que antes
+            maxWidth: "900px",
             height: "auto",
             cursor: "pointer",
             marginBottom: "32px",
