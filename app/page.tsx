@@ -6,16 +6,14 @@ export default function Home() {
       style={{
         minHeight: "100vh",
         backgroundColor: "#000",
-        color: "#fff",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        textAlign: "center",
         padding: "24px",
       }}
     >
-      {/* Imagem (20% menor e responsiva) */}
+      {/* Imagem */}
       <a href="/register" style={{ width: "100%", maxWidth: "720px" }}>
         <img
           src="/run.png"
@@ -23,38 +21,45 @@ export default function Home() {
           style={{
             width: "100%",
             height: "auto",
+            marginBottom: "24px",
             cursor: "pointer",
-            marginBottom: "32px",
           }}
         />
       </a>
 
-      {/* Botão mais bonito */}
+      {/* Botão com contorno degradê */}
       <a
         href="/register"
         style={{
-          padding: "16px 44px",
-          background: "linear-gradient(135deg, #ffffff, #e5e5e5)",
-          color: "#000",
-          borderRadius: "999px",
+          width: "100%",
+          maxWidth: "720px",
           textDecoration: "none",
-          fontWeight: 700,
-          fontSize: "1.15rem",
-          boxShadow: "0 10px 30px rgba(255,255,255,0.25)",
-          transition: "transform 0.2s ease, box-shadow 0.2s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "translateY(-2px)";
-          e.currentTarget.style.boxShadow =
-            "0 14px 40px rgba(255,255,255,0.35)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.boxShadow =
-            "0 10px 30px rgba(255,255,255,0.25)";
         }}
       >
-        Registre-se agora
+        <div
+          style={{
+            padding: "2px",
+            borderRadius: "14px",
+            background:
+              "linear-gradient(135deg, #ff2d55, #ff9500, #ffd60a)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              padding: "16px 0",
+              borderRadius: "12px",
+              background: "rgba(0,0,0,0.85)",
+              color: "#fff",
+              textAlign: "center",
+              fontSize: "1.2rem",
+              fontWeight: 700,
+              letterSpacing: "0.5px",
+            }}
+          >
+            REGISTRE-SE AGORA
+          </div>
+        </div>
       </a>
     </main>
   );
