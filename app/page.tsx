@@ -13,7 +13,7 @@ export default function Home() {
         padding: "24px",
       }}
     >
-      {/* Imagem do topo (Sportsazul) */}
+      {/* Imagem do topo */}
       <div
         style={{
           width: "100%",
@@ -53,14 +53,14 @@ export default function Home() {
         />
       </a>
 
-      {/* Botão registrar */}
+      {/* Botão principal */}
       <a
         href="/register"
         style={{
           width: "100%",
           maxWidth: "720px",
           textDecoration: "none",
-          marginBottom: "28px",
+          marginBottom: "10px",
         }}
       >
         <div
@@ -89,6 +89,19 @@ export default function Home() {
             REGISTRE-SE AGORA
           </div>
         </div>
+      </a>
+
+      {/* Botão discreto de contato */}
+      <a
+        href="/contact"
+        style={{
+          fontSize: "0.9rem",
+          color: "#aaa",
+          textDecoration: "none",
+          marginBottom: "28px",
+        }}
+      >
+        Fale conosco
       </a>
 
       {/* Patrocinador */}
