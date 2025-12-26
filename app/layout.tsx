@@ -1,40 +1,23 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import FitbitAutoImport from "@/components/FitbitAutoImport";
+"use client";
+
+import { usePathname } from "next/navigation";
 import BottomNavbar from "@/components/BottomNavbar";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Sports Platform",
-  description: "Sports Platform",
-};
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
+  const pathname = usePathname();
+
+  const hideBottomNav =
+    pathname === "/" || pathname.startsWith("/register");
+
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {/* Auto-import Fitbit (roda silenciosamente quando o app abre) */}
-        <FitbitAutoImport />
-
-        {/* Conteúdo com espaço pro navbar fixo não cobrir o final */}
-        <div style={{ paddingBottom: 86 }}>{children}</div>
-
-        {/* Navbar fixo */}
-        <BottomNavbar />
+      <body>
+        {children}
+        {!hideBottomNav && <BottomNavbar />}
       </body>
     </html>
   );
