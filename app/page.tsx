@@ -23,6 +23,7 @@ export default function Home() {
             height: "auto",
             marginBottom: "24px",
             cursor: "pointer",
+            display: "block",
           }}
         />
       </a>
@@ -34,7 +35,7 @@ export default function Home() {
           width: "100%",
           maxWidth: "720px",
           textDecoration: "none",
-          marginBottom: "28px",
+          marginBottom: "32px",
         }}
       >
         <div
@@ -65,13 +66,8 @@ export default function Home() {
         </div>
       </a>
 
-      {/* Patrocinador */}
-      <div
-        style={{
-          textAlign: "center",
-          marginTop: "8px",
-        }}
-      >
+      {/* Patrocinador oficial */}
+      <div style={{ textAlign: "center", marginBottom: "16px" }}>
         <div
           style={{
             color: "#ccc",
@@ -91,6 +87,19 @@ export default function Home() {
             width: "100%",
             height: "auto",
             opacity: 0.9,
+          }}
+        />
+      </div>
+
+      {/* Nova imagem – mesma largura e responsividade da principal */}
+      <div style={{ width: "100%", maxWidth: "720px", marginTop: "24px" }}>
+        <img
+          src="/Sportsazul.png"
+          alt="Sports Platform"
+          style={{
+            width: "100%",
+            height: "auto",
+            display: "block",
           }}
         />
       </div>
