@@ -11,6 +11,17 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box", // ✅ evita estourar o card
+  padding: "10px 11px",
+  borderRadius: "12px",
+  border: "1px solid #1f2933",
+  backgroundColor: "#020617",
+  color: "#e5e7eb",
+  fontSize: "13px",
+};
+
 export default function SignUpPage() {
   const router = useRouter();
 
@@ -103,10 +114,12 @@ export default function SignUpPage() {
           maxWidth: "420px",
           borderRadius: "24px",
           border: "1px solid #111827",
+          overflow: "hidden", // ✅ garante que nada “escape” do card
           background:
             "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
           boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
           padding: "24px 20px 22px",
+          boxSizing: "border-box", // ✅ consistência no container
         }}
       >
         <h1
@@ -139,6 +152,7 @@ export default function SignUpPage() {
               background: "rgba(153,27,27,0.25)",
               fontSize: "12px",
               color: "#fecaca",
+              boxSizing: "border-box",
             }}
           >
             {errorMsg}
@@ -155,6 +169,7 @@ export default function SignUpPage() {
               background: "rgba(21,128,61,0.25)",
               fontSize: "12px",
               color: "#bbf7d0",
+              boxSizing: "border-box",
             }}
           >
             {successMsg}
@@ -182,15 +197,7 @@ export default function SignUpPage() {
               placeholder="Seu nome completo"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 11px",
-                borderRadius: "12px",
-                border: "1px solid #1f2933",
-                backgroundColor: "#020617",
-                color: "#e5e7eb",
-                fontSize: "13px",
-              }}
+              style={inputStyle}
             />
           </div>
 
@@ -209,15 +216,7 @@ export default function SignUpPage() {
               placeholder="voce@exemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 11px",
-                borderRadius: "12px",
-                border: "1px solid #1f2933",
-                backgroundColor: "#020617",
-                color: "#e5e7eb",
-                fontSize: "13px",
-              }}
+              style={inputStyle}
             />
           </div>
 
@@ -230,7 +229,7 @@ export default function SignUpPage() {
               Senha
             </label>
 
-            <div style={{ position: "relative", width: "100%" }}>
+            <div style={{ position: "relative", width: "100%", boxSizing: "border-box" }}>
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
@@ -239,13 +238,8 @@ export default function SignUpPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{
-                  width: "100%",
-                  padding: "10px 40px 10px 11px",
-                  borderRadius: "12px",
-                  border: "1px solid #1f2933",
-                  backgroundColor: "#020617",
-                  color: "#e5e7eb",
-                  fontSize: "13px",
+                  ...inputStyle,
+                  padding: "10px 40px 10px 11px", // espaço pro ícone
                 }}
               />
 
@@ -261,7 +255,10 @@ export default function SignUpPage() {
                   border: "none",
                   cursor: "pointer",
                   color: "#9ca3af",
+                  padding: 0,
+                  lineHeight: 0,
                 }}
+                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -284,15 +281,7 @@ export default function SignUpPage() {
               placeholder="Confirme sua senha"
               value={password2}
               onChange={(e) => setPassword2(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 11px",
-                borderRadius: "12px",
-                border: "1px solid #1f2933",
-                backgroundColor: "#020617",
-                color: "#e5e7eb",
-                fontSize: "13px",
-              }}
+              style={inputStyle}
             />
           </div>
 
@@ -303,6 +292,7 @@ export default function SignUpPage() {
             style={{
               marginTop: "4px",
               width: "100%",
+              boxSizing: "border-box",
               padding: "10px 14px",
               borderRadius: "999px",
               border: "none",
