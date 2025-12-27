@@ -18,8 +18,9 @@ export default function RootLayout({
 
   const hideBottomNav =
     pathname === "/" ||
-    pathname.startsWith("/register") ||
     pathname.startsWith("/login") ||
+    pathname.startsWith("/signup") ||   // ✅ AQUI
+    pathname.startsWith("/register") ||
     pathname.startsWith("/contact");
 
   return (
