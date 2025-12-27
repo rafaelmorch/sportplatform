@@ -76,39 +76,47 @@ export default function ProfilePage() {
         setLoadingProfile(false);
       }
 
-      // 2) Conexões (IGUAL ao /integrations: fonte da verdade = tabelas de tokens)
+      // 2) Conexões (fonte da verdade = tabelas de tokens)
       try {
         setLoadingConnections(true);
 
-        // Strava
-        const { data: stravaRow, error: stravaErr } = await supabaseBrowser
+        // Strava (não usa maybeSingle pra não quebrar se tiver duplicado)
+        const { data: stravaRows, error: stravaErr } = await supabaseBrowser
           .from("strava_tokens")
           .select("athlete_id")
           .eq("user_id", user.id)
-          .maybeSingle();
+          .limit(1);
 
         if (stravaErr) {
           console.error("Erro ao checar strava_tokens:", stravaErr);
         }
 
-        // Fitbit
-        const { data: fitbitRow, error: fitbitErr } = await supabaseBrowser
+        const stravaAthleteId = Array.isArray(stravaRows)
+          ? stravaRows[0]?.athlete_id
+          : null;
+
+        // Fitbit (não usa maybeSingle pra não quebrar se tiver duplicado)
+        const { data: fitbitRows, error: fitbitErr } = await supabaseBrowser
           .from("fitbit_tokens")
           .select("fitbit_user_id")
           .eq("user_id", user.id)
-          .maybeSingle();
+          .limit(1);
 
         if (fitbitErr) {
           console.error("Erro ao checar fitbit_tokens:", fitbitErr);
         }
 
+        const fitbitUserId = Array.isArray(fitbitRows)
+          ? fitbitRows[0]?.fitbit_user_id
+          : null;
+
         const map: Record<string, ConnectionRow> = {};
 
-        if (stravaRow?.athlete_id) {
+        if (stravaAthleteId) {
           map["strava"] = { provider: "strava", expires_at: null };
         }
 
-        if (fitbitRow?.fitbit_user_id) {
+        if (fitbitUserId) {
           map["fitbit"] = { provider: "fitbit", expires_at: null };
         }
 
@@ -199,14 +207,9 @@ export default function ProfilePage() {
 
   function getStatus(provider: "strava" | "fitbit") {
     const c = connections[provider];
-    if (!c) return { label: "Não conectado", color: "#fca5a5" };
 
-    if (c.expires_at) {
-      const exp = new Date(c.expires_at).getTime();
-      if (!Number.isNaN(exp) && exp < Date.now()) {
-        return { label: "Conexão expirada", color: "#fbbf24" };
-      }
-    }
+    // ✅ pedido: não mostrar "Não conectado" no Profile
+    if (!c) return { label: "", color: "#9ca3af" };
 
     return { label: "Conectado", color: "#bbf7d0" };
   }
@@ -452,9 +455,13 @@ export default function ProfilePage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <div>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Strava</p>
-                      <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
-                        {s.label}
-                      </p>
+
+                      {/* ✅ pedido: some com "Não conectado" */}
+                      {!!s.label && (
+                        <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
+                          {s.label}
+                        </p>
+                      )}
                     </div>
 
                     <a
@@ -500,13 +507,17 @@ export default function ProfilePage() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                     <div>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Fitbit</p>
-                      <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
-                        {s.label}
-                      </p>
+
+                      {/* ✅ pedido: some com "Não conectado" */}
+                      {!!s.label && (
+                        <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
+                          {s.label}
+                        </p>
+                      )}
                     </div>
 
                     <a
-                      href="/api/fitbit/connect"
+                      href="/integrations"
                       style={{
                         borderRadius: 999,
                         padding: "8px 14px",
@@ -522,7 +533,7 @@ export default function ProfilePage() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {connected ? "Reconectar" : "Conectar"}
+                      {connected ? "Gerenciar" : "Conectar"}
                     </a>
                   </div>
 
