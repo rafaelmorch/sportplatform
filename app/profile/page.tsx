@@ -76,27 +76,41 @@ export default function ProfilePage() {
         setLoadingProfile(false);
       }
 
-      // 2) Conexões
+      // 2) Conexões (IGUAL ao /integrations: fonte da verdade = tabelas de tokens)
       try {
         setLoadingConnections(true);
 
-        const { data, error } = await supabaseBrowser
-          .from("user_oauth_connections")
-          .select("provider, expires_at")
-          .eq("user_id", user.id);
+        // Strava
+        const { data: stravaRow, error: stravaErr } = await supabaseBrowser
+          .from("strava_tokens")
+          .select("athlete_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-        if (error) {
-          console.error("Erro ao carregar conexões:", error);
-          return;
+        if (stravaErr) {
+          console.error("Erro ao checar strava_tokens:", stravaErr);
+        }
+
+        // Fitbit
+        const { data: fitbitRow, error: fitbitErr } = await supabaseBrowser
+          .from("fitbit_tokens")
+          .select("fitbit_user_id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (fitbitErr) {
+          console.error("Erro ao checar fitbit_tokens:", fitbitErr);
         }
 
         const map: Record<string, ConnectionRow> = {};
-        (data || []).forEach((row: any) => {
-          map[row.provider] = {
-            provider: row.provider,
-            expires_at: row.expires_at ?? null,
-          };
-        });
+
+        if (stravaRow?.athlete_id) {
+          map["strava"] = { provider: "strava", expires_at: null };
+        }
+
+        if (fitbitRow?.fitbit_user_id) {
+          map["fitbit"] = { provider: "fitbit", expires_at: null };
+        }
 
         setConnections(map);
       } catch (err) {
