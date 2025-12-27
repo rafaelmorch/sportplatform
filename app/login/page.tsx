@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import LoginTopMenu from "@/components/LoginTopMenu";
 
@@ -242,6 +243,22 @@ export default function LoginPage() {
             >
               {loadingGoogle ? "Conectando..." : "Continuar com Google"}
             </button>
+
+            {/* LINK CRIAR CONTA */}
+            <div style={{ marginTop: 14, textAlign: "center", fontSize: 13 }}>
+              <span style={{ color: "#9ca3af" }}>Ainda não tem conta? </span>
+              <Link
+                href="/signup"
+                style={{
+                  color: "#e5e7eb",
+                  fontWeight: 700,
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
+                }}
+              >
+                Criar conta
+              </Link>
+            </div>
           </form>
         </div>
       </main>
