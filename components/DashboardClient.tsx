@@ -110,9 +110,7 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
   const dateKey = d.toISOString().slice(0, 10);
   const todayKey = now.toISOString().slice(0, 10);
 
-  if (range === "today") {
-    return dateKey === todayKey;
-  }
+  if (range === "today") return dateKey === todayKey;
 
   const diffMs = now.getTime() - d.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
@@ -138,9 +136,12 @@ function isWalkingType(type: string | null | undefined): boolean {
  * - Atividades que NÃO são caminhada: 1h = 100 pontos
  * - Caminhada: 1h = 15 pontos
  *
- * Aqui vamos usar moving_time (segundos) do Strava.
+ * Aqui usamos moving_time (segundos) do Strava.
  */
-function getStravaActivityPoints(type: string | null, movingSeconds: number): number {
+function getStravaActivityPoints(
+  type: string | null,
+  movingSeconds: number
+): number {
   if (!movingSeconds || movingSeconds <= 0) return 0;
   const hours = movingSeconds / 3600;
   const rate = isWalkingType(type) ? 15 : 100;
@@ -158,7 +159,9 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [groupAthleteIds, setGroupAthleteIds] = useState<number[] | null>(null);
+
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingGroupAthletes, setLoadingGroupAthletes] = useState(false);
 
   // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
@@ -171,11 +174,8 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           error: userError,
         } = await supabase.auth.getUser();
 
-        if (userError) {
-          console.error("Erro ao carregar usuário:", userError);
-        }
+        if (userError) console.error("Erro ao carregar usuário:", userError);
 
-        // Se não tiver user (caso raro), tenta usar o primeiro athlete_id vindo das activities
         if (!user) {
           const firstAthlete = activities[0]?.athlete_id ?? null;
           setCurrentAthleteId(firstAthlete);
@@ -185,22 +185,17 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
 
         setCurrentUserId(user.id);
 
-        // Perfil (nome) — se falhar, seguimos com fallback
+        // Perfil (nome)
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("full_name")
           .eq("id", user.id)
           .maybeSingle();
 
-        if (profileError) {
-          console.error("Erro ao carregar profile:", profileError);
-        }
+        if (profileError) console.error("Erro ao carregar profile:", profileError);
+        if (profile?.full_name) setAthleteName(profile.full_name);
 
-        if (profile?.full_name) {
-          setAthleteName(profile.full_name);
-        }
-
-        // Athlete id do usuário (Strava)
+        // Athlete id do usuário (se existir via token real do Strava)
         const { data: tokenRow, error: tokenError } = await supabase
           .from("strava_tokens")
           .select("athlete_id")
@@ -209,14 +204,11 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           .limit(1)
           .maybeSingle();
 
-        if (tokenError) {
-          console.error("Erro ao carregar strava_tokens:", tokenError);
-        }
+        if (tokenError) console.error("Erro ao carregar strava_tokens:", tokenError);
 
         if (tokenRow?.athlete_id) {
           setCurrentAthleteId(tokenRow.athlete_id);
         } else {
-          // fallback: pega o primeiro athlete_id das activities (pode não ser o usuário)
           const firstAthlete = activities[0]?.athlete_id ?? null;
           setCurrentAthleteId(firstAthlete);
         }
@@ -250,9 +242,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             }));
 
             setGroups(opts);
-            if (opts.length > 0) {
-              setSelectedGroupId(opts[0].id);
-            }
+            if (opts.length > 0) setSelectedGroupId(opts[0].id);
           }
         }
       } catch (err) {
@@ -269,7 +259,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Carrega athlete_ids (Strava) dos membros do grupo selecionado
+  // Carrega athlete_ids do grupo selecionado (NOVA forma: training_group_strava_athletes)
   useEffect(() => {
     const loadGroupAthletes = async () => {
       if (!selectedGroupId) {
@@ -278,72 +268,54 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       }
 
       try {
-        setLoadingGroups(true);
+        setLoadingGroupAthletes(true);
 
-        const { data: members, error: membersError } = await supabase
-          .from("training_group_members")
-          .select("user_id")
+        const { data, error } = await supabase
+          .from("training_group_strava_athletes")
+          .select("athlete_id")
           .eq("group_id", selectedGroupId);
 
-        if (membersError) {
-          console.error("Erro ao carregar membros do grupo:", membersError);
+        if (error) {
+          console.error("Erro ao carregar atletas do grupo:", error);
           setGroupAthleteIds(null);
           return;
         }
 
-        const userIds = (members ?? []).map((m: any) => m.user_id as string);
+        const ids = Array.from(
+          new Set(
+            (data ?? [])
+              .map((r: any) => r.athlete_id as number | null)
+              .filter((id): id is number => typeof id === "number")
+          )
+        );
 
-        // Mapeia user_id -> athlete_id (Strava) quando existir
-        if (userIds.length === 0) {
-          setGroupAthleteIds([]);
-          return;
-        }
-
-        const { data: tokens, error: tokensError } = await supabase
-          .from("strava_tokens")
-          .select("user_id, athlete_id")
-          .in("user_id", userIds);
-
-        if (tokensError) {
-          console.error("Erro ao carregar tokens dos atletas do grupo:", tokensError);
-          setGroupAthleteIds(null);
-          return;
-        }
-
-        const athleteIds = (tokens ?? [])
-          .map((t: any) => t.athlete_id as number | null)
-          .filter((id): id is number => id != null);
-
-        setGroupAthleteIds(Array.from(new Set(athleteIds)));
+        setGroupAthleteIds(ids);
       } catch (err) {
         console.error("Erro inesperado ao carregar atletas do grupo:", err);
         setGroupAthleteIds(null);
       } finally {
-        setLoadingGroups(false);
+        setLoadingGroupAthletes(false);
       }
     };
 
-    if (selectedGroupId) {
-      loadGroupAthletes();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadGroupAthletes();
   }, [selectedGroupId]);
 
   const now = new Date();
 
-  // Atividades Strava dentro do range
+  // 1) filtra por período
   const activitiesInRange = activities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
 
-  // Se existir groupAthleteIds, filtra as activities para só membros do grupo
+  // 2) filtra por grupo (athlete_ids)
   let groupActivities = activitiesInRange;
   if (groupAthleteIds && groupAthleteIds.length > 0) {
-    groupActivities = groupActivities.filter(
-      (a) =>
-        typeof a.athlete_id === "number" &&
-        groupAthleteIds.includes(a.athlete_id)
+    groupActivities = groupActivities.filter((a) =>
+      groupAthleteIds.includes(a.athlete_id)
     );
+  } else if (groupAthleteIds && groupAthleteIds.length === 0) {
+    groupActivities = [];
   }
 
   // Atividades do atleta atual dentro do grupo/periodo
@@ -386,7 +358,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     athleteName ?? (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
 
   // -----------------------------
-  // RANKING DO GRUPO (Strava activities)
+  // RANKING DO GRUPO (Strava)
   // -----------------------------
   const ranking: RankingEntry[] = (() => {
     if (!groupActivities || groupActivities.length === 0) return [];
@@ -424,24 +396,19 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     return entries;
   })();
 
-  // Último colocado pro churrasco
   const lastPlace = ranking.length > 0 ? ranking[ranking.length - 1] : null;
 
   // -----------------------------
   // EVOLUÇÃO DOS TREINOS (Strava) - 3 linhas
-  // usuário atual vs média do grupo vs líder
   // -----------------------------
   const evolutionData: EvolutionPoint[] = (() => {
     if (!groupActivities || groupActivities.length === 0) return [];
 
     const leaderAthleteId = ranking.length > 0 ? ranking[0].athleteId : null;
 
-    const userMap = new Map<string, number>(); // date -> minutos do usuário
-    const leaderMap = new Map<string, number>(); // date -> minutos do líder
-    const groupMap = new Map<
-      string,
-      { totalMinutes: number; athleteIds: Set<number> }
-    >();
+    const userMap = new Map<string, number>();
+    const leaderMap = new Map<string, number>();
+    const groupMap = new Map<string, { totalMinutes: number; athleteIds: Set<number> }>();
 
     for (const a of groupActivities) {
       if (!a.start_date) continue;
@@ -451,19 +418,18 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       const key = d.toISOString().slice(0, 10);
       const minutes = (a.moving_time ?? 0) / 60;
 
-      // grupo (para média)
-      const gPrev =
-        groupMap.get(key) ?? { totalMinutes: 0, athleteIds: new Set<number>() };
+      const gPrev = groupMap.get(key) ?? {
+        totalMinutes: 0,
+        athleteIds: new Set<number>(),
+      };
       gPrev.totalMinutes += minutes;
       gPrev.athleteIds.add(a.athlete_id);
       groupMap.set(key, gPrev);
 
-      // usuário atual
       if (currentAthleteId != null && a.athlete_id === currentAthleteId) {
         userMap.set(key, (userMap.get(key) ?? 0) + minutes);
       }
 
-      // líder
       if (leaderAthleteId != null && a.athlete_id === leaderAthleteId) {
         leaderMap.set(key, (leaderMap.get(key) ?? 0) + minutes);
       }
@@ -580,24 +546,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             marginTop: 4,
           }}
         >
-          <span
-            style={{
-              fontSize: 12,
-              color: "#9ca3af",
-            }}
-          >
+          <span style={{ fontSize: 12, color: "#9ca3af" }}>
             {groups.length > 1
               ? "Selecione o grupo para ver ranking e métricas:"
               : "Grupo atual:"}
           </span>
 
           {groups.length === 0 ? (
-            <span
-              style={{
-                fontSize: 12,
-                color: "#6b7280",
-              }}
-            >
+            <span style={{ fontSize: 12, color: "#6b7280" }}>
               Nenhum grupo encontrado.
             </span>
           ) : (
@@ -620,10 +576,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                 <option
                   key={g.id}
                   value={g.id}
-                  style={{
-                    backgroundColor: "#020617",
-                    color: "#e5e7eb",
-                  }}
+                  style={{ backgroundColor: "#020617", color: "#e5e7eb" }}
                 >
                   {g.name}
                 </option>
@@ -631,26 +584,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             </select>
           )}
 
-          {loadingGroups && (
-            <span
-              style={{
-                fontSize: 11,
-                color: "#9ca3af",
-              }}
-            >
-              Carregando grupos...
+          {(loadingGroups || loadingGroupAthletes) && (
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>
+              Carregando grupos/atletas...
             </span>
           )}
         </div>
 
-        <p
-          style={{
-            fontSize: 13,
-            color: "#9ca3af",
-            margin: 0,
-            marginTop: 4,
-          }}
-        >
+        <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, marginTop: 4 }}>
           Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos
           (minutos) e resumo das suas atividades.
         </p>
@@ -694,7 +635,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         })}
       </div>
 
-      {/* MEME DO CHURRASCO – versão original mais simples */}
+      {/* MEME DO CHURRASCO */}
       {lastPlace && (
         <section
           style={{
@@ -711,14 +652,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             flexWrap: "wrap",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-              minWidth: 0,
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
             <span
               style={{
                 fontSize: 11,
@@ -740,12 +674,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             >
               {lastPlace.label}
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                color: "#9ca3af",
-              }}
-            >
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>
               Último colocado no ranking neste período.
             </span>
           </div>
@@ -769,7 +698,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         </section>
       )}
 
-      {/* RANKING DO GRUPO (Strava activities) */}
+      {/* RANKING DO GRUPO */}
       <section
         style={{
           borderRadius: 20,
@@ -791,49 +720,23 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           }}
         >
           <div>
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
               Ranking do grupo
-              {range === "all"
-                ? " (todo período)"
-                : " (dentro do período selecionado)"}
+              {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
             </h2>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              Pontuação baseada nas atividades Strava: atividades (exceto caminhada)
-              = 100 pts/h, caminhada = 15 pts/h.
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+              Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100
+              pts/h, caminhada = 15 pts/h.
             </p>
           </div>
         </div>
 
         {ranking.length === 0 ? (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              marginTop: 8,
-            }}
-          >
+          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
             Nenhuma atividade encontrada nesse período para montar o ranking deste grupo.
           </p>
         ) : (
-          <div
-            style={{
-              width: "100%",
-              overflowX: "auto",
-              maxHeight: 360,
-            }}
-          >
+          <div style={{ width: "100%", overflowX: "auto", maxHeight: 360 }}>
             <table
               style={{
                 width: "100%",
@@ -853,9 +756,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                   <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
                   <th style={{ padding: "8px 4px" }}>Atleta</th>
                   <th style={{ padding: "8px 4px", textAlign: "right" }}>Pontos</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
-                    Horas (total)
-                  </th>
+                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Horas (total)</th>
                 </tr>
               </thead>
               <tbody>
@@ -869,13 +770,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                         : "transparent",
                     }}
                   >
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", whiteSpace: "nowrap", fontWeight: r.isCurrent ? 700 : 500 }}>
                       #{index + 1}
                     </td>
                     <td
@@ -904,24 +799,10 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                         </span>
                       )}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap", fontWeight: r.isCurrent ? 700 : 500 }}>
                       {r.totalPoints}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        color: "#9ca3af",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap", color: "#9ca3af" }}>
                       {r.totalHours.toFixed(1)} h
                     </td>
                   </tr>
@@ -932,7 +813,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         )}
       </section>
 
-      {/* Gráfico ÚNICO: Evolução dos treinos (Strava) */}
+      {/* Gráfico: Evolução dos treinos */}
       <section
         style={{
           borderRadius: 20,
@@ -946,7 +827,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         <DashboardCharts evolutionData={evolutionData} />
       </section>
 
-      {/* Card do ATLETA (após o gráfico) */}
+      {/* Card do ATLETA */}
       <section
         style={{
           borderRadius: 18,
@@ -968,24 +849,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           {range === "all" ? " · todo período" : " · período selecionado"}
           {loadingAthlete ? " (carregando...)" : ""}
         </p>
-        <p
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-            marginBottom: 2,
-          }}
-        >
+
+        <p style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>
           {athleteDistance.toFixed(1)} km
         </p>
-        <p
-          style={{
-            fontSize: 11,
-            color: "#6b7280",
-            marginBottom: 8,
-          }}
-        >
-          Distância total em todas as suas atividades dentro do grupo e período
-          filtrados (dados Strava).
+
+        <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
+          Distância total em todas as suas atividades dentro do grupo e período filtrados
+          (dados Strava).
         </p>
 
         <div
@@ -999,44 +870,26 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         >
           <div>
             <div>Tempo em movimento</div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#e5e7eb",
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
               {formatDuration(athleteMovingTime)}
             </div>
           </div>
           <div>
             <div>Elevação acumulada</div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#e5e7eb",
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
               {Math.round(athleteElevation)} m
             </div>
           </div>
           <div>
             <div>Atividades</div>
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#e5e7eb",
-              }}
-            >
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
               {athleteActivitiesCount}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Últimas atividades (Strava) */}
+      {/* Últimas atividades */}
       <section
         style={{
           borderRadius: 20,
@@ -1058,48 +911,23 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           }}
         >
           <div>
-            <h2
-              style={{
-                fontSize: 16,
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
               Últimas atividades
-              {range === "all"
-                ? " (todo período)"
-                : " (dentro do período selecionado)"}
+              {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
             </h2>
-            <p
-              style={{
-                fontSize: 12,
-                color: "#9ca3af",
-                margin: 0,
-              }}
-            >
-              As 10 atividades mais recentes (Strava) do grupo selecionado dentro
-              do filtro atual.
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+              As 10 atividades mais recentes (Strava) do grupo selecionado dentro do filtro
+              atual.
             </p>
           </div>
         </div>
 
         {lastActivities.length === 0 ? (
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              marginTop: 8,
-            }}
-          >
+          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
             Nenhuma atividade Strava encontrada nesse período para o grupo selecionado.
           </p>
         ) : (
-          <div
-            style={{
-              width: "100%",
-              overflowX: "auto",
-            }}
-          >
+          <div style={{ width: "100%", overflowX: "auto" }}>
             <table
               style={{
                 width: "100%",
@@ -1119,21 +947,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                   <th style={{ padding: "8px 4px" }}>Data</th>
                   <th style={{ padding: "8px 4px" }}>Atividade</th>
                   <th style={{ padding: "8px 4px" }}>Tipo</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>
-                    Distância
-                  </th>
+                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Distância</th>
                   <th style={{ padding: "8px 4px", textAlign: "right" }}>Tempo</th>
                   <th style={{ padding: "8px 4px", textAlign: "right" }}>Ritmo</th>
                 </tr>
               </thead>
               <tbody>
                 {lastActivities.map((a) => (
-                  <tr
-                    key={a.id}
-                    style={{
-                      borderBottom: "1px solid rgba(31,41,55,0.7)",
-                    }}
-                  >
+                  <tr key={a.id} style={{ borderBottom: "1px solid rgba(31,41,55,0.7)" }}>
                     <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>
                       {formatDate(a.start_date)}
                     </td>
@@ -1151,31 +972,13 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                     <td style={{ padding: "8px 4px" }}>
                       {a.sport_type ?? a.type ?? "-"}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {metersToKm(a.distance).toFixed(2)} km
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {formatDuration(a.moving_time)}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {formatPace(a.moving_time, a.distance)}
                     </td>
                   </tr>

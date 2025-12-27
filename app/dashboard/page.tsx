@@ -57,35 +57,91 @@ export default function DashboardPage() {
 
       const userId = session.user.id;
 
-      // 2) ATIVIDADES: agora é 100% STRAVA (direto da strava_activities)
+      // 2) grupos do usuário
+      const { data: myMemberships, error: membershipsError } = await supabase
+        .from("training_group_members")
+        .select("group_id")
+        .eq("user_id", userId);
+
+      if (membershipsError) {
+        console.error("Erro ao carregar grupos do usuário:", membershipsError);
+        setErrorMsg("Erro ao carregar seus grupos.");
+        setLoading(false);
+        return;
+      }
+
+      const groupIds = Array.from(
+        new Set((myMemberships ?? []).map((m: any) => m.group_id as string))
+      );
+
+      if (groupIds.length === 0) {
+        setActivities([]);
+        setEventsSummary({ availableEvents: 0, userEvents: 0 });
+        setLoading(false);
+        return;
+      }
+
+      // 3) athlete_ids por grupo (NOVA forma): training_group_strava_athletes
+      const { data: groupAthletes, error: groupAthletesError } = await supabase
+        .from("training_group_strava_athletes")
+        .select("athlete_id")
+        .in("group_id", groupIds);
+
+      if (groupAthletesError) {
+        console.error(
+          "Erro ao carregar athlete_ids dos grupos (training_group_strava_athletes):",
+          groupAthletesError
+        );
+        setErrorMsg("Erro ao carregar atletas dos seus grupos.");
+        setLoading(false);
+        return;
+      }
+
+      const athleteIds = Array.from(
+        new Set(
+          (groupAthletes ?? [])
+            .map((r: any) => r.athlete_id as number | null)
+            .filter((id): id is number => typeof id === "number")
+        )
+      );
+
+      if (athleteIds.length === 0) {
+        setActivities([]);
+        setEventsSummary({ availableEvents: 0, userEvents: 0 });
+        setLoading(false);
+        return;
+      }
+
+      // 4) carrega activities Strava desses atletas
       const { data: activitiesData, error: activitiesError } = await supabase
         .from("strava_activities")
         .select(
           `
-            id,
-            athlete_id,
-            name,
-            type,
-            sport_type,
-            start_date,
-            distance,
-            moving_time,
-            total_elevation_gain
-          `
+          id,
+          athlete_id,
+          name,
+          type,
+          sport_type,
+          start_date,
+          distance,
+          moving_time,
+          total_elevation_gain
+        `
         )
+        .in("athlete_id", athleteIds)
         .order("start_date", { ascending: false })
         .limit(2000);
 
       if (activitiesError) {
         console.error("Erro ao carregar strava_activities:", activitiesError);
-        setErrorMsg("Erro ao carregar atividades do Strava.");
+        setErrorMsg("Erro ao carregar atividades.");
         setLoading(false);
         return;
       }
 
       setActivities((activitiesData ?? []) as StravaActivity[]);
 
-      // 3) resumo de eventos (mantém como está)
+      // 5) resumo de eventos (mantido)
       try {
         const { count: availableEvents } = await supabase
           .from("events")
@@ -102,10 +158,7 @@ export default function DashboardPage() {
         });
       } catch (e) {
         console.warn("Erro ao carregar resumo de eventos:", e);
-        setEventsSummary({
-          availableEvents: 0,
-          userEvents: 0,
-        });
+        setEventsSummary({ availableEvents: 0, userEvents: 0 });
       }
 
       setLoading(false);
