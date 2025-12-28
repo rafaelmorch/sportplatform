@@ -52,6 +52,10 @@ export type EvolutionPoint = {
   leaderMinutes: number;
 };
 
+// ✅ Anti-loop do auto-sync
+const AUTO_SYNC_KEY = "sp_autosync_ran_at";
+const AUTO_SYNC_COOLDOWN_MS = 10 * 60 * 1000; // 10 min
+
 function metersToKm(distance: number | null | undefined): number {
   if (!distance || distance <= 0) return 0;
   return distance / 1000;
@@ -318,11 +322,22 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Auto-sync 1x ao abrir dashboard (se existir token Strava)
+  // ✅ Auto-sync 1x ao abrir dashboard (com cooldown pra não entrar em loop)
   useEffect(() => {
     const runAutoSync = async () => {
-      if (autoSyncRanRef.current) return;
       if (!currentUserId) return;
+
+      // (opcional) mantém esse ref, mas o que resolve o loop é o sessionStorage
+      if (autoSyncRanRef.current) return;
+
+      // evita loop após window.location.reload()
+      const last = sessionStorage.getItem(AUTO_SYNC_KEY);
+      const lastMs = last ? Number(last) : 0;
+      const nowMs = Date.now();
+
+      if (lastMs && nowMs - lastMs < AUTO_SYNC_COOLDOWN_MS) {
+        return;
+      }
 
       // só roda se o usuário tiver strava_tokens (pra não ficar batendo na API à toa)
       const { data: row, error } = await supabase
@@ -339,7 +354,10 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
 
       if (!row?.athlete_id) return;
 
+      // marca ANTES de chamar, pra mesmo se recarregar não repetir
       autoSyncRanRef.current = true;
+      sessionStorage.setItem(AUTO_SYNC_KEY, String(nowMs));
+
       await handleSync();
     };
 
@@ -889,7 +907,13 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                         : "transparent",
                     }}
                   >
-                    <td style={{ padding: "8px 4px", whiteSpace: "nowrap", fontWeight: r.isCurrent ? 700 : 500 }}>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
                       #{index + 1}
                     </td>
                     <td
@@ -918,10 +942,24 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap", fontWeight: r.isCurrent ? 700 : 500 }}>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                        fontWeight: r.isCurrent ? 700 : 500,
+                      }}
+                    >
                       {r.totalPoints}
                     </td>
-                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap", color: "#9ca3af" }}>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                        color: "#9ca3af",
+                      }}
+                    >
                       {r.totalHours.toFixed(1)} h
                     </td>
                   </tr>
@@ -1073,7 +1111,10 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
               </thead>
               <tbody>
                 {lastActivities.map((a) => (
-                  <tr key={a.id} style={{ borderBottom: "1px solid rgba(31,41,55,0.7)" }}>
+                  <tr
+                    key={a.id}
+                    style={{ borderBottom: "1px solid rgba(31,41,55,0.7)" }}
+                  >
                     <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>
                       {formatDate(a.start_date)}
                     </td>
@@ -1091,13 +1132,31 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                     <td style={{ padding: "8px 4px" }}>
                       {a.sport_type ?? a.type ?? "-"}
                     </td>
-                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {metersToKm(a.distance).toFixed(2)} km
                     </td>
-                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {formatDuration(a.moving_time)}
                     </td>
-                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
+                    <td
+                      style={{
+                        padding: "8px 4px",
+                        textAlign: "right",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {formatPace(a.moving_time, a.distance)}
                     </td>
                   </tr>
