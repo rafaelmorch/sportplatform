@@ -1,93 +1,111 @@
-// app/api/strava/revoke/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+
+type StravaTokenRow = {
+  user_id: string;
+  athlete_id: number;
+  access_token: string;
+};
+
+export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization") || "";
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.slice("Bearer ".length).trim()
+    // ✅ precisa do JWT do usuário logado
+    const auth = req.headers.get("authorization") ?? "";
+    const jwt = auth.toLowerCase().startsWith("bearer ")
+      ? auth.slice(7).trim()
       : null;
 
-    if (!token) {
-      return NextResponse.json({ error: "missing_auth" }, { status: 401 });
+    if (!jwt) {
+      return NextResponse.json(
+        { message: "Missing Authorization Bearer token." },
+        { status: 401 }
+      );
     }
 
-    const body = await req.json().catch(() => null);
-    const userId = body?.userId as string | undefined;
-
-    if (!userId) {
-      return NextResponse.json({ error: "missing_userId" }, { status: 400 });
-    }
-
-    // 1) Valida o JWT e garante que o userId bate
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false },
-    });
-
-    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(
+      jwt
+    );
 
     if (userErr || !userData?.user) {
-      return NextResponse.json({ error: "invalid_auth" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Invalid session token.", details: userErr?.message },
+        { status: 401 }
+      );
     }
 
-    if (userData.user.id !== userId) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+    const userId = userData.user.id;
 
-    // 2) Admin client (service role) para ler/apagar tokens
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-      auth: { persistSession: false },
-    });
-
+    // 1) Buscar tokens Strava do usuário
     const { data: tokenRow, error: tokenErr } = await supabaseAdmin
       .from("strava_tokens")
-      .select("access_token")
+      .select("user_id, athlete_id, access_token")
       .eq("user_id", userId)
       .maybeSingle();
 
     if (tokenErr) {
-      console.error("Erro ao buscar strava_tokens:", tokenErr);
-      return NextResponse.json({ error: "db_read_failed" }, { status: 500 });
+      return NextResponse.json(
+        { message: "Erro ao ler strava_tokens.", details: tokenErr.message },
+        { status: 500 }
+      );
     }
 
-    // 3) Deauthorize no Strava (se existir access_token)
-    const accessToken = tokenRow?.access_token as string | null | undefined;
-
-    if (accessToken) {
-      const resp = await fetch("https://www.strava.com/oauth/deauthorize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ access_token: accessToken }).toString(),
-      });
-
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => "");
-        console.error("Strava deauthorize falhou:", resp.status, txt);
-        // Mesmo se falhar no Strava, vamos apagar o token local para destravar a UI.
-      }
+    if (!tokenRow?.access_token) {
+      // Já está desconectado
+      return NextResponse.json({ ok: true, alreadyDisconnected: true });
     }
 
-    // 4) Apaga token local (mantém atividades antigas)
+    const row = tokenRow as StravaTokenRow;
+
+    // 2) Revogar no Strava
+    const res = await fetch("https://www.strava.com/api/v3/oauth/deauthorize", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${row.access_token}`,
+      },
+    });
+
+    const json = await res.json().catch(() => null);
+
+    // Mesmo se falhar no Strava, a gente garante o "desconectado" no seu app
+    if (!res.ok) {
+      console.error("Erro Strava deauthorize:", json);
+    }
+
+    // 3) Remover tokens do banco (✅ NÃO apaga strava_activities)
     const { error: delErr } = await supabaseAdmin
       .from("strava_tokens")
       .delete()
       .eq("user_id", userId);
 
     if (delErr) {
-      console.error("Erro ao deletar strava_tokens:", delErr);
-      return NextResponse.json({ error: "db_delete_failed" }, { status: 500 });
+      return NextResponse.json(
+        { message: "Erro ao remover strava_tokens.", details: delErr.message },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ ok: true });
-  } catch (e) {
+    // opcional: limpar prefer provider
+    const { error: prefErr } = await supabaseAdmin
+      .from("user_integrations")
+      .upsert(
+        { user_id: userId, preferred_provider: null, updated_at: new Date().toISOString() },
+        { onConflict: "user_id" }
+      );
+
+    if (prefErr) console.error("Erro ao limpar user_integrations:", prefErr);
+
+    return NextResponse.json({ ok: true, revokedOnStrava: res.ok });
+  } catch (e: any) {
     console.error("Erro inesperado no revoke:", e);
-    return NextResponse.json({ error: "unexpected_error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Erro inesperado no revoke.", details: String(e?.message ?? e) },
+      { status: 500 }
+    );
   }
 }
