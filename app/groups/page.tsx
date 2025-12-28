@@ -1,7 +1,6 @@
-// app/groups/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
@@ -9,14 +8,14 @@ import { trainingGroups } from "./groups-data";
 
 export const dynamic = "force-dynamic";
 
-// 🔗 Mapa slug → imagem (CORRIGIDO: /images/groups para não conflitar com /groups/[slug])
-const groupImages: Record<string, string> = {
-  "maratona-42k": "/images/groups/marathon42k.png",
-  "triathlon-endurance": "/images/groups/triathlon.png",
-  "corrida-para-beginners": "/images/groups/beginners.png",
-  "running-weight-loss": "/images/groups/loss.png",
-  "performance-5k": "/images/groups/performance5k.png",
-  "performance-10k": "/images/groups/performance10k.png",
+// ✅ Mapa por TÍTULO (mais seguro do que slug)
+const groupImagesByTitle: Record<string, string> = {
+  "Maratona 42K": "/images/groups/marathon42k.png",
+  "Triathlon Endurance": "/images/groups/triathlon.png",
+  "Corrida para Beginners": "/images/groups/beginners.png",
+  "Running & Weight Loss": "/images/groups/loss.png",
+  "Performance 5K": "/images/groups/performance5k.png",
+  "Performance 10K": "/images/groups/performance10k.png",
 };
 
 export default function GroupsPage() {
@@ -39,6 +38,14 @@ export default function GroupsPage() {
 
     check();
   }, [router]);
+
+  // opcional: evita recalcular
+  const groupsWithImages = useMemo(() => {
+    return trainingGroups.map((g) => ({
+      ...g,
+      imageSrc: groupImagesByTitle[g.title] ?? null,
+    }));
+  }, []);
 
   if (!allowed) {
     return (
@@ -63,7 +70,7 @@ export default function GroupsPage() {
         backgroundColor: "#020617",
         color: "#e5e7eb",
         padding: "16px",
-        paddingBottom: "80px", // espaço pro BottomNavbar
+        paddingBottom: "80px",
       }}
     >
       <div
@@ -119,51 +126,53 @@ export default function GroupsPage() {
             gap: 12,
           }}
         >
-          {trainingGroups.map((group) => {
-            const imgSrc = groupImages[group.slug] ?? null;
-
-            return (
-              <Link
-                key={group.slug}
-                href={`/groups/${group.slug}`}
+          {groupsWithImages.map((group) => (
+            <Link
+              key={group.slug}
+              href={`/groups/${group.slug}`}
+              style={{
+                textDecoration: "none",
+                color: "inherit",
+              }}
+            >
+              <div
                 style={{
-                  textDecoration: "none",
-                  color: "inherit",
+                  borderRadius: 18,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background:
+                    "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+                  overflow: "hidden", // ✅ garante bordas arredondadas na imagem
                 }}
               >
+                {/* ✅ Imagem do grupo (se existir) */}
+                {group.imageSrc ? (
+                  <img
+                    src={group.imageSrc}
+                    alt={group.title}
+                    loading="lazy"
+                    style={{
+                      width: "100%",
+                      height: 120,
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                    onError={(e) => {
+                      console.error("❌ Falhou carregar imagem:", group.title, group.imageSrc);
+                      // esconde a imagem pra não ficar ícone quebrado
+                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : null}
+
+                {/* Conteúdo do card */}
                 <div
                   style={{
-                    borderRadius: 18,
-                    border: "1px solid rgba(148,163,184,0.35)",
-                    background:
-                      "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
                     padding: "14px 14px",
                     display: "flex",
                     flexDirection: "column",
                     gap: 8,
-                    overflow: "hidden",
                   }}
                 >
-                  {/* ✅ Imagem do grupo (não muda layout do texto; só adiciona o banner no topo) */}
-                  {imgSrc && (
-                    <img
-                      src={imgSrc}
-                      alt={group.title}
-                      loading="lazy"
-                      onError={(e) => {
-                        // fallback silencioso: esconde imagem quebrada
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
-                      style={{
-                        width: "100%",
-                        height: 92,
-                        objectFit: "cover",
-                        borderRadius: 12,
-                        opacity: 0.95,
-                      }}
-                    />
-                  )}
-
                   <div
                     style={{
                       display: "flex",
@@ -199,7 +208,7 @@ export default function GroupsPage() {
                         fontSize: 11,
                         padding: "4px 10px",
                         borderRadius: 999,
-                        border: "1px solid rgba(56,189,248,0.5)", // azul
+                        border: "1px solid rgba(56,189,248,0.5)",
                         background:
                           "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
                         color: "#e0f2fe",
@@ -223,7 +232,7 @@ export default function GroupsPage() {
                     <p
                       style={{
                         fontSize: 12,
-                        color: "#60a5fa", // azul no lugar do verde
+                        color: "#60a5fa",
                         margin: 0,
                       }}
                     >
@@ -241,9 +250,9 @@ export default function GroupsPage() {
                     </span>
                   </div>
                 </div>
-              </Link>
-            );
-          })}
+              </div>
+            </Link>
+          ))}
         </section>
       </div>
 
