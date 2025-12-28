@@ -1,4 +1,3 @@
-// app/groups/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -8,6 +7,16 @@ import BottomNavbar from "@/components/BottomNavbar";
 import { trainingGroups } from "./groups-data";
 
 export const dynamic = "force-dynamic";
+
+// 🔗 Mapa slug → imagem
+const groupImages: Record<string, string> = {
+  "maratona-42k": "/groups/marathon42k.png",
+  "triathlon-endurance": "/groups/triathlon.png",
+  "corrida-para-beginners": "/groups/beginners.png",
+  "running-weight-loss": "/groups/loss.png",
+  "performance-5k": "/groups/performance5k.png",
+  "performance-10k": "/groups/performance10k.png",
+};
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -53,15 +62,10 @@ export default function GroupsPage() {
         backgroundColor: "#020617",
         color: "#e5e7eb",
         padding: "16px",
-        paddingBottom: "80px", // espaço pro BottomNavbar
+        paddingBottom: "80px",
       }}
     >
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-        }}
-      >
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
         <header
           style={{
             marginBottom: 20,
@@ -81,24 +85,12 @@ export default function GroupsPage() {
           >
             Comunidades
           </p>
-          <h1
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              margin: 0,
-            }}
-          >
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
             Grupos de treino
           </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              margin: 0,
-            }}
-          >
-            Escolha um grupo que combine com o seu momento e acompanhe sua
-            evolução junto com outros atletas.
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            Escolha um grupo que combine com o seu momento e acompanhe sua evolução
+            junto com outros atletas.
           </p>
         </header>
 
@@ -113,10 +105,7 @@ export default function GroupsPage() {
             <Link
               key={group.slug}
               href={`/groups/${group.slug}`}
-              style={{
-                textDecoration: "none",
-                color: "inherit",
-              }}
+              style={{ textDecoration: "none", color: "inherit" }}
             >
               <div
                 style={{
@@ -124,87 +113,93 @@ export default function GroupsPage() {
                   border: "1px solid rgba(148,163,184,0.35)",
                   background:
                     "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-                  padding: "14px 14px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
+                  overflow: "hidden",
                 }}
               >
+                {/* 🖼️ IMAGEM DO GRUPO */}
+                <img
+                  src={groupImages[group.slug]}
+                  alt={group.title}
+                  style={{
+                    width: "100%",
+                    height: 120,
+                    objectFit: "cover",
+                  }}
+                />
+
+                {/* CONTEÚDO (inalterado) */}
                 <div
                   style={{
+                    padding: "14px 14px",
                     display: "flex",
-                    justifyContent: "space-between",
+                    flexDirection: "column",
                     gap: 8,
-                    alignItems: "flex-start",
                   }}
                 >
-                  <div>
-                    <h2
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <h2
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 600,
+                          margin: 0,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {group.title}
+                      </h2>
+                      <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+                        {group.shortDescription}
+                      </p>
+                    </div>
+
+                    <span
                       style={{
-                        fontSize: 16,
-                        fontWeight: 600,
-                        margin: 0,
-                        marginBottom: 4,
+                        fontSize: 11,
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        border: "1px solid rgba(56,189,248,0.5)",
+                        background:
+                          "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
+                        color: "#e0f2fe",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      {group.title}
-                    </h2>
-                    <p
-                      style={{
-                        fontSize: 13,
-                        color: "#9ca3af",
-                        margin: 0,
-                      }}
-                    >
-                      {group.shortDescription}
-                    </p>
+                      Grupo ativo
+                    </span>
                   </div>
 
-                  <span
+                  <div
                     style={{
-                      fontSize: 11,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      border: "1px solid rgba(56,189,248,0.5)", // azul
-                      background:
-                        "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
-                      color: "#e0f2fe",
-                      whiteSpace: "nowrap",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-end",
+                      marginTop: 6,
+                      gap: 10,
+                      flexWrap: "wrap",
                     }}
                   >
-                    Grupo ativo
-                  </span>
-                </div>
+                    <p style={{ fontSize: 12, color: "#60a5fa", margin: 0 }}>
+                      Plano de 12 semanas pensado para este grupo.
+                    </p>
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-end",
-                    marginTop: 6,
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: 12,
-                      color: "#60a5fa", // azul no lugar do verde
-                      margin: 0,
-                    }}
-                  >
-                    Plano de 12 semanas pensado para este grupo.
-                  </p>
-
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "#93c5fd",
-                      textDecoration: "underline",
-                    }}
-                  >
-                    Ver detalhes
-                  </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#93c5fd",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Ver detalhes
+                    </span>
+                  </div>
                 </div>
               </div>
             </Link>
