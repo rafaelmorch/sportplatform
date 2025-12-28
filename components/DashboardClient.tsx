@@ -1073,8 +1073,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
               {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
             </h2>
             <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-              As 10 atividades mais recentes (Strava) do grupo selecionado dentro do filtro
-              atual.
+              As 10 atividades mais recentes (Strava) dentro do período selecionado.
             </p>
           </div>
         </div>
