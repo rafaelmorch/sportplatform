@@ -1,7 +1,7 @@
 // components/DashboardClient.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DashboardCharts from "@/components/DashboardCharts";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -163,6 +163,65 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingGroupAthletes, setLoadingGroupAthletes] = useState(false);
 
+  // ✅ Sync state
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const autoSyncRanRef = useRef(false);
+
+  const handleSync = async () => {
+    try {
+      setSyncMsg(null);
+      setSyncing(true);
+
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) {
+        console.error("Erro ao pegar sessão (sync):", sessionErr);
+        setSyncMsg("Erro ao autenticar para sincronizar. Faça login novamente.");
+        setSyncing(false);
+        return;
+      }
+
+      const accessToken = sessionData.session?.access_token ?? null;
+      if (!accessToken) {
+        setSyncMsg("Você precisa estar logado para sincronizar.");
+        setSyncing(false);
+        return;
+      }
+
+      const res = await fetch("/api/strava/sync", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        console.error("Sync falhou:", json);
+        setSyncMsg(
+          (json?.message as string) ??
+            "Falha ao sincronizar com o Strava. Tente novamente."
+        );
+        setSyncing(false);
+        return;
+      }
+
+      // sucesso -> recarrega pra pegar activities novas do server
+      setSyncMsg(
+        typeof json?.fetched === "number"
+          ? `Sincronizado: ${json.fetched} atividades verificadas. Recarregando...`
+          : "Sincronizado. Recarregando..."
+      );
+
+      window.location.reload();
+    } catch (e) {
+      console.error("Erro inesperado no sync:", e);
+      setSyncMsg("Erro inesperado ao sincronizar. Tente novamente.");
+      setSyncing(false);
+    }
+  };
+
   // Carrega usuário, athlete_id e grupos em que ele participa
   useEffect(() => {
     const loadAthleteAndGroups = async () => {
@@ -258,6 +317,35 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     loadAthleteAndGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ Auto-sync 1x ao abrir dashboard (se existir token Strava)
+  useEffect(() => {
+    const runAutoSync = async () => {
+      if (autoSyncRanRef.current) return;
+      if (!currentUserId) return;
+
+      // só roda se o usuário tiver strava_tokens (pra não ficar batendo na API à toa)
+      const { data: row, error } = await supabase
+        .from("strava_tokens")
+        .select("athlete_id")
+        .eq("user_id", currentUserId)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erro ao checar strava_tokens (auto sync):", error);
+        return;
+      }
+
+      if (!row?.athlete_id) return;
+
+      autoSyncRanRef.current = true;
+      await handleSync();
+    };
+
+    runAutoSync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
 
   // Carrega athlete_ids do grupo selecionado (NOVA forma: training_group_strava_athletes)
   useEffect(() => {
@@ -605,8 +693,33 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           flexWrap: "wrap",
           gap: 6,
           marginBottom: 14,
+          alignItems: "center",
         }}
       >
+        {/* ✅ Botão Sync no MESMO estilo dos pills */}
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={syncing}
+          style={{
+            fontSize: 11,
+            padding: "4px 10px",
+            borderRadius: 999,
+            border: syncing
+              ? "1px solid rgba(55,65,81,0.9)"
+              : "1px solid rgba(34,197,94,0.8)",
+            background: syncing
+              ? "transparent"
+              : "radial-gradient(circle at top, #22c55e33, transparent)",
+            color: syncing ? "#9ca3af" : "#bbf7d0",
+            cursor: syncing ? "not-allowed" : "pointer",
+            transition: "all 0.15s ease-out",
+          }}
+          title="Puxa atividades novas do Strava"
+        >
+          {syncing ? "Sincronizando..." : "Sincronizar agora"}
+        </button>
+
         {ranges.map((r) => {
           const active = range === r.key;
           return (
@@ -634,6 +747,12 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           );
         })}
       </div>
+
+      {syncMsg && (
+        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>
+          {syncMsg}
+        </p>
+      )}
 
       {/* MEME DO CHURRASCO */}
       {lastPlace && (
