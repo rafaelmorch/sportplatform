@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ garante Node runtime
 export const runtime = "nodejs";
 
 const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID;
@@ -15,7 +14,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 type StravaTokenResponse = {
   access_token: string;
   refresh_token: string;
-  expires_at: number; // unix seconds
+  expires_at: number;
   token_type?: string;
   athlete: { id: number; firstname?: string; lastname?: string };
 };
@@ -29,7 +28,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
     const error = searchParams.get("error");
-    const state = searchParams.get("state"); // esperado: user.id (uuid)
+    const state = searchParams.get("state");
 
     if (error) {
       console.error("Erro retornado pelo Strava:", error);
@@ -96,17 +95,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 2) Resolver user_id vindo no state (UUID do Supabase)
+    // 2) user_id vindo no state
     let userId: string | null = null;
-    if (state && isUuid(state)) {
-      userId = state;
-    } else {
-      console.warn("State inválido no callback do Strava:", state);
-    }
+    if (state && isUuid(state)) userId = state;
 
     if (!userId) {
-      // Sem user_id, você até pode salvar por athlete, mas isso volta a dar confusão.
-      // Melhor falhar e forçar login/flow correto.
       return NextResponse.json(
         { message: "State inválido. Não foi possível identificar o usuário." },
         { status: 400 }
@@ -115,7 +108,25 @@ export async function GET(req: NextRequest) {
 
     const athleteId = athlete.id;
 
-    // 3) Salvar tokens no Supabase (✅ agora por user_id)
+    // 3) Cleanup: garante 1 linha por user_id
+    // (se o usuário estava conectado antes a outro athlete, remove)
+    const { error: delUserErr } = await supabaseAdmin
+      .from("strava_tokens")
+      .delete()
+      .eq("user_id", userId);
+
+    if (delUserErr) {
+      console.error("Erro ao limpar tokens antigos do user:", delUserErr);
+      return NextResponse.json(
+        {
+          message: "Erro ao limpar tokens antigos do usuário antes do upsert.",
+          details: delUserErr.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    // 4) Upsert por athlete_id (resolve o UNIQUE athlete_id)
     const nowIso = new Date().toISOString();
     const expiresIso = new Date(expires_at * 1000).toISOString();
 
@@ -129,7 +140,7 @@ export async function GET(req: NextRequest) {
         expires_at: expiresIso,
         updated_at: nowIso,
       },
-      { onConflict: "user_id" } // ✅ correto
+      { onConflict: "athlete_id" } // ✅ mantém o UNIQUE do athlete_id feliz
     );
 
     if (dbError) {
@@ -144,7 +155,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 3.5) Marcar integração preferida (não bloqueia)
+    // 5) preferred provider (não bloqueia)
     const { error: prefErr } = await supabaseAdmin
       .from("user_integrations")
       .upsert(
@@ -156,11 +167,9 @@ export async function GET(req: NextRequest) {
         { onConflict: "user_id" }
       );
 
-    if (prefErr) {
-      console.error("Erro ao salvar user_integrations (strava):", prefErr);
-    }
+    if (prefErr) console.error("Erro ao salvar user_integrations (strava):", prefErr);
 
-    // 4) Redirect final (web)
+    // 6) Redirect final
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
