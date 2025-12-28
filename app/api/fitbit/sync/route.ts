@@ -1,48 +1,44 @@
 // app/api/fitbit/sync/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const SUPABASE_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID!;
 const FITBIT_CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET!;
 
-type FitbitTokenRow = {
-  user_id: string;
-  fitbit_user_id: string | null;
-  access_token: string | null;
-  refresh_token: string | null;
-  token_type: string | null; // "Bearer"
-  scope: string | null;
-  expires_at: string | null; // timestamptz
-  updated_at?: string | null;
-};
+function jsonError(status: number, message: string, details?: any) {
+  return NextResponse.json({ message, details }, { status });
+}
 
-function pickAuthBearer(req: NextRequest): string | null {
-  const h = req.headers.get("authorization") ?? req.headers.get("Authorization");
+function getBearerToken(req: Request): string | null {
+  const h = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!h) return null;
   const m = h.match(/^Bearer\s+(.+)$/i);
   return m ? m[1].trim() : null;
 }
 
-function toBasicAuth(clientId: string, clientSecret: string) {
-  // Node runtime -> Buffer ok
-  return "Basic " + Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+function yyyyMmDd(d: Date) {
+  return d.toISOString().slice(0, 10);
 }
 
 async function refreshFitbitToken(refreshToken: string) {
+  const tokenUrl = "https://api.fitbit.com/oauth2/token";
+
+  const basic = Buffer.from(`${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`).toString("base64");
+
   const body = new URLSearchParams();
   body.set("grant_type", "refresh_token");
   body.set("refresh_token", refreshToken);
 
-  const res = await fetch("https://api.fitbit.com/oauth2/token", {
+  const res = await fetch(tokenUrl, {
     method: "POST",
     headers: {
-      Authorization: toBasicAuth(FITBIT_CLIENT_ID, FITBIT_CLIENT_SECRET),
+      Authorization: `Basic ${basic}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body,
@@ -59,23 +55,18 @@ async function refreshFitbitToken(refreshToken: string) {
     refresh_token?: string;
     token_type?: string;
     scope?: string;
-    expires_in?: number; // seconds
-    user_id?: string; // fitbit user id
+    expires_in: number;
+    user_id: string;
   };
 }
 
-function isoFromExpiresInSeconds(expiresIn: number): string {
-  const ms = Date.now() + expiresIn * 1000;
-  return new Date(ms).toISOString();
-}
-
-async function fetchFitbitActivities(accessToken: string) {
-  // Endpoint simples e útil pra teste:
-  // https://dev.fitbit.com/build/reference/web-api/activity/get-activity-log-list/
-  // Pega lista de atividades recentes (não depende de dataset de “intraday”)
+async function fetchFitbitActivities(accessToken: string, afterDate: string) {
+  // Fitbit exige exatamente UM: afterDate OU beforeDate (e não pode ser vazio)
+  // Vamos usar afterDate sempre.
   const url = new URL("https://api.fitbit.com/1/user/-/activities/list.json");
-  url.searchParams.set("sort", "desc");
-  url.searchParams.set("limit", "20");
+  url.searchParams.set("afterDate", afterDate);
+  url.searchParams.set("sort", "asc");
+  url.searchParams.set("limit", "100");
   url.searchParams.set("offset", "0");
 
   const res = await fetch(url.toString(), {
@@ -91,110 +82,107 @@ async function fetchFitbitActivities(accessToken: string) {
     throw new Error(`Fitbit activities failed: ${JSON.stringify(json)}`);
   }
 
-  return json;
+  return json as any;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
-      return NextResponse.json({ message: "Supabase env não configurado." }, { status: 500 });
-    }
-    if (!FITBIT_CLIENT_ID || !FITBIT_CLIENT_SECRET) {
-      return NextResponse.json({ message: "Fitbit env não configurado (FITBIT_CLIENT_ID/SECRET)." }, { status: 500 });
-    }
+    // 1) auth do usuário (JWT do Supabase)
+    const jwt = getBearerToken(req);
+    if (!jwt) return jsonError(401, "Token ausente.");
 
-    // 1) Auth do usuário (Supabase JWT)
-    const jwt = pickAuthBearer(req);
-    if (!jwt) {
-      return NextResponse.json({ message: "Missing Authorization Bearer token." }, { status: 401 });
-    }
+    const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
 
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(jwt);
+    const { data: userData, error: userErr } = await supabaseAuth.auth.getUser();
     if (userErr || !userData?.user) {
-      return NextResponse.json(
-        { message: "Token inválido ou sessão expirada.", details: userErr?.message },
-        { status: 401 }
-      );
+      return jsonError(401, "Token inválido ou sessão expirada.", userErr?.message);
     }
-
     const userId = userData.user.id;
 
-    // 2) Busca tokens Fitbit do usuário
+    // 2) supabase admin (pra ler/gravar tokens)
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE);
+
     const { data: tokenRow, error: tokenErr } = await supabaseAdmin
       .from("fitbit_tokens")
-      .select("user_id, fitbit_user_id, access_token, refresh_token, token_type, scope, expires_at, updated_at")
+      .select("user_id, fitbit_user_id, access_token, refresh_token, token_type, scope, expires_at")
       .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
       .maybeSingle();
 
-    if (tokenErr) {
-      return NextResponse.json({ message: "Erro ao ler fitbit_tokens.", details: tokenErr.message }, { status: 500 });
+    if (tokenErr) return jsonError(500, "Erro ao ler fitbit_tokens.", tokenErr.message);
+    if (!tokenRow?.refresh_token) return jsonError(400, "Fitbit não conectado para este usuário.");
+
+    // 3) refresh se necessário (ou sempre, pra simplificar)
+    const refreshed = await refreshFitbitToken(tokenRow.refresh_token);
+
+    const newAccess = refreshed.access_token;
+    const newRefresh = refreshed.refresh_token ?? tokenRow.refresh_token; // importante: salvar se veio novo
+    const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+
+    const { error: upErr } = await supabaseAdmin
+      .from("fitbit_tokens")
+      .update({
+        access_token: newAccess,
+        refresh_token: newRefresh,
+        token_type: refreshed.token_type ?? tokenRow.token_type,
+        scope: refreshed.scope ?? tokenRow.scope,
+        expires_at: newExpiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    if (upErr) {
+      return jsonError(500, "Erro ao atualizar fitbit_tokens após refresh.", upErr.message);
     }
 
-    const row = tokenRow as FitbitTokenRow | null;
+    // 4) definir afterDate (nunca vazio)
+    // padrão: últimos 30 dias
+    const after = yyyyMmDd(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
 
-    if (!row?.access_token) {
-      return NextResponse.json({ message: "Usuário não está conectado ao Fitbit (sem access_token)." }, { status: 400 });
-    }
+    // 5) buscar atividades
+    const payload = await fetchFitbitActivities(newAccess, after);
 
-    let accessToken = row.access_token;
-    let refreshToken = row.refresh_token;
-
-    // 3) Refresh se expirar (ou perto)
-    const expiresAtIso = row.expires_at;
-    const expiresAtMs = expiresAtIso ? new Date(expiresAtIso).getTime() : 0;
-    const nowMs = Date.now();
-
-    if (refreshToken && expiresAtMs && expiresAtMs - nowMs < 60_000) {
-      const refreshed = await refreshFitbitToken(refreshToken);
-
-      accessToken = refreshed.access_token;
-      refreshToken = refreshed.refresh_token ?? refreshToken;
-
-      const newExpiresIso =
-        typeof refreshed.expires_in === "number"
-          ? isoFromExpiresInSeconds(refreshed.expires_in)
-          : new Date(nowMs + 3600 * 1000).toISOString(); // fallback 1h
-
-      const { error: upErr } = await supabaseAdmin
-        .from("fitbit_tokens")
-        .update({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          token_type: refreshed.token_type ?? row.token_type ?? "Bearer",
-          scope: refreshed.scope ?? row.scope,
-          expires_at: newExpiresIso,
+    // 6) (opcional) tentar salvar no banco, mas NÃO falhar o endpoint se der problema
+    // Ajuste aqui depois conforme seu schema real de fitbit_activities.
+    let saved = 0;
+    try {
+      const activities: any[] = Array.isArray(payload?.activities) ? payload.activities : [];
+      if (activities.length > 0) {
+        // Exemplo de mapeamento mínimo
+        const rows = activities.map((a: any) => ({
+          user_id: userId,
+          fitbit_user_id: refreshed.user_id ?? tokenRow.fitbit_user_id ?? null,
+          activity_log_id: a.logId ?? null,
+          activity_name: a.activityName ?? a.name ?? null,
+          start_time: a.startTime ?? null,
+          duration_ms: a.duration ?? null,
+          calories: a.calories ?? null,
+          raw: a,
           updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId);
+        }));
 
-      if (upErr) {
-        // não bloqueia o teste
-        console.error("Erro ao atualizar fitbit_tokens refresh:", upErr);
+        // Se não existir constraint única, isso pode duplicar.
+        // Depois a gente cria a UNIQUE certinha e troca pra upsert.
+        const { error: insErr, count } = await supabaseAdmin
+          .from("fitbit_activities")
+          .insert(rows, { count: "exact" });
+
+        if (!insErr) saved = count ?? rows.length;
       }
+    } catch {
+      // ignora por enquanto
     }
-
-    // 4) Puxa atividades do Fitbit (SEM salvar)
-    const activitiesJson = await fetchFitbitActivities(accessToken);
-
-    // resposta “amigável” (sem vazar tokens)
-    const activities = activitiesJson?.activities ?? null;
-    const summary = activitiesJson?.summary ?? null;
 
     return NextResponse.json({
       ok: true,
       user_id: userId,
-      fitbit_user_id: row.fitbit_user_id,
-      fetched_count: Array.isArray(activities) ? activities.length : 0,
-      summary,
-      activities, // pra você ver o payload e decidirmos o mapeamento depois
+      afterDate: after,
+      fetched: Array.isArray(payload?.activities) ? payload.activities.length : 0,
+      saved,
+      note: "afterDate_required_fix",
     });
   } catch (e: any) {
-    console.error("Erro inesperado no fitbit sync:", e);
-    return NextResponse.json(
-      { message: "Erro inesperado no fitbit sync.", details: String(e?.message ?? e) },
-      { status: 500 }
-    );
+    return jsonError(500, "Erro inesperado no fitbit sync.", e?.message ?? String(e));
   }
 }
