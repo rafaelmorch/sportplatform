@@ -1,569 +1,361 @@
-// app/profile/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 import BottomNavbar from "@/components/BottomNavbar";
-import { supabaseBrowser } from "@/lib/supabase-browser";
 
-type Profile = {
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+type ProfileRow = {
   full_name: string | null;
 };
 
-type ConnectionRow = {
-  provider: string;
-  expires_at: string | null;
-};
+export const dynamic = "force-dynamic";
 
 export default function ProfilePage() {
   const router = useRouter();
 
-  const [name, setName] = useState("");
+  const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Conexões
-  const [loadingConnections, setLoadingConnections] = useState(true);
-  const [connections, setConnections] = useState<Record<string, ConnectionRow>>(
-    {}
-  );
-
   useEffect(() => {
-    const run = async () => {
-      setErrorMsg(null);
-      setSuccessMsg(null);
-
-      // ✅ 0) BLOQUEIO: precisa estar logado
-      const {
-        data: { session },
-      } = await supabaseBrowser.auth.getSession();
-
-      if (!session) {
-        router.push("/login");
-        return;
-      }
-
-      const user = session.user;
-      setEmail(user.email ?? null);
-
-      // 1) Perfil
+    const load = async () => {
       try {
-        const { data: profile, error: profileError } = await supabaseBrowser
+        setLoading(true);
+        setErrorMsg(null);
+        setSuccessMsg(null);
+
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error("Erro ao carregar user:", error);
+n
+          setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
+          setLoading(false);
+          return;
+        }
+
+        const user = data.user;
+        if (!user) {
+          router.push("/login");
+          return;
+        }
+
+        setUserId(user.id);
+        setEmail(user.email ?? null);
+
+        const { data: profile, error: profErr } = await supabase
           .from("profiles")
           .select("full_name")
           .eq("id", user.id)
-          .maybeSingle<Profile>();
+          .maybeSingle<ProfileRow>();
 
-        if (profileError) {
-          console.error("Erro ao buscar perfil:", profileError);
+        if (profErr) {
+          console.error("Erro ao carregar profiles:", profErr);
+          // não trava a página
         }
 
-        const currentName =
-          profile?.full_name ||
-          (user.user_metadata as any)?.full_name ||
-          (user.user_metadata as any)?.name ||
-          "";
-
-        setName(currentName);
-      } catch (err) {
-        console.error("Erro inesperado ao carregar perfil:", err);
-        setErrorMsg("Erro inesperado ao carregar perfil.");
-      } finally {
-        setLoadingProfile(false);
-      }
-
-      // 2) Conexões (fonte da verdade = tabelas de tokens)
-      try {
-        setLoadingConnections(true);
-
-        // Strava (não usa maybeSingle pra não quebrar se tiver duplicado)
-        const { data: stravaRows, error: stravaErr } = await supabaseBrowser
-          .from("strava_tokens")
-          .select("athlete_id")
-          .eq("user_id", user.id)
-          .limit(1);
-
-        if (stravaErr) {
-          console.error("Erro ao checar strava_tokens:", stravaErr);
-        }
-
-        const stravaAthleteId = Array.isArray(stravaRows)
-          ? stravaRows[0]?.athlete_id
-          : null;
-
-        // Fitbit (não usa maybeSingle pra não quebrar se tiver duplicado)
-        const { data: fitbitRows, error: fitbitErr } = await supabaseBrowser
-          .from("fitbit_tokens")
-          .select("fitbit_user_id")
-          .eq("user_id", user.id)
-          .limit(1);
-
-        if (fitbitErr) {
-          console.error("Erro ao checar fitbit_tokens:", fitbitErr);
-        }
-
-        const fitbitUserId = Array.isArray(fitbitRows)
-          ? fitbitRows[0]?.fitbit_user_id
-          : null;
-
-        const map: Record<string, ConnectionRow> = {};
-
-        if (stravaAthleteId) {
-          map["strava"] = { provider: "strava", expires_at: null };
-        }
-
-        if (fitbitUserId) {
-          map["fitbit"] = { provider: "fitbit", expires_at: null };
-        }
-
-        setConnections(map);
-      } catch (err) {
-        console.error("Erro inesperado ao carregar conexões:", err);
-      } finally {
-        setLoadingConnections(false);
+        setName(profile?.full_name ?? "");
+        setLoading(false);
+      } catch (e) {
+        console.error("Erro inesperado no profile:", e);
+        setErrorMsg("Erro inesperado ao carregar seu perfil.");
+        setLoading(false);
       }
     };
 
-    run();
+    load();
   }, [router]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    if (!name.trim()) {
-      setErrorMsg("Por favor, preencha o nome.");
-      return;
-    }
-
+  const onSave = async () => {
     try {
       setSaving(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
 
-      const {
-        data: { session },
-      } = await supabaseBrowser.auth.getSession();
-
-      if (!session) {
-        setErrorMsg("Você precisa estar logado para salvar o perfil.");
+      const { data, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        console.error("Erro ao checar user:", userErr);
+        setErrorMsg("Erro ao validar usuário. Faça login novamente.");
         setSaving(false);
+        return;
+      }
+
+      const user = data.user;
+      if (!user) {
         router.push("/login");
         return;
       }
 
-      const user = session.user;
+      const { error: upErr } = await supabase.from("profiles").upsert({
+        id: user.id,
+        full_name: name.trim() ? name.trim() : null,
+        updated_at: new Date().toISOString(),
+      });
 
-      const { error: upsertError } = await supabaseBrowser.from("profiles").upsert(
-        {
-          id: user.id,
-          full_name: name.trim(),
-        },
-        { onConflict: "id" }
-      );
-
-      if (upsertError) {
-        console.error("Erro ao salvar perfil:", upsertError);
-        setErrorMsg("Erro ao salvar dados do perfil.");
+      if (upErr) {
+        console.error("Erro ao salvar profile:", upErr);
+        setErrorMsg("Não foi possível salvar. Tente novamente.");
         setSaving(false);
         return;
       }
 
-      setSuccessMsg("Perfil atualizado com sucesso!");
+      setSuccessMsg("Salvo com sucesso.");
       setSaving(false);
-    } catch (err) {
-      console.error("Erro inesperado ao salvar perfil:", err);
-      setErrorMsg("Erro inesperado ao salvar o perfil.");
+    } catch (e) {
+      console.error("Erro inesperado ao salvar:", e);
+      setErrorMsg("Erro inesperado ao salvar.");
       setSaving(false);
     }
   };
 
-  const handleSignOut = async () => {
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
+  const onSignOut = async () => {
     try {
       setSigningOut(true);
-      const { error } = await supabaseBrowser.auth.signOut();
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const { error } = await supabase.auth.signOut();
       if (error) {
-        console.error("Erro ao deslogar:", error);
+        console.error("Erro ao sair:", error);
         setErrorMsg("Erro ao sair. Tente novamente.");
         setSigningOut(false);
         return;
       }
 
-      router.replace("/login");
-      router.refresh();
-    } catch (err) {
-      console.error("Erro inesperado ao deslogar:", err);
+      router.push("/login");
+    } catch (e) {
+      console.error("Erro inesperado ao sair:", e);
       setErrorMsg("Erro inesperado ao sair.");
-    } finally {
       setSigningOut(false);
     }
   };
-
-  function getStatus(provider: "strava" | "fitbit") {
-    const c = connections[provider];
-
-    // ✅ pedido: não mostrar "Não conectado" no Profile
-    if (!c) return { label: "", color: "#9ca3af" };
-
-    return { label: "Conectado", color: "#bbf7d0" };
-  }
 
   return (
     <main
       style={{
         minHeight: "100vh",
         background: "#020617",
+        padding: "22px 14px 92px",
         color: "#e5e7eb",
-        padding: "16px",
-        paddingBottom: "80px",
       }}
     >
-      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 20,
-          }}
-        >
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "999px",
-                background:
-                  "radial-gradient(circle at 20% 20%, #38bdf8, #0ea5e9 40%, #0f172a 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#0b1120",
-              }}
-            >
-              {name ? name.charAt(0).toUpperCase() : "A"}
-            </div>
-
-            <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
-                Meu Perfil
-              </h1>
-              <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-                Gerencie o nome exibido na SportPlatform.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            style={{
-              borderRadius: 999,
-              padding: "8px 14px",
-              border: "1px solid rgba(148,163,184,0.35)",
-              background: "rgba(2,6,23,0.6)",
-              color: "#e5e7eb",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: signingOut ? "not-allowed" : "pointer",
-              opacity: signingOut ? 0.7 : 1,
-            }}
-            title="Sair da conta"
-          >
-            {signingOut ? "Saindo..." : "Sair"}
-          </button>
-        </header>
-
-        <section
-          style={{
-            borderRadius: 18,
-            padding: "16px 14px",
-            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-            border: "1px solid rgba(148,163,184,0.4)",
-            marginBottom: 20,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              margin: 0,
-              marginBottom: 10,
-            }}
-          >
-            Dados básicos
-          </h2>
-
-          {loadingProfile ? (
-            <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-              Carregando perfil...
-            </p>
-          ) : (
-            <form
-              onSubmit={handleSave}
-              style={{ display: "flex", flexDirection: "column", gap: 10 }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <label htmlFor="name" style={{ fontSize: 12, color: "#d1d5db" }}>
-                  Nome
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Seu nome"
-                  style={{
-                    borderRadius: 10,
-                    padding: "8px 10px",
-                    border: "1px solid rgba(55,65,81,0.9)",
-                    backgroundColor: "#020617",
-                    color: "#e5e7eb",
-                    fontSize: 13,
-                  }}
-                />
-                <p
-                  style={{
-                    fontSize: 11,
-                    color: "#6b7280",
-                    margin: 0,
-                    marginTop: 2,
-                  }}
-                >
-                  Este é o nome que aparecerá no feed, dashboard e em outras
-                  áreas do app.
-                </p>
-              </div>
-
-              {email && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <span style={{ fontSize: 12, color: "#d1d5db" }}>
-                    E-mail (somente leitura)
-                  </span>
-                  <div
-                    style={{
-                      borderRadius: 10,
-                      padding: "8px 10px",
-                      border: "1px solid rgba(31,41,55,0.9)",
-                      backgroundColor: "#020617",
-                      fontSize: 13,
-                      color: "#9ca3af",
-                    }}
-                  >
-                    {email}
-                  </div>
-                </div>
-              )}
-
-              {errorMsg && (
-                <p style={{ fontSize: 12, color: "#fca5a5", margin: 0, marginTop: 4 }}>
-                  {errorMsg}
-                </p>
-              )}
-
-              {successMsg && (
-                <p style={{ fontSize: 12, color: "#bbf7d0", margin: 0, marginTop: 4 }}>
-                  {successMsg}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={saving}
-                style={{
-                  marginTop: 8,
-                  alignSelf: "flex-start",
-                  borderRadius: 999,
-                  padding: "8px 16px",
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  background:
-                    "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
-                  color: "#0b1120",
-                  cursor: saving ? "not-allowed" : "pointer",
-                  opacity: saving ? 0.7 : 1,
-                  transition: "opacity 0.15s ease-out",
-                }}
-              >
-                {saving ? "Salvando..." : "Salvar alterações"}
-              </button>
-            </form>
-          )}
-        </section>
-
-        <section
-          style={{
-            borderRadius: 18,
-            padding: "16px 14px",
-            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-            border: "1px solid rgba(148,163,184,0.35)",
-            marginBottom: 20,
-          }}
-        >
+      <section
+        style={{
+          width: "100%",
+          maxWidth: 720,
+          margin: "0 auto",
+          borderRadius: 24,
+          padding: "22px 18px",
+          border: "1px solid rgba(148,163,184,0.35)",
+          background:
+            "radial-gradient(circle at top, #020617, #020617 50%, #000000 100%)",
+          boxShadow:
+            "0 18px 45px rgba(15, 23, 42, 0.8), 0 0 0 1px rgba(15, 23, 42, 0.9)",
+        }}
+      >
+        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <div
             style={{
+              width: 40,
+              height: 40,
+              borderRadius: 999,
+              background:
+                "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
+              justifyContent: "center",
+              fontWeight: 800,
+              color: "#0b1120",
             }}
           >
-            <div>
-              <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, marginBottom: 6 }}>
-                Conexões
-              </h2>
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-                Conecte seus apps para importar atividades automaticamente.
-              </p>
-            </div>
-
-            {loadingConnections && (
-              <span style={{ fontSize: 12, color: "#9ca3af" }}>Carregando…</span>
-            )}
+            SP
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 12,
-              marginTop: 14,
-            }}
-          >
-            {(() => {
-              const s = getStatus("strava");
-              const connected = s.label === "Conectado";
-              return (
-                <div
-                  style={{
-                    borderRadius: 14,
-                    padding: 14,
-                    border: "1px solid rgba(148,163,184,0.25)",
-                    background: "rgba(2,6,23,0.55)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Strava</p>
-
-                      {/* ✅ pedido: some com "Não conectado" */}
-                      {!!s.label && (
-                        <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
-                          {s.label}
-                        </p>
-                      )}
-                    </div>
-
-                    <a
-                      href="/api/strava/connect"
-                      style={{
-                        borderRadius: 999,
-                        padding: "8px 14px",
-                        border: "none",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        background: "linear-gradient(to right, #fb923c, #f97316, #ea580c)",
-                        color: "#0b1120",
-                        textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {connected ? "Reconectar" : "Conectar"}
-                    </a>
-                  </div>
-
-                  <p style={{ margin: 0, marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
-                    Importa suas corridas, pedaladas e treinos para o dashboard.
-                  </p>
-                </div>
-              );
-            })()}
-
-            {(() => {
-              const s = getStatus("fitbit");
-              const connected = s.label === "Conectado";
-              return (
-                <div
-                  style={{
-                    borderRadius: 14,
-                    padding: 14,
-                    border: "1px solid rgba(148,163,184,0.25)",
-                    background: "rgba(2,6,23,0.55)",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <div>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Fitbit</p>
-
-                      {/* ✅ pedido: some com "Não conectado" */}
-                      {!!s.label && (
-                        <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
-                          {s.label}
-                        </p>
-                      )}
-                    </div>
-
-                    <a
-                      href="/integrations"
-                      style={{
-                        borderRadius: 999,
-                        padding: "8px 14px",
-                        border: "none",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        background: "linear-gradient(to right, #2dd4bf, #14b8a6, #0d9488)",
-                        color: "#0b1120",
-                        textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {connected ? "Gerenciar" : "Conectar"}
-                    </a>
-                  </div>
-
-                  <p style={{ margin: 0, marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
-                    Importa atividades registradas no Fitbit para a SportPlatform.
-                  </p>
-                </div>
-              );
-            })()}
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "#64748b",
+              }}
+            >
+              Perfil
+            </p>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>
+              Minha conta
+            </h1>
           </div>
-        </section>
+        </div>
 
-        <section
-          style={{
-            borderRadius: 18,
-            padding: "16px 14px",
-            background: "radial-gradient(circle at top, #020617, #020617 60%)",
-            border: "1px solid rgba(148,163,184,0.35)",
-          }}
-        >
-          <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, marginBottom: 8 }}>
-            Como usamos seu nome
-          </h2>
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-            O nome definido aqui é utilizado para identificar você no feed, nos
-            rankings, no dashboard de performance e em outras áreas da
-            SportPlatform. Você pode alterá-lo a qualquer momento.
+        {loading ? (
+          <p style={{ marginTop: 14, color: "#9ca3af", fontSize: 13 }}>
+            Carregando...
           </p>
-        </section>
-      </div>
+        ) : (
+          <>
+            {errorMsg && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  borderRadius: 14,
+                  border: "1px solid rgba(248,113,113,0.45)",
+                  background: "rgba(248,113,113,0.10)",
+                  color: "#fecaca",
+                  fontSize: 13,
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
+
+            {successMsg && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  borderRadius: 14,
+                  border: "1px solid rgba(34,197,94,0.35)",
+                  background: "rgba(34,197,94,0.10)",
+                  color: "#bbf7d0",
+                  fontSize: 13,
+                }}
+              >
+                {successMsg}
+              </div>
+            )}
+
+            <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+              <div
+                style={{
+                  borderRadius: 18,
+                  padding: "12px 12px",
+                  border: "1px solid rgba(148,163,184,0.22)",
+                  background:
+                    "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.88))",
+                }}
+              >
+                <div style={{ fontSize: 12, color: "#9ca3af" }}>Email</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>
+                  {email ?? "-"}
+                </div>
+
+                <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+                  User ID:{" "}
+                  <span style={{ color: "#9ca3af" }}>{userId ?? "-"}</span>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  borderRadius: 18,
+                  padding: "12px 12px",
+                  border: "1px solid rgba(148,163,184,0.22)",
+                  background:
+                    "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.88))",
+                }}
+              >
+                <label style={{ display: "block" }}>
+                  <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                    Nome (exibido no app)
+                  </div>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Seu nome"
+                    style={{
+                      width: "100%",
+                      marginTop: 8,
+                      height: 42,
+                      borderRadius: 12,
+                      border: "1px solid rgba(55,65,81,0.9)",
+                      background: "#020617",
+                      color: "#e5e7eb",
+                      padding: "0 12px",
+                      outline: "none",
+                      fontSize: 14,
+                    }}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={onSave}
+                  disabled={saving}
+                  style={{
+                    marginTop: 12,
+                    width: "100%",
+                    height: 44,
+                    borderRadius: 999,
+                    border: "1px solid rgba(248,250,252,0.08)",
+                    background: saving
+                      ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
+                      : "linear-gradient(135deg, #22c55e 0%, #16a34a 40%, #0f172a 100%)",
+                    color: saving ? "#9ca3af" : "#0b1120",
+                    fontWeight: 800,
+                    cursor: saving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {saving ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
+
+              {/* ✅ ÚNICO acesso a integrações: tudo centralizado lá */}
+              <Link
+                href="/integrations"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: 44,
+                  borderRadius: 999,
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background: "rgba(148,163,184,0.10)",
+                  color: "#e5e7eb",
+                  textDecoration: "none",
+                  fontWeight: 800,
+                }}
+              >
+                Ir para Integrações →
+              </Link>
+
+              <button
+                type="button"
+                onClick={onSignOut}
+                disabled={signingOut}
+                style={{
+                  height: 44,
+                  borderRadius: 999,
+                  border: "1px solid rgba(248,113,113,0.45)",
+                  background: signingOut
+                    ? "rgba(148,163,184,0.08)"
+                    : "rgba(248,113,113,0.10)",
+                  color: signingOut ? "#9ca3af" : "#fecaca",
+                  fontWeight: 800,
+                  cursor: signingOut ? "not-allowed" : "pointer",
+                }}
+              >
+                {signingOut ? "Saindo..." : "Sair"}
+              </button>
+            </div>
+          </>
+        )}
+      </section>
 
       <BottomNavbar />
     </main>
