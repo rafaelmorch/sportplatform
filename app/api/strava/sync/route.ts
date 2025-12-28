@@ -26,9 +26,19 @@ type StravaActivity = {
   type?: string;
   sport_type?: string;
   start_date?: string; // ISO
+  start_date_local?: string; // ISO
+  timezone?: string;
   distance?: number; // meters
   moving_time?: number; // seconds
+  elapsed_time?: number; // seconds
   total_elevation_gain?: number; // meters
+  average_speed?: number;
+  max_speed?: number;
+  trainer?: boolean;
+  commute?: boolean;
+  private?: boolean;
+  flagged?: boolean;
+  map?: { summary_polyline?: string | null };
 };
 
 function pickAuthBearer(req: NextRequest): string | null {
@@ -75,10 +85,7 @@ export async function GET(req: NextRequest) {
     // 1) Autentica usuário via JWT do Supabase (enviado pelo client)
     const jwt = pickAuthBearer(req);
     if (!jwt) {
-      return NextResponse.json(
-        { message: "Missing Authorization Bearer token." },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Missing Authorization Bearer token." }, { status: 401 });
     }
 
     const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(jwt);
@@ -117,7 +124,7 @@ export async function GET(req: NextRequest) {
     let accessToken = tokenRow.access_token as string;
     let refreshToken = (tokenRow.refresh_token as string) ?? null;
 
-    // expires_at no seu banco está como ISO string (pelo callback que você mostrou)
+    // expires_at no seu banco está como ISO string
     const expiresAtIso = tokenRow.expires_at as string | null;
     const expiresAtMs = expiresAtIso ? new Date(expiresAtIso).getTime() : 0;
     const nowMs = Date.now();
@@ -131,7 +138,6 @@ export async function GET(req: NextRequest) {
 
       const newExpiresIso = toIsoFromUnixSeconds(refreshed.expires_at);
 
-      // Atualiza tokens
       const { error: upErr } = await supabaseAdmin
         .from("strava_tokens")
         .update({
@@ -144,7 +150,6 @@ export async function GET(req: NextRequest) {
         .eq("athlete_id", tokenRow.athlete_id);
 
       if (upErr) {
-        // não bloqueia: ainda dá pra tentar usar o accessToken atual
         console.error("Erro ao atualizar tokens refreshed:", upErr);
       }
     }
@@ -167,7 +172,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // "after" do Strava é unix seconds. Coloco um buffer de 24h pra evitar perder algo.
+    // "after" do Strava é unix seconds. Buffer 24h.
     let afterUnix: number | null = null;
     if (lastRow?.start_date) {
       const lastMs = new Date(lastRow.start_date).getTime();
@@ -179,7 +184,6 @@ export async function GET(req: NextRequest) {
     // 5) Buscar atividades do Strava (paginado)
     const perPage = 200;
     let page = 1;
-    let fetchedTotal = 0;
     const all: StravaActivity[] = [];
 
     while (true) {
@@ -203,38 +207,46 @@ export async function GET(req: NextRequest) {
       }
 
       const batch = (json as StravaActivity[]) ?? [];
-      fetchedTotal += batch.length;
       all.push(...batch);
 
       if (batch.length < perPage) break;
       page += 1;
-
-      // trava de segurança
-      if (page > 20) break;
+      if (page > 20) break; // trava de segurança
     }
 
-    // 6) Upsert no Supabase
+    // 6) Upsert no Supabase (CORRIGIDO: usa activity_id e NÃO mexe no id uuid)
     if (all.length > 0) {
+      const nowIso = new Date().toISOString();
+
       const rows = all
         .filter((a) => a?.id && a?.start_date)
         .map((a) => ({
-          id: String(a.id), // sua tabela está com id string/uuid-like? pelos prints parece string. Se for bigint, me avisa.
+          activity_id: a.id, // ✅ ID do Strava vai aqui
           athlete_id: athleteId,
           name: a.name ?? null,
           type: a.type ?? null,
           sport_type: a.sport_type ?? null,
           start_date: a.start_date ?? null,
+          start_date_local: a.start_date_local ?? null,
+          timezone: a.timezone ?? null,
           distance: a.distance ?? null,
           moving_time: a.moving_time ?? null,
+          elapsed_time: a.elapsed_time ?? null,
           total_elevation_gain: a.total_elevation_gain ?? null,
-          created_at: new Date().toISOString(),
+          average_speed: a.average_speed ?? null,
+          max_speed: a.max_speed ?? null,
+          is_trainer: a.trainer ?? null,
+          is_commute: a.commute ?? null,
+          is_private: a.private ?? null,
+          is_flagged: a.flagged ?? null,
+          map_summary_polyline: a.map?.summary_polyline ?? null,
+          raw: a, // ✅ guarda o json
+          updated_at: nowIso,
         }));
 
-      // Observação: se seu "id" no banco for NUMERIC/BIGINT em vez de texto,
-      // trocamos para id: a.id (sem String).
       const { error: insErr } = await supabaseAdmin
         .from("strava_activities")
-        .upsert(rows, { onConflict: "id" });
+        .upsert(rows, { onConflict: "activity_id" }); // ✅ chave correta
 
       if (insErr) {
         return NextResponse.json(
