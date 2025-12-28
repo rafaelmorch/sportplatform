@@ -20,8 +20,62 @@ type StravaTokenResponse = {
   athlete: { id: number; firstname?: string; lastname?: string };
 };
 
+type StravaActivity = {
+  id: number;
+  name?: string | null;
+  type?: string | null;
+  sport_type?: string | null;
+  start_date?: string | null;
+  distance?: number | null;
+  moving_time?: number | null;
+  total_elevation_gain?: number | null;
+};
+
 function isUuid(v: string) {
   return /^[0-9a-fA-F-]{36}$/.test(v);
+}
+
+async function fetchStravaActivities(params: {
+  accessToken: string;
+  afterUnixSeconds?: number; // pega atividades depois desse timestamp
+  maxPages?: number;
+  perPage?: number;
+}) {
+  const { accessToken, afterUnixSeconds, maxPages = 3, perPage = 50 } = params;
+
+  const all: StravaActivity[] = [];
+
+  for (let page = 1; page <= maxPages; page++) {
+    const url = new URL("https://www.strava.com/api/v3/athlete/activities");
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("per_page", String(perPage));
+    if (afterUnixSeconds && afterUnixSeconds > 0) {
+      url.searchParams.set("after", String(afterUnixSeconds));
+    }
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const json = (await res.json()) as any;
+
+    if (!res.ok) {
+      console.error("Erro Strava /athlete/activities:", json);
+      throw new Error(
+        `Strava activities failed: ${res.status} ${JSON.stringify(json)}`
+      );
+    }
+
+    const pageItems = (Array.isArray(json) ? json : []) as StravaActivity[];
+    all.push(...pageItems);
+
+    // se veio menos que perPage, acabou
+    if (pageItems.length < perPage) break;
+  }
+
+  return all;
 }
 
 export async function GET(req: NextRequest) {
@@ -154,7 +208,64 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4) Redirect final (web)
+    // ✅ 4) SYNC AUTOMÁTICO: puxar atividades e salvar em strava_activities
+    // estratégia simples e segura: pegar últimos 120 dias (pega o que você acabou de criar)
+    const afterUnix = Math.floor(Date.now() / 1000) - 120 * 24 * 60 * 60;
+
+    let syncedCount = 0;
+    try {
+      const activities = await fetchStravaActivities({
+        accessToken: access_token,
+        afterUnixSeconds: afterUnix,
+        maxPages: 5, // 5 páginas x 50 = até 250 atividades recentes
+        perPage: 50,
+      });
+
+      if (activities.length > 0) {
+        const rows = activities.map((a) => ({
+          // IMPORTANTÍSSIMO:
+          // aqui assumimos que sua coluna "id" aceita string (ex: text).
+          // se for UUID, isso vai falhar — mas pelo seu dashboard e tipos, tende a ser text.
+          id: String(a.id),
+          athlete_id: athleteId,
+          name: a.name ?? null,
+          type: a.type ?? null,
+          sport_type: a.sport_type ?? null,
+          start_date: a.start_date ?? null,
+          distance: a.distance ?? null,
+          moving_time: a.moving_time ?? null,
+          total_elevation_gain: a.total_elevation_gain ?? null,
+        }));
+
+        // tenta upsert por "id"
+        const { error: upsertErr } = await supabaseAdmin
+          .from("strava_activities")
+          .upsert(rows, { onConflict: "id" });
+
+        if (upsertErr) {
+          // fallback se não existir constraint/unique em id
+          console.error("Upsert strava_activities falhou:", upsertErr);
+
+          // tenta insert simples (pode duplicar se rodar várias vezes, mas pelo menos traz as atividades)
+          const { error: insertErr } = await supabaseAdmin
+            .from("strava_activities")
+            .insert(rows);
+
+          if (insertErr) {
+            console.error("Insert strava_activities também falhou:", insertErr);
+          } else {
+            syncedCount = rows.length;
+          }
+        } else {
+          syncedCount = rows.length;
+        }
+      }
+    } catch (syncErr) {
+      console.error("SYNC Strava falhou (não bloqueia login):", syncErr);
+      // não bloqueia o redirect
+    }
+
+    // 5) Redirect final (web)
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
@@ -162,6 +273,7 @@ export async function GET(req: NextRequest) {
     redirectUrl.searchParams.set("provider", "strava");
     redirectUrl.searchParams.set("status", "success");
     redirectUrl.searchParams.set("athlete_id", String(athleteId));
+    redirectUrl.searchParams.set("synced", String(syncedCount)); // só pra debug (opcional)
 
     return NextResponse.redirect(redirectUrl.toString());
   } catch (err) {
