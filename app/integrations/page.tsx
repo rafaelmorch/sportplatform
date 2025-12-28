@@ -1,11 +1,11 @@
+// app/integrations/page.tsx
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
-
 const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID!;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -28,11 +28,6 @@ export default function IntegrationsPage() {
     stravaConnected: false,
     fitbitConnected: false,
   });
-
-  const queryParams = useMemo(() => {
-    if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search);
-  }, []);
 
   useEffect(() => {
     const run = async () => {
@@ -75,11 +70,10 @@ export default function IntegrationsPage() {
           `https://www.strava.com/oauth/authorize?${stravaParams.toString()}`
         );
 
-        // ✅ FITBIT: agora passa pelo seu backend (pra garantir scope correto + state)
+        // ✅ FITBIT: passa pelo backend
         setFitbitUrl(`/api/fitbit/connect?state=${userId}`);
 
-        // 3) Verifica se já tem tokens salvos
-        // Fitbit
+        // 3) Verifica se já tem tokens salvos (fonte da verdade)
         const { data: fitbitRow, error: fitbitErr } = await supabase
           .from("fitbit_tokens")
           .select("fitbit_user_id")
@@ -91,7 +85,6 @@ export default function IntegrationsPage() {
           setErrorMsg("Erro ao verificar conexão do Fitbit. Tente recarregar.");
         }
 
-        // Strava
         const { data: stravaRow, error: stravaErr } = await supabase
           .from("strava_tokens")
           .select("athlete_id")
@@ -108,16 +101,6 @@ export default function IntegrationsPage() {
           stravaConnected: !!stravaRow?.athlete_id,
         });
 
-        // 4) Se veio do callback com status=success, reflete na UI também
-        const provider = queryParams?.get("provider");
-        const ok = queryParams?.get("status") === "success";
-        if (ok && provider === "fitbit") {
-          setStatus((s) => ({ ...s, fitbitConnected: true }));
-        }
-        if (ok && provider === "strava") {
-          setStatus((s) => ({ ...s, stravaConnected: true }));
-        }
-
         setLoading(false);
       } catch (e) {
         console.error("Erro inesperado:", e);
@@ -127,7 +110,7 @@ export default function IntegrationsPage() {
     };
 
     run();
-  }, [queryParams]);
+  }, []);
 
   const disabledStrava = loading || !stravaUrl || status.stravaConnected;
   const disabledFitbit = loading || !fitbitUrl || status.fitbitConnected;
