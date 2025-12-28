@@ -19,15 +19,14 @@ export default function ProfilePage() {
 
   const [name, setName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        setLoading(true);
-        setErrorMsg(null);
+        setLoadingProfile(true);
 
         const {
           data: { user },
@@ -36,8 +35,8 @@ export default function ProfilePage() {
 
         if (error) {
           console.error("Erro ao carregar user:", error);
-          setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
-          setLoading(false);
+          setErrorMsg("Erro ao carregar usuário.");
+          setLoadingProfile(false);
           return;
         }
 
@@ -48,22 +47,22 @@ export default function ProfilePage() {
 
         setEmail(user.email ?? null);
 
-        const { data: profile, error: profileError } = await supabase
+        const { data: profile, error: profileErr } = await supabase
           .from("profiles")
           .select("full_name")
           .eq("id", user.id)
           .maybeSingle();
 
-        if (profileError) {
-          console.error("Erro ao carregar profile:", profileError);
+        if (profileErr) {
+          console.error("Erro ao carregar profile:", profileErr);
         }
 
         setName(profile?.full_name ?? null);
       } catch (err) {
-        console.error("Erro inesperado no profile:", err);
+        console.error("Erro inesperado:", err);
         setErrorMsg("Erro inesperado ao carregar perfil.");
       } finally {
-        setLoading(false);
+        setLoadingProfile(false);
       }
     };
 
@@ -99,32 +98,34 @@ export default function ProfilePage() {
       >
         <h1
           style={{
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: 700,
-            marginBottom: 8,
+            marginBottom: 16,
           }}
         >
-          Meu Perfil
+          Perfil
         </h1>
 
-        {loading && (
-          <p style={{ fontSize: 14, color: "#9ca3af" }}>Carregando perfil…</p>
+        {loadingProfile && (
+          <p style={{ fontSize: 14, color: "#9ca3af" }}>
+            Carregando perfil...
+          </p>
         )}
 
         {errorMsg && (
           <p style={{ fontSize: 14, color: "#fca5a5" }}>{errorMsg}</p>
         )}
 
-        {!loading && !errorMsg && (
+        {!loadingProfile && !errorMsg && (
           <>
             <div
               style={{
-                marginBottom: 20,
+                borderRadius: 16,
                 padding: "16px 14px",
-                borderRadius: 14,
                 border: "1px solid rgba(148,163,184,0.35)",
                 background:
                   "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+                marginBottom: 20,
               }}
             >
               <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
@@ -139,7 +140,7 @@ export default function ProfilePage() {
                   fontSize: 12,
                   color: "#9ca3af",
                   marginBottom: 4,
-                  marginTop: 10,
+                  marginTop: 12,
                 }}
               >
                 Email
@@ -147,20 +148,18 @@ export default function ProfilePage() {
               <p style={{ fontSize: 14 }}>{email ?? "—"}</p>
             </div>
 
-            {/* 👉 Integrações (único ponto de acesso) */}
+            {/* 👉 ÚNICO acesso às integrações */}
             <Link
               href="/integrations"
               style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: 46,
+                display: "block",
+                textAlign: "center",
+                padding: "12px 0",
                 borderRadius: 999,
-                background:
-                  "linear-gradient(135deg, #22c55e 0%, #16a34a 40%, #15803d 100%)",
-                color: "#022c22",
-                fontWeight: 700,
+                border: "1px solid rgba(148,163,184,0.35)",
+                color: "#e5e7eb",
                 textDecoration: "none",
+                fontSize: 14,
                 marginBottom: 16,
               }}
             >
@@ -172,7 +171,7 @@ export default function ProfilePage() {
               disabled={signingOut}
               style={{
                 width: "100%",
-                height: 42,
+                padding: "12px 0",
                 borderRadius: 999,
                 background: "transparent",
                 border: "1px solid rgba(239,68,68,0.6)",
@@ -181,7 +180,7 @@ export default function ProfilePage() {
                 cursor: "pointer",
               }}
             >
-              {signingOut ? "Saindo…" : "Sair da conta"}
+              {signingOut ? "Saindo..." : "Sair"}
             </button>
           </>
         )}
