@@ -444,7 +444,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
   );
   const athleteActivitiesCount = athleteActivities.length;
 
-  const lastActivities = [...groupActivities]
+  const lastActivities = [...athleteActivities]
     .sort((a, b) => {
       const da = a.start_date ? new Date(a.start_date).getTime() : 0;
       const db = b.start_date ? new Date(b.start_date).getTime() : 0;
