@@ -1,3 +1,4 @@
+// app/integrations/page.tsx
 "use client";
 
 import Link from "next/link";
@@ -21,9 +22,10 @@ export default function IntegrationsPage() {
   const [fitbitUrl, setFitbitUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [revokingStrava, setRevokingStrava] = useState(false);
+
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [status, setStatus] = useState<ConnectionStatus>({
     stravaConnected: false,
@@ -35,22 +37,65 @@ export default function IntegrationsPage() {
     return new URLSearchParams(window.location.search);
   }, []);
 
+  async function refreshStatus(userId: string) {
+    // Fitbit
+    const { data: fitbitRow, error: fitbitErr } = await supabase
+      .from("fitbit_tokens")
+      .select("fitbit_user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (fitbitErr) {
+      console.error("Erro ao checar fitbit_tokens:", fitbitErr);
+      setErrorMsg("Erro ao verificar conexão do Fitbit. Tente recarregar.");
+    }
+
+    // Strava
+    const { data: stravaRow, error: stravaErr } = await supabase
+      .from("strava_tokens")
+      .select("athlete_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (stravaErr) {
+      console.error("Erro ao checar strava_tokens:", stravaErr);
+      setErrorMsg("Erro ao verificar conexão do Strava. Tente recarregar.");
+    }
+
+    setStatus({
+      fitbitConnected: !!fitbitRow?.fitbit_user_id,
+      stravaConnected: !!stravaRow?.athlete_id,
+    });
+  }
+
   useEffect(() => {
     const run = async () => {
       try {
         setLoading(true);
         setErrorMsg(null);
+        setSuccessMsg(null);
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session?.user?.id ?? null;
+        // 1) Sessão do usuário (site)
+        const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
 
-        if (!userId) {
-          setErrorMsg("Você precisa estar logado para conectar integrações.");
+        if (sessionErr) {
+          console.error("Erro ao carregar sessão:", sessionErr);
+          setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
           setLoading(false);
           return;
         }
 
-        // Strava OAuth URL
+        const userId = sessionData.session?.user?.id ?? null;
+
+        if (!userId) {
+          setErrorMsg("Você precisa estar logado no site para conectar integrações.");
+          setStravaUrl(null);
+          setFitbitUrl(null);
+          setLoading(false);
+          return;
+        }
+
+        // 2) Monta URLs de OAuth (sempre)
         const stravaRedirect = `${siteUrl}/api/strava/callback`;
         const stravaParams = new URLSearchParams({
           client_id: stravaClientId,
@@ -60,34 +105,27 @@ export default function IntegrationsPage() {
           scope: "read,activity:read_all",
           state: userId,
         });
-        setStravaUrl(`https://www.strava.com/oauth/authorize?${stravaParams}`);
+        setStravaUrl(`https://www.strava.com/oauth/authorize?${stravaParams.toString()}`);
 
-        // Fitbit (placeholder)
-        setFitbitUrl("#");
+        // ✅ FITBIT passa pelo backend
+        setFitbitUrl(`/api/fitbit/connect?state=${userId}`);
 
-        // status Strava
-        const { data: stravaRow } = await supabase
-          .from("strava_tokens")
-          .select("athlete_id")
-          .eq("user_id", userId)
-          .maybeSingle();
+        // 3) Verifica tokens salvos (fonte da verdade)
+        await refreshStatus(userId);
 
-        setStatus({
-          stravaConnected: !!stravaRow?.athlete_id,
-          fitbitConnected: false,
-        });
-
-        // callback visual
+        // 4) Se veio do callback com status=success, só mostra mensagem,
+        // e remove querystring pra não "prender" o estado.
         const provider = queryParams?.get("provider");
         const ok = queryParams?.get("status") === "success";
-        if (ok && provider === "strava") {
-          setStatus((s) => ({ ...s, stravaConnected: true }));
+        if (ok && provider) {
+          setSuccessMsg(`${provider.toUpperCase()} conectado com sucesso! ✅`);
+          window.history.replaceState(null, "", "/integrations");
         }
 
         setLoading(false);
       } catch (e) {
-        console.error(e);
-        setErrorMsg("Erro ao preparar integrações.");
+        console.error("Erro inesperado:", e);
+        setErrorMsg("Erro inesperado ao preparar as integrações.");
         setLoading(false);
       }
     };
@@ -98,40 +136,59 @@ export default function IntegrationsPage() {
   const handleRevokeStrava = async () => {
     try {
       setErrorMsg(null);
-      setInfoMsg(null);
+      setSuccessMsg(null);
       setRevokingStrava(true);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const jwt = sessionData.session?.access_token;
-
-      if (!jwt) {
-        setErrorMsg("Sessão inválida. Faça login novamente.");
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) {
+        console.error("Erro ao carregar sessão:", sessionErr);
+        setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
         setRevokingStrava(false);
         return;
       }
 
-      const res = await fetch("/api/strava/revoke", {
+      const session = sessionData.session;
+      const userId = session?.user?.id ?? null;
+      const accessToken = session?.access_token ?? null;
+
+      if (!userId || !accessToken) {
+        setErrorMsg("Você precisa estar logado para revogar acesso.");
+        setRevokingStrava(false);
+        return;
+      }
+
+      const resp = await fetch("/api/strava/revoke", {
         method: "POST",
-        headers: { Authorization: `Bearer ${jwt}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ userId }),
       });
 
-      if (!res.ok) {
-        setErrorMsg("Erro ao revogar acesso do Strava.");
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "");
+        console.error("Revoke falhou:", resp.status, txt);
+        setErrorMsg("Não foi possível revogar o Strava. Tente novamente.");
         setRevokingStrava(false);
         return;
       }
 
-      setStatus((s) => ({ ...s, stravaConnected: false }));
-      setInfoMsg("Acesso ao Strava revogado. Conecte novamente para escolher outra conta.");
-      setRevokingStrava(false);
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Erro inesperado ao revogar acesso.");
+      // Atualiza status real pelo banco
+      await refreshStatus(userId);
+
+      setSuccessMsg("Acesso ao Strava revogado com sucesso.");
+      window.history.replaceState(null, "", "/integrations");
+    } catch (e) {
+      console.error("Erro inesperado ao revogar Strava:", e);
+      setErrorMsg("Erro inesperado ao revogar o Strava.");
+    } finally {
       setRevokingStrava(false);
     }
   };
 
   const disabledStrava = loading || !stravaUrl || status.stravaConnected;
+  const disabledFitbit = loading || !fitbitUrl || status.fitbitConnected;
 
   return (
     <main
@@ -150,78 +207,240 @@ export default function IntegrationsPage() {
           maxWidth: "640px",
           borderRadius: "24px",
           padding: "32px 28px",
-          background:
-            "radial-gradient(circle at top, #020617, #020617 40%, #000000 100%)",
+          background: "radial-gradient(circle at top, #020617, #020617 40%, #000000 100%)",
           border: "1px solid rgba(148, 163, 184, 0.35)",
+          boxShadow: "0 18px 45px rgba(15, 23, 42, 0.8), 0 0 0 1px rgba(15, 23, 42, 0.9)",
         }}
       >
-        <h1 style={{ fontSize: 24, color: "#e5e7eb" }}>Integrações</h1>
-
-        {errorMsg && <p style={{ color: "#fca5a5" }}>{errorMsg}</p>}
-        {infoMsg && <p style={{ color: "#bbf7d0" }}>{infoMsg}</p>}
-
-        {/* STRAVA */}
-        <div style={{ marginTop: 20 }}>
-          <h3 style={{ color: "#e5e7eb" }}>Strava</h3>
-
-          <a
-            href={stravaUrl ?? "#"}
+        {/* Header */}
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "20px" }}>
+          <div
             style={{
-              display: "block",
-              textAlign: "center",
-              padding: "12px",
-              borderRadius: 999,
-              background: disabledStrava ? "#374151" : "#f97316",
-              color: "#020617",
+              width: 36,
+              height: 36,
+              borderRadius: "999px",
+              background:
+                "radial-gradient(circle at 20% 20%, #16a34a, #22c55e 40%, #0f172a 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "18px",
               fontWeight: 700,
-              textDecoration: "none",
-              pointerEvents: disabledStrava ? "none" : "auto",
+              color: "#0b1120",
             }}
           >
-            {status.stravaConnected ? "Strava Conectado" : "Conectar com Strava"}
-          </a>
-
-          {status.stravaConnected && (
-            <button
-              onClick={handleRevokeStrava}
-              disabled={revokingStrava}
+            SP
+          </div>
+          <div>
+            <p
               style={{
-                marginTop: 10,
-                width: "100%",
-                padding: "10px",
-                borderRadius: 999,
-                border: "1px solid rgba(248,113,113,0.5)",
-                background: "rgba(248,113,113,0.15)",
-                color: "#fecaca",
-                fontWeight: 700,
+                fontSize: "13px",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "#64748b",
+                margin: 0,
               }}
             >
-              {revokingStrava ? "Revogando..." : "Revogar acesso (Strava)"}
-            </button>
-          )}
+              Integrações
+            </p>
+            <h1 style={{ fontSize: "24px", margin: 0, color: "#e5e7eb" }}>
+              Conectar Apps de Treino
+            </h1>
+          </div>
         </div>
 
-        {/* FITBIT */}
-        <div style={{ marginTop: 30 }}>
-          <h3 style={{ color: "#e5e7eb" }}>Fitbit</h3>
+        <p style={{ fontSize: "14px", lineHeight: 1.6, color: "#cbd5f5", marginBottom: "18px" }}>
+          Conecte suas contas de Strava e Fitbit ao Sports Platform para centralizar histórico de
+          atividades, métricas e desafios em um só lugar.
+        </p>
 
-          <button
-            disabled
+        {errorMsg && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>{errorMsg}</p>
+            <div style={{ marginTop: 10 }}>
+              <Link
+                href="/login"
+                style={{
+                  display: "inline-flex",
+                  padding: "10px 14px",
+                  borderRadius: 999,
+                  background: "rgba(148,163,184,0.12)",
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  color: "#e5e7eb",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Ir para Login
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {successMsg && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 13, color: "#bbf7d0", margin: 0 }}>{successMsg}</p>
+          </div>
+        )}
+
+        {/* Cards */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Strava */}
+          <div
             style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: 999,
-              background: "#1f2937",
-              color: "#9ca3af",
-              fontWeight: 700,
+              borderRadius: 18,
+              padding: "14px 16px",
+              border: "1px solid rgba(148,163,184,0.4)",
+              background: "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.9))",
             }}
           >
-            Revogar acesso (Fitbit) — em breve
-          </button>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#e5e7eb" }}>Strava</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                  Importa suas corridas, pedaladas e outras atividades.
+                </div>
+              </div>
+
+              {status.stravaConnected && (
+                <div
+                  style={{
+                    alignSelf: "center",
+                    fontSize: 12,
+                    color: "#bbf7d0",
+                    border: "1px solid rgba(34,197,94,0.35)",
+                    background: "rgba(22,163,74,0.12)",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Conectado ✅
+                </div>
+              )}
+            </div>
+
+            <a
+              href={stravaUrl ?? "#"}
+              style={{
+                display: "inline-flex",
+                width: "100%",
+                justifyContent: "center",
+                alignItems: "center",
+                height: 44,
+                borderRadius: "999px",
+                marginTop: 10,
+                background: disabledStrava
+                  ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
+                  : "linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)",
+                color: disabledStrava ? "#9ca3af" : "#0b1120",
+                fontWeight: 700,
+                fontSize: "14px",
+                border: "1px solid rgba(248, 250, 252, 0.08)",
+                textDecoration: "none",
+                pointerEvents: disabledStrava ? "none" : "auto",
+              }}
+            >
+              {loading ? "Preparando..." : status.stravaConnected ? "Strava Conectado" : "Conectar com Strava"}
+            </a>
+
+            {/* ✅ Revoke (só aparece se conectado) */}
+            {status.stravaConnected && (
+              <button
+                type="button"
+                onClick={handleRevokeStrava}
+                disabled={revokingStrava}
+                style={{
+                  marginTop: 10,
+                  width: "100%",
+                  height: 40,
+                  borderRadius: 999,
+                  border: "1px solid rgba(248,113,113,0.45)",
+                  background: "rgba(248,113,113,0.10)",
+                  color: "#fecaca",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: revokingStrava ? "not-allowed" : "pointer",
+                  opacity: revokingStrava ? 0.7 : 1,
+                }}
+              >
+                {revokingStrava ? "Revogando..." : "Revogar acesso (Strava)"}
+              </button>
+            )}
+          </div>
+
+          {/* Fitbit */}
+          <div
+            style={{
+              borderRadius: 18,
+              padding: "14px 16px",
+              border: "1px solid rgba(148,163,184,0.4)",
+              background: "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.9))",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#e5e7eb" }}>Fitbit</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                  Sincroniza atividades diárias, batimentos e outros dados.
+                </div>
+              </div>
+
+              {status.fitbitConnected && (
+                <div
+                  style={{
+                    alignSelf: "center",
+                    fontSize: 12,
+                    color: "#bbf7d0",
+                    border: "1px solid rgba(34,197,94,0.35)",
+                    background: "rgba(22,163,74,0.12)",
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Conectado ✅
+                </div>
+              )}
+            </div>
+
+            <a
+              href={fitbitUrl ?? "#"}
+              style={{
+                display: "inline-flex",
+                width: "100%",
+                justifyContent: "center",
+                alignItems: "center",
+                height: 44,
+                borderRadius: "999px",
+                marginTop: 10,
+                background: disabledFitbit
+                  ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
+                  : "linear-gradient(135deg, #38bdf8 0%, #0ea5e9 40%, #0284c7 100%)",
+                color: disabledFitbit ? "#9ca3af" : "#0b1120",
+                fontWeight: 700,
+                fontSize: "14px",
+                border: "1px solid rgba(248, 250, 252, 0.08)",
+                textDecoration: "none",
+                pointerEvents: disabledFitbit ? "none" : "auto",
+              }}
+            >
+              {loading ? "Preparando..." : status.fitbitConnected ? "Fitbit Conectado" : "Conectar com Fitbit"}
+            </a>
+          </div>
         </div>
 
-        <div style={{ marginTop: 24 }}>
-          <Link href="/dashboard" style={{ color: "#9ca3af" }}>
+        <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
+          <Link
+            href="/dashboard"
+            style={{
+              fontSize: "13px",
+              color: "#9ca3af",
+              textDecoration: "underline",
+              textUnderlineOffset: 4,
+            }}
+          >
             Voltar ao dashboard
           </Link>
         </div>
