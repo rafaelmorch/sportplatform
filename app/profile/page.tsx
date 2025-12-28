@@ -1,9 +1,8 @@
 // app/profile/page.tsx
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -132,7 +131,7 @@ export default function ProfilePage() {
     run();
   }, [router]);
 
-  const handleSave = async (e: FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -417,6 +416,7 @@ export default function ProfilePage() {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 12,
+              flexWrap: "wrap",
             }}
           >
             <div>
@@ -426,6 +426,26 @@ export default function ProfilePage() {
               <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
                 Conecte seus apps para importar atividades automaticamente.
               </p>
+
+              {/* ✅ ÚNICO BOTÃO: manda para /integrations */}
+              <a
+                href="/integrations"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 999,
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
+                  color: "#0b1120",
+                  textDecoration: "none",
+                  marginTop: 12,
+                }}
+              >
+                Gerenciar integrações
+              </a>
             </div>
 
             {loadingConnections && (
@@ -452,7 +472,14 @@ export default function ProfilePage() {
                     background: "rgba(2,6,23,0.55)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                  >
                     <div>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Strava</p>
 
@@ -464,26 +491,7 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    {/* ✅ Profile NÃO faz mais OAuth. Só manda pro /integrations */}
-                    <Link
-                      href="/integrations"
-                      style={{
-                        borderRadius: 999,
-                        padding: "8px 14px",
-                        border: "none",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        background: "linear-gradient(to right, #fb923c, #f97316, #ea580c)",
-                        color: "#0b1120",
-                        textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Gerenciar
-                    </Link>
+                    {/* ❌ removido botão aqui */}
                   </div>
 
                   <p style={{ margin: 0, marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
@@ -504,7 +512,14 @@ export default function ProfilePage() {
                     background: "rgba(2,6,23,0.55)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                  >
                     <div>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Fitbit</p>
 
@@ -516,26 +531,7 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    {/* ✅ Profile NÃO faz mais OAuth. Só manda pro /integrations */}
-                    <Link
-                      href="/integrations"
-                      style={{
-                        borderRadius: 999,
-                        padding: "8px 14px",
-                        border: "none",
-                        fontSize: 13,
-                        fontWeight: 700,
-                        background: "linear-gradient(to right, #2dd4bf, #14b8a6, #0d9488)",
-                        color: "#0b1120",
-                        textDecoration: "none",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Gerenciar
-                    </Link>
+                    {/* ❌ removido botão aqui */}
                   </div>
 
                   <p style={{ margin: 0, marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
