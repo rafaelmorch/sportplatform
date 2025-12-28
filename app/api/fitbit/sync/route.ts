@@ -1,53 +1,51 @@
 // app/api/fitbit/sync/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE!;
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 const FITBIT_CLIENT_ID = process.env.FITBIT_CLIENT_ID!;
 const FITBIT_CLIENT_SECRET = process.env.FITBIT_CLIENT_SECRET!;
 
-type FitbitRefreshResponse = {
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+type FitbitTokenRow = {
+  user_id: string;
+  fitbit_user_id: string;
   access_token: string;
   refresh_token: string;
-  expires_in: number; // seconds
-  scope?: string;
-  token_type?: string;
-  user_id: string; // Fitbit user id (ex: "CX66WN")
+  token_type: string | null;
+  scope: string | null;
+  expires_at: string | null; // timestamptz
 };
 
-function pickAuthBearer(req: NextRequest): string | null {
-  const h = req.headers.get("authorization") ?? req.headers.get("Authorization");
-  if (!h) return null;
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1].trim() : null;
+function jsonError(status: number, message: string, details?: any) {
+  return NextResponse.json({ message, details }, { status });
 }
 
-function toIso(ms: number) {
-  return new Date(ms).toISOString();
+function toISODate(d: Date) {
+  // YYYY-MM-DD
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
+function addDays(d: Date, days: number) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + days);
+  return x;
 }
 
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// Fitbit refresh token (OAuth2)
-async function refreshFitbitToken(refreshToken: string) {
+async function refreshFitbitToken(refresh_token: string) {
   const basic = Buffer.from(`${FITBIT_CLIENT_ID}:${FITBIT_CLIENT_SECRET}`).toString("base64");
 
   const body = new URLSearchParams();
   body.set("grant_type", "refresh_token");
-  body.set("refresh_token", refreshToken);
+  body.set("refresh_token", refresh_token);
 
   const res = await fetch("https://api.fitbit.com/oauth2/token", {
     method: "POST",
@@ -58,222 +56,206 @@ async function refreshFitbitToken(refreshToken: string) {
     body,
   });
 
-  const json = (await res.json()) as any;
-
+  const txt = await res.text();
   if (!res.ok) {
-    throw new Error(`Fitbit refresh failed: ${JSON.stringify(json)}`);
+    throw new Error(`Fitbit refresh failed: ${txt}`);
   }
-
-  return json as FitbitRefreshResponse;
+  return JSON.parse(txt) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    token_type: string;
+    scope?: string;
+    user_id?: string;
+  };
 }
 
-// GET daily summary for a specific day
-async function fetchDailySummary(accessToken: string, day: string) {
-  const url = `https://api.fitbit.com/1/user/-/activities/date/${day}.json`;
+async function fitbitGet(accessToken: string, url: string) {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-
-  const json = (await res.json()) as any;
-
+  const txt = await res.text();
   if (!res.ok) {
-    throw new Error(`Fitbit daily summary failed: ${JSON.stringify(json)}`);
+    throw new Error(`Fitbit GET failed (${res.status}): ${txt}`);
   }
-
-  return json;
+  return JSON.parse(txt);
 }
 
-function pickDistanceKm(distances: any[] | undefined, activityName: string): number | null {
-  const arr = Array.isArray(distances) ? distances : [];
-  const found = arr.find((x) => (x?.activity ?? "") === activityName);
-  const v = found?.distance;
-  if (typeof v === "number") return v;
-  return null;
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE) {
-      return NextResponse.json({ message: "Supabase env não configurado." }, { status: 500 });
-    }
-    if (!FITBIT_CLIENT_ID || !FITBIT_CLIENT_SECRET) {
-      return NextResponse.json({ message: "Fitbit env não configurado." }, { status: 500 });
-    }
-
-    // 1) Auth do usuário (JWT do Supabase)
-    const jwt = pickAuthBearer(req);
-    if (!jwt) {
-      return NextResponse.json({ message: "Missing Authorization Bearer token." }, { status: 401 });
+    // 1) validar JWT do Supabase enviado pelo client
+    const authHeader = req.headers.get("authorization") || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+      return jsonError(401, "Token inválido ou sessão expirada.", "missing Authorization Bearer token");
     }
 
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(jwt);
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
     if (userErr || !userData?.user) {
-      return NextResponse.json(
-        { message: "Token inválido ou sessão expirada.", details: userErr?.message },
-        { status: 401 }
-      );
+      return jsonError(401, "Token inválido ou sessão expirada.", userErr?.message || "invalid user");
     }
+    const user_id = userData.user.id;
 
-    const userId = userData.user.id;
-
-    // 2) Pega tokens Fitbit do usuário
-    // Esperado: fitbit_tokens(user_id, fitbit_user_id, access_token, refresh_token, expires_at, updated_at)
+    // 2) carregar tokens do Fitbit no banco
     const { data: tokenRow, error: tokenErr } = await supabaseAdmin
       .from("fitbit_tokens")
-      .select("fitbit_user_id, access_token, refresh_token, expires_at, updated_at")
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .select("user_id, fitbit_user_id, access_token, refresh_token, token_type, scope, expires_at")
+      .eq("user_id", user_id)
+      .maybeSingle<FitbitTokenRow>();
 
-    if (tokenErr) {
-      return NextResponse.json(
-        { message: "Erro ao ler fitbit_tokens.", details: tokenErr.message },
-        { status: 500 }
-      );
-    }
+    if (tokenErr) return jsonError(500, "Erro ao buscar tokens do Fitbit.", tokenErr.message);
+    if (!tokenRow) return jsonError(400, "Usuário não conectado ao Fitbit.");
 
-    if (!tokenRow?.access_token || !tokenRow?.refresh_token || !tokenRow?.fitbit_user_id) {
-      return NextResponse.json(
-        { message: "Usuário não está conectado ao Fitbit (sem tokens)." },
-        { status: 400 }
-      );
-    }
+    let access_token = tokenRow.access_token;
+    let refresh_token = tokenRow.refresh_token;
+    const fitbit_user_id = tokenRow.fitbit_user_id;
 
-    let accessToken = tokenRow.access_token as string;
-    let refreshToken = tokenRow.refresh_token as string;
-    const fitbitUserId = tokenRow.fitbit_user_id as string;
+    // 3) refresh se expirado (ou perto de expirar)
+    const now = new Date();
+    const expiresAt = tokenRow.expires_at ? new Date(tokenRow.expires_at) : null;
+    const needsRefresh = !expiresAt || expiresAt.getTime() - now.getTime() < 2 * 60 * 1000; // < 2 min
 
-    // expires_at pode ser ISO string (timestamptz) ou null
-    const expiresAtIso = (tokenRow.expires_at as string | null) ?? null;
-    const expiresAtMs = expiresAtIso ? new Date(expiresAtIso).getTime() : 0;
-    const nowMs = Date.now();
+    if (needsRefresh) {
+      const refreshed = await refreshFitbitToken(refresh_token);
 
-    // 3) Refresh se expirado (ou faltando < 60s)
-    if (expiresAtMs && expiresAtMs - nowMs < 60_000) {
-      const refreshed = await refreshFitbitToken(refreshToken);
-      accessToken = refreshed.access_token;
-      refreshToken = refreshed.refresh_token ?? refreshToken;
+      access_token = refreshed.access_token;
+      refresh_token = refreshed.refresh_token;
 
-      const newExpiresMs = Date.now() + (refreshed.expires_in ?? 3600) * 1000;
-      const newExpiresIso = toIso(newExpiresMs);
+      const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
 
       const { error: upErr } = await supabaseAdmin
         .from("fitbit_tokens")
         .update({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          expires_at: newExpiresIso,
+          access_token,
+          refresh_token,
+          expires_at: newExpiresAt,
+          token_type: refreshed.token_type,
+          scope: refreshed.scope ?? tokenRow.scope,
           updated_at: new Date().toISOString(),
         })
-        .eq("user_id", userId)
-        .eq("fitbit_user_id", fitbitUserId);
+        .eq("user_id", user_id);
 
       if (upErr) {
-        console.error("Erro ao atualizar fitbit_tokens:", upErr);
+        return jsonError(500, "Erro ao atualizar refresh token do Fitbit.", upErr.message);
       }
     }
 
-    // 4) Define o afterDate (incremental)
-    // - se já temos dados em fitbit_daily_summaries, pega o último dia salvo e volta 3 dias de buffer
-    // - se não, pega last 30 days
-    let startDay = addDays(todayUtc(), -30);
+    // 4) definir janela: últimos 30 dias, mas se já tiver daily salvo, começa do max(day)
+    const today = new Date();
+    const through = toISODate(today);
 
-    const { data: lastRow, error: lastErr } = await supabaseAdmin
-      .from("fitbit_daily_summaries")
+    const thirtyDaysAgo = addDays(today, -30);
+    let afterDate = toISODate(thirtyDaysAgo);
+
+    const { data: maxDayRow } = await supabaseAdmin
+      .from("fitbit_daily")
       .select("day")
-      .eq("user_id", userId)
+      .eq("user_id", user_id)
       .order("day", { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle<{ day: string }>();
 
-    if (lastErr) {
-      return NextResponse.json(
-        { message: "Erro ao ler último day (fitbit_daily_summaries).", details: lastErr.message },
-        { status: 500 }
-      );
+    if (maxDayRow?.day) {
+      // começa do dia seguinte ao último salvo
+      afterDate = toISODate(addDays(new Date(maxDayRow.day), 1));
     }
 
-    if (lastRow?.day) {
-      const lastDay = String(lastRow.day); // vem como 'YYYY-MM-DD'
-      startDay = addDays(lastDay, -3); // buffer
-    }
-
-    const endDay = todayUtc();
-
-    // 5) Busca summary por dia (loop)
-    let fetched = 0;
-    let saved = 0;
-
-    const rowsToUpsert: any[] = [];
-
-    for (let day = startDay; day <= endDay; day = addDays(day, 1)) {
-      const json = await fetchDailySummary(accessToken, day);
-      fetched += 1;
-
-      const summary = json?.summary ?? {};
-      const distances = summary?.distances ?? [];
-
-      rowsToUpsert.push({
-        user_id: userId,
-        fitbit_user_id: fitbitUserId,
-        day,
-
-        calories_out: typeof summary.caloriesOut === "number" ? summary.caloriesOut : null,
-        activity_calories:
-          typeof summary.activityCalories === "number" ? summary.activityCalories : null,
-        calories_bmr: typeof summary.caloriesBMR === "number" ? summary.caloriesBMR : null,
-
-        steps: typeof summary.steps === "number" ? summary.steps : null,
-        sedentary_minutes:
-          typeof summary.sedentaryMinutes === "number" ? summary.sedentaryMinutes : null,
-        lightly_active_minutes:
-          typeof summary.lightlyActiveMinutes === "number" ? summary.lightlyActiveMinutes : null,
-        fairly_active_minutes:
-          typeof summary.fairlyActiveMinutes === "number" ? summary.fairlyActiveMinutes : null,
-        very_active_minutes:
-          typeof summary.veryActiveMinutes === "number" ? summary.veryActiveMinutes : null,
-
-        distance_total_km: pickDistanceKm(distances, "total"),
-        distance_tracker_km: pickDistanceKm(distances, "tracker"),
-        distance_logged_activities_km: pickDistanceKm(distances, "loggedActivities"),
-
-        raw: json,
-        updated_at: new Date().toISOString(),
+    // se afterDate > today, não faz nada
+    if (new Date(afterDate) > today) {
+      return NextResponse.json({
+        ok: true,
+        user_id,
+        fitbit_user_id,
+        afterDate,
+        through,
+        fetched: 0,
+        saved: 0,
+        exercises_saved: 0,
+        note: "nothing_to_sync",
       });
     }
 
-    // 6) Upsert no Supabase (PK: user_id + day)
-    if (rowsToUpsert.length > 0) {
-      const { error: upErr } = await supabaseAdmin
-        .from("fitbit_daily_summaries")
-        .upsert(rowsToUpsert, { onConflict: "user_id,day" });
+    // 5) loop por dia: pega /activities/date/{day}.json
+    let fetched = 0;
+    let saved = 0;
+    let exercisesSaved = 0;
 
-      if (upErr) {
-        return NextResponse.json(
-          { message: "Erro ao upsert em fitbit_daily_summaries.", details: upErr.message },
-          { status: 500 }
-        );
+    for (let d = new Date(afterDate); d <= today; d = addDays(d, 1)) {
+      const day = toISODate(d);
+
+      const url = `https://api.fitbit.com/1/user/-/activities/date/${day}.json`;
+      const payload = await fitbitGet(access_token, url);
+
+      fetched++;
+
+      // DAILY summary
+      const summary = payload?.summary ?? {};
+      const distancesArr = Array.isArray(summary?.distances) ? summary.distances : [];
+      const totalDistance =
+        distancesArr.find((x: any) => x.activity === "total")?.distance ??
+        distancesArr.find((x: any) => x.activity === "loggedActivities")?.distance ??
+        0;
+
+      const dailyRow = {
+        user_id,
+        fitbit_user_id,
+        day,
+        steps: Number(summary?.steps ?? 0),
+        calories_out: Number(summary?.caloriesOut ?? 0),
+        distance_total: Number(totalDistance ?? 0),
+        lightly_active_minutes: Number(summary?.lightlyActiveMinutes ?? 0),
+        fairly_active_minutes: Number(summary?.fairlyActiveMinutes ?? 0),
+        very_active_minutes: Number(summary?.veryActiveMinutes ?? 0),
+        updated_at: new Date().toISOString(),
+      };
+
+      // upsert daily (precisa ter unique (user_id, day) na fitbit_daily)
+      const { error: dailyErr } = await supabaseAdmin
+        .from("fitbit_daily")
+        .upsert(dailyRow, { onConflict: "user_id,day" });
+
+      if (!dailyErr) saved++;
+
+      // EXERCISES logs (payload.activities[])
+      const acts = Array.isArray(payload?.activities) ? payload.activities : [];
+      if (acts.length) {
+        const rows = acts.map((a: any) => ({
+          user_id,
+          fitbit_user_id,
+          log_id: Number(a.logId),
+          day,
+          start_time: a.startTime ?? null,
+          activity_id: a.activityId ?? null,
+          name: a.name ?? null,
+          description: a.description ?? null,
+          duration_ms: a.duration ?? null,
+          distance_km: a.distance ?? null,
+          steps: a.steps ?? null,
+          calories: a.calories ?? null,
+          last_modified: a.lastModified ? new Date(a.lastModified).toISOString() : null,
+          updated_at: new Date().toISOString(),
+        }));
+
+        const { error: exErr } = await supabaseAdmin
+          .from("fitbit_exercises")
+          .upsert(rows, { onConflict: "log_id" });
+
+        if (!exErr) exercisesSaved += rows.length;
       }
-
-      saved = rowsToUpsert.length;
     }
 
     return NextResponse.json({
       ok: true,
-      user_id: userId,
-      fitbit_user_id: fitbitUserId,
-      afterDate: startDay,
-      through: endDay,
+      user_id,
+      fitbit_user_id,
+      afterDate,
+      through,
       fetched,
       saved,
-      note: lastRow?.day ? "incremental_with_buffer" : "first_sync_last_30_days",
+      exercises_saved: exercisesSaved,
+      note: "daily_plus_exercises",
     });
   } catch (e: any) {
-    console.error("Erro inesperado no fitbit sync:", e);
-    return NextResponse.json(
-      { message: "Erro inesperado no fitbit sync.", details: String(e?.message ?? e) },
-      { status: 500 }
-    );
+    return jsonError(500, "Erro inesperado no fitbit sync.", e?.message || String(e));
   }
 }
