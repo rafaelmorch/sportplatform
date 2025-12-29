@@ -11,6 +11,8 @@ const fitbitClientSecret = process.env.FITBIT_CLIENT_SECRET!;
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+/* ---------------- helpers ---------------- */
+
 function jsonError(status: number, message: string, details?: any) {
   return NextResponse.json(
     { message, ...(details ? { details } : {}) },
@@ -29,6 +31,7 @@ function daysBetweenInclusive(start: Date, end: Date) {
   const out: string[] = [];
   const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
   const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
+
   while (cur.getTime() <= last.getTime()) {
     out.push(yyyyMmDd(cur));
     cur.setUTCDate(cur.getUTCDate() + 1);
@@ -64,11 +67,11 @@ async function refreshFitbitToken(refreshToken: string) {
   });
 
   const text = await resp.text();
-  let json: any = null;
+  let json: any;
   try {
     json = JSON.parse(text);
   } catch {
-    // ignore
+    throw new Error(`Fitbit refresh failed (invalid JSON): ${text}`);
   }
 
   if (!resp.ok || !json?.access_token) {
@@ -79,9 +82,6 @@ async function refreshFitbitToken(refreshToken: string) {
     access_token: string;
     refresh_token?: string;
     expires_in: number;
-    token_type: string;
-    scope?: string;
-    user_id?: string;
   };
 }
 
@@ -91,11 +91,11 @@ async function fitbitGet(accessToken: string, url: string) {
   });
 
   const text = await resp.text();
-  let json: any = null;
+  let json: any;
   try {
     json = JSON.parse(text);
   } catch {
-    // ignore
+    throw new Error(`Fitbit API invalid JSON (${resp.status}): ${text}`);
   }
 
   if (!resp.ok) {
@@ -105,59 +105,50 @@ async function fitbitGet(accessToken: string, url: string) {
   return json;
 }
 
-type DailyRow = {
-  user_id: string;
-  fitbit_user_id: string;
-  day: string; // YYYY-MM-DD
-  steps: number | null;
-  calories_out: number | null;
-  distance_total: number | null;
-  lightly_active_minutes: number | null;
-  fairly_active_minutes: number | null;
-  very_active_minutes: number | null;
-};
-
 function extractTotalDistanceKm(summary: any): number | null {
-  // Fitbit summary.distances é array com { activity, distance }
-  // "total" normalmente contém a distância total do dia.
   const distances = summary?.distances;
   if (!Array.isArray(distances)) return null;
 
   const total = distances.find((d: any) => d?.activity === "total");
-  const val = total?.distance;
-  if (typeof val === "number") return val;
+  if (typeof total?.distance === "number") return total.distance;
 
-  // fallback: às vezes "loggedActivities" também existe
   const logged = distances.find((d: any) => d?.activity === "loggedActivities");
   if (typeof logged?.distance === "number") return logged.distance;
 
   return null;
 }
 
+/* ---------------- route ---------------- */
+
 export async function GET(req: Request) {
   try {
-    // 1) auth
+    /* 1) auth */
     const userId = await getUserIdFromBearer(req);
     if (!userId) {
-      return jsonError(401, "Token inválido ou sessão expirada.", {
-        details:
-          "invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired",
-      });
+      return jsonError(401, "Token inválido ou sessão expirada.");
     }
 
-    // 2) query params
+    /* 2) datas */
     const { searchParams } = new URL(req.url);
-    const afterDateParam = searchParams.get("afterDate"); // YYYY-MM-DD (opcional)
+    const afterDateParam = searchParams.get("afterDate");
 
-    // default: últimos 30 dias
     const today = new Date();
     const through = yyyyMmDd(today);
+
     const afterDate =
       afterDateParam && /^\d{4}-\d{2}-\d{2}$/.test(afterDateParam)
         ? afterDateParam
-        : yyyyMmDd(new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 30)));
+        : yyyyMmDd(
+            new Date(
+              Date.UTC(
+                today.getUTCFullYear(),
+                today.getUTCMonth(),
+                today.getUTCDate() - 30
+              )
+            )
+          );
 
-    // 3) pegar tokens do fitbit no Supabase
+    /* 3) tokens */
     const { data: tokenRow, error: tokenErr } = await supabaseAdmin
       .from("fitbit_tokens")
       .select("user_id, fitbit_user_id, access_token, refresh_token, expires_at")
@@ -166,31 +157,27 @@ export async function GET(req: Request) {
 
     if (tokenErr) return jsonError(500, "Erro ao ler fitbit_tokens.", tokenErr.message);
     if (!tokenRow?.access_token || !tokenRow?.refresh_token) {
-      return jsonError(400, "Fitbit não conectado (tokens ausentes).");
+      return jsonError(400, "Fitbit não conectado.");
     }
 
     let accessToken = tokenRow.access_token as string;
     const fitbitUserId = tokenRow.fitbit_user_id as string;
 
-    // 4) refresh token se expirado (ou perto)
+    /* 4) refresh token */
     const expiresAt = tokenRow.expires_at ? new Date(tokenRow.expires_at as any) : null;
     const now = new Date();
-    const isExpiredOrClose =
-      !expiresAt || expiresAt.getTime() - now.getTime() < 2 * 60 * 1000; // <2min
 
-    if (isExpiredOrClose) {
+    if (!expiresAt || expiresAt.getTime() - now.getTime() < 2 * 60 * 1000) {
       const refreshed = await refreshFitbitToken(tokenRow.refresh_token as string);
 
       accessToken = refreshed.access_token;
-
-      const newRefresh = refreshed.refresh_token || (tokenRow.refresh_token as string);
       const newExpiresAt = new Date(now.getTime() + refreshed.expires_in * 1000);
 
       const { error: upErr } = await supabaseAdmin
         .from("fitbit_tokens")
         .update({
           access_token: accessToken,
-          refresh_token: newRefresh,
+          refresh_token: refreshed.refresh_token ?? tokenRow.refresh_token,
           expires_at: newExpiresAt.toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -199,129 +186,92 @@ export async function GET(req: Request) {
       if (upErr) return jsonError(500, "Erro ao atualizar fitbit_tokens.", upErr.message);
     }
 
-    // 5) montar lista de dias a sincronizar (inclusive)
-    const startDate = new Date(`${afterDate}T00:00:00Z`);
-    const endDate = new Date(`${through}T00:00:00Z`);
-    const days = daysBetweenInclusive(startDate, endDate);
+    /* 5) dias */
+    const days = daysBetweenInclusive(
+      new Date(`${afterDate}T00:00:00Z`),
+      new Date(`${through}T00:00:00Z`)
+    );
 
-    // 6) sync daily summaries (e depois exercícios por dia)
     let fetchedDays = 0;
     let dailySaved = 0;
-
     let exercisesFetched = 0;
     let exercisesSaved = 0;
 
+    /* 6) loop */
     for (const day of days) {
-      // Daily summary (1 chamada por dia)
       const dailyJson = await fitbitGet(
         accessToken,
         `https://api.fitbit.com/1/user/-/activities/date/${day}.json`
       );
 
-      fetchedDays += 1;
+      fetchedDays++;
 
-      const summary = dailyJson?.summary || {};
-      const steps = typeof summary.steps === "number" ? summary.steps : null;
-      const caloriesOut = typeof summary.caloriesOut === "number" ? summary.caloriesOut : null;
-      const distanceTotal = extractTotalDistanceKm(summary);
+      const summary = dailyJson.summary || {};
 
-      const lightly = typeof summary.lightlyActiveMinutes === "number" ? summary.lightlyActiveMinutes : null;
-      const fairly = typeof summary.fairlyActiveMinutes === "number" ? summary.fairlyActiveMinutes : null;
-      const very = typeof summary.veryActiveMinutes === "number" ? summary.veryActiveMinutes : null;
-
-      const row: DailyRow = {
+      const dailyRow = {
         user_id: userId,
         fitbit_user_id: fitbitUserId,
         day,
-        steps,
-        calories_out: caloriesOut,
-        distance_total: distanceTotal,
-        lightly_active_minutes: lightly,
-        fairly_active_minutes: fairly,
-        very_active_minutes: very,
+        steps: typeof summary.steps === "number" ? summary.steps : null,
+        calories_out: typeof summary.caloriesOut === "number" ? summary.caloriesOut : null,
+        distance_total: extractTotalDistanceKm(summary),
+        lightly_active_minutes:
+          typeof summary.lightlyActiveMinutes === "number"
+            ? summary.lightlyActiveMinutes
+            : null,
+        fairly_active_minutes:
+          typeof summary.fairlyActiveMinutes === "number"
+            ? summary.fairlyActiveMinutes
+            : null,
+        very_active_minutes:
+          typeof summary.veryActiveMinutes === "number"
+            ? summary.veryActiveMinutes
+            : null,
+        updated_at: new Date().toISOString(),
       };
 
-      // ✅ OPÇÃO A: se existe → UPDATE, senão INSERT
-      const { data: existing, error: exErr } = await supabaseAdmin
+      await supabaseAdmin
         .from("fitbit_daily_summaries")
-        .select("user_id, day")
-        .eq("user_id", userId)
-        .eq("day", day)
-        .maybeSingle();
+        .upsert(
+          { ...dailyRow, created_at: new Date().toISOString() },
+          { onConflict: "user_id,day" }
+        );
 
-      if (exErr) return jsonError(500, "Erro ao checar fitbit_daily_summaries.", exErr.message);
+      dailySaved++;
 
-      if (existing) {
-        const { error: updErr } = await supabaseAdmin
-          .from("fitbit_daily_summaries")
-          .update({
-            steps: row.steps,
-            calories_out: row.calories_out,
-            distance_total: row.distance_total,
-            lightly_active_minutes: row.lightly_active_minutes,
-            fairly_active_minutes: row.fairly_active_minutes,
-            very_active_minutes: row.very_active_minutes,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId)
-          .eq("day", day);
-
-        if (updErr) return jsonError(500, "Erro ao atualizar fitbit_daily_summaries.", updErr.message);
-
-        dailySaved += 1;
-      } else {
-        const { error: insErr } = await supabaseAdmin.from("fitbit_daily_summaries").insert({
-          ...row,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-        if (insErr) return jsonError(500, "Erro ao inserir fitbit_daily_summaries.", insErr.message);
-
-        dailySaved += 1;
-      }
-
-      // Exercícios do dia (o dailyJson.activities já vem com logs do dia)
-      const acts = Array.isArray(dailyJson?.activities) ? dailyJson.activities : [];
-      if (acts.length > 0) exercisesFetched += acts.length;
+      const acts = Array.isArray(dailyJson.activities) ? dailyJson.activities : [];
+      exercisesFetched += acts.length;
 
       for (const a of acts) {
-        // Campos comuns do Fitbit activity log
-        const activityId = typeof a?.activityId === "number" ? a.activityId : null;
-        const name = typeof a?.name === "string" ? a.name : null;
+        if (!a?.logId) continue;
 
-        const distanceKm = typeof a?.distance === "number" ? a.distance : null; // Fitbit já retorna km
-        const stepsEx = typeof a?.steps === "number" ? a.steps : null;
-
-        const startTime = typeof a?.startTime === "string" ? a.startTime : null; // "09:56"
-        const logId = typeof a?.logId === "number" ? a.logId : null;
-
-        if (!activityId || !logId) continue;
-
-        // chave única típica: (user_id, activity_id) ou (user_id, activity_id, day) depende do seu schema
-        // Pelo seu índice: fitbit_exercises_user_activity_id_key (provavelmente user_id + activity_id)
-        // Então usamos upsert por activity_id + user_id (se já existir, ignora)
-        const payload: any = {
+        const payload = {
           user_id: userId,
           fitbit_user_id: fitbitUserId,
+          log_id: a.logId,
           day,
-          activity_id: activityId,
-          name,
-          distance_km: distanceKm,
-          steps: stepsEx,
-          start_time: startTime,
+          activity_id: a.activityId ?? null,
+          name: a.name ?? null,
+          description: a.description ?? null,
+          duration_ms: a.duration ?? null,
+          distance_km: typeof a.distance === "number" ? a.distance : null,
+          steps: typeof a.steps === "number" ? a.steps : null,
+          calories: typeof a.calories === "number" ? a.calories : null,
+          start_time: a.startTime ?? null,
+          last_modified: a.lastModified ? new Date(a.lastModified).toISOString() : null,
           raw: a,
           updated_at: new Date().toISOString(),
         };
 
-        // tenta inserir; se já existe, atualiza “raw/updated_at” (para não perder)
-        const { error: exInsErr } = await supabaseAdmin
+        const { error } = await supabaseAdmin
           .from("fitbit_exercises")
-          .upsert(payload, { onConflict: "user_id,activity_id" });
+          .upsert(payload, { onConflict: "user_id,log_id" });
 
-        if (exInsErr) return jsonError(500, "Erro ao salvar fitbit_exercises.", exInsErr.message);
+        if (error) {
+          return jsonError(500, "Erro ao salvar fitbit_exercises.", error.message);
+        }
 
-        exercisesSaved += 1;
+        exercisesSaved++;
       }
     }
 
@@ -335,7 +285,7 @@ export async function GET(req: Request) {
       daily_saved: dailySaved,
       exercises_fetched: exercisesFetched,
       exercises_saved: exercisesSaved,
-      note: "daily_plus_exercises_option_A_update",
+      note: "fitbit_daily_and_exercises_OK",
     });
   } catch (err: any) {
     return jsonError(500, "Erro inesperado no fitbit sync.", err?.message || String(err));
