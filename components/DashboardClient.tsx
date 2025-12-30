@@ -31,17 +31,25 @@ type DashboardClientProps = {
   eventsSummary: EventsSummary; // mantido só por compatibilidade
 };
 
+type GroupOption = {
+  id: string;
+  name: string;
+};
+
+type GroupMember = {
+  userId: string;
+  fullName: string | null;
+  athleteId: number | null; // null = sem strava
+};
+
 type RankingEntry = {
-  athleteId: number;
+  userId: string;
+  athleteId: number | null;
   label: string;
   totalPoints: number;
   totalHours: number;
   isCurrent: boolean;
-};
-
-type GroupOption = {
-  id: string;
-  name: string;
+  hasStrava: boolean;
 };
 
 export type EvolutionPoint = {
@@ -142,10 +150,7 @@ function isWalkingType(type: string | null | undefined): boolean {
  *
  * Aqui usamos moving_time (segundos) do Strava.
  */
-function getStravaActivityPoints(
-  type: string | null,
-  movingSeconds: number
-): number {
+function getStravaActivityPoints(type: string | null, movingSeconds: number): number {
   if (!movingSeconds || movingSeconds <= 0) return 0;
   const hours = movingSeconds / 3600;
   const rate = isWalkingType(type) ? 15 : 100;
@@ -162,10 +167,10 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
 
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [groupAthleteIds, setGroupAthleteIds] = useState<number[] | null>(null);
 
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
-  const [loadingGroupAthletes, setLoadingGroupAthletes] = useState(false);
+  const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
 
   // ✅ Sync state
   const [syncing, setSyncing] = useState(false);
@@ -204,14 +209,12 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       if (!res.ok) {
         console.error("Sync falhou:", json);
         setSyncMsg(
-          (json?.message as string) ??
-            "Falha ao sincronizar com o Strava. Tente novamente."
+          (json?.message as string) ?? "Falha ao sincronizar com o Strava. Tente novamente."
         );
         setSyncing(false);
         return;
       }
 
-      // sucesso -> recarrega pra pegar activities novas do server
       setSyncMsg(
         typeof json?.fetched === "number"
           ? `Sincronizado: ${json.fetched} atividades verificadas. Recarregando...`
@@ -287,9 +290,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         if (memberError) {
           console.error("Erro ao carregar grupos do usuário:", memberError);
         } else if (memberRows && memberRows.length > 0) {
-          const groupIds = Array.from(
-            new Set(memberRows.map((m: any) => m.group_id as string))
-          );
+          const groupIds = Array.from(new Set(memberRows.map((m: any) => m.group_id as string)));
 
           const { data: groupRows, error: groupError } = await supabase
             .from("training_groups")
@@ -326,20 +327,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
   useEffect(() => {
     const runAutoSync = async () => {
       if (!currentUserId) return;
-
-      // (opcional) mantém esse ref, mas o que resolve o loop é o sessionStorage
       if (autoSyncRanRef.current) return;
 
-      // evita loop após window.location.reload()
       const last = sessionStorage.getItem(AUTO_SYNC_KEY);
       const lastMs = last ? Number(last) : 0;
       const nowMs = Date.now();
 
-      if (lastMs && nowMs - lastMs < AUTO_SYNC_COOLDOWN_MS) {
-        return;
-      }
+      if (lastMs && nowMs - lastMs < AUTO_SYNC_COOLDOWN_MS) return;
 
-      // só roda se o usuário tiver strava_tokens (pra não ficar batendo na API à toa)
       const { data: row, error } = await supabase
         .from("strava_tokens")
         .select("athlete_id")
@@ -354,7 +349,6 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
 
       if (!row?.athlete_id) return;
 
-      // marca ANTES de chamar, pra mesmo se recarregar não repetir
       autoSyncRanRef.current = true;
       sessionStorage.setItem(AUTO_SYNC_KEY, String(nowMs));
 
@@ -365,62 +359,114 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId]);
 
-  // Carrega athlete_ids do grupo selecionado (NOVA forma: training_group_strava_athletes)
+  // ✅ Carrega membros do grupo selecionado + athlete_id (se tiver Strava)
   useEffect(() => {
-    const loadGroupAthletes = async () => {
+    const loadGroupMembers = async () => {
       if (!selectedGroupId) {
-        setGroupAthleteIds(null);
+        setGroupMembers([]);
         return;
       }
 
       try {
-        setLoadingGroupAthletes(true);
+        setLoadingGroupMembers(true);
 
-        const { data, error } = await supabase
-          .from("training_group_strava_athletes")
-          .select("athlete_id")
+        // 1) membros do grupo (user_id)
+        const { data: memberRows, error: memberErr } = await supabase
+          .from("training_group_members")
+          .select("user_id")
           .eq("group_id", selectedGroupId);
 
-        if (error) {
-          console.error("Erro ao carregar atletas do grupo:", error);
-          setGroupAthleteIds(null);
+        if (memberErr) {
+          console.error("Erro ao carregar training_group_members:", memberErr);
+          setGroupMembers([]);
           return;
         }
 
-        const ids = Array.from(
-          new Set(
-            (data ?? [])
-              .map((r: any) => r.athlete_id as number | null)
-              .filter((id): id is number => typeof id === "number")
-          )
+        const userIds = Array.from(
+          new Set((memberRows ?? []).map((m: any) => m.user_id as string).filter(Boolean))
         );
 
-        setGroupAthleteIds(ids);
-      } catch (err) {
-        console.error("Erro inesperado ao carregar atletas do grupo:", err);
-        setGroupAthleteIds(null);
+        if (userIds.length === 0) {
+          setGroupMembers([]);
+          return;
+        }
+
+        // 2) nomes (profiles)
+        const { data: profileRows, error: profileErr } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+
+        if (profileErr) {
+          console.error("Erro ao carregar profiles do grupo:", profileErr);
+        }
+
+        const nameByUserId = new Map<string, string | null>();
+        for (const p of profileRows ?? []) {
+          nameByUserId.set(p.id as string, (p as any).full_name ?? null);
+        }
+
+        // 3) athlete_id por user (strava_tokens) — pega o mais recente por usuário
+        const { data: tokenRows, error: tokenErr } = await supabase
+          .from("strava_tokens")
+          .select("user_id, athlete_id, updated_at")
+          .in("user_id", userIds);
+
+        if (tokenErr) {
+          console.error("Erro ao carregar strava_tokens do grupo:", tokenErr);
+        }
+
+        const latestTokenByUserId = new Map<
+          string,
+          { athleteId: number; updatedAtMs: number }
+        >();
+
+        for (const t of tokenRows ?? []) {
+          const uid = (t as any).user_id as string | null;
+          const aid = (t as any).athlete_id as number | null;
+          const upd = (t as any).updated_at as string | null;
+
+          if (!uid || typeof aid !== "number") continue;
+          const ms = upd ? new Date(upd).getTime() : 0;
+
+          const prev = latestTokenByUserId.get(uid);
+          if (!prev || ms >= prev.updatedAtMs) {
+            latestTokenByUserId.set(uid, { athleteId: aid, updatedAtMs: ms });
+          }
+        }
+
+        const members: GroupMember[] = userIds.map((uid) => ({
+          userId: uid,
+          fullName: nameByUserId.get(uid) ?? null,
+          athleteId: latestTokenByUserId.get(uid)?.athleteId ?? null,
+        }));
+
+        setGroupMembers(members);
+      } catch (e) {
+        console.error("Erro inesperado ao carregar membros do grupo:", e);
+        setGroupMembers([]);
       } finally {
-        setLoadingGroupAthletes(false);
+        setLoadingGroupMembers(false);
       }
     };
 
-    loadGroupAthletes();
+    loadGroupMembers();
   }, [selectedGroupId]);
 
   const now = new Date();
 
-  // 1) filtra por período
-  const activitiesInRange = activities.filter((a) =>
-    isInRange(a.start_date, range, now)
+  // 1) filtra por período (Strava)
+  const activitiesInRange = activities.filter((a) => isInRange(a.start_date, range, now));
+
+  // 2) filtra por grupo (usando athlete_ids dos membros que têm Strava)
+  const groupAthleteIds = Array.from(
+    new Set(groupMembers.map((m) => m.athleteId).filter((id): id is number => typeof id === "number"))
   );
 
-  // 2) filtra por grupo (athlete_ids)
   let groupActivities = activitiesInRange;
-  if (groupAthleteIds && groupAthleteIds.length > 0) {
-    groupActivities = groupActivities.filter((a) =>
-      groupAthleteIds.includes(a.athlete_id)
-    );
-  } else if (groupAthleteIds && groupAthleteIds.length === 0) {
+  if (groupAthleteIds.length > 0) {
+    groupActivities = groupActivities.filter((a) => groupAthleteIds.includes(a.athlete_id));
+  } else {
     groupActivities = [];
   }
 
@@ -430,18 +476,9 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       ? groupActivities.filter((a) => a.athlete_id === currentAthleteId)
       : groupActivities;
 
-  const athleteDistance = athleteActivities.reduce(
-    (sum, a) => sum + metersToKm(a.distance),
-    0
-  );
-  const athleteMovingTime = athleteActivities.reduce(
-    (sum, a) => sum + (a.moving_time ?? 0),
-    0
-  );
-  const athleteElevation = athleteActivities.reduce(
-    (sum, a) => sum + (a.total_elevation_gain ?? 0),
-    0
-  );
+  const athleteDistance = athleteActivities.reduce((sum, a) => sum + metersToKm(a.distance), 0);
+  const athleteMovingTime = athleteActivities.reduce((sum, a) => sum + (a.moving_time ?? 0), 0);
+  const athleteElevation = athleteActivities.reduce((sum, a) => sum + (a.total_elevation_gain ?? 0), 0);
   const athleteActivitiesCount = athleteActivities.length;
 
   const lastActivities = [...athleteActivities]
@@ -464,12 +501,13 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     athleteName ?? (currentAthleteId ? `Atleta ${currentAthleteId}` : "Atleta");
 
   // -----------------------------
-  // RANKING DO GRUPO (Strava)
+  // ✅ RANKING DO GRUPO (Strava) — inclui TODOS os membros do grupo
   // -----------------------------
   const ranking: RankingEntry[] = (() => {
-    if (!groupActivities || groupActivities.length === 0) return [];
+    if (!groupMembers || groupMembers.length === 0) return [];
 
-    const map = new Map<number, { points: number; hours: number }>();
+    // 1) acumula pontos/horas por athlete_id (somente quem tem strava)
+    const byAthlete = new Map<number, { points: number; hours: number }>();
 
     for (const a of groupActivities) {
       const secs = a.moving_time ?? 0;
@@ -478,43 +516,63 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       const pts = getStravaActivityPoints(a.type ?? a.sport_type ?? null, secs);
       const hours = secs / 3600;
 
-      const prev = map.get(a.athlete_id) ?? { points: 0, hours: 0 };
-      map.set(a.athlete_id, {
+      const prev = byAthlete.get(a.athlete_id) ?? { points: 0, hours: 0 };
+      byAthlete.set(a.athlete_id, {
         points: prev.points + pts,
         hours: prev.hours + hours,
       });
     }
 
-    const entries: RankingEntry[] = Array.from(map.entries()).map(
-      ([athleteId, v]) => ({
-        athleteId,
-        label:
-          currentAthleteId === athleteId && athleteName
-            ? athleteName
-            : `Atleta ${athleteId}`,
-        totalPoints: Math.round(v.points),
-        totalHours: v.hours,
-        isCurrent: currentAthleteId === athleteId,
-      })
-    );
+    // 2) cria entrada pra TODO membro (mesmo sem strava)
+    const entries: RankingEntry[] = groupMembers.map((m) => {
+      const hasStrava = typeof m.athleteId === "number";
+      const acc = hasStrava ? byAthlete.get(m.athleteId!) : null;
 
-    entries.sort((a, b) => b.totalPoints - a.totalPoints);
+      const baseName = m.fullName && m.fullName.trim() ? m.fullName.trim() : "Sem nome";
+      const label = hasStrava ? baseName : `${baseName} (Sem Strava)`;
+
+      const totalPoints = Math.round(acc?.points ?? 0);
+      const totalHours = acc?.hours ?? 0;
+
+      return {
+        userId: m.userId,
+        athleteId: m.athleteId,
+        label,
+        totalPoints,
+        totalHours,
+        isCurrent: currentUserId ? m.userId === currentUserId : false,
+        hasStrava,
+      };
+    });
+
+    // 3) ordena por pontos desc (e depois por horas desc)
+    entries.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      return b.totalHours - a.totalHours;
+    });
+
     return entries;
   })();
 
   const lastPlace = ranking.length > 0 ? ranking[ranking.length - 1] : null;
 
   // -----------------------------
-  // EVOLUÇÃO DOS TREINOS (Strava) - 3 linhas
+  // ✅ EVOLUÇÃO DOS TREINOS (Strava) - 3 linhas
+  // - média do grupo divide pelo TOTAL de membros (inclui 0)
+  // - líder = #1 do ranking (por pontos) no período selecionado
   // -----------------------------
   const evolutionData: EvolutionPoint[] = (() => {
+    if (!groupMembers || groupMembers.length === 0) return [];
     if (!groupActivities || groupActivities.length === 0) return [];
 
-    const leaderAthleteId = ranking.length > 0 ? ranking[0].athleteId : null;
+    const memberCount = groupMembers.length;
+
+    const leaderAthleteId =
+      ranking.length > 0 && typeof ranking[0].athleteId === "number" ? ranking[0].athleteId : null;
 
     const userMap = new Map<string, number>();
     const leaderMap = new Map<string, number>();
-    const groupMap = new Map<string, { totalMinutes: number; athleteIds: Set<number> }>();
+    const groupTotalMap = new Map<string, number>(); // total minutes por dia (somando todos)
 
     for (const a of groupActivities) {
       if (!a.start_date) continue;
@@ -524,13 +582,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       const key = d.toISOString().slice(0, 10);
       const minutes = (a.moving_time ?? 0) / 60;
 
-      const gPrev = groupMap.get(key) ?? {
-        totalMinutes: 0,
-        athleteIds: new Set<number>(),
-      };
-      gPrev.totalMinutes += minutes;
-      gPrev.athleteIds.add(a.athlete_id);
-      groupMap.set(key, gPrev);
+      groupTotalMap.set(key, (groupTotalMap.get(key) ?? 0) + minutes);
 
       if (currentAthleteId != null && a.athlete_id === currentAthleteId) {
         userMap.set(key, (userMap.get(key) ?? 0) + minutes);
@@ -544,26 +596,20 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
     const allDates = new Set<string>([
       ...userMap.keys(),
       ...leaderMap.keys(),
-      ...groupMap.keys(),
+      ...groupTotalMap.keys(),
     ]);
 
     const sorted = Array.from(allDates).sort((a, b) => (a < b ? -1 : 1));
 
     return sorted.map((key) => {
       const d = new Date(key);
-      const label = d.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-      });
+      const label = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
       const userMinutes = userMap.get(key) ?? 0;
       const leaderMinutes = leaderMap.get(key) ?? 0;
 
-      const groupInfo = groupMap.get(key);
-      const groupAvgMinutes =
-        groupInfo && groupInfo.athleteIds.size > 0
-          ? groupInfo.totalMinutes / groupInfo.athleteIds.size
-          : 0;
+      const totalMinutes = groupTotalMap.get(key) ?? 0;
+      const groupAvgMinutes = memberCount > 0 ? totalMinutes / memberCount : 0;
 
       return {
         date: key,
@@ -576,31 +622,10 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
   })();
 
   return (
-    <div
-      style={{
-        width: "100%",
-        maxWidth: "100%",
-        boxSizing: "border-box",
-        overflowX: "hidden",
-      }}
-    >
+    <div style={{ width: "100%", maxWidth: "100%", boxSizing: "border-box", overflowX: "hidden" }}>
       {/* Header */}
-      <header
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
+      <header style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <div
             style={{
               width: 32,
@@ -630,15 +655,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             >
               SportPlatform
             </p>
-            <h1
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
-              Dashboard de Performance
-            </h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Dashboard de Performance</h1>
           </div>
         </div>
 
@@ -653,15 +670,11 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           }}
         >
           <span style={{ fontSize: 12, color: "#9ca3af" }}>
-            {groups.length > 1
-              ? "Selecione o grupo para ver ranking e métricas:"
-              : "Grupo atual:"}
+            {groups.length > 1 ? "Selecione o grupo para ver ranking e métricas:" : "Grupo atual:"}
           </span>
 
           {groups.length === 0 ? (
-            <span style={{ fontSize: 12, color: "#6b7280" }}>
-              Nenhum grupo encontrado.
-            </span>
+            <span style={{ fontSize: 12, color: "#6b7280" }}>Nenhum grupo encontrado.</span>
           ) : (
             <select
               value={selectedGroupId ?? ""}
@@ -690,16 +703,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             </select>
           )}
 
-          {(loadingGroups || loadingGroupAthletes) && (
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>
-              Carregando grupos/atletas...
-            </span>
+          {(loadingGroups || loadingGroupMembers) && (
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>Carregando grupos/membros...</span>
           )}
         </div>
 
         <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, marginTop: 4 }}>
-          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos
-          (minutos) e resumo das suas atividades.
+          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e resumo
+          das suas atividades.
         </p>
       </header>
 
@@ -714,7 +725,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           alignItems: "center",
         }}
       >
-        {/* ✅ Botão Sync no MESMO estilo dos pills */}
+        {/* Botão Sync */}
         <button
           type="button"
           onClick={handleSync}
@@ -726,9 +737,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             border: syncing
               ? "1px solid rgba(55,65,81,0.9)"
               : "1px solid rgba(34,197,94,0.8)",
-            background: syncing
-              ? "transparent"
-              : "radial-gradient(circle at top, #22c55e33, transparent)",
+            background: syncing ? "transparent" : "radial-gradient(circle at top, #22c55e33, transparent)",
             color: syncing ? "#9ca3af" : "#bbf7d0",
             cursor: syncing ? "not-allowed" : "pointer",
             transition: "all 0.15s ease-out",
@@ -767,9 +776,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
       </div>
 
       {syncMsg && (
-        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>
-          {syncMsg}
-        </p>
+        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>{syncMsg}</p>
       )}
 
       {/* MEME DO CHURRASCO */}
@@ -784,8 +791,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             padding: "10px 12px",
             borderRadius: 18,
             border: "1px solid rgba(248,113,113,0.6)",
-            background:
-              "linear-gradient(135deg, rgba(248,113,113,0.16), rgba(15,23,42,0.95))",
+            background: "linear-gradient(135deg, rgba(248,113,113,0.16), rgba(15,23,42,0.95))",
             flexWrap: "wrap",
           }}
         >
@@ -811,9 +817,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
             >
               {lastPlace.label}
             </span>
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>
-              Último colocado no ranking neste período.
-            </span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>Último colocado no ranking neste período.</span>
           </div>
 
           <div
@@ -840,8 +844,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         style={{
           borderRadius: 20,
           border: "1px solid rgba(148,163,184,0.35)",
-          background:
-            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+          background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
           padding: "16px 14px",
           marginBottom: 24,
         }}
@@ -858,30 +861,22 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         >
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-              Ranking do grupo
-              {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
+              Ranking do grupo{range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
             </h2>
             <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-              Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100
-              pts/h, caminhada = 15 pts/h.
+              Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100 pts/h,
+              caminhada = 15 pts/h. (Membros sem Strava aparecem com 0.)
             </p>
           </div>
         </div>
 
         {ranking.length === 0 ? (
           <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
-            Nenhuma atividade encontrada nesse período para montar o ranking deste grupo.
+            Nenhum membro encontrado nesse grupo.
           </p>
         ) : (
           <div style={{ width: "100%", overflowX: "auto", maxHeight: 360 }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                minWidth: 360,
-              }}
-            >
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 360 }}>
               <thead>
                 <tr
                   style={{
@@ -899,7 +894,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
               <tbody>
                 {ranking.map((r, index) => (
                   <tr
-                    key={r.athleteId}
+                    key={r.userId}
                     style={{
                       borderBottom: "1px solid rgba(31,41,55,0.7)",
                       background: r.isCurrent
@@ -907,13 +902,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                         : "transparent",
                     }}
                   >
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", whiteSpace: "nowrap", fontWeight: r.isCurrent ? 700 : 500 }}>
                       #{index + 1}
                     </td>
                     <td
@@ -942,24 +931,10 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                         </span>
                       )}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap", fontWeight: r.isCurrent ? 700 : 500 }}>
                       {r.totalPoints}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        color: "#9ca3af",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap", color: "#9ca3af" }}>
                       {r.totalHours.toFixed(1)} h
                     </td>
                   </tr>
@@ -975,8 +950,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         style={{
           borderRadius: 20,
           border: "1px solid rgba(148,163,184,0.35)",
-          background:
-            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+          background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
           padding: "16px 14px",
           marginBottom: 24,
         }}
@@ -1007,24 +981,13 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           {loadingAthlete ? " (carregando...)" : ""}
         </p>
 
-        <p style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>
-          {athleteDistance.toFixed(1)} km
-        </p>
+        <p style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>{athleteDistance.toFixed(1)} km</p>
 
         <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
-          Distância total em todas as suas atividades dentro do grupo e período filtrados
-          (dados Strava).
+          Distância total em todas as suas atividades dentro do grupo e período filtrados (dados Strava).
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 8,
-            fontSize: 11,
-            color: "#9ca3af",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 11, color: "#9ca3af" }}>
           <div>
             <div>Tempo em movimento</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
@@ -1051,26 +1014,15 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
         style={{
           borderRadius: 20,
           border: "1px solid rgba(148,163,184,0.35)",
-          background:
-            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
+          background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
           padding: "16px 14px",
           marginBottom: 24,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 8,
-            alignItems: "baseline",
-            marginBottom: 10,
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline", marginBottom: 10, flexWrap: "wrap" }}>
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-              Últimas atividades
-              {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
+              Últimas atividades{range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
             </h2>
             <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
               As 10 atividades mais recentes (Strava) dentro do período selecionado.
@@ -1084,14 +1036,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
           </p>
         ) : (
           <div style={{ width: "100%", overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                minWidth: 360,
-              }}
-            >
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, minWidth: 360 }}>
               <thead>
                 <tr
                   style={{
@@ -1110,10 +1055,7 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
               </thead>
               <tbody>
                 {lastActivities.map((a) => (
-                  <tr
-                    key={a.id}
-                    style={{ borderBottom: "1px solid rgba(31,41,55,0.7)" }}
-                  >
+                  <tr key={a.id} style={{ borderBottom: "1px solid rgba(31,41,55,0.7)" }}>
                     <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>
                       {formatDate(a.start_date)}
                     </td>
@@ -1128,34 +1070,14 @@ export default function DashboardClient({ activities }: DashboardClientProps) {
                     >
                       {a.name ?? "-"}
                     </td>
-                    <td style={{ padding: "8px 4px" }}>
-                      {a.sport_type ?? a.type ?? "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px" }}>{a.sport_type ?? a.type ?? "-"}</td>
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {metersToKm(a.distance).toFixed(2)} km
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {formatDuration(a.moving_time)}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
+                    <td style={{ padding: "8px 4px", textAlign: "right", whiteSpace: "nowrap" }}>
                       {formatPace(a.moving_time, a.distance)}
                     </td>
                   </tr>
