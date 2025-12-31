@@ -430,78 +430,50 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
     loadGroupAthletes();
   }, [selectedGroupId]);
 
-  // ✅ Busca nomes de TODOS atletas do grupo (athlete_id -> profiles.full_name)
+  // ✅ Busca nomes de TODOS atletas do grupo via RPC (bypass RLS do profiles)
   useEffect(() => {
     const loadNamesForGroupAthletes = async () => {
-      if (!groupAthleteIds || groupAthleteIds.length === 0) {
+      if (!selectedGroupId) {
         setAthleteNames({});
         return;
       }
 
       try {
-        // 1) athlete_id -> user_id
-        const { data: tokens, error: tokErr } = await supabase
-          .from("strava_tokens")
-          .select("athlete_id, user_id")
-          .in("athlete_id", groupAthleteIds);
+        const { data, error } = await supabase.rpc("get_group_athlete_names", {
+          p_group_id: selectedGroupId,
+        });
 
-        if (tokErr) {
-          console.error("Erro ao buscar strava_tokens para nomes:", tokErr);
-          setAthleteNames({});
-          return;
-        }
-
-        const userIds = Array.from(
-          new Set((tokens ?? []).map((t: any) => t.user_id as string).filter(Boolean))
-        );
-
-        if (userIds.length === 0) {
-          // ainda garante seu nome se existir
+        if (error) {
+          console.error("Erro RPC get_group_athlete_names:", error);
           const fallback: Record<number, string> = {};
           if (currentAthleteId && athleteName) fallback[currentAthleteId] = athleteName;
           setAthleteNames(fallback);
           return;
         }
 
-        // 2) user_id -> full_name
-        const { data: profiles, error: profErr } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", userIds);
-
-        if (profErr) {
-          console.error("Erro ao buscar profiles para nomes:", profErr);
-          setAthleteNames({});
-          return;
-        }
-
-        const nameByUserId: Record<string, string> = {};
-        (profiles ?? []).forEach((p: any) => {
-          if (p?.id && p?.full_name) nameByUserId[p.id] = p.full_name;
-        });
-
-        const nameByAthleteId: Record<number, string> = {};
-        (tokens ?? []).forEach((t: any) => {
-          const n = nameByUserId[t.user_id];
-          if (typeof t.athlete_id === "number" && n) {
-            nameByAthleteId[t.athlete_id] = n;
+        const map: Record<number, string> = {};
+        (data ?? []).forEach((r: any) => {
+          if (typeof r?.athlete_id === "number" && r?.full_name) {
+            map[r.athlete_id] = r.full_name;
           }
         });
 
-        // garante seu nome também (se não vier)
+        // garante o seu nome também
         if (currentAthleteId && athleteName) {
-          nameByAthleteId[currentAthleteId] = athleteName;
+          map[currentAthleteId] = athleteName;
         }
 
-        setAthleteNames(nameByAthleteId);
+        setAthleteNames(map);
       } catch (e) {
-        console.error("Erro inesperado ao carregar nomes do grupo:", e);
-        setAthleteNames({});
+        console.error("Erro inesperado ao carregar nomes do grupo (RPC):", e);
+        const fallback: Record<number, string> = {};
+        if (currentAthleteId && athleteName) fallback[currentAthleteId] = athleteName;
+        setAthleteNames(fallback);
       }
     };
 
     loadNamesForGroupAthletes();
-  }, [groupAthleteIds, currentAthleteId, athleteName]);
+  }, [selectedGroupId, currentAthleteId, athleteName]);
 
   const now = new Date();
 
@@ -535,9 +507,7 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
           q = q.gte("start_date", cutoff);
         }
 
-        const { data, error } = await q
-          .order("start_date", { ascending: false })
-          .limit(10000);
+        const { data, error } = await q.order("start_date", { ascending: false }).limit(10000);
 
         if (error) {
           console.error("Erro ao buscar strava_activities (grupo):", error);
@@ -634,7 +604,6 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
 
     const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) => ({
       athleteId,
-      // ✅ agora pega o nome do Supabase para TODOS do grupo
       label: athleteNames[athleteId] ?? `Atleta ${athleteId}`,
       totalPoints: Math.round(v.points),
       totalHours: v.hours,
@@ -839,8 +808,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         </div>
 
         <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, marginTop: 4 }}>
-          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos
-          (minutos) e resumo das suas atividades.
+          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e
+          resumo das suas atividades.
         </p>
       </header>
 
@@ -982,8 +951,7 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
           borderRadius: 22,
           border: "1px solid rgba(55,65,81,0.9)",
           padding: "14px 14px",
-          background:
-            "linear-gradient(135deg, rgba(2,6,23,0.92), rgba(15,23,42,0.92))",
+          background: "linear-gradient(135deg, rgba(2,6,23,0.92), rgba(15,23,42,0.92))",
           marginBottom: 18,
         }}
       >
