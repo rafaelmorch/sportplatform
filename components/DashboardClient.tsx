@@ -1,3 +1,4 @@
+// components/DashboardClient.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -102,6 +103,19 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
+/** Dia local (sem UTC) */
+function startOfDayLocal(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** YYYY-MM-DD no fuso local */
+function dateKeyLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean {
   if (range === "all") return true;
   if (!dateStr) return false;
@@ -109,25 +123,33 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return false;
 
-  const today = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-  );
-  const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const diffDays = (today.getTime() - day.getTime()) / 86400000;
+  const today = startOfDayLocal(now);
+  const day = startOfDayLocal(d);
+
+  const diffDays = Math.floor((today.getTime() - day.getTime()) / 86400000);
 
   if (range === "today") return diffDays === 0;
-  if (range === "7d") return diffDays <= 6;
-  if (range === "30d") return diffDays <= 29;
-  if (range === "6m") return diffDays <= 179;
+  if (range === "7d") return diffDays >= 0 && diffDays <= 6;
+  if (range === "30d") return diffDays >= 0 && diffDays <= 29;
+  if (range === "6m") return diffDays >= 0 && diffDays <= 179;
 
   return true;
 }
+
+// ---------------------
+// PONTUAÇÃO DO RANKING (Strava activities)
+// ---------------------
 
 function isWalkingType(type: string | null | undefined): boolean {
   const t = (type ?? "").toLowerCase();
   return t.includes("walk") || t.includes("hike") || t.includes("caminhada");
 }
 
+/**
+ * Regra:
+ * - Atividades que NÃO são caminhada: 1h = 100 pontos
+ * - Caminhada: 1h = 15 pontos
+ */
 function getStravaActivityPoints(type: string | null, movingSeconds: number): number {
   if (!movingSeconds || movingSeconds <= 0) return 0;
   const hours = movingSeconds / 3600;
@@ -490,7 +512,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
       const d = new Date(a.start_date);
       if (Number.isNaN(d.getTime())) continue;
 
-      const key = d.toISOString().slice(0, 10);
+      // ✅ chave por DIA LOCAL (resolve "vai até ontem")
+      const key = dateKeyLocal(d);
       const minutes = (a.moving_time ?? 0) / 60;
 
       const gPrev = groupMap.get(key) ?? { totalMinutes: 0, athleteIds: new Set<number>() };
@@ -513,21 +536,19 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         return Array.from(keys).sort((a, b) => (a < b ? -1 : 1));
       }
 
-      const end = new Date(
-        Date.UTC(nowRef.getUTCFullYear(), nowRef.getUTCMonth(), nowRef.getUTCDate())
-      );
+      const end = startOfDayLocal(nowRef);
       const start = new Date(end);
 
-      if (rangeKey === "today") start.setUTCDate(end.getUTCDate());
-      if (rangeKey === "7d") start.setUTCDate(end.getUTCDate() - 6);
-      if (rangeKey === "30d") start.setUTCDate(end.getUTCDate() - 29);
-      if (rangeKey === "6m") start.setUTCDate(end.getUTCDate() - 179);
+      if (rangeKey === "today") start.setDate(end.getDate());
+      if (rangeKey === "7d") start.setDate(end.getDate() - 6);
+      if (rangeKey === "30d") start.setDate(end.getDate() - 29);
+      if (rangeKey === "6m") start.setDate(end.getDate() - 179);
 
       const keys: string[] = [];
       const cursor = new Date(start);
       while (cursor.getTime() <= end.getTime()) {
-        keys.push(cursor.toISOString().slice(0, 10));
-        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        keys.push(dateKeyLocal(cursor));
+        cursor.setDate(cursor.getDate() + 1);
       }
       return keys;
     };
@@ -535,7 +556,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
     const keys = buildContinuousKeys(range, now);
 
     return keys.map((key) => {
-      const d = new Date(key + "T00:00:00.000Z");
+      // ✅ label no local (sem Z)
+      const d = new Date(key + "T00:00:00");
       const label = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
       const userMinutes = userMap.get(key) ?? 0;
@@ -574,8 +596,7 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
               width: 32,
               height: 32,
               borderRadius: "999px",
-              background:
-                "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
+              background: "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -719,14 +740,7 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-            <span
-              style={{
-                fontSize: 11,
-                textTransform: "uppercase",
-                letterSpacing: "0.16em",
-                color: "#fca5a5",
-              }}
-            >
+            <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "#fca5a5" }}>
               Quem vai pagar o próximo churrasco?
             </span>
             <span
@@ -884,14 +898,15 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         </div>
       </section>
 
-      {/* ✅ GRÁFICO (AGORA ANTES) */}
-      <section style={{ marginBottom: 22 }}>
+      {/* GRÁFICO */}
+      <section style={{ marginBottom: 18 }}>
         <DashboardCharts evolutionData={evolutionData} />
       </section>
 
-      {/* ✅ ÚLTIMAS 10 ATIVIDADES (AGORA DEPOIS DO GRÁFICO) */}
+      {/* ✅ ÚLTIMAS 10 ATIVIDADES (AGORA DEPOIS DO GRÁFICO + espaçamento pra não colar) */}
       <section
         style={{
+          marginTop: 18, // ✅ evita “colar” no gráfico
           marginBottom: 18,
           padding: "14px 14px",
           borderRadius: 22,
@@ -899,14 +914,10 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
           background: "rgba(2,6,23,0.75)",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
-          Últimas atividades (10)
-        </h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>Últimas atividades (10)</h2>
 
         {lastActivities.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
-            Ainda não há atividades neste período.
-          </p>
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Ainda não há atividades neste período.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {lastActivities.map((a) => {
@@ -943,9 +954,7 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
                     >
                       {title}
                     </div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
-                      {formatDate(a.start_date)}
-                    </div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{formatDate(a.start_date)}</div>
                   </div>
 
                   <div
