@@ -596,7 +596,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
               width: 32,
               height: 32,
               borderRadius: "999px",
-              background: "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
+              background:
+                "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -619,12 +620,22 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
             >
               SportPlatform
             </p>
-            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Dashboard de Performance</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
+              Dashboard de Performance
+            </h1>
           </div>
         </div>
 
         {/* Seletor de grupo */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 4 }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+            marginTop: 4,
+          }}
+        >
           <span style={{ fontSize: 12, color: "#9ca3af" }}>
             {groups.length > 1 ? "Selecione o grupo para ver ranking e métricas:" : "Grupo atual:"}
           </span>
@@ -648,7 +659,11 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
               }}
             >
               {groups.map((g) => (
-                <option key={g.id} value={g.id} style={{ backgroundColor: "#020617", color: "#e5e7eb" }}>
+                <option
+                  key={g.id}
+                  value={g.id}
+                  style={{ backgroundColor: "#020617", color: "#e5e7eb" }}
+                >
                   {g.name}
                 </option>
               ))}
@@ -661,7 +676,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         </div>
 
         <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, marginTop: 4 }}>
-          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e resumo das suas atividades.
+          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e
+          resumo das suas atividades.
         </p>
       </header>
 
@@ -684,7 +700,9 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
             fontSize: 11,
             padding: "4px 10px",
             borderRadius: 999,
-            border: syncing ? "1px solid rgba(55,65,81,0.9)" : "1px solid rgba(34,197,94,0.8)",
+            border: syncing
+              ? "1px solid rgba(55,65,81,0.9)"
+              : "1px solid rgba(34,197,94,0.8)",
             background: syncing ? "transparent" : "radial-gradient(circle at top, #22c55e33, transparent)",
             color: syncing ? "#9ca3af" : "#bbf7d0",
             cursor: syncing ? "not-allowed" : "pointer",
@@ -720,7 +738,9 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
       </div>
 
       {syncMsg && (
-        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>{syncMsg}</p>
+        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>
+          {syncMsg}
+        </p>
       )}
 
       {/* MEME DO CHURRASCO */}
@@ -898,15 +918,20 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         </div>
       </section>
 
-      {/* GRÁFICO */}
-      <section style={{ marginBottom: 18 }}>
+      {/* GRÁFICO (✅ com espaço garantido embaixo) */}
+      <section
+        style={{
+          marginBottom: 28, // ✅ separa bem do card de baixo
+          paddingBottom: 6, // ✅ evita “colar” mesmo se o gráfico colapsar margem
+        }}
+      >
         <DashboardCharts evolutionData={evolutionData} />
       </section>
 
-      {/* ✅ ÚLTIMAS 10 ATIVIDADES (AGORA DEPOIS DO GRÁFICO + espaçamento pra não colar) */}
+      {/* ✅ ÚLTIMAS 10 ATIVIDADES (depois do gráfico) */}
       <section
         style={{
-          marginTop: 18, // ✅ evita “colar” no gráfico
+          marginTop: 0, // ✅ não precisa mais, já tem espaço garantido no gráfico
           marginBottom: 18,
           padding: "14px 14px",
           borderRadius: 22,
@@ -914,10 +939,14 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
           background: "rgba(2,6,23,0.75)",
         }}
       >
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>Últimas atividades (10)</h2>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+          Últimas atividades (10)
+        </h2>
 
         {lastActivities.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Ainda não há atividades neste período.</p>
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
+            Ainda não há atividades neste período.
+          </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {lastActivities.map((a) => {
@@ -954,7 +983,9 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
                     >
                       {title}
                     </div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{formatDate(a.start_date)}</div>
+                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
+                      {formatDate(a.start_date)}
+                    </div>
                   </div>
 
                   <div
