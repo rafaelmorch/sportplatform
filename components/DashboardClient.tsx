@@ -74,7 +74,10 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-function formatPace(movingTime: number | null | undefined, distance: number | null | undefined): string {
+function formatPace(
+  movingTime: number | null | undefined,
+  distance: number | null | undefined
+): string {
   if (!movingTime || !distance || distance <= 0) return "-";
 
   const km = distance / 1000;
@@ -106,7 +109,9 @@ function isInRange(dateStr: string | null, range: RangeKey, now: Date): boolean 
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return false;
 
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const today = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
   const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const diffDays = (today.getTime() - day.getTime()) / 86400000;
 
@@ -183,7 +188,9 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
 
       if (!res.ok) {
         console.error("Sync falhou:", json);
-        setSyncMsg((json?.message as string) ?? "Falha ao sincronizar com o Strava. Tente novamente.");
+        setSyncMsg(
+          (json?.message as string) ?? "Falha ao sincronizar com o Strava. Tente novamente."
+        );
         setSyncing(false);
         return;
       }
@@ -407,7 +414,10 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
 
   const athleteDistance = athleteActivities.reduce((sum, a) => sum + metersToKm(a.distance), 0);
   const athleteMovingTime = athleteActivities.reduce((sum, a) => sum + (a.moving_time ?? 0), 0);
-  const athleteElevation = athleteActivities.reduce((sum, a) => sum + (a.total_elevation_gain ?? 0), 0);
+  const athleteElevation = athleteActivities.reduce(
+    (sum, a) => sum + (a.total_elevation_gain ?? 0),
+    0
+  );
   const athleteActivitiesCount = athleteActivities.length;
 
   const lastActivities = useMemo(() => {
@@ -503,7 +513,9 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         return Array.from(keys).sort((a, b) => (a < b ? -1 : 1));
       }
 
-      const end = new Date(Date.UTC(nowRef.getUTCFullYear(), nowRef.getUTCMonth(), nowRef.getUTCDate()));
+      const end = new Date(
+        Date.UTC(nowRef.getUTCFullYear(), nowRef.getUTCMonth(), nowRef.getUTCDate())
+      );
       const start = new Date(end);
 
       if (rangeKey === "today") start.setUTCDate(end.getUTCDate());
@@ -531,7 +543,9 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
 
       const groupInfo = groupMap.get(key);
       const groupAvgMinutes =
-        groupInfo && groupInfo.athleteIds.size > 0 ? groupInfo.totalMinutes / groupInfo.athleteIds.size : 0;
+        groupInfo && groupInfo.athleteIds.size > 0
+          ? groupInfo.totalMinutes / groupInfo.athleteIds.size
+          : 0;
 
       return {
         date: key,
@@ -560,7 +574,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
               width: 32,
               height: 32,
               borderRadius: "999px",
-              background: "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
+              background:
+                "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -684,9 +699,7 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
       </div>
 
       {syncMsg && (
-        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>
-          {syncMsg}
-        </p>
+        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>{syncMsg}</p>
       )}
 
       {/* MEME DO CHURRASCO */}
@@ -706,7 +719,14 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-            <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "#fca5a5" }}>
+            <span
+              style={{
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: "0.16em",
+                color: "#fca5a5",
+              }}
+            >
               Quem vai pagar o próximo churrasco?
             </span>
             <span
@@ -827,7 +847,6 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
                 </div>
 
                 <div style={{ textAlign: "right", fontSize: 18, fontWeight: 800 }}>{r.totalPoints}</div>
-
                 <div style={{ textAlign: "right", fontSize: 18, fontWeight: 800 }}>{r.totalHours.toFixed(1)} h</div>
               </div>
             ))
@@ -865,7 +884,12 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
         </div>
       </section>
 
-      {/* ✅ ÚLTIMAS 10 ATIVIDADES (CARD QUE SUMIU) */}
+      {/* ✅ GRÁFICO (AGORA ANTES) */}
+      <section style={{ marginBottom: 22 }}>
+        <DashboardCharts evolutionData={evolutionData} />
+      </section>
+
+      {/* ✅ ÚLTIMAS 10 ATIVIDADES (AGORA DEPOIS DO GRÁFICO) */}
       <section
         style={{
           marginBottom: 18,
@@ -935,21 +959,24 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
                       justifyContent: "flex-end",
                     }}
                   >
-                    <span><b>{km.toFixed(1)}</b> km</span>
-                    <span><b>{dur}</b></span>
-                    <span><b>{pace}</b></span>
-                    <span><b>{elev}</b> m</span>
+                    <span>
+                      <b>{km.toFixed(1)}</b> km
+                    </span>
+                    <span>
+                      <b>{dur}</b>
+                    </span>
+                    <span>
+                      <b>{pace}</b>
+                    </span>
+                    <span>
+                      <b>{elev}</b> m
+                    </span>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
-      </section>
-
-      {/* GRÁFICO */}
-      <section style={{ marginBottom: 22 }}>
-        <DashboardCharts evolutionData={evolutionData} />
       </section>
     </div>
   );
