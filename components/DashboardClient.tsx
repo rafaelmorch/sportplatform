@@ -1,14 +1,14 @@
 // components/DashboardClient.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardCharts from "@/components/DashboardCharts";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 const supabase = supabaseBrowser;
 
 type StravaActivity = {
-  id: string;
+  id: string | number;
   athlete_id: number;
   name: string | null;
   type: string | null;
@@ -16,6 +16,7 @@ type StravaActivity = {
   start_date: string | null;
   distance: number | null;
   moving_time: number | null;
+  elapsed_time?: number | null;
   total_elevation_gain: number | null;
 };
 
@@ -27,7 +28,7 @@ type EventsSummary = {
 type RangeKey = "all" | "today" | "7d" | "30d" | "6m";
 
 type DashboardClientProps = {
-  activities?: StravaActivity[]; // ✅ agora é opcional (blindagem contra prerender)
+  activities: StravaActivity[];
   eventsSummary: EventsSummary; // mantido só por compatibilidade
 };
 
@@ -152,9 +153,30 @@ function getStravaActivityPoints(
   return hours * rate;
 }
 
-export default function DashboardClient({
-  activities = [], // ✅ default seguro
-}: DashboardClientProps) {
+function getRangeCutoff(range: RangeKey, now: Date): string | null {
+  if (range === "all") return null;
+
+  const d = new Date(now);
+  if (range === "today") {
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  }
+  if (range === "7d") {
+    d.setDate(d.getDate() - 7);
+    return d.toISOString();
+  }
+  if (range === "30d") {
+    d.setDate(d.getDate() - 30);
+    return d.toISOString();
+  }
+  if (range === "6m") {
+    d.setDate(d.getDate() - 180);
+    return d.toISOString();
+  }
+  return null;
+}
+
+export default function DashboardClient({ activities, eventsSummary }: DashboardClientProps) {
   const [range, setRange] = useState<RangeKey>("30d");
 
   const [currentAthleteId, setCurrentAthleteId] = useState<number | null>(null);
@@ -168,6 +190,10 @@ export default function DashboardClient({
 
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingGroupAthletes, setLoadingGroupAthletes] = useState(false);
+
+  // ✅ atividades do grupo (buscadas do Supabase) — isso corrige o “Tudo”
+  const [fetchedActivities, setFetchedActivities] = useState<StravaActivity[] | null>(null);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
   // ✅ Sync state
   const [syncing, setSyncing] = useState(false);
@@ -241,7 +267,7 @@ export default function DashboardClient({
         if (userError) console.error("Erro ao carregar usuário:", userError);
 
         if (!user) {
-          const firstAthlete = activities[0]?.athlete_id ?? null;
+          const firstAthlete = activities?.[0]?.athlete_id ?? null;
           setCurrentAthleteId(firstAthlete);
           setLoadingAthlete(false);
           return;
@@ -259,10 +285,10 @@ export default function DashboardClient({
         if (profileError) console.error("Erro ao carregar profile:", profileError);
         if (profile?.full_name) setAthleteName(profile.full_name);
 
-        // Athlete id do usuário (se existir via token real do Strava)
+        // Athlete id do usuário (via token real do Strava)
         const { data: tokenRow, error: tokenError } = await supabase
           .from("strava_tokens")
-          .select("athlete_id")
+          .select("athlete_id, updated_at")
           .eq("user_id", user.id)
           .order("updated_at", { ascending: false })
           .limit(1)
@@ -273,11 +299,11 @@ export default function DashboardClient({
         if (tokenRow?.athlete_id) {
           setCurrentAthleteId(tokenRow.athlete_id);
         } else {
-          const firstAthlete = activities[0]?.athlete_id ?? null;
+          const firstAthlete = activities?.[0]?.athlete_id ?? null;
           setCurrentAthleteId(firstAthlete);
         }
 
-        // Grupos em que o usuário participa
+        // Grupos em que o usuário participa (mantido como estava, sem mexer na UI)
         setLoadingGroups(true);
 
         const { data: memberRows, error: memberError } = await supabase
@@ -311,7 +337,7 @@ export default function DashboardClient({
         }
       } catch (err) {
         console.error("Erro inesperado ao definir atleta/grupos:", err);
-        const firstAthlete = activities[0]?.athlete_id ?? null;
+        const firstAthlete = activities?.[0]?.athlete_id ?? null;
         setCurrentAthleteId(firstAthlete);
       } finally {
         setLoadingAthlete(false);
@@ -327,16 +353,13 @@ export default function DashboardClient({
   useEffect(() => {
     const runAutoSync = async () => {
       if (!currentUserId) return;
-
       if (autoSyncRanRef.current) return;
 
       const last = sessionStorage.getItem(AUTO_SYNC_KEY);
       const lastMs = last ? Number(last) : 0;
       const nowMs = Date.now();
 
-      if (lastMs && nowMs - lastMs < AUTO_SYNC_COOLDOWN_MS) {
-        return;
-      }
+      if (lastMs && nowMs - lastMs < AUTO_SYNC_COOLDOWN_MS) return;
 
       const { data: row, error } = await supabase
         .from("strava_tokens")
@@ -349,7 +372,6 @@ export default function DashboardClient({
         console.error("Erro ao checar strava_tokens (auto sync):", error);
         return;
       }
-
       if (!row?.athlete_id) return;
 
       autoSyncRanRef.current = true;
@@ -362,7 +384,7 @@ export default function DashboardClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId]);
 
-  // Carrega athlete_ids do grupo selecionado (NOVA forma: training_group_strava_athletes)
+  // Carrega athlete_ids do grupo selecionado (training_group_strava_athletes)
   useEffect(() => {
     const loadGroupAthletes = async () => {
       if (!selectedGroupId) {
@@ -406,11 +428,86 @@ export default function DashboardClient({
 
   const now = new Date();
 
-  // ✅ blindagem total contra undefined
+  // ✅ CORREÇÃO: buscar atividades do grupo direto no Supabase (senão “Tudo” nunca será all-time)
+  useEffect(() => {
+    const fetchGroupActivities = async () => {
+      if (!groupAthleteIds) {
+        setFetchedActivities(null);
+        return;
+      }
+
+      // se grupo não tem atletas
+      if (groupAthleteIds.length === 0) {
+        setFetchedActivities([]);
+        return;
+      }
+
+      try {
+        setLoadingActivities(true);
+
+        const cutoff = getRangeCutoff(range, new Date());
+
+        let q = supabase
+          .from("strava_activities")
+          .select(
+            "id, athlete_id, name, type, sport_type, start_date, distance, moving_time, total_elevation_gain"
+          )
+          .in("athlete_id", groupAthleteIds)
+          .not("moving_time", "is", null);
+
+        if (cutoff) {
+          q = q.gte("start_date", cutoff);
+        }
+
+        // manter previsível (e sem estourar)
+        const { data, error } = await q
+          .order("start_date", { ascending: false })
+          .limit(10000);
+
+        if (error) {
+          console.error("Erro ao buscar strava_activities (grupo):", error);
+          setFetchedActivities([]);
+          return;
+        }
+
+        const rows = (data ?? []) as any[];
+        const normalized: StravaActivity[] = rows.map((r) => ({
+          id: r.id,
+          athlete_id: Number(r.athlete_id),
+          name: r.name ?? null,
+          type: r.type ?? null,
+          sport_type: r.sport_type ?? null,
+          start_date: r.start_date ?? null,
+          distance: typeof r.distance === "number" ? r.distance : r.distance ? Number(r.distance) : null,
+          moving_time: typeof r.moving_time === "number" ? r.moving_time : r.moving_time ? Number(r.moving_time) : null,
+          total_elevation_gain:
+            typeof r.total_elevation_gain === "number"
+              ? r.total_elevation_gain
+              : r.total_elevation_gain
+                ? Number(r.total_elevation_gain)
+                : null,
+        }));
+
+        setFetchedActivities(normalized);
+      } catch (e) {
+        console.error("Erro inesperado ao buscar atividades do grupo:", e);
+        setFetchedActivities([]);
+      } finally {
+        setLoadingActivities(false);
+      }
+    };
+
+    fetchGroupActivities();
+  }, [groupAthleteIds, range]);
+
+  // ✅ BLINDAGEM (sem mudar layout)
   const safeActivities = Array.isArray(activities) ? activities : [];
 
-  // 1) filtra por período
-  const activitiesInRange = safeActivities.filter((a) =>
+  // Preferir atividades buscadas do grupo (corrige “Tudo”); fallback para props
+  const baseActivities = fetchedActivities ?? safeActivities;
+
+  // 1) filtra por período (mantido — mas agora o array já vem certo do Supabase)
+  const activitiesInRange = baseActivities.filter((a) =>
     isInRange(a.start_date, range, now)
   );
 
@@ -575,6 +672,11 @@ export default function DashboardClient({
     });
   })();
 
+  const rangeLabel = useMemo(() => {
+    const r = ranges.find((x) => x.key === range);
+    return r?.label ?? "Período";
+  }, [range]);
+
   return (
     <div
       style={{
@@ -693,6 +795,12 @@ export default function DashboardClient({
           {(loadingGroups || loadingGroupAthletes) && (
             <span style={{ fontSize: 11, color: "#9ca3af" }}>
               Carregando grupos/atletas...
+            </span>
+          )}
+
+          {loadingActivities && (
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>
+              Carregando atividades do grupo...
             </span>
           )}
         </div>
@@ -838,130 +946,201 @@ export default function DashboardClient({
       {/* RANKING DO GRUPO */}
       <section
         style={{
-          borderRadius: 20,
-          border: "1px solid rgba(148,163,184,0.35)",
-          background:
-            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-          padding: "16px 14px",
-          marginBottom: 24,
+          borderRadius: 22,
+          border: "1px solid rgba(55,65,81,0.9)",
+          padding: "14px 14px",
+          background: "linear-gradient(135deg, rgba(2,6,23,0.92), rgba(15,23,42,0.92))",
+          marginBottom: 18,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 8,
-            alignItems: "baseline",
-            marginBottom: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-              Ranking do grupo
-              {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
-            </h2>
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-              Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100
-              pts/h, caminhada = 15 pts/h.
-            </p>
-          </div>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>
+            Ranking do grupo ({range === "all" ? "todo período" : rangeLabel.toLowerCase()})
+          </h2>
+          <span style={{ fontSize: 11, color: "#9ca3af" }}>
+            Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100 pts/h, caminhada = 15 pts/h.
+          </span>
         </div>
 
-        {ranking.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
-            Nenhuma atividade encontrada nesse período para montar o ranking deste grupo.
-          </p>
-        ) : (
-          <div style={{ width: "100%", overflowX: "auto", maxHeight: 360 }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                minWidth: 360,
-              }}
-            >
+        <div style={{ marginTop: 10, overflowX: "auto" }}>
+          {ranking.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+              Nenhuma atividade encontrada para este grupo/período.
+            </p>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid rgba(55,65,81,0.8)",
-                    color: "#9ca3af",
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={{ padding: "8px 4px", width: 40 }}>Pos.</th>
-                  <th style={{ padding: "8px 4px" }}>Atleta</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Pontos</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Horas (total)</th>
+                <tr style={{ borderBottom: "1px solid rgba(55,65,81,0.65)" }}>
+                  <th style={{ textAlign: "left", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Pos.</th>
+                  <th style={{ textAlign: "left", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Atleta</th>
+                  <th style={{ textAlign: "right", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Pontos</th>
+                  <th style={{ textAlign: "right", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Horas (total)</th>
                 </tr>
               </thead>
               <tbody>
-                {ranking.map((r, index) => (
+                {ranking.map((r, idx) => (
                   <tr
                     key={r.athleteId}
                     style={{
-                      borderBottom: "1px solid rgba(31,41,55,0.7)",
-                      background: r.isCurrent
-                        ? "linear-gradient(to right, rgba(34,197,94,0.18), transparent)"
-                        : "transparent",
+                      borderBottom: "1px solid rgba(55,65,81,0.35)",
+                      background: r.isCurrent ? "rgba(34,197,94,0.12)" : "transparent",
                     }}
                   >
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
-                      #{index + 1}
+                    <td style={{ padding: "12px 6px", fontWeight: 800 }}>
+                      #{idx + 1}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        maxWidth: 220,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
-                      {r.label}
+                    <td style={{ padding: "12px 6px", fontWeight: 700 }}>
+                      {r.label}{" "}
                       {r.isCurrent && (
                         <span
                           style={{
-                            marginLeft: 6,
-                            fontSize: 10,
-                            padding: "1px 6px",
+                            marginLeft: 8,
+                            fontSize: 11,
+                            padding: "2px 8px",
                             borderRadius: 999,
-                            border: "1px solid rgba(34,197,94,0.6)",
+                            border: "1px solid rgba(34,197,94,0.65)",
                             color: "#bbf7d0",
+                            background: "rgba(34,197,94,0.12)",
                           }}
                         >
                           Você
                         </span>
                       )}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        fontWeight: r.isCurrent ? 700 : 500,
-                      }}
-                    >
+                    <td style={{ padding: "12px 6px", textAlign: "right", fontWeight: 800 }}>
                       {r.totalPoints}
                     </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                        color: "#9ca3af",
-                      }}
-                    >
+                    <td style={{ padding: "12px 6px", textAlign: "right", color: "#e5e7eb", fontWeight: 700 }}>
                       {r.totalHours.toFixed(1)} h
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      {/* RESUMO DAS SUAS ATIVIDADES */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: 10,
+          marginBottom: 18,
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(55,65,81,0.9)",
+            background: "rgba(2,6,23,0.92)",
+            padding: "12px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>
+            Atividades
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900 }}>
+            {athleteActivitiesCount}
+          </div>
+        </div>
+
+        <div
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(55,65,81,0.9)",
+            background: "rgba(2,6,23,0.92)",
+            padding: "12px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>
+            Distância (km)
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900 }}>
+            {athleteDistance.toFixed(1)}
+          </div>
+        </div>
+
+        <div
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(55,65,81,0.9)",
+            background: "rgba(2,6,23,0.92)",
+            padding: "12px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>
+            Tempo em movimento
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900 }}>
+            {formatDuration(athleteMovingTime)}
+          </div>
+        </div>
+
+        <div
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(55,65,81,0.9)",
+            background: "rgba(2,6,23,0.92)",
+            padding: "12px 12px",
+          }}
+        >
+          <div style={{ fontSize: 11, color: "#9ca3af", marginBottom: 6 }}>
+            Elevação (m)
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900 }}>
+            {Math.round(athleteElevation)}
+          </div>
+        </div>
+      </section>
+
+      {/* GRÁFICOS */}
+      <section style={{ marginBottom: 18 }}>
+        <DashboardCharts
+          activities={athleteActivities}
+          groupActivities={groupActivities}
+          athleteLabel={athleteLabel}
+        />
+      </section>
+
+      {/* EVOLUÇÃO DOS TREINOS */}
+      <section
+        style={{
+          borderRadius: 22,
+          border: "1px solid rgba(55,65,81,0.9)",
+          padding: "14px 14px",
+          background: "rgba(2,6,23,0.92)",
+          marginBottom: 18,
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+          Evolução dos treinos (minutos)
+        </h2>
+
+        {evolutionData.length === 0 ? (
+          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+            Sem dados suficientes para gerar evolução neste período.
+          </p>
+        ) : (
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            {/* Mantendo simples e previsível (sem mudar UI): o componente DashboardCharts pode cuidar do gráfico real */}
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(55,65,81,0.65)" }}>
+                  <th style={{ textAlign: "left", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Dia</th>
+                  <th style={{ textAlign: "right", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Você</th>
+                  <th style={{ textAlign: "right", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Média do grupo</th>
+                  <th style={{ textAlign: "right", fontSize: 11, color: "#9ca3af", padding: "10px 6px" }}>Líder</th>
+                </tr>
+              </thead>
+              <tbody>
+                {evolutionData.slice(-14).map((p) => (
+                  <tr key={p.date} style={{ borderBottom: "1px solid rgba(55,65,81,0.35)" }}>
+                    <td style={{ padding: "10px 6px", fontWeight: 700 }}>{p.label}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right" }}>{p.userMinutes}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right" }}>{p.groupAvgMinutes}</td>
+                    <td style={{ padding: "10px 6px", textAlign: "right" }}>{p.leaderMinutes}</td>
                   </tr>
                 ))}
               </tbody>
@@ -970,198 +1149,64 @@ export default function DashboardClient({
         )}
       </section>
 
-      {/* Gráfico: Evolução dos treinos */}
+      {/* ÚLTIMAS ATIVIDADES */}
       <section
         style={{
-          borderRadius: 20,
-          border: "1px solid rgba(148,163,184,0.35)",
-          background:
-            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-          padding: "16px 14px",
-          marginBottom: 24,
-        }}
-      >
-        <DashboardCharts evolutionData={evolutionData} />
-      </section>
-
-      {/* Card do ATLETA */}
-      <section
-        style={{
-          borderRadius: 18,
+          borderRadius: 22,
+          border: "1px solid rgba(55,65,81,0.9)",
           padding: "14px 14px",
-          background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-          border: "1px solid rgba(34,197,94,0.35)",
-          marginBottom: 24,
+          background: "rgba(2,6,23,0.92)",
+          marginBottom: 8,
         }}
       >
-        <p
-          style={{
-            fontSize: 11,
-            color: "#86efac",
-            marginBottom: 4,
-            textTransform: "uppercase",
-          }}
-        >
-          {athleteLabel}
-          {range === "all" ? " · todo período" : " · período selecionado"}
-          {loadingAthlete ? " (carregando...)" : ""}
-        </p>
-
-        <p style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>
-          {athleteDistance.toFixed(1)} km
-        </p>
-
-        <p style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>
-          Distância total em todas as suas atividades dentro do grupo e período filtrados
-          (dados Strava).
-        </p>
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 8,
-            fontSize: 11,
-            color: "#9ca3af",
-          }}
-        >
-          <div>
-            <div>Tempo em movimento</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
-              {formatDuration(athleteMovingTime)}
-            </div>
-          </div>
-          <div>
-            <div>Elevação acumulada</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
-              {Math.round(athleteElevation)} m
-            </div>
-          </div>
-          <div>
-            <div>Atividades</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#e5e7eb" }}>
-              {athleteActivitiesCount}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Últimas atividades */}
-      <section
-        style={{
-          borderRadius: 20,
-          border: "1px solid rgba(148,163,184,0.35)",
-          background:
-            "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-          padding: "16px 14px",
-          marginBottom: 24,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 8,
-            alignItems: "baseline",
-            marginBottom: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
-              Últimas atividades
-              {range === "all" ? " (todo período)" : " (dentro do período selecionado)"}
-            </h2>
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
-              As 10 atividades mais recentes (Strava) dentro do período selecionado.
-            </p>
-          </div>
-        </div>
+        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
+          Últimas atividades
+        </h2>
 
         {lastActivities.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
-            Nenhuma atividade Strava encontrada nesse período para o grupo selecionado.
+          <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
+            Nenhuma atividade no período selecionado.
           </p>
         ) : (
-          <div style={{ width: "100%", overflowX: "auto" }}>
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                minWidth: 360,
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid rgba(55,65,81,0.8)",
-                    color: "#9ca3af",
-                    textAlign: "left",
-                  }}
-                >
-                  <th style={{ padding: "8px 4px" }}>Data</th>
-                  <th style={{ padding: "8px 4px" }}>Atividade</th>
-                  <th style={{ padding: "8px 4px" }}>Tipo</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Distância</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Tempo</th>
-                  <th style={{ padding: "8px 4px", textAlign: "right" }}>Ritmo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lastActivities.map((a) => (
-                  <tr
-                    key={a.id}
-                    style={{ borderBottom: "1px solid rgba(31,41,55,0.7)" }}
-                  >
-                    <td style={{ padding: "8px 4px", whiteSpace: "nowrap" }}>
-                      {formatDate(a.start_date)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        maxWidth: 220,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {a.name ?? "-"}
-                    </td>
-                    <td style={{ padding: "8px 4px" }}>
-                      {a.sport_type ?? a.type ?? "-"}
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {metersToKm(a.distance).toFixed(2)} km
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {formatDuration(a.moving_time)}
-                    </td>
-                    <td
-                      style={{
-                        padding: "8px 4px",
-                        textAlign: "right",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {formatPace(a.moving_time, a.distance)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {lastActivities.map((a) => (
+              <div
+                key={String(a.id)}
+                style={{
+                  borderRadius: 16,
+                  border: "1px solid rgba(55,65,81,0.65)",
+                  padding: "10px 10px",
+                  background: "rgba(15,23,42,0.7)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ fontWeight: 800 }}>
+                    {a.name ?? "Atividade"}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                    {formatDate(a.start_date)}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#e5e7eb" }}>
+                  <span>
+                    <strong>Tipo:</strong> {a.type ?? a.sport_type ?? "-"}
+                  </span>
+                  <span>
+                    <strong>Dist:</strong> {metersToKm(a.distance).toFixed(2)} km
+                  </span>
+                  <span>
+                    <strong>Tempo:</strong> {formatDuration(a.moving_time)}
+                  </span>
+                  <span>
+                    <strong>Pace:</strong> {formatPace(a.moving_time, a.distance)}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>
