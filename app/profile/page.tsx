@@ -1,4 +1,3 @@
-// app/profile/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -95,29 +94,10 @@ export default function ProfilePage() {
           ? stravaRows[0]?.athlete_id
           : null;
 
-        // Fitbit (não usa maybeSingle pra não quebrar se tiver duplicado)
-        const { data: fitbitRows, error: fitbitErr } = await supabaseBrowser
-          .from("fitbit_tokens")
-          .select("fitbit_user_id")
-          .eq("user_id", user.id)
-          .limit(1);
-
-        if (fitbitErr) {
-          console.error("Erro ao checar fitbit_tokens:", fitbitErr);
-        }
-
-        const fitbitUserId = Array.isArray(fitbitRows)
-          ? fitbitRows[0]?.fitbit_user_id
-          : null;
-
         const map: Record<string, ConnectionRow> = {};
 
         if (stravaAthleteId) {
           map["strava"] = { provider: "strava", expires_at: null };
-        }
-
-        if (fitbitUserId) {
-          map["fitbit"] = { provider: "fitbit", expires_at: null };
         }
 
         setConnections(map);
@@ -205,7 +185,7 @@ export default function ProfilePage() {
     }
   };
 
-  function getStatus(provider: "strava" | "fitbit") {
+  function getStatus(provider: "strava") {
     const c = connections[provider];
 
     // ✅ pedido: não mostrar "Não conectado" no Profile
@@ -481,11 +461,20 @@ export default function ProfilePage() {
                     }}
                   >
                     <div>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Strava</p>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
+                        Strava
+                      </p>
 
                       {/* ✅ pedido: some com "Não conectado" */}
                       {!!s.label && (
-                        <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
+                        <p
+                          style={{
+                            margin: 0,
+                            marginTop: 4,
+                            fontSize: 12,
+                            color: s.color,
+                          }}
+                        >
                           {s.label}
                         </p>
                       )}
@@ -494,48 +483,15 @@ export default function ProfilePage() {
                     {/* ❌ removido botão aqui */}
                   </div>
 
-                  <p style={{ margin: 0, marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
-                    Importa suas corridas, pedaladas e treinos para o dashboard.
-                  </p>
-                </div>
-              );
-            })()}
-
-            {(() => {
-              const s = getStatus("fitbit");
-              return (
-                <div
-                  style={{
-                    borderRadius: 14,
-                    padding: 14,
-                    border: "1px solid rgba(148,163,184,0.25)",
-                    background: "rgba(2,6,23,0.55)",
-                  }}
-                >
-                  <div
+                  <p
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
+                      margin: 0,
+                      marginTop: 10,
+                      fontSize: 12,
+                      color: "#9ca3af",
                     }}
                   >
-                    <div>
-                      <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Fitbit</p>
-
-                      {/* ✅ pedido: some com "Não conectado" */}
-                      {!!s.label && (
-                        <p style={{ margin: 0, marginTop: 4, fontSize: 12, color: s.color }}>
-                          {s.label}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* ❌ removido botão aqui */}
-                  </div>
-
-                  <p style={{ margin: 0, marginTop: 10, fontSize: 12, color: "#9ca3af" }}>
-                    Importa atividades registradas no Fitbit para a SportPlatform.
+                    Importa suas corridas, pedaladas e treinos para o dashboard.
                   </p>
                 </div>
               );
