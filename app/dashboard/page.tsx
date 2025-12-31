@@ -23,10 +23,7 @@ type StravaActivity = {
 export default async function DashboardPage() {
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-  // ⚠️ No build/prerender não há sessão do usuário.
-  // Então esse select pode retornar vazio por RLS — e tudo bem.
-  // O importante é NUNCA quebrar: activities deve ser sempre array.
-  const { data: activitiesData } = await supabase
+  const { data } = await supabase
     .from("strava_activities")
     .select(
       "id, athlete_id, name, type, sport_type, start_date, distance, moving_time, total_elevation_gain"
@@ -34,12 +31,20 @@ export default async function DashboardPage() {
     .order("start_date", { ascending: false })
     .limit(500);
 
-  const activities = (activitiesData ?? []) as StravaActivity[];
+  const activities = (data ?? []) as StravaActivity[];
 
   const eventsSummary = { availableEvents: 0, userEvents: 0 };
 
   return (
-    <main style={{ padding: 16, paddingBottom: 80 }}>
+    <main
+      style={{
+        padding: 16,
+        paddingBottom: 80,
+        backgroundColor: "#000",
+        color: "#e5e7eb",
+        minHeight: "100vh",
+      }}
+    >
       <DashboardClient activities={activities} eventsSummary={eventsSummary} />
     </main>
   );
