@@ -51,40 +51,18 @@ export default function Home() {
         />
       </div>
 
-      {/* Botão principal (desativado visualmente) */}
+      {/* Formulário Jotform */}
       <div
         style={{
           width: "100%",
           maxWidth: "720px",
-          marginBottom: "28px", // ajustado para manter o espaçamento
-          opacity: 0.7,
+          marginBottom: "32px",
         }}
       >
-        <div
-          style={{
-            padding: "2px",
-            borderRadius: "14px",
-            background: "linear-gradient(135deg, #374151, #111827, #000000)",
-          }}
-        >
-          <div
-            style={{
-              width: "100%",
-              padding: "18px 0",
-              borderRadius: "12px",
-              background: "rgba(0,0,0,0.9)",
-              color: "#9ca3af",
-              textAlign: "center",
-              fontSize: "1.25rem",
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              fontWeight: 700,
-              fontFamily: "'Rowdies', sans-serif",
-            }}
-          >
-            INSCRIÇÕES ENCERRADAS
-          </div>
-        </div>
+        <script
+          type="text/javascript"
+          src="https://form.jotform.com/jsform/253594326585064"
+        ></script>
       </div>
 
       {/* Patrocinador */}
