@@ -32,7 +32,7 @@ export default function Home() {
         />
       </div>
 
-      {/* Imagem principal (sem link) + faixa diagonal */}
+      {/* Imagem principal + badge */}
       <div
         style={{
           width: "100%",
@@ -51,37 +51,62 @@ export default function Home() {
           }}
         />
 
-        {/* Faixa diagonal: Inscrições encerradas */}
+        {/* Badge esportivo — Inscrições encerradas */}
         <div
           style={{
             position: "absolute",
-            top: 22,
-            right: -60,
+            top: 28,
+            right: -70,
             transform: "rotate(18deg)",
-            background: "rgba(0,0,0,0.72)",
-            border: "1px solid rgba(255,255,255,0.22)",
-            color: "#fff",
-            padding: "10px 90px",
-            fontSize: "1.05rem",
-            fontWeight: 900,
-            letterSpacing: "1px",
-            textTransform: "uppercase",
-            fontFamily: "'Rowdies', sans-serif",
-            boxShadow: "0 10px 28px rgba(0,0,0,0.55)",
+            padding: "14px 110px",
+            background:
+              "linear-gradient(135deg, rgba(0,0,0,0.78), rgba(15,15,15,0.9))",
+            border: "1px solid rgba(255,60,60,0.55)",
+            backdropFilter: "blur(6px)",
+            WebkitBackdropFilter: "blur(6px)",
+            boxShadow:
+              "0 14px 40px rgba(0,0,0,0.85), inset 0 0 0 1px rgba(255,255,255,0.06)",
+            textAlign: "center",
             pointerEvents: "none",
           }}
         >
-          INSCRIÇÕES ENCERRADAS
+          <div
+            style={{
+              fontSize: "1.05rem",
+              fontWeight: 900,
+              letterSpacing: "1.6px",
+              textTransform: "uppercase",
+              color: "#ffffff",
+              fontFamily: "'Rowdies', sans-serif",
+              lineHeight: 1.1,
+            }}
+          >
+            INSCRIÇÕES ENCERRADAS
+          </div>
+
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: "0.72rem",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              color: "#fca5a5",
+              fontWeight: 700,
+              fontFamily: "Arial, sans-serif",
+            }}
+          >
+            Vagas esgotadas
+          </div>
         </div>
       </div>
 
-      {/* Botão principal (sem link / desativado visualmente) */}
+      {/* Botão principal (desativado visualmente) */}
       <div
         style={{
           width: "100%",
           maxWidth: "720px",
-          textDecoration: "none",
           marginBottom: "10px",
+          opacity: 0.7,
         }}
       >
         <div
@@ -89,7 +114,6 @@ export default function Home() {
             padding: "2px",
             borderRadius: "14px",
             background: "linear-gradient(135deg, #374151, #111827, #000000)",
-            opacity: 0.7,
           }}
         >
           <div
@@ -112,12 +136,11 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Texto discreto (sem link) */}
+      {/* Texto de contato (sem link) */}
       <div
         style={{
           fontSize: "1.08rem",
           color: "#9ca3af",
-          textDecoration: "none",
           marginBottom: "28px",
         }}
       >
