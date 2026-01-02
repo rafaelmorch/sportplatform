@@ -32,30 +32,51 @@ export default function Home() {
         />
       </div>
 
-      {/* Imagem principal */}
-      <a
-        href="/register"
+      {/* Imagem principal (sem link) + faixa diagonal */}
+      <div
         style={{
           width: "100%",
           maxWidth: "720px",
           marginBottom: "24px",
+          position: "relative",
         }}
       >
         <img
           src="/run.png"
-          alt="Register"
+          alt="Run"
           style={{
             width: "100%",
             height: "auto",
-            cursor: "pointer",
             display: "block",
           }}
         />
-      </a>
 
-      {/* Botão principal */}
-      <a
-        href="/register"
+        {/* Faixa diagonal: Inscrições encerradas */}
+        <div
+          style={{
+            position: "absolute",
+            top: 22,
+            right: -60,
+            transform: "rotate(18deg)",
+            background: "rgba(0,0,0,0.72)",
+            border: "1px solid rgba(255,255,255,0.22)",
+            color: "#fff",
+            padding: "10px 90px",
+            fontSize: "1.05rem",
+            fontWeight: 900,
+            letterSpacing: "1px",
+            textTransform: "uppercase",
+            fontFamily: "'Rowdies', sans-serif",
+            boxShadow: "0 10px 28px rgba(0,0,0,0.55)",
+            pointerEvents: "none",
+          }}
+        >
+          INSCRIÇÕES ENCERRADAS
+        </div>
+      </div>
+
+      {/* Botão principal (sem link / desativado visualmente) */}
+      <div
         style={{
           width: "100%",
           maxWidth: "720px",
@@ -67,8 +88,8 @@ export default function Home() {
           style={{
             padding: "2px",
             borderRadius: "14px",
-            background:
-              "linear-gradient(135deg, #ff2d55, #ff9500, #ffd60a)",
+            background: "linear-gradient(135deg, #374151, #111827, #000000)",
+            opacity: 0.7,
           }}
         >
           <div
@@ -77,7 +98,7 @@ export default function Home() {
               padding: "18px 0",
               borderRadius: "12px",
               background: "rgba(0,0,0,0.9)",
-              color: "#ffffff",
+              color: "#9ca3af",
               textAlign: "center",
               fontSize: "1.25rem",
               letterSpacing: "1px",
@@ -86,23 +107,22 @@ export default function Home() {
               fontFamily: "'Rowdies', sans-serif",
             }}
           >
-            REGISTRE-SE AGORA
+            INSCRIÇÕES ENCERRADAS
           </div>
         </div>
-      </a>
+      </div>
 
-      {/* Botão discreto de contato */}
-      <a
-        href="/contact"
+      {/* Texto discreto (sem link) */}
+      <div
         style={{
           fontSize: "1.08rem",
-          color: "#fff",
+          color: "#9ca3af",
           textDecoration: "none",
           marginBottom: "28px",
         }}
       >
         Fale conosco →
-      </a>
+      </div>
 
       {/* Patrocinador */}
       <div style={{ textAlign: "center", marginTop: "8px" }}>
