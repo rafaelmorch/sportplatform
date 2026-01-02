@@ -59,13 +59,10 @@ export default function Home() {
             right: -70,
             transform: "rotate(18deg)",
             padding: "14px 110px",
-            background:
-              "linear-gradient(135deg, rgba(0,0,0,0.78), rgba(15,15,15,0.9))",
-            border: "1px solid rgba(255,60,60,0.55)",
+            background: "rgba(0,0,0,0.45)", // preto bem leve
             backdropFilter: "blur(6px)",
             WebkitBackdropFilter: "blur(6px)",
-            boxShadow:
-              "0 14px 40px rgba(0,0,0,0.85), inset 0 0 0 1px rgba(255,255,255,0.06)",
+            boxShadow: "0 14px 40px rgba(0,0,0,0.75)",
             textAlign: "center",
             pointerEvents: "none",
           }}
@@ -82,20 +79,6 @@ export default function Home() {
             }}
           >
             INSCRIÇÕES ENCERRADAS
-          </div>
-
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: "0.72rem",
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              color: "#fca5a5",
-              fontWeight: 700,
-              fontFamily: "Arial, sans-serif",
-            }}
-          >
-            Vagas esgotadas
           </div>
         </div>
       </div>
