@@ -53,7 +53,7 @@ export default function Home() {
 
       {/* Botão principal de inscrição */}
       <a
-        href="#registration"
+        href="/register"
         style={{
           width: "100%",
           maxWidth: "720px",
@@ -87,21 +87,6 @@ export default function Home() {
           </div>
         </div>
       </a>
-
-      {/* Jotform */}
-      <div
-        id="registration"
-        style={{
-          width: "100%",
-          maxWidth: "720px",
-          marginBottom: "32px",
-        }}
-      >
-        <script
-          type="text/javascript"
-          src="https://form.jotform.com/jsform/253594326585064"
-        ></script>
-      </div>
 
       {/* Patrocinador */}
       <div style={{ textAlign: "center", marginTop: "8px" }}>
