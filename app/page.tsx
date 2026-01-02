@@ -51,8 +51,46 @@ export default function Home() {
         />
       </div>
 
-      {/* Formulário Jotform */}
+      {/* Botão principal de inscrição */}
+      <a
+        href="#registration"
+        style={{
+          width: "100%",
+          maxWidth: "720px",
+          textDecoration: "none",
+          marginBottom: "28px",
+        }}
+      >
+        <div
+          style={{
+            padding: "2px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, #ff2d55, #ff9500, #ffd60a)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              padding: "18px 0",
+              borderRadius: "12px",
+              background: "rgba(0,0,0,0.9)",
+              color: "#ffffff",
+              textAlign: "center",
+              fontSize: "1.25rem",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              fontWeight: 700,
+              fontFamily: "'Rowdies', sans-serif",
+            }}
+          >
+            REGISTRE-SE AGORA
+          </div>
+        </div>
+      </a>
+
+      {/* Jotform */}
       <div
+        id="registration"
         style={{
           width: "100%",
           maxWidth: "720px",
