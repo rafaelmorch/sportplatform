@@ -32,7 +32,7 @@ export default function Home() {
         />
       </div>
 
-      {/* Imagem principal (sem faixa) */}
+      {/* Imagem principal */}
       <div
         style={{
           width: "100%",
@@ -56,7 +56,7 @@ export default function Home() {
         style={{
           width: "100%",
           maxWidth: "720px",
-          marginBottom: "10px",
+          marginBottom: "28px", // ajustado para manter o espaçamento
           opacity: 0.7,
         }}
       >
@@ -85,17 +85,6 @@ export default function Home() {
             INSCRIÇÕES ENCERRADAS
           </div>
         </div>
-      </div>
-
-      {/* Texto de contato (sem link) */}
-      <div
-        style={{
-          fontSize: "1.08rem",
-          color: "#9ca3af",
-          marginBottom: "28px",
-        }}
-      >
-        Fale conosco →
       </div>
 
       {/* Patrocinador */}
