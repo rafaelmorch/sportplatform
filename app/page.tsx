@@ -32,13 +32,12 @@ export default function Home() {
         />
       </div>
 
-      {/* Imagem principal + badge */}
+      {/* Imagem principal (sem faixa) */}
       <div
         style={{
           width: "100%",
           maxWidth: "720px",
           marginBottom: "24px",
-          position: "relative",
         }}
       >
         <img
@@ -50,37 +49,6 @@ export default function Home() {
             display: "block",
           }}
         />
-
-        {/* Badge esportivo — Inscrições encerradas */}
-        <div
-          style={{
-            position: "absolute",
-            top: 28,
-            right: -70,
-            transform: "rotate(18deg)",
-            padding: "14px 110px",
-            background: "rgba(0,0,0,0.45)", // preto bem leve
-            backdropFilter: "blur(6px)",
-            WebkitBackdropFilter: "blur(6px)",
-            boxShadow: "0 14px 40px rgba(0,0,0,0.75)",
-            textAlign: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "1.05rem",
-              fontWeight: 900,
-              letterSpacing: "1.6px",
-              textTransform: "uppercase",
-              color: "#ffffff",
-              fontFamily: "'Rowdies', sans-serif",
-              lineHeight: 1.1,
-            }}
-          >
-            INSCRIÇÕES ENCERRADAS
-          </div>
-        </div>
       </div>
 
       {/* Botão principal (desativado visualmente) */}
