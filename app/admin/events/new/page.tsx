@@ -1,0 +1,430 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
+type FormState = {
+  title: string;
+  description: string;
+  dateLocal: string;
+  sport: string;
+
+  location_name: string;
+  address_text: string;
+  city: string;
+  state: string;
+
+  contact_email: string;
+
+  capacity: string;
+  waitlist_capacity: string;
+  price_cents: string;
+  organizer_whatsapp: string;
+
+  published: boolean;
+};
+
+export default function AdminNewEventPage() {
+  const router = useRouter();
+
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const [form, setForm] = useState<FormState>({
+    title: "",
+    description: "",
+    dateLocal: "",
+    sport: "",
+
+    location_name: "",
+    address_text: "",
+    city: "",
+    state: "",
+
+    contact_email: "",
+
+    capacity: "",
+    waitlist_capacity: "0",
+    price_cents: "0",
+    organizer_whatsapp: "",
+
+    published: false,
+  });
+
+  const imagePreviewUrl = useMemo(() => {
+    if (!imageFile) return null;
+    return URL.createObjectURL(imageFile);
+  }, [imageFile]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
+
+  useEffect(() => {
+    const run = async () => {
+      setErrorMsg(null);
+      setCheckingAdmin(true);
+
+      const { data: { session } } = await supabaseBrowser.auth.getSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: adminRow, error: adminErr } = await supabaseBrowser
+        .from("app_admins")
+        .select("user_id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (adminErr) {
+        console.error("Erro ao validar admin:", adminErr);
+        setErrorMsg("Erro ao validar permissões de administrador.");
+        setCheckingAdmin(false);
+        return;
+      }
+
+      if (!adminRow) {
+        router.replace("/");
+        return;
+      }
+
+      setCheckingAdmin(false);
+    };
+
+    run();
+  }, [router]);
+
+  const setField = (key: keyof FormState, value: any) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toISOFromLocal = (local: string) => {
+    const d = new Date(local);
+    return d.toISOString();
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    marginTop: 6,
+    borderRadius: 12,
+    padding: "10px 10px",
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(2,6,23,0.65)",
+    color: "#e5e7eb",
+    fontSize: 13,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#d1d5db",
+    fontWeight: 800,
+  };
+
+  const requireField = (label: string, value: string) => {
+    if (!value || !value.trim()) {
+      setErrorMsg(`${label} é obrigatório.`);
+      return false;
+    }
+    return true;
+  };
+
+  const isValidEmail = (s: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (!imageFile) return setErrorMsg("Imagem do evento é obrigatória.");
+
+    if (!requireField("Título", form.title)) return;
+    if (!form.dateLocal) return setErrorMsg("Data/hora é obrigatória.");
+    if (!requireField("Descrição", form.description)) return;
+    if (!requireField("Esporte", form.sport)) return;
+
+    if (!requireField("Local (nome)", form.location_name)) return;
+    if (!requireField("Address", form.address_text)) return;
+    if (!requireField("City", form.city)) return;
+    if (!requireField("State", form.state)) return;
+
+    if (!requireField("Email de contato", form.contact_email)) return;
+    if (!isValidEmail(form.contact_email)) {
+      setErrorMsg("Email de contato inválido.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const { data: { session } } = await supabaseBrowser.auth.getSession();
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      const userId = session.user.id;
+
+      // upload imagem
+      const safeName = imageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const imagePath = `events/${userId}/${Date.now()}_${safeName}`;
+
+      const { error: uploadErr } = await supabaseBrowser.storage
+        .from("event-images")
+        .upload(imagePath, imageFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: imageFile.type || "image/jpeg",
+        });
+
+      if (uploadErr) {
+        console.error("Erro upload image:", uploadErr);
+        setErrorMsg("Erro ao enviar imagem. Verifique as permissões do bucket.");
+        return;
+      }
+
+      const payload: any = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        date: toISOFromLocal(form.dateLocal),
+        sport: form.sport.trim(),
+
+        location_name: form.location_name.trim(),
+        address_text: form.address_text.trim(),
+        city: form.city.trim(),
+        state: form.state.trim(),
+
+        contact_email: form.contact_email.trim(),
+
+        capacity: form.capacity ? Number(form.capacity) : null,
+        waitlist_capacity: Number(form.waitlist_capacity || "0"),
+        price_cents: Number(form.price_cents || "0"),
+        organizer_whatsapp: form.organizer_whatsapp.trim() || null,
+
+        image_path: imagePath,
+        image_url: null,
+
+        created_by: userId,
+        published: form.published,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: insertErr } = await supabaseBrowser
+        .from("app_events")
+        .insert(payload);
+
+      if (insertErr) {
+        console.error("Erro insert app_events:", insertErr);
+        await supabaseBrowser.storage.from("event-images").remove([imagePath]);
+        setErrorMsg("Erro ao criar evento. Verifique RLS/permissões no app_events.");
+        return;
+      }
+
+      router.replace("/admin/events");
+      router.refresh();
+    } catch (err) {
+      console.error("Erro inesperado:", err);
+      setErrorMsg("Erro inesperado ao criar evento.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (checkingAdmin) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>
+          Verificando permissões…
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: "16px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        <header style={{ marginBottom: 14 }}>
+          <button
+            onClick={() => router.push("/admin/events")}
+            style={{
+              borderRadius: 999,
+              padding: "8px 14px",
+              border: "1px solid rgba(148,163,184,0.35)",
+              background: "rgba(2,6,23,0.6)",
+              color: "#e5e7eb",
+              fontSize: 12,
+              fontWeight: 800,
+              cursor: "pointer",
+              marginBottom: 12,
+            }}
+          >
+            ← Voltar
+          </button>
+
+          <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>Novo evento</h1>
+        </header>
+
+        {errorMsg && (
+          <div
+            style={{
+              borderRadius: 14,
+              padding: 12,
+              marginBottom: 12,
+              border: "1px solid rgba(248,113,113,0.35)",
+              background: "rgba(127,29,29,0.18)",
+              color: "#fecaca",
+              fontSize: 13,
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
+        <form
+          onSubmit={handleCreate}
+          style={{
+            borderRadius: 18,
+            padding: "14px",
+            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
+            border: "1px solid rgba(148,163,184,0.35)",
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          {/* Imagem */}
+          <div>
+            <p style={{ margin: 0, marginBottom: 6, fontSize: 12, color: "#d1d5db", fontWeight: 800 }}>
+              Imagem do evento *
+            </p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              style={{ color: "#e5e7eb", fontSize: 13 }}
+            />
+            {imagePreviewUrl && (
+              <div style={{ marginTop: 10, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(148,163,184,0.25)" }}>
+                <img src={imagePreviewUrl} alt="Preview" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }} />
+              </div>
+            )}
+          </div>
+
+          {/* Básico */}
+          <div>
+            <label style={labelStyle}>Título *</label>
+            <input value={form.title} onChange={(e) => setField("title", e.target.value)} style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Data e hora *</label>
+            <input type="datetime-local" value={form.dateLocal} onChange={(e) => setField("dateLocal", e.target.value)} style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Descrição *</label>
+            <textarea value={form.description} onChange={(e) => setField("description", e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Esporte *</label>
+            <input value={form.sport} onChange={(e) => setField("sport", e.target.value)} style={inputStyle} />
+          </div>
+
+          {/* Address */}
+          <div style={{ borderRadius: 16, padding: 12, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(2,6,23,0.35)" }}>
+            <p style={{ margin: 0, marginBottom: 10, fontSize: 13, fontWeight: 900 }}>Endereço</p>
+
+            <div>
+              <label style={labelStyle}>Local (nome) *</label>
+              <input value={form.location_name} onChange={(e) => setField("location_name", e.target.value)} style={inputStyle} />
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <label style={labelStyle}>Address (texto) *</label>
+              <input value={form.address_text} onChange={(e) => setField("address_text", e.target.value)} style={inputStyle} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+              <div>
+                <label style={labelStyle}>City *</label>
+                <input value={form.city} onChange={(e) => setField("city", e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>State *</label>
+                <input value={form.state} onChange={(e) => setField("state", e.target.value)} style={inputStyle} />
+              </div>
+            </div>
+          </div>
+
+          {/* Contato */}
+          <div>
+            <label style={labelStyle}>Email de contato *</label>
+            <input type="email" value={form.contact_email} onChange={(e) => setField("contact_email", e.target.value)} style={inputStyle} placeholder="contato@..." />
+          </div>
+
+          {/* Opcionais */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Capacity (opcional)</label>
+              <input type="number" value={form.capacity} onChange={(e) => setField("capacity", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Waitlist (opcional)</label>
+              <input type="number" value={form.waitlist_capacity} onChange={(e) => setField("waitlist_capacity", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Price (cents) (opcional)</label>
+              <input type="number" value={form.price_cents} onChange={(e) => setField("price_cents", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>WhatsApp do organizer (opcional)</label>
+            <input value={form.organizer_whatsapp} onChange={(e) => setField("organizer_whatsapp", e.target.value)} style={inputStyle} placeholder="+1..." />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input id="published" type="checkbox" checked={form.published} onChange={(e) => setField("published", e.target.checked)} style={{ width: 16, height: 16 }} />
+            <label htmlFor="published" style={{ fontSize: 13, fontWeight: 900 }}>Publicar agora</label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            style={{
+              marginTop: 4,
+              borderRadius: 999,
+              padding: "12px 18px",
+              border: "none",
+              fontSize: 13,
+              fontWeight: 900,
+              background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
+              color: "#0b1120",
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.75 : 1,
+            }}
+          >
+            {saving ? "Criando…" : "Criar evento"}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
