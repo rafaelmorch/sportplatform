@@ -1,14 +1,11 @@
 // app/admin/events/[id]/edit/page.tsx
 "use client";
 
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
-
-/* ================= Types ================= */
 
 type AppEventRow = {
   id: string;
@@ -16,11 +13,14 @@ type AppEventRow = {
   title: string;
   description: string | null;
 
-  date: string; // timestamptz ISO
+  date: string; // timestamp
   location: string | null;
 
-  image_url: string | null; // legado
+  image_url: string | null;
   image_path: string | null;
+
+  created_by: string | null;
+  organizer_id: string | null;
 
   sport: string | null;
 
@@ -29,74 +29,42 @@ type AppEventRow = {
   price_cents: number; // NOT NULL
 
   organizer_whatsapp: string | null;
-  contact_email: string | null;
 
-  published: boolean; // NOT NULL
+  published: boolean;
+
+  created_at: string | null;
+  updated_at: string;
 
   location_name: string | null;
   address_text: string | null;
+  lat: number | null;
+  lng: number | null;
+
   street: string | null;
   city: string | null;
   state: string | null;
-  lat: number | null;
-  lng: number | null;
 
   series_id: string | null;
   series_index: number | null;
 
-  organizer_id: string | null;
-  created_by: string | null;
-  created_at: string | null;
-  updated_at: string;
+  contact_email: string | null;
 };
 
-/* ================= Utils ================= */
-
-function fieldValue(v: string | null | undefined): string {
-  const t = (v ?? "").trim();
-  return t.length ? t : "";
+function isAppEventRow(x: unknown): x is AppEventRow {
+  if (!x || typeof x !== "object") return false;
+  const o = x as any;
+  return (
+    typeof o.id === "string" &&
+    typeof o.title === "string" &&
+    typeof o.date === "string" &&
+    typeof o.waitlist_capacity !== "undefined" &&
+    typeof o.price_cents !== "undefined" &&
+    typeof o.published !== "undefined"
+  );
 }
 
-function toIntOrNull(v: string): number | null {
-  const t = v.trim();
-  if (!t) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n)) return null;
-  return Math.trunc(n);
-}
-
-function toIntOrZero(v: string): number {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.trunc(n));
-}
-
-function toFloatOrNull(v: string): number | null {
-  const t = v.trim();
-  if (!t) return null;
-  const n = Number(t);
-  if (!Number.isFinite(n)) return null;
-  return n;
-}
-
-function formatDateTime(dt: string | null): string {
-  if (!dt) return "—";
-  try {
-    return new Date(dt).toLocaleString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return dt;
-  }
-}
-
-// ISO (UTC) -> yyyy-MM-ddTHH:mm no horário local
-function toDatetimeLocalValue(iso: string) {
+function toIsoLocalInput(iso: string): string {
+  // transforma ISO em "YYYY-MM-DDTHH:MM" (para input datetime-local)
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   const yyyy = d.getFullYear();
@@ -104,850 +72,483 @@ function toDatetimeLocalValue(iso: string) {
   const dd = pad(d.getDate());
   const hh = pad(d.getHours());
   const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}-${mi}`;
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
 }
 
-// yyyy-MM-ddTHH:mm (local) -> ISO UTC
-function fromDatetimeLocalToIso(localValue: string) {
-  const d = new Date(localValue);
+function fromIsoLocalInput(v: string): string {
+  // input datetime-local -> ISO (com timezone local convertido)
+  const d = new Date(v);
   return d.toISOString();
 }
-
-// ✅ usar bucket de imagens (mesmo que você usou em outras telas)
-function getPublicImageUrl(path: string | null): string | null {
-  if (!path) return null;
-  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
-  return data?.publicUrl ?? null;
-}
-
-function makeFileName(file: File) {
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const safeExt = ext.replace(/[^a-z0-9]/g, "") || "jpg";
-  const rand = crypto?.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-  return `${rand}.${safeExt}`;
-}
-
-/* ================= Page ================= */
 
 export default function AdminEventEditPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
-  const { id: eventId } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const eventId = params?.id;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const [event, setEvent] = useState<AppEventRow | null>(null);
+  // form state
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [sport, setSport] = useState("");
+  const [dateLocal, setDateLocal] = useState(""); // datetime-local
+  const [locationName, setLocationName] = useState("");
+  const [addressText, setAddressText] = useState("");
+  const [street, setStreet] = useState("");
+  const [city, setCity] = useState("");
+  const [stateUS, setStateUS] = useState("");
+  const [location, setLocation] = useState("");
+  const [lat, setLat] = useState<string>("");
+  const [lng, setLng] = useState<string>("");
+  const [capacity, setCapacity] = useState<string>("");
+  const [waitlistCapacity, setWaitlistCapacity] = useState<string>("0");
 
-  const img =
-    getPublicImageUrl(event?.image_path ?? null) ||
-    (event?.image_url ? event.image_url : null) ||
-    null;
+  const [priceDollars, setPriceDollars] = useState<string>("0"); // UI em dólares
+  const [organizerWhatsapp, setOrganizerWhatsapp] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [published, setPublished] = useState(false);
 
-  // -------- Admin gate + Load event --------
-  useEffect(() => {
-    if (!eventId) return;
+  const [existingImagePath, setExistingImagePath] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [newImageFile, setNewImageFile] = useState<File | null>(null);
 
-    let cancelled = false;
+  function getPublicImageUrl(path: string | null): string | null {
+    if (!path) return null;
+    const { data } = supabase.storage.from("event-images").getPublicUrl(path);
+    return data?.publicUrl ?? null;
+  }
 
-    async function run() {
-      setLoading(true);
-      setError(null);
-      setInfo(null);
+  async function requireAdminOrRedirect(): Promise<{ userId: string } | null> {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      // 1) precisa estar logado
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        router.replace("/login");
-        return;
-      }
-
-      const userId = session.user.id;
-
-      // 2) checar se é admin na tabela app_admins
-      const { data: adminRow, error: adminErr } = await supabase
-        .from("app_admins")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (adminErr) {
-        console.error("Erro ao validar admin:", adminErr);
-        setError("Erro ao validar permissões de administrador.");
-        setLoading(false);
-        return;
-      }
-
-      if (!adminRow) {
-        router.replace("/");
-        return;
-      }
-
-      // 3) carregar evento
-      const { data, error: evErr } = await supabase
-        .from("app_events")
-        .select(
-          [
-            "id",
-            "title",
-            "description",
-            "date",
-            "location",
-            "image_url",
-            "image_path",
-            "sport",
-            "capacity",
-            "waitlist_capacity",
-            "price_cents",
-            "organizer_whatsapp",
-            "contact_email",
-            "published",
-            "updated_at",
-            "location_name",
-            "address_text",
-            "lat",
-            "lng",
-            "street",
-            "city",
-            "state",
-            "organizer_id",
-            "created_by",
-            "created_at",
-            "series_id",
-            "series_index",
-          ].join(",")
-        )
-        .eq("id", eventId)
-        .single();
-
-      if (cancelled) return;
-
-      if (evErr) {
-        setError(evErr.message || "Failed to load event.");
-        setEvent(null);
-        setLoading(false);
-        return;
-      }
-
-      const row = data as AppEventRow;
-
-      // garantir defaults de NOT NULL
-      const safe: AppEventRow = {
-        ...row,
-        waitlist_capacity: row.waitlist_capacity ?? 0,
-        price_cents: row.price_cents ?? 0,
-        published: !!row.published,
-        updated_at: row.updated_at ?? new Date().toISOString(),
-        date: row.date ?? new Date().toISOString(),
-      };
-
-      setEvent(safe);
-      setLoading(false);
+    if (!session) {
+      router.replace("/login");
+      return null;
     }
 
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, router, eventId]);
+    const userId = session.user.id;
+
+    const { data, error } = await supabase
+      .from("app_admins")
+      .select("user_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Erro ao validar admin:", error);
+      setErrorMsg("Erro ao validar permissões de administrador.");
+      return null;
+    }
+
+    if (!data) {
+      router.replace("/");
+      return null;
+    }
+
+    setIsAdmin(true);
+    return { userId };
+  }
+
+  async function loadEvent() {
+    if (!eventId) return;
+
+    setLoading(true);
+    setErrorMsg(null);
+    setInfoMsg(null);
+
+    const okAdmin = await requireAdminOrRedirect();
+    if (!okAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("app_events")
+      .select(
+        "id,title,description,date,location,image_url,image_path,created_by,created_at,sport,capacity,waitlist_capacity,price_cents,organizer_whatsapp,published,updated_at,location_name,address_text,lat,lng,street,city,state,organizer_id,series_id,series_index,contact_email"
+      )
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Erro load event:", error);
+      setErrorMsg(error.message || "Erro ao carregar evento.");
+      setLoading(false);
+      return;
+    }
+
+    // ✅ AQUI está a correção do deploy:
+    if (!isAppEventRow(data)) {
+      console.error("Evento retornou formato inesperado:", data);
+      setErrorMsg("Evento não encontrado ou retorno inválido do banco.");
+      setLoading(false);
+      return;
+    }
+
+    const row = data;
+
+    setTitle(row.title ?? "");
+    setDescription(row.description ?? "");
+    setSport(row.sport ?? "");
+    setDateLocal(row.date ? toIsoLocalInput(row.date) : "");
+    setLocationName(row.location_name ?? "");
+    setAddressText(row.address_text ?? "");
+    setStreet(row.street ?? "");
+    setCity(row.city ?? "");
+    setStateUS(row.state ?? "");
+    setLocation(row.location ?? "");
+    setLat(row.lat != null ? String(row.lat) : "");
+    setLng(row.lng != null ? String(row.lng) : "");
+    setCapacity(row.capacity != null ? String(row.capacity) : "");
+    setWaitlistCapacity(String(row.waitlist_capacity ?? 0));
+
+    // UI em dólares (sem cents na tela)
+    const dollars = (row.price_cents ?? 0) / 100;
+    setPriceDollars(String(dollars));
+
+    setOrganizerWhatsapp(row.organizer_whatsapp ?? "");
+    setContactEmail(row.contact_email ?? "");
+    setPublished(!!row.published);
+
+    setExistingImagePath(row.image_path ?? null);
+    setExistingImageUrl(row.image_url ?? null);
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadEvent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
+  async function uploadNewImageIfAny(userId: string): Promise<{ image_path: string | null; image_url: string | null }> {
+    if (!newImageFile) {
+      // mantém o que já existe
+      const publicUrl = getPublicImageUrl(existingImagePath) || existingImageUrl || null;
+      return { image_path: existingImagePath, image_url: publicUrl };
+    }
+
+    const safeName = newImageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `events/${userId}/${Date.now()}_${safeName}`;
+
+    const up = await supabase.storage.from("event-images").upload(path, newImageFile, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+    if (up.error) throw new Error(up.error.message);
+
+    const publicUrl = getPublicImageUrl(path);
+    return { image_path: path, image_url: publicUrl };
+  }
 
   async function handleSave() {
-    if (!event) return;
+    if (!eventId) return;
+    if (!isAdmin) return;
 
     setSaving(true);
-    setError(null);
-    setInfo(null);
+    setErrorMsg(null);
+    setInfoMsg(null);
 
     try {
-      // montar payload (SEM currency — sua tabela não tem essa coluna)
-      const payload = {
-        title: event.title.trim(),
-        description: event.description?.trim() || null,
+      const okAdmin = await requireAdminOrRedirect();
+      if (!okAdmin) throw new Error("Sem permissão.");
+      const userId = okAdmin.userId;
 
-        date: event.date, // ISO
+      if (!title.trim()) throw new Error("Título é obrigatório.");
+      if (!dateLocal.trim()) throw new Error("Data/hora é obrigatório.");
 
-        location: event.location?.trim() || null,
+      const priceNum = Number(priceDollars);
+      if (!Number.isFinite(priceNum) || priceNum < 0) throw new Error("Preço inválido.");
+      const priceCents = Math.round(priceNum * 100);
 
-        sport: event.sport?.trim() || null,
+      const waitNum = Number(waitlistCapacity);
+      if (!Number.isFinite(waitNum) || waitNum < 0) throw new Error("Waitlist inválida.");
 
-        capacity: event.capacity,
-        waitlist_capacity: event.waitlist_capacity ?? 0,
-        price_cents: event.price_cents ?? 0,
+      const capNum = capacity.trim() ? Number(capacity) : null;
+      if (capacity.trim() && (!Number.isFinite(capNum as number) || (capNum as number) < 0)) {
+        throw new Error("Capacidade inválida.");
+      }
 
-        organizer_whatsapp: event.organizer_whatsapp?.trim() || null,
-        contact_email: event.contact_email?.trim() || null,
+      const latNum = lat.trim() ? Number(lat) : null;
+      const lngNum = lng.trim() ? Number(lng) : null;
+      if (lat.trim() && !Number.isFinite(latNum as number)) throw new Error("Lat inválida.");
+      if (lng.trim() && !Number.isFinite(lngNum as number)) throw new Error("Lng inválida.");
 
-        published: !!event.published,
+      const img = await uploadNewImageIfAny(userId);
 
-        location_name: event.location_name?.trim() || null,
-        address_text: event.address_text?.trim() || null,
-        street: event.street?.trim() || null,
-        city: event.city?.trim() || null,
-        state: event.state?.trim() || null,
-        lat: event.lat,
-        lng: event.lng,
+      const payload: Partial<AppEventRow> = {
+        title: title.trim(),
+        description: description.trim() ? description.trim() : null,
+        sport: sport.trim() ? sport.trim() : null,
 
-        series_id: event.series_id || null,
-        series_index: event.series_index ?? null,
+        date: fromIsoLocalInput(dateLocal),
+        location: location.trim() ? location.trim() : null,
 
-        // manter legado image_url se quiser (opcional)
-        image_url: event.image_url?.trim() || null,
-        image_path: event.image_path || null,
+        location_name: locationName.trim() ? locationName.trim() : null,
+        address_text: addressText.trim() ? addressText.trim() : null,
+        street: street.trim() ? street.trim() : null,
+        city: city.trim() ? city.trim() : null,
+        state: stateUS.trim() ? stateUS.trim() : null,
+        lat: latNum as any,
+        lng: lngNum as any,
+
+        capacity: capNum as any,
+        waitlist_capacity: waitNum,
+        price_cents: priceCents,
+
+        organizer_whatsapp: organizerWhatsapp.trim() ? organizerWhatsapp.trim() : null,
+        contact_email: contactEmail.trim() ? contactEmail.trim() : null,
+
+        published: !!published,
+
+        image_path: img.image_path,
+        image_url: img.image_url,
 
         updated_at: new Date().toISOString(),
       };
 
-      if (!payload.title) {
-        throw new Error("Title é obrigatório.");
-      }
-      if (!payload.date) {
-        throw new Error("Date é obrigatório.");
-      }
-      if (!Number.isFinite(payload.waitlist_capacity)) payload.waitlist_capacity = 0;
-      if (!Number.isFinite(payload.price_cents)) payload.price_cents = 0;
-
-      const { error: upErr } = await supabase
-        .from("app_events")
-        .update(payload)
-        .eq("id", event.id);
-
+      const { error: upErr } = await supabase.from("app_events").update(payload).eq("id", eventId);
       if (upErr) throw new Error(upErr.message);
 
-      setInfo("Evento salvo com sucesso.");
+      // se trocou imagem, remove a antiga
+      if (newImageFile && existingImagePath && existingImagePath !== img.image_path) {
+        await supabase.storage.from("event-images").remove([existingImagePath]);
+      }
+
+      setExistingImagePath(img.image_path);
+      setExistingImageUrl(img.image_url);
+      setNewImageFile(null);
+
+      setInfoMsg("Evento atualizado com sucesso.");
     } catch (e: any) {
-      setError(e?.message ?? "Falha ao salvar o evento.");
+      setErrorMsg(e?.message ?? "Erro ao salvar.");
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleUploadImage(file: File) {
-    if (!event) return;
-
-    setUploading(true);
-    setError(null);
-    setInfo(null);
-
-    try {
-      const path = `events/${event.id}/${makeFileName(file)}`;
-
-      const { error: upErr } = await supabase.storage
-        .from("event-images")
-        .upload(path, file, { upsert: true });
-
-      if (upErr) throw new Error(upErr.message);
-
-      // salvar image_path no evento
-      const { error: dbErr } = await supabase
-        .from("app_events")
-        .update({
-          image_path: path,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", event.id);
-
-      if (dbErr) throw new Error(dbErr.message);
-
-      setEvent({ ...event, image_path: path });
-      setInfo("Imagem enviada e salva.");
-    } catch (e: any) {
-      setError(e?.message ?? "Falha ao enviar imagem.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleRemoveImage() {
-    if (!event) return;
-    if (!event.image_path) {
-      setInfo("Sem imagem para remover.");
-      return;
-    }
-
-    setUploading(true);
-    setError(null);
-    setInfo(null);
-
-    try {
-      const pathToRemove = event.image_path;
-
-      // remove do bucket
-      await supabase.storage.from("event-images").remove([pathToRemove]);
-
-      // limpa no DB
-      const { error: dbErr } = await supabase
-        .from("app_events")
-        .update({
-          image_path: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", event.id);
-
-      if (dbErr) throw new Error(dbErr.message);
-
-      setEvent({ ...event, image_path: null });
-      setInfo("Imagem removida.");
-    } catch (e: any) {
-      setError(e?.message ?? "Falha ao remover imagem.");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDeleteEvent() {
-    if (!event) return;
-
-    const ok = window.confirm(
-      "Tem certeza que deseja apagar este evento? Isso não pode ser desfeito."
+  if (loading) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>Carregando…</p>
+      </main>
     );
-    if (!ok) return;
-
-    setDeleteBusy(true);
-    setError(null);
-    setInfo(null);
-
-    try {
-      const imageToRemove = event.image_path ?? null;
-
-      const { error: delErr } = await supabase.from("app_events").delete().eq("id", event.id);
-      if (delErr) throw new Error(delErr.message);
-
-      if (imageToRemove) {
-        await supabase.storage.from("event-images").remove([imageToRemove]);
-      }
-
-      router.push("/admin/events");
-    } catch (e: any) {
-      setError(e?.message ?? "Falha ao apagar evento.");
-    } finally {
-      setDeleteBusy(false);
-    }
   }
-
-  const pageTitle = loading ? "Carregando..." : "Editar Evento";
 
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: "#020617", color: "#e5e7eb", padding: 16 }}>
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
-        {/* Header */}
-        <header style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Link
-              href="/admin/events"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                color: "#93c5fd",
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 700,
-              }}
-            >
-              ← Voltar
-            </Link>
+    <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: 16 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>Editar Evento</h1>
+            <p style={{ fontSize: 13, color: "#9ca3af", margin: "6px 0 0 0" }}>{eventId}</p>
           </div>
 
-          <h1 style={{ fontSize: 26, fontWeight: 900, margin: "10px 0 0 0" }}>
-            {pageTitle}
-          </h1>
-
-          <p style={{ fontSize: 13, color: "#94a3b8", margin: "8px 0 0 0" }}>
-            Event ID: <span style={{ color: "#e5e7eb" }}>{eventId}</span>
-          </p>
-
-          {loading ? (
-            <p style={{ margin: "10px 0 0 0", fontSize: 13, color: "#9ca3af" }}>
-              Carregando dados…
-            </p>
-          ) : null}
+          <button
+            onClick={() => router.push("/admin/events")}
+            style={{
+              borderRadius: 999,
+              padding: "10px 16px",
+              border: "1px solid rgba(148,163,184,0.35)",
+              background: "rgba(2,6,23,0.65)",
+              color: "#e5e7eb",
+              cursor: "pointer",
+              fontWeight: 800,
+              fontSize: 13,
+              whiteSpace: "nowrap",
+            }}
+          >
+            ← Voltar
+          </button>
         </header>
 
-        {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
-            {error}
-          </p>
-        ) : null}
-        {info ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
-            {info}
-          </p>
-        ) : null}
+        {errorMsg ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{errorMsg}</p> : null}
+        {infoMsg ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{infoMsg}</p> : null}
 
-        {!loading && !event ? (
-          <section
-            style={{
-              borderRadius: 18,
-              border: "1px solid rgba(148,163,184,0.35)",
-              background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-              padding: 16,
-            }}
-          >
-            <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>
-              Evento não encontrado.
-            </p>
-          </section>
-        ) : null}
-
-        {!loading && event ? (
-          <section
-            style={{
-              borderRadius: 18,
-              border: "1px solid rgba(148,163,184,0.35)",
-              background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
-              padding: 16,
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            {/* Image */}
+        <section
+          style={{
+            borderRadius: 18,
+            border: "1px solid rgba(148,163,184,0.35)",
+            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
+            padding: 14,
+          }}
+        >
+          {/* imagem */}
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Imagem</p>
             <div
               style={{
-                borderRadius: 16,
+                marginTop: 8,
+                width: "100%",
+                height: 220,
+                borderRadius: 14,
                 border: "1px solid rgba(148,163,184,0.25)",
-                background: "rgba(2,6,23,0.35)",
-                padding: 14,
+                overflow: "hidden",
+                background: "rgba(0,0,0,0.25)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
-              <p style={{ margin: "0 0 10px 0", fontSize: 13, fontWeight: 800 }}>
-                Imagem do evento
-              </p>
-
-              <div
-                style={{
-                  width: "100%",
-                  height: 220,
-                  borderRadius: 14,
-                  border: "1px solid rgba(148,163,184,0.25)",
-                  overflow: "hidden",
-                  background: "rgba(0,0,0,0.25)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {img ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={img}
-                    alt={event.title}
-                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 12, color: "#9ca3af" }}>Sem imagem</span>
-                )}
-              </div>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-                <label
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 10,
-                    fontSize: 12,
-                    padding: "8px 12px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(56,189,248,0.45)",
-                    background: "rgba(2,6,23,0.6)",
-                    color: "#e0f2fe",
-                    cursor: uploading ? "not-allowed" : "pointer",
-                    fontWeight: 800,
-                  }}
-                >
-                  {uploading ? "Enviando…" : "Escolher imagem"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploading}
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleUploadImage(f);
-                      e.currentTarget.value = "";
-                    }}
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  disabled={uploading || !event.image_path}
-                  style={{
-                    fontSize: 12,
-                    padding: "8px 12px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(148,163,184,0.35)",
-                    background: "rgba(2,6,23,0.6)",
-                    color: "#e5e7eb",
-                    cursor: uploading || !event.image_path ? "not-allowed" : "pointer",
-                    fontWeight: 800,
-                  }}
-                >
-                  Remover imagem
-                </button>
-              </div>
+              {getPublicImageUrl(existingImagePath) || existingImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getPublicImageUrl(existingImagePath) || existingImageUrl || ""}
+                  alt="event image"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                />
+              ) : (
+                <span style={{ fontSize: 12, color: "#9ca3af" }}>Sem imagem</span>
+              )}
             </div>
 
-            {/* Form */}
-            <div
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNewImageFile(e.target.files?.[0] ?? null)}
+              style={{ marginTop: 10, fontSize: 12 }}
+            />
+          </div>
+
+          {/* campos */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Title *</p>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Sport</p>
+              <input value={sport} onChange={(e) => setSport(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Date/Time *</p>
+              <input type="datetime-local" value={dateLocal} onChange={(e) => setDateLocal(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Published</p>
+              <label style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
+                <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
+                <span style={{ fontSize: 13, color: "#9ca3af" }}>{published ? "Publicado" : "Rascunho"}</span>
+              </label>
+            </div>
+
+            <div style={{ gridColumn: "1 / -1" }}>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Description</p>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} style={{ ...inputStyle, height: 90, resize: "vertical" }} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Price (USD)</p>
+              <input value={priceDollars} onChange={(e) => setPriceDollars(e.target.value)} style={inputStyle} placeholder="ex: 25" />
+              <p style={{ margin: "6px 0 0 0", fontSize: 11, color: "#64748b" }}>Salvo em cents no banco (price_cents).</p>
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Capacity</p>
+              <input value={capacity} onChange={(e) => setCapacity(e.target.value)} style={inputStyle} placeholder="ex: 60" />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Waitlist capacity</p>
+              <input value={waitlistCapacity} onChange={(e) => setWaitlistCapacity(e.target.value)} style={inputStyle} placeholder="ex: 0" />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Organizer WhatsApp</p>
+              <input value={organizerWhatsapp} onChange={(e) => setOrganizerWhatsapp(e.target.value)} style={inputStyle} placeholder="+1..." />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Contact email</p>
+              <input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} style={inputStyle} placeholder="email@..." />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Location name</p>
+              <input value={locationName} onChange={(e) => setLocationName(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Address text</p>
+              <input value={addressText} onChange={(e) => setAddressText(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Street</p>
+              <input value={street} onChange={(e) => setStreet(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>City</p>
+              <input value={city} onChange={(e) => setCity(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>State</p>
+              <input value={stateUS} onChange={(e) => setStateUS(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Location (free text)</p>
+              <input value={location} onChange={(e) => setLocation(e.target.value)} style={inputStyle} />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Lat</p>
+              <input value={lat} onChange={(e) => setLat(e.target.value)} style={inputStyle} placeholder="28.5383" />
+            </div>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Lng</p>
+              <input value={lng} onChange={(e) => setLng(e.target.value)} style={inputStyle} placeholder="-81.3792" />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={handleSave}
+              disabled={saving}
               style={{
-                borderRadius: 16,
-                border: "1px solid rgba(148,163,184,0.25)",
-                background: "rgba(2,6,23,0.35)",
-                padding: 14,
+                borderRadius: 999,
+                padding: "10px 18px",
+                border: "none",
+                fontSize: 13,
+                fontWeight: 900,
+                background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
+                color: "#0b1120",
+                cursor: saving ? "not-allowed" : "pointer",
               }}
             >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
-                <div style={fieldWrap}>
-                  <label style={labelStyle}>Título *</label>
-                  <input
-                    value={event.title}
-                    onChange={(e) => setEvent({ ...event, title: e.target.value })}
-                    style={inputStyle}
-                    placeholder="Ex: 5K Run + Coffee"
-                  />
-                </div>
-
-                <div style={fieldWrap}>
-                  <label style={labelStyle}>Descrição</label>
-                  <textarea
-                    value={event.description ?? ""}
-                    onChange={(e) => setEvent({ ...event, description: e.target.value })}
-                    style={{ ...inputStyle, minHeight: 90, borderRadius: 14 }}
-                    placeholder="Detalhes do evento..."
-                  />
-                </div>
-
-                <div style={grid2}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Data/Hora *</label>
-                    <input
-                      type="datetime-local"
-                      value={toDatetimeLocalValue(event.date)}
-                      onChange={(e) =>
-                        setEvent({ ...event, date: fromDatetimeLocalToIso(e.target.value) })
-                      }
-                      style={inputStyle}
-                    />
-                    <p style={helperStyle}>Atual: {formatDateTime(event.date)}</p>
-                  </div>
-
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Esporte</label>
-                    <input
-                      value={event.sport ?? ""}
-                      onChange={(e) => setEvent({ ...event, sport: e.target.value })}
-                      style={inputStyle}
-                      placeholder="Running, Soccer, Tennis..."
-                    />
-                  </div>
-                </div>
-
-                <div style={grid2}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Location (resumo)</label>
-                    <input
-                      value={event.location ?? ""}
-                      onChange={(e) => setEvent({ ...event, location: e.target.value })}
-                      style={inputStyle}
-                      placeholder="Ex: OCSC - Millenia"
-                    />
-                  </div>
-
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Location name</label>
-                    <input
-                      value={event.location_name ?? ""}
-                      onChange={(e) => setEvent({ ...event, location_name: e.target.value })}
-                      style={inputStyle}
-                      placeholder="Ex: Showalter Field"
-                    />
-                  </div>
-                </div>
-
-                <div style={fieldWrap}>
-                  <label style={labelStyle}>Endereço</label>
-                  <input
-                    value={event.address_text ?? ""}
-                    onChange={(e) => setEvent({ ...event, address_text: e.target.value })}
-                    style={inputStyle}
-                    placeholder="Ex: 3516 President Barack Obama Pkwy, Orlando, FL 32811"
-                  />
-                </div>
-
-                <div style={grid3}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Street</label>
-                    <input
-                      value={event.street ?? ""}
-                      onChange={(e) => setEvent({ ...event, street: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>City</label>
-                    <input
-                      value={event.city ?? ""}
-                      onChange={(e) => setEvent({ ...event, city: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>State</label>
-                    <input
-                      value={event.state ?? ""}
-                      onChange={(e) => setEvent({ ...event, state: e.target.value })}
-                      style={inputStyle}
-                    />
-                  </div>
-                </div>
-
-                <div style={grid3}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Lat</label>
-                    <input
-                      value={event.lat ?? ""}
-                      onChange={(e) => setEvent({ ...event, lat: toFloatOrNull(e.target.value) })}
-                      style={inputStyle}
-                      placeholder="28.5383"
-                    />
-                  </div>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Lng</label>
-                    <input
-                      value={event.lng ?? ""}
-                      onChange={(e) => setEvent({ ...event, lng: toFloatOrNull(e.target.value) })}
-                      style={inputStyle}
-                      placeholder="-81.3792"
-                    />
-                  </div>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Published</label>
-                    <select
-                      value={event.published ? "yes" : "no"}
-                      onChange={(e) => setEvent({ ...event, published: e.target.value === "yes" })}
-                      style={inputStyle}
-                    >
-                      <option value="no">Não</option>
-                      <option value="yes">Sim</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={grid3}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Capacity</label>
-                    <input
-                      value={event.capacity ?? ""}
-                      onChange={(e) => setEvent({ ...event, capacity: toIntOrNull(e.target.value) })}
-                      style={inputStyle}
-                      placeholder="Ex: 60"
-                    />
-                  </div>
-
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Waitlist capacity *</label>
-                    <input
-                      value={String(event.waitlist_capacity ?? 0)}
-                      onChange={(e) =>
-                        setEvent({ ...event, waitlist_capacity: toIntOrZero(e.target.value) })
-                      }
-                      style={inputStyle}
-                      placeholder="Ex: 0"
-                    />
-                  </div>
-
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Price (USD) *</label>
-                    <input
-                      value={String((event.price_cents ?? 0) / 100)}
-                      onChange={(e) => {
-                        const dollars = Number(e.target.value);
-                        const cents =
-                          Number.isFinite(dollars) ? Math.max(0, Math.round(dollars * 100)) : 0;
-                        setEvent({ ...event, price_cents: cents });
-                      }}
-                      style={inputStyle}
-                      placeholder="Ex: 25"
-                    />
-                    <p style={helperStyle}>Salvo como cents: {event.price_cents}</p>
-                  </div>
-                </div>
-
-                <div style={grid2}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Organizer WhatsApp</label>
-                    <input
-                      value={event.organizer_whatsapp ?? ""}
-                      onChange={(e) => setEvent({ ...event, organizer_whatsapp: e.target.value })}
-                      style={inputStyle}
-                      placeholder="+1 407..."
-                    />
-                  </div>
-
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Contact email</label>
-                    <input
-                      value={event.contact_email ?? ""}
-                      onChange={(e) => setEvent({ ...event, contact_email: e.target.value })}
-                      style={inputStyle}
-                      placeholder="contact@sportsplatform.app"
-                    />
-                  </div>
-                </div>
-
-                <div style={grid2}>
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Series ID</label>
-                    <input
-                      value={event.series_id ?? ""}
-                      onChange={(e) => setEvent({ ...event, series_id: fieldValue(e.target.value) || null })}
-                      style={inputStyle}
-                      placeholder="uuid"
-                    />
-                  </div>
-
-                  <div style={fieldWrap}>
-                    <label style={labelStyle}>Series index</label>
-                    <input
-                      value={event.series_index ?? ""}
-                      onChange={(e) => setEvent({ ...event, series_index: toIntOrNull(e.target.value) })}
-                      style={inputStyle}
-                      placeholder="0,1,2..."
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saving}
-                  style={{
-                    ...primaryBtn,
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.75 : 1,
-                  }}
-                >
-                  {saving ? "Salvando…" : "Salvar"}
-                </button>
-
-                <Link
-                  href="/admin/events"
-                  style={{
-                    ...secondaryBtn,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textDecoration: "none",
-                  }}
-                >
-                  Voltar
-                </Link>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleDeleteEvent}
-                disabled={deleteBusy}
-                style={{
-                  ...dangerBtn,
-                  cursor: deleteBusy ? "not-allowed" : "pointer",
-                  opacity: deleteBusy ? 0.75 : 1,
-                }}
-              >
-                {deleteBusy ? "Apagando…" : "Apagar evento"}
-              </button>
-            </div>
-          </section>
-        ) : null}
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        </section>
       </div>
     </main>
   );
 }
 
-/* ================= Styles ================= */
-
-const fieldWrap: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 12,
-  color: "#93c5fd",
-  fontWeight: 800,
-};
-
-const helperStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 12,
-  color: "#9ca3af",
-};
-
 const inputStyle: React.CSSProperties = {
   width: "100%",
+  marginTop: 8,
   borderRadius: 12,
-  padding: "10px 12px",
-  border: "1px solid rgba(148,163,184,0.35)",
-  background: "rgba(2,6,23,0.65)",
+  border: "1px solid rgba(148,163,184,0.25)",
+  background: "rgba(2,6,23,0.45)",
   color: "#e5e7eb",
+  padding: "10px 12px",
   fontSize: 13,
   outline: "none",
-};
-
-const grid2: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-  gap: 12,
-};
-
-const grid3: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  gap: 12,
-};
-
-const primaryBtn: React.CSSProperties = {
-  borderRadius: 999,
-  padding: "10px 18px",
-  border: "none",
-  fontSize: 13,
-  fontWeight: 900,
-  background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
-  color: "#0b1120",
-};
-
-const secondaryBtn: React.CSSProperties = {
-  borderRadius: 999,
-  padding: "10px 18px",
-  border: "1px solid rgba(148,163,184,0.35)",
-  fontSize: 13,
-  fontWeight: 900,
-  background: "rgba(2,6,23,0.65)",
-  color: "#e5e7eb",
-};
-
-const dangerBtn: React.CSSProperties = {
-  borderRadius: 999,
-  padding: "10px 18px",
-  border: "1px solid rgba(248,113,113,0.55)",
-  fontSize: 13,
-  fontWeight: 900,
-  background: "rgba(127,29,29,0.35)",
-  color: "#fecaca",
 };
