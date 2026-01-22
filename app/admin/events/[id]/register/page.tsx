@@ -1,11 +1,14 @@
-// app/events/[id]/register/page.tsx
+// app/admin/events/[id]/register/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
+
+/* ================= Types ================= */
 
 type AppEventRow = {
   id: string;
@@ -13,39 +16,39 @@ type AppEventRow = {
   description: string | null;
   date: string;
   location: string | null;
-  location_name: string | null;
-  address_text: string | null;
-  city: string | null;
-  state: string | null;
+  image_url: string | null;
   image_path: string | null;
-  image_url: string | null; // legado
-  published: boolean;
-  price_cents: number;
-  currency: string | null;
+  sport: string | null;
   capacity: number | null;
-  contact_email: string | null;
+  waitlist_capacity: number;
+  price_cents: number;
+  currency?: string | null;
   organizer_whatsapp: string | null;
-  registration_schema: any; // jsonb
+  contact_email: string | null;
+  published: boolean;
 };
 
-type SchemaField = {
+type FieldType = "text" | "email" | "tel" | "number" | "date" | "textarea" | "select" | "checkbox";
+
+type RegistrationField = {
+  id: string;
+  event_id: string;
   key: string;
-  label?: string;
-  type:
-    | "text"
-    | "email"
-    | "tel"
-    | "date"
-    | "number"
-    | "select"
-    | "textarea"
-    | "checkbox";
-  required?: boolean;
-  placeholder?: string;
-  help?: string;
-  options?: string[];
-  defaultValue?: any;
+  label: string | null;
+  type: FieldType;
+  required: boolean | null;
+  options: string[] | null; // para select
+  placeholder: string | null;
+  helper_text: string | null;
+  sort_order: number | null;
+  // valores default opcionais
+  default_value: string | null;
+  created_at?: string | null;
 };
+
+type ValuesState = Record<string, string | number | boolean | null | undefined>;
+
+/* ================= Utils ================= */
 
 function formatDateTime(dt: string | null): string {
   if (!dt) return "—";
@@ -64,544 +67,589 @@ function formatDateTime(dt: string | null): string {
 }
 
 function dollarsFromCents(cents: number): string {
-  const v = (cents ?? 0) / 100;
+  const v = Math.max(0, cents || 0) / 100;
   return v.toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
-// ✅ bucket padrão já usado no projeto
-function getPublicImageUrl(path: string | null): string | null {
-  if (!path) return null;
-  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
-  return data?.publicUrl ?? null;
+// ✅ Importante: NUNCA retornar boolean pra value=
+// checkbox deve usar checked.
+function toInputValue(type: FieldType, v: unknown): string | number {
+  if (v === null || v === undefined) {
+    // number pode ficar "" também, mas vamos manter string vazia
+    return "";
+  }
+
+  if (type === "number") {
+    if (typeof v === "number") return Number.isFinite(v) ? v : "";
+    const n = Number(String(v));
+    return Number.isFinite(n) ? n : "";
+  }
+
+  // ✅ Todo o resto precisa ser STRING (inclusive textarea/select/date/email/tel/text)
+  // checkbox não deveria passar por aqui (porque usa checked), mas se passar, vira string.
+  return String(v);
 }
 
-function safeSchema(raw: any): SchemaField[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw as SchemaField[];
-  // caso venha string JSON
+function normalizeOptions(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((x) => String(x)).filter(Boolean);
+  }
   if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as SchemaField[]) : [];
-    } catch {
-      return [];
-    }
+    // aceita "a,b,c" ou linhas
+    const parts = raw
+      .split(/[\n,]/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return parts;
   }
   return [];
 }
 
-function toInputValue(type: SchemaField["type"], v: any) {
-  if (type === "checkbox") return !!v;
-  if (v == null) return "";
-  return String(v);
+function safeBool(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") return ["true", "1", "yes", "y", "on"].includes(v.toLowerCase());
+  return false;
 }
 
-function isBlank(v: any) {
-  return v == null || String(v).trim().length === 0;
-}
+/* ================= Page ================= */
 
-export default function EventRegisterPage() {
+export default function AdminEventRegisterPage() {
   const router = useRouter();
   const { id: eventId } = useParams<{ id: string }>();
 
   const supabase = useMemo(() => supabaseBrowser, []);
 
-  const [event, setEvent] = useState<AppEventRow | null>(null);
-  const [schema, setSchema] = useState<SchemaField[]>([]);
-  const [values, setValues] = useState<Record<string, any>>({});
-
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [checkingAdmin, setCheckingAdmin] = useState(true);
 
+  const [event, setEvent] = useState<AppEventRow | null>(null);
+  const [fields, setFields] = useState<RegistrationField[]>([]);
+  const [values, setValues] = useState<ValuesState>({});
+
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // Load event + schema
+  // 1) valida admin + carrega evento + campos
   useEffect(() => {
-    if (!eventId) return;
-
     let cancelled = false;
 
-    async function load() {
+    async function run() {
+      if (!eventId) return;
+
       setLoading(true);
       setError(null);
       setInfo(null);
 
-      const { data, error } = await supabase
+      // ✅ precisa estar logado e ser admin
+      setCheckingAdmin(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      const userId = session.user.id;
+
+      const { data: adminRow, error: adminErr } = await supabase
+        .from("app_admins")
+        .select("user_id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (adminErr) {
+        console.error(adminErr);
+        setError("Erro ao validar permissões de administrador.");
+        setCheckingAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      if (!adminRow) {
+        router.replace("/");
+        return;
+      }
+
+      setCheckingAdmin(false);
+
+      // ✅ carrega evento
+      const { data: ev, error: evErr } = await supabase
         .from("app_events")
         .select(
-          "id,title,description,date,location,location_name,address_text,city,state,image_path,image_url,published,price_cents,currency,capacity,contact_email,organizer_whatsapp,registration_schema"
+          "id,title,description,date,location,image_url,image_path,sport,capacity,waitlist_capacity,price_cents,organizer_whatsapp,contact_email,published"
         )
         .eq("id", eventId)
-        .maybeSingle();
+        .single();
 
       if (cancelled) return;
 
-      if (error) {
-        setError(error.message || "Failed to load event.");
+      if (evErr) {
+        console.error(evErr);
+        setError(evErr.message || "Falha ao carregar evento.");
         setEvent(null);
-        setSchema([]);
+        setFields([]);
         setValues({});
         setLoading(false);
         return;
       }
 
-      if (!data) {
-        setError("Event not found.");
-        setEvent(null);
-        setSchema([]);
-        setValues({});
-        setLoading(false);
-        return;
+      const safeEvent = ev as AppEventRow;
+      setEvent(safeEvent);
+
+      // ✅ carrega campos custom do evento (tabela que você já criou/rodou SQL)
+      // Se o nome da tabela for diferente no seu DB, troque aqui.
+      const { data: ff, error: ffErr } = await supabase
+        .from("app_event_registration_fields")
+        .select("id,event_id,key,label,type,required,options,placeholder,helper_text,sort_order,default_value")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true });
+
+      if (cancelled) return;
+
+      if (ffErr) {
+        console.warn("Campos não carregaram:", ffErr);
+        // ainda deixa a página funcionar com campos padrão
+        setFields([]);
+      } else {
+        const list = (ff as RegistrationField[]) ?? [];
+        setFields(list);
+
+        // defaults
+        const initial: ValuesState = {};
+        for (const f of list) {
+          if (f.type === "checkbox") {
+            initial[f.key] = safeBool(f.default_value);
+          } else if (f.type === "number") {
+            initial[f.key] =
+              f.default_value && Number.isFinite(Number(f.default_value)) ? Number(f.default_value) : "";
+          } else {
+            initial[f.key] = f.default_value ?? "";
+          }
+        }
+        setValues(initial);
       }
-
-      const ev = data as AppEventRow;
-
-      if (!ev.published) {
-        setError("This event is not published.");
-        setEvent(ev);
-        setSchema([]);
-        setValues({});
-        setLoading(false);
-        return;
-      }
-
-      const fields = safeSchema((ev as any).registration_schema);
-
-      // defaults
-      const initial: Record<string, any> = {};
-      for (const f of fields) {
-        initial[f.key] = f.type === "checkbox" ? !!f.defaultValue : (f.defaultValue ?? "");
-      }
-
-      // Alguns padrões úteis (se existirem no schema, já preenche)
-      if (initial["currency"] == null && ev.currency) initial["currency"] = ev.currency;
-
-      setEvent(ev);
-      setSchema(fields);
-      setValues(initial);
 
       setLoading(false);
     }
 
-    load();
+    run();
     return () => {
       cancelled = true;
     };
-  }, [supabase, eventId]);
+  }, [eventId, router, supabase]);
 
-  const heroImg =
-    getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
-
-  function setField(key: string, v: any) {
+  function setField(key: string, v: string | number | boolean) {
     setValues((prev) => ({ ...prev, [key]: v }));
   }
 
   function validate(): string | null {
-    if (!event) return "Event not loaded.";
+    // se você quiser forçar campos básicos, define aqui.
+    // Aqui validamos apenas os custom fields marcados como required.
+    for (const f of fields) {
+      const required = !!f.required;
+      if (!required) continue;
 
-    // Regras mínimas (mesmo que o schema não tenha)
-    // (Você pode remover se quiser 100% schema-driven)
-    // Mas como você quer sem login, pelo menos um email é essencial pro recibo/contato.
-    const mustHaveOneEmail =
-      !isBlank(values["payer_email"]) ||
-      !isBlank(values["attendee_email"]) ||
-      !isBlank(values["participant_email"]);
-
-    if (!mustHaveOneEmail) {
-      return "Please provide an email (payer or attendee).";
-    }
-
-    for (const f of schema) {
-      if (!f.required) continue;
+      const v = values[f.key];
 
       if (f.type === "checkbox") {
-        if (!values[f.key]) return `${f.label ?? f.key} is required.`;
-      } else {
-        if (isBlank(values[f.key])) return `${f.label ?? f.key} is required.`;
+        if (!safeBool(v)) return `Campo obrigatório: ${f.label || f.key}`;
+        continue;
       }
+
+      if (f.type === "number") {
+        const n = typeof v === "number" ? v : Number(String(v ?? ""));
+        if (!Number.isFinite(n)) return `Campo obrigatório: ${f.label || f.key}`;
+        continue;
+      }
+
+      const s = String(v ?? "").trim();
+      if (!s.length) return `Campo obrigatório: ${f.label || f.key}`;
     }
 
     return null;
   }
 
-  async function handleSubmit() {
-    if (!eventId || !event) return;
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!event) return;
 
-    setError(null);
-    setInfo(null);
-
-    const vErr = validate();
-    if (vErr) {
-      setError(vErr);
+    const msg = validate();
+    if (msg) {
+      setError(msg);
       return;
     }
 
-    setSubmitting(true);
+    setBusy(true);
+    setError(null);
+    setInfo(null);
 
     try {
-      const currency = (event.currency ?? "USD").toUpperCase();
-      const amountCents = Number(event.price_cents ?? 0);
-
-      // 1) cria inscrição (pending)
-      // OBS: sua tabela tem muitos campos — aqui salvamos alguns comuns + payload completo em "form_data" (se existir).
-      // Se você NÃO tem coluna form_data, tudo bem: vamos tentar inserir sem ela.
-      const baseInsert: any = {
-        event_id: eventId,
-        status: "pending",
-        payment_provider: amountCents > 0 ? "stripe" : null,
-        payment_status: amountCents > 0 ? "pending" : "free",
-        amount_cents: amountCents,
-        currency,
-        attendee_name: values["attendee_name"] ?? values["participant_name"] ?? null,
-        attendee_email: values["attendee_email"] ?? values["payer_email"] ?? null,
-        payer_email: values["payer_email"] ?? values["attendee_email"] ?? null,
-        payer_phone: values["payer_phone"] ?? values["attendee_whatsapp"] ?? null,
-        attendee_whatsapp: values["attendee_whatsapp"] ?? null,
-        participant_name: values["participant_name"] ?? null,
-        participant_birthdate: values["participant_birthdate"] ?? null,
+      // ✅ cria um registro (rascunho) de inscrição no banco
+      // Aqui é ADMIN: pode ser para testar/gerar link/pagamento.
+      // Se você já tem uma tabela (ex: app_event_registrations), mantenha esse nome.
+      const payload = {
+        event_id: event.id,
+        status: "draft",
+        payment_provider: "stripe",
+        payment_status: "pending",
+        currency: "usd",
+        amount_cents: event.price_cents ?? 0,
+        // campos comuns (se existirem na tabela)
+        attendee_name: String(values["attendee_name"] ?? "").trim() || null,
+        attendee_email: String(values["attendee_email"] ?? "").trim() || null,
+        attendee_whatsapp: String(values["attendee_whatsapp"] ?? "").trim() || null,
+        // campos custom no JSON
+        custom_fields: values,
       };
 
-      // tenta inserir com form_data se existir
-      let regId: string | null = null;
+      const { data: reg, error: regErr } = await supabase
+        .from("app_event_registrations")
+        .insert(payload as any)
+        .select("id")
+        .single();
 
-      {
-        const { data: ins1, error: err1 } = await supabase
-          .from("app_event_registrations")
-          .insert([{ ...baseInsert, form_data: values }])
-          .select("id")
-          .maybeSingle();
+      if (regErr) throw new Error(regErr.message);
 
-        if (!err1 && ins1?.id) {
-          regId = ins1.id as string;
-        } else {
-          // fallback: sem form_data (caso coluna não exista)
-          const { data: ins2, error: err2 } = await supabase
-            .from("app_event_registrations")
-            .insert([baseInsert])
-            .select("id")
-            .maybeSingle();
-
-          if (err2) {
-            throw new Error(err2.message || "Failed to create registration.");
-          }
-          regId = (ins2?.id as string) ?? null;
-        }
-      }
-
-      if (!regId) throw new Error("Registration id not returned.");
-
-      // 2) se for FREE, confirma e manda pra página de sucesso
-      if (amountCents <= 0) {
-        setInfo("Registration completed.");
-        router.replace(`/events/${eventId}?registered=1`);
-        return;
-      }
-
-      // 3) cria checkout session (server)
+      // ✅ chama sua rota do Stripe (se existir) pra criar checkout
+      // Se você já tem essa rota, ela deve devolver { url }.
+      // Se ainda não estiver pronta, comenta esse bloco e só salva a inscrição.
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          eventId,
-          registrationId: regId,
+          eventId: event.id,
+          registrationId: reg?.id,
+          // manda os dados pra preencher metadata
+          values,
         }),
       });
 
-      const payload = await res.json().catch(() => ({}));
-
       if (!res.ok) {
-        throw new Error(payload?.message || "Failed to start checkout.");
+        const t = await res.text().catch(() => "");
+        throw new Error(`Stripe checkout failed (${res.status}). ${t}`.trim());
       }
 
-      const url = payload?.url as string | undefined;
-      if (!url) throw new Error("Checkout URL not returned.");
+      const json = (await res.json()) as { url?: string };
+      if (json?.url) {
+        window.location.href = json.url;
+        return;
+      }
 
-      // 4) redireciona pro Stripe
-      window.location.href = url;
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to submit registration.");
+      setInfo("Inscrição criada, mas checkout não retornou URL.");
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Falha ao criar inscrição.");
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
   }
 
-  const locationLine = [
-    (event?.location_name ?? "").trim(),
-    (event?.address_text ?? "").trim(),
-    [event?.city, event?.state].filter(Boolean).join(", ").trim(),
-  ]
-    .filter((x) => x && x.length)
-    .join(" • ") || "—";
+  /* ================= Styles ================= */
+
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 18,
+    border: "1px solid rgba(148,163,184,0.35)",
+    background: "radial-gradient(circle at top left, #020617, #020617 55%, #000000 100%)",
+    padding: 14,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    borderRadius: 14,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(2,6,23,0.55)",
+    color: "#e5e7eb",
+    padding: "10px 12px",
+    fontSize: 13,
+    outline: "none",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#93c5fd",
+    marginBottom: 6,
+    fontWeight: 700,
+  };
+
+  const helperStyle: React.CSSProperties = {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9ca3af",
+  };
+
+  const btnStyle: React.CSSProperties = {
+    borderRadius: 999,
+    padding: "10px 16px",
+    border: "none",
+    fontSize: 13,
+    fontWeight: 800,
+    background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
+    color: "#0b1120",
+    cursor: "pointer",
+  };
+
+  /* ================= Render ================= */
+
+  if (loading || checkingAdmin) {
+    return (
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>Carregando…</p>
+      </main>
+    );
+  }
+
+  if (!event) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: 16 }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <p style={{ fontSize: 14, color: "#fca5a5" }}>{error || "Evento não encontrado."}</p>
+          <Link href="/admin/events" style={{ color: "#93c5fd", textDecoration: "underline", fontSize: 13 }}>
+            Voltar
+          </Link>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: 16 }}>
-      <div style={{ maxWidth: 920, margin: "0 auto" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {/* Header */}
         <header style={{ marginBottom: 14 }}>
-          <button
-            type="button"
-            onClick={() => router.push(`/events/${eventId}`)}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 999,
-              border: "1px solid rgba(148,163,184,0.35)",
-              background: "rgba(2,6,23,0.65)",
-              color: "#e5e7eb",
-              cursor: "pointer",
-              fontSize: 18,
-              fontWeight: 900,
-              lineHeight: "40px",
-            }}
-            aria-label="Back"
-            title="Back"
-          >
-            ←
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              type="button"
+              onClick={() => router.push("/admin/events")}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                border: "1px solid rgba(148,163,184,0.35)",
+                background: "rgba(2,6,23,0.65)",
+                color: "#e5e7eb",
+                cursor: "pointer",
+                fontSize: 18,
+                fontWeight: 900,
+                lineHeight: "40px",
+              }}
+              aria-label="Voltar"
+              title="Voltar"
+            >
+              ←
+            </button>
 
-          <div style={{ marginTop: 10 }}>
-            <p style={{ margin: 0, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b" }}>
-              Registration
-            </p>
-            <h1 style={{ margin: "6px 0 0 0", fontSize: 24, fontWeight: 900 }}>
-              {loading ? "Loading..." : (event?.title ?? "Event")}
-            </h1>
-            <p style={{ margin: "6px 0 0 0", fontSize: 13, color: "#9ca3af" }}>
-              {formatDateTime(event?.date ?? null)} • {locationLine}
-            </p>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b", margin: 0 }}>
+                Admin • Registration
+              </p>
+              <h1 style={{ fontSize: 20, fontWeight: 900, margin: "6px 0 0 0" }}>{event.title}</h1>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: "6px 0 0 0" }}>
+                {formatDateTime(event.date)} • {event.location || "—"} • {dollarsFromCents(event.price_cents || 0)}
+              </p>
+            </div>
+
+            <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Link href={`/admin/events/${event.id}/edit`} style={{ fontSize: 12, color: "#93c5fd", textDecoration: "underline" }}>
+                Editar evento
+              </Link>
+              <Link href="/admin/events" style={{ fontSize: 12, color: "#93c5fd", textDecoration: "underline" }}>
+                Lista
+              </Link>
+            </div>
           </div>
         </header>
 
-        {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p>
-        ) : null}
-        {info ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p>
-        ) : null}
+        {error ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p> : null}
+        {info ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p> : null}
 
-        <section
-          style={{
-            borderRadius: 18,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: 14,
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
-          {/* hero image */}
-          <div
-            style={{
-              width: "100%",
-              height: 220,
-              borderRadius: 14,
-              border: "1px solid rgba(148,163,184,0.25)",
-              overflow: "hidden",
-              background: "rgba(0,0,0,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {heroImg ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={heroImg}
-                alt={event?.title ?? "event image"}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        {/* Card */}
+        <section style={cardStyle}>
+          <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>Criar inscrição (Admin / Teste)</h2>
+          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8, marginBottom: 12 }}>
+            Esta tela cria uma inscrição e (se sua rota Stripe estiver pronta) abre o checkout.
+          </p>
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* Campos “comuns” (opcional) */}
+            <div>
+              <div style={labelStyle}>Nome</div>
+              <input
+                type="text"
+                value={String(values["attendee_name"] ?? "")}
+                onChange={(e) => setField("attendee_name", e.target.value)}
+                placeholder="Nome do participante"
+                style={inputStyle}
               />
-            ) : (
-              <span style={{ fontSize: 12, color: "#9ca3af" }}>No image</span>
-            )}
-          </div>
+            </div>
 
-          {/* price */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontSize: 12,
-                padding: "6px 10px",
-                borderRadius: 999,
-                border: "1px solid rgba(56,189,248,0.5)",
-                background: "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
-                color: "#e0f2fe",
-                fontWeight: 800,
-              }}
-            >
-              {event ? (event.price_cents > 0 ? dollarsFromCents(event.price_cents) : "Free") : "—"}
-            </span>
-          </div>
+            <div>
+              <div style={labelStyle}>Email</div>
+              <input
+                type="email"
+                value={String(values["attendee_email"] ?? "")}
+                onChange={(e) => setField("attendee_email", e.target.value)}
+                placeholder="email@exemplo.com"
+                style={inputStyle}
+              />
+            </div>
 
-          {/* form */}
-          <div
-            style={{
-              borderRadius: 14,
-              border: "1px solid rgba(148,163,184,0.25)",
-              background: "rgba(2,6,23,0.35)",
-              padding: 12,
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
-            {loading ? (
-              <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>Loading form...</p>
-            ) : !event ? (
-              <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>Event not available.</p>
-            ) : schema.length === 0 ? (
-              <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>
-                No registration fields configured for this event.
-              </p>
-            ) : (
-              <>
-                {schema.map((f) => {
-                  const label = f.label ?? f.key;
-                  const required = !!f.required;
+            <div>
+              <div style={labelStyle}>WhatsApp</div>
+              <input
+                type="tel"
+                value={String(values["attendee_whatsapp"] ?? "")}
+                onChange={(e) => setField("attendee_whatsapp", e.target.value)}
+                placeholder="+1 (407) ..."
+                style={inputStyle}
+              />
+            </div>
 
-                  const commonLabel = (
-                    <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-                      <p style={{ margin: 0, fontSize: 12, color: "#60a5fa", fontWeight: 800 }}>
-                        {label}
-                      </p>
-                      {required ? (
-                        <span style={{ fontSize: 11, color: "#fca5a5" }}>*</span>
-                      ) : null}
-                    </div>
-                  );
+            {/* Campos dinâmicos (por evento) */}
+            {fields.length ? (
+              <div style={{ marginTop: 6 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 800, margin: "8px 0 10px 0" }}>Campos do evento</h3>
 
-                  const help = f.help ? (
-                    <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "#94a3b8" }}>{f.help}</p>
-                  ) : null;
-
-                  const inputStyle: React.CSSProperties = {
-                    width: "100%",
-                    marginTop: 6,
-                    borderRadius: 12,
-                    border: "1px solid rgba(148,163,184,0.25)",
-                    background: "rgba(2,6,23,0.65)",
-                    color: "#e5e7eb",
-                    padding: "10px 12px",
-                    outline: "none",
-                    fontSize: 13,
-                  };
-
-                  if (f.type === "select") {
-                    return (
-                      <div key={f.key}>
-                        {commonLabel}
-                        <select
-                          value={toInputValue("select", values[f.key])}
-                          onChange={(e) => setField(f.key, e.target.value)}
-                          style={inputStyle}
-                        >
-                          <option value="">{f.placeholder ?? "Select..."}</option>
-                          {(f.options ?? []).map((opt) => (
-                            <option key={opt} value={opt}>
-                              {opt}
-                            </option>
-                          ))}
-                        </select>
-                        {help}
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {fields.map((f) => {
+                    const commonLabel = (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <span>{f.label || f.key}</span>
+                        {f.required ? <span style={{ fontSize: 11, color: "#fca5a5" }}>* obrigatório</span> : null}
                       </div>
                     );
-                  }
 
-                  if (f.type === "textarea") {
-                    return (
-                      <div key={f.key}>
-                        {commonLabel}
-                        <textarea
-                          value={toInputValue("textarea", values[f.key])}
-                          onChange={(e) => setField(f.key, e.target.value)}
-                          placeholder={f.placeholder ?? ""}
-                          style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
-                        />
-                        {help}
-                      </div>
-                    );
-                  }
+                    const placeholder = f.placeholder || undefined;
+                    const helper = f.helper_text ? <div style={helperStyle}>{f.helper_text}</div> : null;
 
-                  if (f.type === "checkbox") {
-                    return (
-                      <div key={f.key} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={!!values[f.key]}
-                          onChange={(e) => setField(f.key, e.target.checked)}
-                          style={{ width: 18, height: 18, cursor: "pointer" }}
-                        />
-                        <div style={{ display: "flex", flexDirection: "column" }}>
-                          <p style={{ margin: 0, fontSize: 13, color: "#e5e7eb", fontWeight: 800 }}>
-                            {label} {required ? <span style={{ color: "#fca5a5" }}>*</span> : null}
-                          </p>
-                          {help}
+                    if (f.type === "textarea") {
+                      return (
+                        <div key={f.id}>
+                          <div style={labelStyle}>{commonLabel}</div>
+                          <textarea
+                            value={String(toInputValue("textarea", values[f.key]))}
+                            onChange={(e) => setField(f.key, e.target.value)}
+                            placeholder={placeholder}
+                            style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
+                          />
+                          {helper}
                         </div>
+                      );
+                    }
+
+                    if (f.type === "select") {
+                      const opts = normalizeOptions(f.options);
+                      return (
+                        <div key={f.id}>
+                          <div style={labelStyle}>{commonLabel}</div>
+                          <select
+                            value={String(toInputValue("select", values[f.key]))}
+                            onChange={(e) => setField(f.key, e.target.value)}
+                            style={inputStyle}
+                          >
+                            <option value="">Select…</option>
+                            {opts.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                          {helper}
+                        </div>
+                      );
+                    }
+
+                    if (f.type === "checkbox") {
+                      return (
+                        <div key={f.id} style={{ border: "1px solid rgba(148,163,184,0.25)", borderRadius: 14, padding: 12, background: "rgba(2,6,23,0.35)" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={safeBool(values[f.key])}
+                              onChange={(e) => setField(f.key, e.target.checked)}
+                              style={{ transform: "scale(1.1)" }}
+                            />
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: "#e5e7eb" }}>
+                                {f.label || f.key} {f.required ? <span style={{ color: "#fca5a5" }}>*</span> : null}
+                              </span>
+                              {f.helper_text ? <span style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{f.helper_text}</span> : null}
+                            </div>
+                          </label>
+                        </div>
+                      );
+                    }
+
+                    // default = input
+                    const inputType: "text" | "email" | "tel" | "number" | "date" = (["email", "tel", "number", "date"].includes(f.type) ? f.type : "text") as any;
+
+                    return (
+                      <div key={f.id}>
+                        <div style={labelStyle}>{commonLabel}</div>
+                        <input
+                          type={inputType}
+                          value={toInputValue(f.type, values[f.key]) as any}
+                          onChange={(e) => {
+                            if (f.type === "number") {
+                              const raw = e.target.value;
+                              if (raw === "") return setField(f.key, "");
+                              const n = Number(raw);
+                              setField(f.key, Number.isFinite(n) ? n : "");
+                              return;
+                            }
+                            setField(f.key, e.target.value);
+                          }}
+                          placeholder={placeholder}
+                          style={inputStyle}
+                        />
+                        {helper}
                       </div>
                     );
-                  }
-
-                  // default: text-like inputs
-                  const htmlType =
-                    f.type === "number"
-                      ? "number"
-                      : f.type === "email"
-                      ? "email"
-                      : f.type === "tel"
-                      ? "tel"
-                      : f.type === "date"
-                      ? "date"
-                      : "text";
-
-                  return (
-                    <div key={f.key}>
-                      {commonLabel}
-                      <input
-                        type={htmlType}
-                        value={toInputValue(f.type, values[f.key])}
-                        onChange={(e) => setField(f.key, e.target.value)}
-                        placeholder={f.placeholder ?? ""}
-                        style={inputStyle}
-                      />
-                      {help}
-                    </div>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={submitting || loading}
-                  style={{
-                    marginTop: 6,
-                    borderRadius: 999,
-                    padding: "12px 18px",
-                    border: "none",
-                    fontSize: 13,
-                    fontWeight: 900,
-                    background:
-                      "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
-                    color: "#0b1120",
-                    cursor: submitting ? "not-allowed" : "pointer",
-                    opacity: submitting ? 0.75 : 1,
-                  }}
-                >
-                  {submitting
-                    ? "Starting payment..."
-                    : event.price_cents > 0
-                    ? "Continue to payment"
-                    : "Complete registration"}
-                </button>
-
-                <p style={{ margin: "10px 0 0 0", fontSize: 12, color: "#94a3b8" }}>
-                  By registering, you agree to our terms. If you have questions, contact{" "}
-                  <span style={{ color: "#e5e7eb" }}>
-                    {event.contact_email ?? "the organizer"}
-                  </span>.
-                </p>
-              </>
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 6, fontSize: 13, color: "#9ca3af" }}>
+                Nenhum campo dinâmico encontrado para este evento (app_event_registration_fields).
+              </div>
             )}
-          </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+              <button type="submit" disabled={busy} style={{ ...btnStyle, opacity: busy ? 0.6 : 1 }}>
+                {busy ? "Abrindo checkout..." : "Continuar (Stripe)"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/admin/events")}
+                style={{
+                  borderRadius: 999,
+                  padding: "10px 16px",
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  background: "rgba(2,6,23,0.5)",
+                  color: "#e5e7eb",
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
         </section>
       </div>
     </main>
