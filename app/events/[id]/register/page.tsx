@@ -1,102 +1,64 @@
 "use client";
 
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-export const dynamic = "force-dynamic";
+/* ================= Types ================= */
+
+type FieldType = "text" | "textarea" | "select" | "checkbox" | "number" | "date";
+
+type EventField = {
+  key: string;
+  label: string;
+  type: FieldType;
+  required?: boolean;
+  options?: string[];
+};
 
 type AppEventRow = {
   id: string;
   title: string;
   description: string | null;
   date: string;
-  location: string | null;
-  price_cents: number;
-  currency: string | null;
   published: boolean;
-  capacity: number | null;
-  waitlist_capacity: number;
 };
 
-type RegistrationInsert = {
-  event_id: string;
-  user_id?: string | null;
-  status?: string | null;
+type RegistrationValues = Record<string, string | number | boolean | null>;
 
-  attendee_name?: string | null;
-  attendee_email?: string | null;
-  attendee_whatsapp?: string | null;
-  nickname?: string | null;
+/* ================= Utils ================= */
 
-  payer_email?: string | null;
-  payer_phone?: string | null;
+function toInputValue(
+  kind: "text" | "textarea" | "select" | "number" | "date",
+  v: unknown
+): string {
+  if (v === null || v === undefined) return "";
 
-  participant_name?: string | null;
-  participant_birthdate?: string | null;
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : "";
+  if (typeof v === "boolean") return v ? "true" : "false";
 
-  payment_provider?: string | null;
-  payment_status?: string | null;
-  amount_cents?: number | null;
-  currency?: string | null;
-};
-
-function formatDateTime(dt: string | null): string {
-  if (!dt) return "—";
-  try {
-    return new Date(dt).toLocaleString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return dt;
-  }
+  return String(v);
 }
 
-function moneyFromCents(cents: number, currency: string | null) {
-  const cur = (currency || "USD").toUpperCase();
-  const value = (cents || 0) / 100;
-  try {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: cur }).format(value);
-  } catch {
-    return `${value.toFixed(2)} ${cur}`;
-  }
-}
+/* ================= Page ================= */
 
-function fieldValue(v: string | null | undefined): string {
-  const t = (v ?? "").trim();
-  return t.length ? t : "—";
-}
-
-export default function EventRegisterPage() {
+export default function AdminEventRegisterPage() {
   const router = useRouter();
-  const { id: eventId } = useParams<{ id: string }>();
+  const params = useParams<{ id: string }>();
+  const eventId = params.id;
 
   const supabase = useMemo(() => supabaseBrowser, []);
 
   const [event, setEvent] = useState<AppEventRow | null>(null);
+  const [fields, setFields] = useState<EventField[]>([]);
+  const [values, setValues] = useState<RegistrationValues>({});
   const [loading, setLoading] = useState(true);
-
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  // form
-  const [attendeeName, setAttendeeName] = useState("");
-  const [attendeeEmail, setAttendeeEmail] = useState("");
-  const [attendeeWhatsapp, setAttendeeWhatsapp] = useState("");
-  const [nickname, setNickname] = useState("");
-
-  const [payerEmail, setPayerEmail] = useState("");
-  const [payerPhone, setPayerPhone] = useState("");
-
-  const [participantName, setParticipantName] = useState("");
-  const [participantBirthdate, setParticipantBirthdate] = useState(""); // YYYY-MM-DD
+  /* ================= Load ================= */
 
   useEffect(() => {
     if (!eventId) return;
@@ -109,19 +71,50 @@ export default function EventRegisterPage() {
 
       const { data, error } = await supabase
         .from("app_events")
-        .select("id,title,description,date,location,price_cents,currency,published,capacity,waitlist_capacity")
+        .select("id,title,description,date,published")
         .eq("id", eventId)
         .single();
 
       if (cancelled) return;
 
       if (error) {
-        setError(error.message || "Failed to load event.");
-        setEvent(null);
-      } else {
-        setEvent((data as AppEventRow) ?? null);
+        setError(error.message);
+        setLoading(false);
+        return;
       }
 
+      const row: AppEventRow = {
+        id: data.id,
+        title: data.title,
+        description: data.description ?? null,
+        date: data.date,
+        published: data.published,
+      };
+
+      setEvent(row);
+
+      // 🔧 Campos dinâmicos de exemplo (depois vem do banco)
+      const defaultFields: EventField[] = [
+        { key: "attendee_name", label: "Nome completo", type: "text", required: true },
+        { key: "attendee_email", label: "Email", type: "text", required: true },
+        { key: "attendee_whatsapp", label: "WhatsApp", type: "text", required: true },
+        {
+          key: "shirt_size",
+          label: "Tamanho da camiseta",
+          type: "select",
+          options: ["P", "M", "G", "GG"],
+        },
+        { key: "accept_terms", label: "Aceito os termos", type: "checkbox", required: true },
+      ];
+
+      setFields(defaultFields);
+
+      const initialValues: RegistrationValues = {};
+      defaultFields.forEach((f) => {
+        initialValues[f.key] = f.type === "checkbox" ? false : "";
+      });
+
+      setValues(initialValues);
       setLoading(false);
     }
 
@@ -129,277 +122,147 @@ export default function EventRegisterPage() {
     return () => {
       cancelled = true;
     };
-  }, [supabase, eventId]);
+  }, [eventId, supabase]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  /* ================= Handlers ================= */
+
+  function setField(key: string, value: string | number | boolean) {
+    setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  async function handleSubmit() {
     if (!eventId) return;
 
-    setSubmitting(true);
+    setSaving(true);
     setError(null);
-    setOkMsg(null);
+    setSuccess(null);
 
     try {
-      const ev = event;
-      if (!ev) throw new Error("Event not found.");
-      if (!ev.published) throw new Error("This event is not published.");
-
-      // validações mínimas
-      if (!attendeeName.trim()) throw new Error("Please enter your name.");
-      if (!attendeeEmail.trim()) throw new Error("Please enter your email.");
-      if (!payerEmail.trim()) throw new Error("Please enter payer email.");
-      if (!participantName.trim()) throw new Error("Please enter participant name.");
-
-      const amountCents = ev.price_cents ?? 0;
-      const currency = (ev.currency || "USD").toUpperCase();
-
-      // 1) cria inscrição (sem login)
-      const payload: RegistrationInsert = {
+      const payload = {
         event_id: eventId,
-        user_id: null,
-        status: "pending",
-
-        attendee_name: attendeeName.trim(),
-        attendee_email: attendeeEmail.trim(),
-        attendee_whatsapp: attendeeWhatsapp.trim() || null,
-        nickname: nickname.trim() || null,
-
-        payer_email: payerEmail.trim(),
-        payer_phone: payerPhone.trim() || null,
-
-        participant_name: participantName.trim(),
-        participant_birthdate: participantBirthdate.trim() || null,
-
-        payment_provider: amountCents > 0 ? "stripe" : null,
-        payment_status: amountCents > 0 ? "unpaid" : "free",
-        amount_cents: amountCents,
-        currency,
+        ...values,
       };
 
-      const { data: regRow, error: regErr } = await supabase
-        .from("app_event_registrations")
-        .insert(payload)
-        .select("id")
-        .single();
+      const { error } = await supabase.from("app_event_registrations").insert(payload);
 
-      if (regErr) throw new Error(regErr.message || "Failed to create registration.");
+      if (error) throw error;
 
-      const registrationId = (regRow as any)?.id as string | undefined;
-      if (!registrationId) throw new Error("Registration created but missing id.");
-
-      // 2) se for pago, cria checkout e redireciona
-      if (amountCents > 0) {
-        const res = await fetch("/api/stripe/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventId,
-            registrationId,
-            // dados úteis pro checkout (caso seu endpoint use)
-            payerEmail: payerEmail.trim(),
-            attendeeName: attendeeName.trim(),
-          }),
-        });
-
-        const json = await res.json().catch(() => null);
-
-        if (!res.ok) {
-          const msg =
-            json?.error ||
-            json?.message ||
-            "Stripe checkout failed. Please try again.";
-          throw new Error(msg);
-        }
-
-        const url = json?.url as string | undefined;
-        if (!url) throw new Error("Missing Stripe checkout URL.");
-
-        window.location.href = url;
-        return;
-      }
-
-      // se gratuito, finaliza aqui
-      setOkMsg("Registration completed!");
-      // opcional: mandar pra página do evento
-      setTimeout(() => router.push(`/events/${eventId}`), 900);
-    } catch (err: any) {
-      setError(err?.message || "Failed to register.");
+      setSuccess("Inscrição salva com sucesso!");
+    } catch (e: any) {
+      setError(e.message ?? "Erro ao salvar inscrição");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   }
 
-  const title = loading ? "Loading..." : fieldValue(event?.title ?? null);
-  const when = formatDateTime(event?.date ?? null);
-  const price = event ? moneyFromCents(event.price_cents ?? 0, event.currency) : "—";
+  /* ================= Render ================= */
+
+  if (loading) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#020617", color: "#9ca3af", padding: 16 }}>
+        Carregando…
+      </main>
+    );
+  }
+
+  if (!event) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#020617", color: "#fca5a5", padding: 16 }}>
+        Evento não encontrado
+      </main>
+    );
+  }
 
   return (
     <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: 16 }}>
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <header style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              type="button"
-              onClick={() => router.push(eventId ? `/events/${eventId}` : "/events")}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                border: "1px solid rgba(148,163,184,0.35)",
-                background: "rgba(2,6,23,0.65)",
-                color: "#e5e7eb",
-                cursor: "pointer",
-                fontSize: 18,
-                fontWeight: 900,
-                lineHeight: "40px",
-              }}
-              aria-label="Back"
-              title="Back"
-            >
-              ←
-            </button>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <button
+          onClick={() => router.push(`/admin/events/${eventId}`)}
+          style={{ marginBottom: 12, background: "none", color: "#93c5fd", border: "none" }}
+        >
+          ← Voltar
+        </button>
 
-            <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b", margin: 0 }}>
-                Event Registration
-              </p>
-              <h1 style={{ fontSize: 22, fontWeight: 900, margin: "6px 0 0 0" }}>{title}</h1>
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: "6px 0 0 0" }}>
-                {when} • {price}
-              </p>
-            </div>
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>{event.title}</h1>
+        <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 16 }}>
+          Página de inscrição (admin)
+        </p>
 
-            <div style={{ marginLeft: "auto" }}>
-              <Link href="/events" style={{ fontSize: 12, color: "#93c5fd", textDecoration: "underline" }}>
-                Events
-              </Link>
-            </div>
-          </div>
-        </header>
+        {error && <p style={{ color: "#fca5a5" }}>{error}</p>}
+        {success && <p style={{ color: "#86efac" }}>{success}</p>}
 
-        {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p>
-        ) : null}
-        {okMsg ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{okMsg}</p>
-        ) : null}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {fields.map((f) => {
+            const commonLabel = (
+              <label style={{ fontSize: 13, fontWeight: 600 }}>
+                {f.label}
+                {f.required && <span style={{ color: "#f87171" }}> *</span>}
+              </label>
+            );
 
-        <section
+            if (f.type === "checkbox") {
+              return (
+                <div key={f.key}>
+                  {commonLabel}
+                  <input
+                    type="checkbox"
+                    checked={!!values[f.key]}
+                    onChange={(e) => setField(f.key, e.target.checked)}
+                  />
+                </div>
+              );
+            }
+
+            if (f.type === "select") {
+              return (
+                <div key={f.key}>
+                  {commonLabel}
+                  <select
+                    value={toInputValue("select", values[f.key])}
+                    onChange={(e) => setField(f.key, e.target.value)}
+                    style={{ width: "100%", padding: 8 }}
+                  >
+                    <option value="">Selecione</option>
+                    {f.options?.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            }
+
+            return (
+              <div key={f.key}>
+                {commonLabel}
+                <input
+                  type={f.type === "number" ? "number" : "text"}
+                  value={toInputValue(f.type === "number" ? "number" : "text", values[f.key])}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  style={{ width: "100%", padding: 8 }}
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={handleSubmit}
+          disabled={saving}
           style={{
-            borderRadius: 18,
-            border: "1px solid rgba(148,163,184,0.35)",
-            background: "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-            padding: "14px 14px",
+            marginTop: 20,
+            padding: "12px 18px",
+            borderRadius: 999,
+            fontWeight: 800,
+            background: "linear-gradient(to right, #38bdf8, #0ea5e9)",
+            border: "none",
+            cursor: saving ? "not-allowed" : "pointer",
           }}
         >
-          <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>Registration</h2>
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: "8px 0 0 0" }}>
-            Complete the form below to register. No login required.
-          </p>
-
-          <form onSubmit={handleSubmit} style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Your name *">
-                <input value={attendeeName} onChange={(e) => setAttendeeName(e.target.value)} placeholder="Full name" style={inputStyle} />
-              </Field>
-
-              <Field label="Your email *">
-                <input value={attendeeEmail} onChange={(e) => setAttendeeEmail(e.target.value)} placeholder="you@email.com" style={inputStyle} />
-              </Field>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="WhatsApp (optional)">
-                <input value={attendeeWhatsapp} onChange={(e) => setAttendeeWhatsapp(e.target.value)} placeholder="+1 (xxx) xxx-xxxx" style={inputStyle} />
-              </Field>
-
-              <Field label="Nickname (optional)">
-                <input value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="Nickname" style={inputStyle} />
-              </Field>
-            </div>
-
-            <div style={{ height: 1, background: "rgba(148,163,184,0.25)", margin: "6px 0" }} />
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Payer email *">
-                <input value={payerEmail} onChange={(e) => setPayerEmail(e.target.value)} placeholder="payer@email.com" style={inputStyle} />
-              </Field>
-
-              <Field label="Payer phone (optional)">
-                <input value={payerPhone} onChange={(e) => setPayerPhone(e.target.value)} placeholder="+1 (xxx) xxx-xxxx" style={inputStyle} />
-              </Field>
-            </div>
-
-            <div style={{ height: 1, background: "rgba(148,163,184,0.25)", margin: "6px 0" }} />
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <Field label="Participant name *">
-                <input value={participantName} onChange={(e) => setParticipantName(e.target.value)} placeholder="Participant full name" style={inputStyle} />
-              </Field>
-
-              <Field label="Participant birthdate (optional)">
-                <input
-                  value={participantBirthdate}
-                  onChange={(e) => setParticipantBirthdate(e.target.value)}
-                  placeholder="YYYY-MM-DD"
-                  style={inputStyle}
-                />
-              </Field>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting || loading || !event}
-              style={{
-                marginTop: 6,
-                borderRadius: 999,
-                padding: "12px 18px",
-                border: "none",
-                fontSize: 13,
-                fontWeight: 900,
-                background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
-                color: "#0b1120",
-                cursor: submitting ? "not-allowed" : "pointer",
-              }}
-            >
-              {submitting
-                ? "Processing..."
-                : (event?.price_cents ?? 0) > 0
-                  ? "Continue to payment"
-                  : "Register"}
-            </button>
-
-            <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
-              By registering you agree to the event terms and policies.
-            </p>
-          </form>
-        </section>
-
-        {event?.description ? (
-          <section style={{ marginTop: 14, color: "#9ca3af", fontSize: 13, whiteSpace: "pre-wrap" }}>
-            {event.description}
-          </section>
-        ) : null}
+          {saving ? "Salvando…" : "Salvar inscrição"}
+        </button>
       </div>
     </main>
   );
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span style={{ fontSize: 12, color: "#93c5fd", fontWeight: 800 }}>{label}</span>
-      {children}
-    </div>
-  );
-}
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 12,
-  border: "1px solid rgba(148,163,184,0.35)",
-  background: "rgba(2,6,23,0.65)",
-  color: "#e5e7eb",
-  outline: "none",
-};
