@@ -1,8 +1,9 @@
+// app/events/[id]/register/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
@@ -16,42 +17,44 @@ type AppEventRow = {
   date: string;
   location: string | null;
   image_url: string | null;
-  created_by: string | null;
-  created_at: string | null;
+  image_path: string | null;
   sport: string | null;
   capacity: number | null;
   waitlist_capacity: number;
   price_cents: number;
+  currency?: string | null;
   organizer_whatsapp: string | null;
-  published: boolean;
-  updated_at: string;
-  location_name: string | null;
-  address_text: string | null;
-  lat: number | null;
-  lng: number | null;
-  street: string | null;
-  city: string | null;
-  state: string | null;
-  image_path: string | null;
-  organizer_id: string | null;
-  series_id: string | null;
-  series_index: number | null;
   contact_email: string | null;
+  published: boolean;
 };
 
-type FieldType = "text" | "email" | "phone" | "date" | "select" | "checkbox";
+type FieldType =
+  | "text"
+  | "email"
+  | "tel"
+  | "number"
+  | "date"
+  | "textarea"
+  | "select"
+  | "checkbox";
 
-type FormField = {
+type RegistrationField = {
+  id: string;
+  event_id: string;
   key: string;
-  label: string;
+  label: string | null;
   type: FieldType;
-  required?: boolean;
-  placeholder?: string;
-  // para select
-  options?: Array<{ label: string; value: string }>;
+  required: boolean | null;
+  options: string[] | null; // para select
+  placeholder: string | null;
+  helper_text: string | null;
+  sort_order: number | null;
+  default_value: string | null;
+  created_at?: string | null;
 };
 
-type ValuesMap = Record<string, string | boolean | null | undefined>;
+// ✅ Separar valores por tipo evita o TS quebrar em value=
+type ValuesState = Record<string, string | number | boolean>;
 
 /* ================= Utils ================= */
 
@@ -72,246 +75,278 @@ function formatDateTime(dt: string | null): string {
 }
 
 function dollarsFromCents(cents: number): string {
-  const v = (cents ?? 0) / 100;
+  const v = Math.max(0, cents || 0) / 100;
   return v.toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
-// ✅ converter para valor aceito por <input value> e <select value>
-// - select SEMPRE string
-// - checkbox SEMPRE boolean
-function toInputValue(type: FieldType, v: unknown): string | boolean {
-  if (type === "checkbox") return Boolean(v);
-
-  // daqui pra baixo: precisa ser string
-  if (v == null) return "";
-  if (typeof v === "string") return v;
-  if (typeof v === "number") return String(v);
-  if (typeof v === "boolean") return v ? "true" : ""; // ✅ NUNCA false
-  return "";
+// ✅ Nunca retornar boolean para value= (select/input/textarea)
+function toStringValue(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v);
 }
 
-function normalizePhone(s: string): string {
-  return s.replace(/[^\d+]/g, "").trim();
+function toNumberValue(v: unknown): number | "" {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "number") return Number.isFinite(v) ? v : "";
+  const n = Number(String(v));
+  return Number.isFinite(n) ? n : "";
 }
 
-function isEmail(s: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+function normalizeOptions(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((x) => String(x)).filter(Boolean);
+  }
+  if (typeof raw === "string") {
+    const parts = raw
+      .split(/[\n,]/g)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    return parts;
+  }
+  return [];
+}
+
+function safeBool(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string")
+    return ["true", "1", "yes", "y", "on"].includes(v.toLowerCase());
+  return false;
 }
 
 /* ================= Page ================= */
 
-export default function AdminEventRegisterPage() {
+export default function EventRegisterPage() {
   const router = useRouter();
   const { id: eventId } = useParams<{ id: string }>();
 
   const supabase = useMemo(() => supabaseBrowser, []);
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
-  const [eventRow, setEventRow] = useState<AppEventRow | null>(null);
+  const [event, setEvent] = useState<AppEventRow | null>(null);
+  const [fields, setFields] = useState<RegistrationField[]>([]);
+  const [values, setValues] = useState<ValuesState>({
+    attendee_name: "",
+    attendee_email: "",
+    attendee_whatsapp: "",
+  });
+
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // Campos do formulário (Admin = você pode ajustar por evento)
-  const fields: FormField[] = [
-    { key: "participant_name", label: "Participant name", type: "text", required: true, placeholder: "Full name" },
-    { key: "participant_birthdate", label: "Birthdate", type: "date", required: true },
-    { key: "participant_email", label: "Participant email", type: "email", required: true, placeholder: "name@email.com" },
-    { key: "attendee_whatsapp", label: "WhatsApp", type: "phone", required: true, placeholder: "+1 407..." },
-    { key: "nickname", label: "Nickname (optional)", type: "text", required: false, placeholder: "Nickname" },
-
-    // exemplo de campo custom (select)
-    {
-      key: "shirt_size",
-      label: "T-shirt size",
-      type: "select",
-      required: false,
-      options: [
-        { label: "—", value: "" },
-        { label: "S", value: "S" },
-        { label: "M", value: "M" },
-        { label: "L", value: "L" },
-        { label: "XL", value: "XL" },
-      ],
-    },
-
-    // exemplo checkbox
-    { key: "accept_terms", label: "I agree to the terms", type: "checkbox", required: true },
-  ];
-
-  const [values, setValues] = useState<ValuesMap>(() => {
-    const init: ValuesMap = {};
-    for (const f of fields) {
-      init[f.key] = f.type === "checkbox" ? false : "";
-    }
-    return init;
-  });
-
-  function setField(key: string, value: string | boolean) {
-    setValues((prev) => ({ ...prev, [key]: value }));
-  }
-
+  // ✅ página pública: carrega evento + campos
   useEffect(() => {
-    if (!eventId) return;
-
     let cancelled = false;
 
-    async function load() {
+    async function run() {
+      if (!eventId) return;
+
       setLoading(true);
       setError(null);
       setInfo(null);
 
-      // 1) precisa estar logado e ser admin
-      const { data: sessionRes, error: sessErr } = await supabase.auth.getSession();
-      if (sessErr) {
-        setError(sessErr.message);
-        setLoading(false);
-        return;
-      }
-      if (!sessionRes.session) {
-        router.replace("/login");
-        return;
-      }
-
-      const userId = sessionRes.session.user.id;
-
-      const { data: adminRow, error: adminErr } = await supabase
-        .from("app_admins")
-        .select("user_id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (adminErr) {
-        setError("Erro ao validar permissões de admin.");
-        setLoading(false);
-        return;
-      }
-      if (!adminRow) {
-        router.replace("/");
-        return;
-      }
-
-      // 2) carregar evento
-      const { data, error } = await supabase
+      // ✅ carrega evento publicado
+      const { data: ev, error: evErr } = await supabase
         .from("app_events")
         .select(
-          "id,title,description,date,location,image_url,created_by,created_at,sport,capacity,waitlist_capacity,price_cents,organizer_whatsapp,published,updated_at,location_name,address_text,lat,lng,street,city,state,image_path,organizer_id,series_id,series_index,contact_email"
+          "id,title,description,date,location,image_url,image_path,sport,capacity,waitlist_capacity,price_cents,organizer_whatsapp,contact_email,published"
         )
         .eq("id", eventId)
         .single();
 
       if (cancelled) return;
 
-      if (error) {
-        setError(error.message || "Failed to load event.");
-        setEventRow(null);
-      } else {
-        setEventRow(data as AppEventRow);
+      if (evErr) {
+        console.error(evErr);
+        setError(evErr.message || "Falha ao carregar evento.");
+        setEvent(null);
+        setFields([]);
+        setLoading(false);
+        return;
       }
 
-      setLoading(false);
-    }
+      const safeEvent = ev as AppEventRow;
 
-    load();
+      // ✅ se não publicado, não mostra
+      if (!safeEvent.published) {
+        setEvent(null);
+        setFields([]);
+        setError("Este evento não está publicado.");
+        setLoading(false);
+        return;
+      }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [supabase, eventId, router]);
+      setEvent(safeEvent);
 
-  function validate(): string | null {
-    for (const f of fields) {
-      const raw = values[f.key];
+      // ✅ carrega campos custom do evento
+      const { data: ff, error: ffErr } = await supabase
+        .from("app_event_registration_fields")
+        .select(
+          "id,event_id,key,label,type,required,options,placeholder,helper_text,sort_order,default_value"
+        )
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true });
 
-      if (f.required) {
+      if (cancelled) return;
+
+      const list = ((ff as RegistrationField[]) ?? []).filter(Boolean);
+      setFields(list);
+
+      // defaults
+      const initial: ValuesState = {
+        attendee_name: "",
+        attendee_email: "",
+        attendee_whatsapp: "",
+      };
+
+      for (const f of list) {
         if (f.type === "checkbox") {
-          if (raw !== true) return `Please accept: ${f.label}`;
+          initial[f.key] = safeBool(f.default_value);
+        } else if (f.type === "number") {
+          initial[f.key] = toNumberValue(f.default_value);
         } else {
-          const s = String(raw ?? "").trim();
-          if (!s) return `Missing: ${f.label}`;
+          initial[f.key] = f.default_value ?? "";
         }
       }
 
-      if (f.type === "email") {
-        const s = String(raw ?? "").trim();
-        if (s && !isEmail(s)) return "Invalid email.";
-      }
+      setValues((prev) => ({ ...initial, ...prev }));
+      setLoading(false);
     }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, supabase]);
+
+  function setField(key: string, v: string | number | boolean) {
+    setValues((prev) => ({ ...prev, [key]: v }));
+  }
+
+  function validate(): string | null {
+    // básicos
+    const name = toStringValue(values["attendee_name"]).trim();
+    const email = toStringValue(values["attendee_email"]).trim();
+    const wa = toStringValue(values["attendee_whatsapp"]).trim();
+
+    if (!name) return "Nome é obrigatório.";
+    if (!email) return "Email é obrigatório.";
+    if (!wa) return "WhatsApp é obrigatório.";
+
+    // custom required
+    for (const f of fields) {
+      const required = !!f.required;
+      if (!required) continue;
+
+      const v = values[f.key];
+
+      if (f.type === "checkbox") {
+        if (!safeBool(v)) return `Campo obrigatório: ${f.label || f.key}`;
+        continue;
+      }
+
+      if (f.type === "number") {
+        const n = typeof v === "number" ? v : Number(String(v ?? ""));
+        if (!Number.isFinite(n)) return `Campo obrigatório: ${f.label || f.key}`;
+        continue;
+      }
+
+      const s = toStringValue(v).trim();
+      if (!s.length) return `Campo obrigatório: ${f.label || f.key}`;
+    }
+
     return null;
   }
 
-  async function handleSaveTestRegistration() {
-    if (!eventRow) return;
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!event) return;
 
-    setSaving(true);
-    setError(null);
-    setInfo(null);
-
-    const vErr = validate();
-    if (vErr) {
-      setError(vErr);
-      setSaving(false);
+    const msg = validate();
+    if (msg) {
+      setError(msg);
       return;
     }
 
+    setBusy(true);
+    setError(null);
+    setInfo(null);
+
     try {
-      const payload: any = {
-        event_id: eventRow.id,
-        status: "registered",
-        payment_provider: "manual",
-        payment_status: eventRow.price_cents > 0 ? "unpaid" : "free",
-        amount_cents: eventRow.price_cents ?? 0,
-        currency: "USD",
-
-        // mapeamento para colunas existentes (você mostrou a lista)
-        nickname: String(values.nickname ?? "").trim() || null,
-        attendee_whatsapp: normalizePhone(String(values.attendee_whatsapp ?? "")),
-        attendee_name: String(values.participant_name ?? "").trim(),
-        attendee_email: String(values.participant_email ?? "").trim(),
-        payer_email: String(values.participant_email ?? "").trim(),
-        payer_phone: normalizePhone(String(values.attendee_whatsapp ?? "")),
-        participant_name: String(values.participant_name ?? "").trim(),
-        participant_birthdate: String(values.participant_birthdate ?? "").trim() || null,
-
-        // extras (se sua tabela tiver json, aqui não tem; então só guardamos no nickname por enquanto)
-        // se você quiser guardar campos variáveis de verdade, a gente cria uma coluna jsonb depois.
+      const payload = {
+        event_id: event.id,
+        status: "draft",
+        payment_provider: "stripe",
+        payment_status: "pending",
+        currency: "usd",
+        amount_cents: event.price_cents ?? 0,
+        attendee_name: toStringValue(values["attendee_name"]).trim(),
+        attendee_email: toStringValue(values["attendee_email"]).trim(),
+        attendee_whatsapp: toStringValue(values["attendee_whatsapp"]).trim(),
+        custom_fields: values,
       };
 
-      const { error: insErr } = await supabase.from("app_event_registrations").insert(payload);
-      if (insErr) throw new Error(insErr.message);
+      const { data: reg, error: regErr } = await supabase
+        .from("app_event_registrations")
+        .insert(payload as any)
+        .select("id")
+        .single();
 
-      setInfo("Registration saved (test).");
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to save registration.");
+      if (regErr) throw new Error(regErr.message);
+
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: event.id,
+          registrationId: reg?.id,
+          values,
+        }),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(
+          `Stripe checkout failed (${res.status}). ${t}`.trim()
+        );
+      }
+
+      const json = (await res.json()) as { url?: string };
+      if (json?.url) {
+        window.location.href = json.url;
+        return;
+      }
+
+      setInfo("Inscrição criada, mas checkout não retornou URL.");
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Falha ao criar inscrição.");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
-  const containerStyle: React.CSSProperties = {
-    minHeight: "100vh",
-    background: "#020617",
-    color: "#e5e7eb",
-    padding: 16,
-  };
+  /* ================= Styles ================= */
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 18,
     border: "1px solid rgba(148,163,184,0.35)",
-    background: "radial-gradient(circle at top left, #020617, #020617 55%, #000 100%)",
+    background:
+      "radial-gradient(circle at top left, #020617, #020617 55%, #000000 100%)",
     padding: 14,
   };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(148,163,184,0.35)",
-    background: "rgba(2,6,23,0.65)",
+    borderRadius: 14,
+    border: "1px solid rgba(148,163,184,0.25)",
+    background: "rgba(2,6,23,0.55)",
     color: "#e5e7eb",
-    outline: "none",
+    padding: "10px 12px",
     fontSize: 13,
+    outline: "none",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -321,23 +356,64 @@ export default function AdminEventRegisterPage() {
     fontWeight: 700,
   };
 
+  const helperStyle: React.CSSProperties = {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9ca3af",
+  };
+
+  const btnStyle: React.CSSProperties = {
+    borderRadius: 999,
+    padding: "10px 16px",
+    border: "none",
+    fontSize: 13,
+    fontWeight: 800,
+    background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
+    color: "#0b1120",
+    cursor: "pointer",
+  };
+
+  /* ================= Render ================= */
+
   if (loading) {
     return (
-      <main style={containerStyle}>
-        <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <p style={{ fontSize: 13, color: "#9ca3af" }}>Loading…</p>
-        </div>
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 16,
+        }}
+      >
+        <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>
+          Carregando…
+        </p>
       </main>
     );
   }
 
-  if (!eventRow) {
+  if (!event) {
     return (
-      <main style={containerStyle}>
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          padding: 16,
+        }}
+      >
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <p style={{ fontSize: 13, color: "#fca5a5" }}>{error ?? "Event not found."}</p>
-          <Link href="/admin/events" style={{ color: "#93c5fd", textDecoration: "underline", fontSize: 13 }}>
-            Back
+          <p style={{ fontSize: 14, color: "#fca5a5" }}>
+            {error || "Evento não encontrado."}
+          </p>
+          <Link
+            href="/events"
+            style={{ color: "#93c5fd", textDecoration: "underline", fontSize: 13 }}
+          >
+            Voltar
           </Link>
         </div>
       </main>
@@ -345,13 +421,21 @@ export default function AdminEventRegisterPage() {
   }
 
   return (
-    <main style={containerStyle}>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#020617",
+        color: "#e5e7eb",
+        padding: 16,
+      }}
+    >
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
+        {/* Header */}
         <header style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
               type="button"
-              onClick={() => router.push("/admin/events")}
+              onClick={() => router.push(`/events/${event.id}`)}
               style={{
                 width: 40,
                 height: 40,
@@ -364,133 +448,292 @@ export default function AdminEventRegisterPage() {
                 fontWeight: 900,
                 lineHeight: "40px",
               }}
-              aria-label="Back"
-              title="Back"
+              aria-label="Voltar"
+              title="Voltar"
             >
               ←
             </button>
 
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b", margin: 0 }}>
-                Admin • Registration (test)
+              <p
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  margin: 0,
+                }}
+              >
+                Registration
               </p>
-              <h1 style={{ fontSize: 20, fontWeight: 900, margin: "6px 0 0 0" }}>{eventRow.title}</h1>
+              <h1 style={{ fontSize: 20, fontWeight: 900, margin: "6px 0 0 0" }}>
+                {event.title}
+              </h1>
               <p style={{ fontSize: 13, color: "#9ca3af", margin: "6px 0 0 0" }}>
-                {formatDateTime(eventRow.date)} • {eventRow.location_name || eventRow.location || "—"} •{" "}
-                <span style={{ color: "#e5e7eb", fontWeight: 800 }}>{dollarsFromCents(eventRow.price_cents ?? 0)}</span>
+                {formatDateTime(event.date)} • {event.location || "—"} •{" "}
+                {dollarsFromCents(event.price_cents || 0)}
               </p>
-            </div>
-
-            <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Link href={`/events/${eventRow.id}/register`} style={{ color: "#93c5fd", textDecoration: "underline", fontSize: 13 }}>
-                Open public register
-              </Link>
             </div>
           </div>
         </header>
 
-        {error ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>{error}</p> : null}
-        {info ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>{info}</p> : null}
+        {error ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
+            {error}
+          </p>
+        ) : null}
+        {info ? (
+          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
+            {info}
+          </p>
+        ) : null}
 
+        {/* Card */}
         <section style={cardStyle}>
-          <h2 style={{ fontSize: 15, fontWeight: 900, margin: 0 }}>Form</h2>
-          <p style={{ fontSize: 13, color: "#9ca3af", margin: "8px 0 14px 0" }}>
-            Isso aqui é para testar o fluxo e salvar uma inscrição no Supabase.
+          <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
+            Inscrição
+          </h2>
+          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8, marginBottom: 12 }}>
+            Preencha seus dados para continuar para o pagamento.
           </p>
 
-          <div style={{ display: "grid", gap: 12 }}>
-            {fields.map((f) => {
-              const commonLabel = (
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <span>{f.label}</span>
-                  {f.required ? <span style={{ color: "#fda4af", fontWeight: 900 }}>*</span> : null}
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            {/* Campos comuns */}
+            <div>
+              <div style={labelStyle}>Nome *</div>
+              <input
+                type="text"
+                value={toStringValue(values["attendee_name"])}
+                onChange={(e) => setField("attendee_name", e.target.value)}
+                placeholder="Nome do participante"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>Email *</div>
+              <input
+                type="email"
+                value={toStringValue(values["attendee_email"])}
+                onChange={(e) => setField("attendee_email", e.target.value)}
+                placeholder="email@exemplo.com"
+                style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <div style={labelStyle}>WhatsApp *</div>
+              <input
+                type="tel"
+                value={toStringValue(values["attendee_whatsapp"])}
+                onChange={(e) => setField("attendee_whatsapp", e.target.value)}
+                placeholder="+1 (407) ..."
+                style={inputStyle}
+              />
+            </div>
+
+            {/* Campos dinâmicos */}
+            {fields.length ? (
+              <div style={{ marginTop: 6 }}>
+                <h3
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 800,
+                    margin: "8px 0 10px 0",
+                  }}
+                >
+                  Informações do evento
+                </h3>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {fields.map((f) => {
+                    const commonLabel = (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 10,
+                        }}
+                      >
+                        <span>{f.label || f.key}</span>
+                        {f.required ? (
+                          <span style={{ fontSize: 11, color: "#fca5a5" }}>
+                            * obrigatório
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+
+                    const placeholder = f.placeholder || undefined;
+                    const helper = f.helper_text ? (
+                      <div style={helperStyle}>{f.helper_text}</div>
+                    ) : null;
+
+                    if (f.type === "textarea") {
+                      return (
+                        <div key={f.id}>
+                          <div style={labelStyle}>{commonLabel}</div>
+                          <textarea
+                            value={toStringValue(values[f.key])}
+                            onChange={(e) => setField(f.key, e.target.value)}
+                            placeholder={placeholder}
+                            style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
+                          />
+                          {helper}
+                        </div>
+                      );
+                    }
+
+                    if (f.type === "select") {
+                      const opts = normalizeOptions(f.options);
+                      return (
+                        <div key={f.id}>
+                          <div style={labelStyle}>{commonLabel}</div>
+                          <select
+                            value={toStringValue(values[f.key])}
+                            onChange={(e) => setField(f.key, e.target.value)}
+                            style={inputStyle}
+                          >
+                            <option value="">Select…</option>
+                            {opts.map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                          {helper}
+                        </div>
+                      );
+                    }
+
+                    if (f.type === "checkbox") {
+                      return (
+                        <div
+                          key={f.id}
+                          style={{
+                            border: "1px solid rgba(148,163,184,0.25)",
+                            borderRadius: 14,
+                            padding: 12,
+                            background: "rgba(2,6,23,0.35)",
+                          }}
+                        >
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                              cursor: "pointer",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={safeBool(values[f.key])}
+                              onChange={(e) => setField(f.key, e.target.checked)}
+                              style={{ transform: "scale(1.1)" }}
+                            />
+                            <div style={{ display: "flex", flexDirection: "column" }}>
+                              <span
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: 800,
+                                  color: "#e5e7eb",
+                                }}
+                              >
+                                {f.label || f.key}{" "}
+                                {f.required ? (
+                                  <span style={{ color: "#fca5a5" }}>*</span>
+                                ) : null}
+                              </span>
+                              {f.helper_text ? (
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#9ca3af",
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {f.helper_text}
+                                </span>
+                              ) : null}
+                            </div>
+                          </label>
+                        </div>
+                      );
+                    }
+
+                    // input padrão
+                    const inputType: "text" | "email" | "tel" | "number" | "date" =
+                      (["email", "tel", "number", "date"].includes(f.type)
+                        ? f.type
+                        : "text") as any;
+
+                    const valueForInput =
+                      f.type === "number"
+                        ? toNumberValue(values[f.key])
+                        : toStringValue(values[f.key]);
+
+                    return (
+                      <div key={f.id}>
+                        <div style={labelStyle}>{commonLabel}</div>
+                        <input
+                          type={inputType}
+                          value={valueForInput}
+                          onChange={(e) => {
+                            if (f.type === "number") {
+                              const raw = e.target.value;
+                              if (raw === "") return setField(f.key, "");
+                              const n = Number(raw);
+                              setField(f.key, Number.isFinite(n) ? n : "");
+                              return;
+                            }
+                            setField(f.key, e.target.value);
+                          }}
+                          placeholder={placeholder}
+                          style={inputStyle}
+                        />
+                        {helper}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
+              </div>
+            ) : (
+              <div style={{ marginTop: 6, fontSize: 13, color: "#9ca3af" }}>
+                Nenhum campo dinâmico encontrado para este evento.
+              </div>
+            )}
 
-              if (f.type === "checkbox") {
-                return (
-                  <label key={f.key} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(toInputValue("checkbox", values[f.key]))}
-                      onChange={(e) => setField(f.key, e.target.checked)}
-                      style={{ width: 18, height: 18 }}
-                    />
-                    <span style={{ fontSize: 13, color: "#e5e7eb" }}>{f.label}</span>
-                  </label>
-                );
-              }
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+              <button
+                type="submit"
+                disabled={busy}
+                style={{ ...btnStyle, opacity: busy ? 0.6 : 1 }}
+              >
+                {busy ? "Abrindo checkout..." : "Continuar (Stripe)"}
+              </button>
 
-              if (f.type === "select") {
-                const v = toInputValue("select", values[f.key]); // ✅ sempre string
-                return (
-                  <div key={f.key}>
-                    <div style={labelStyle}>{commonLabel}</div>
-                    <select value={v as string} onChange={(e) => setField(f.key, e.target.value)} style={inputStyle}>
-                      {(f.options ?? [{ label: "—", value: "" }]).map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                );
-              }
-
-              const htmlType =
-                f.type === "email" ? "email" : f.type === "phone" ? "tel" : f.type === "date" ? "date" : "text";
-
-              const v = toInputValue(f.type, values[f.key]) as string;
-
-              return (
-                <div key={f.key}>
-                  <div style={labelStyle}>{commonLabel}</div>
-                  <input
-                    type={htmlType}
-                    value={v}
-                    placeholder={f.placeholder ?? ""}
-                    onChange={(e) => setField(f.key, e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
-            <button
-              onClick={handleSaveTestRegistration}
-              disabled={saving}
-              style={{
-                borderRadius: 999,
-                padding: "10px 18px",
-                border: "none",
-                fontSize: 13,
-                fontWeight: 900,
-                background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
-                color: "#0b1120",
-                cursor: saving ? "not-allowed" : "pointer",
-              }}
-            >
-              {saving ? "Saving…" : "Save test registration"}
-            </button>
-
-            <Link
-              href="/admin/events"
-              style={{
-                borderRadius: 999,
-                padding: "10px 18px",
-                border: "1px solid rgba(148,163,184,0.35)",
-                fontSize: 13,
-                fontWeight: 900,
-                color: "#e5e7eb",
-                textDecoration: "none",
-                background: "rgba(2,6,23,0.55)",
-              }}
-            >
-              Back
-            </Link>
-          </div>
+              <button
+                type="button"
+                onClick={() => router.push(`/events/${event.id}`)}
+                style={{
+                  borderRadius: 999,
+                  padding: "10px 16px",
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  background: "rgba(2,6,23,0.5)",
+                  color: "#e5e7eb",
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
         </section>
       </div>
     </main>
