@@ -16,27 +16,22 @@ type AppEventRow = {
   description: string | null;
   date: string;
   location: string | null;
-  image_url: string | null;
+
+  image_url: string | null; // legado
   image_path: string | null;
+
   sport: string | null;
   capacity: number | null;
   waitlist_capacity: number;
   price_cents: number;
-  currency?: string | null;
+
   organizer_whatsapp: string | null;
   contact_email: string | null;
+
   published: boolean;
 };
 
-type FieldType =
-  | "text"
-  | "email"
-  | "tel"
-  | "number"
-  | "date"
-  | "textarea"
-  | "select"
-  | "checkbox";
+type FieldType = "text" | "email" | "tel" | "number" | "date" | "textarea" | "select" | "checkbox";
 
 type RegistrationField = {
   id: string;
@@ -45,16 +40,14 @@ type RegistrationField = {
   label: string | null;
   type: FieldType;
   required: boolean | null;
-  options: string[] | null; // para select
+  options: string[] | null; // select
   placeholder: string | null;
   helper_text: string | null;
   sort_order: number | null;
   default_value: string | null;
-  created_at?: string | null;
 };
 
-// ✅ Separar valores por tipo evita o TS quebrar em value=
-type ValuesState = Record<string, string | number | boolean>;
+type ValuesState = Record<string, string | number | boolean | null | undefined>;
 
 /* ================= Utils ================= */
 
@@ -79,29 +72,13 @@ function dollarsFromCents(cents: number): string {
   return v.toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
-// ✅ Nunca retornar boolean para value= (select/input/textarea)
-function toStringValue(v: unknown): string {
-  if (v === null || v === undefined) return "";
-  return String(v);
-}
-
-function toNumberValue(v: unknown): number | "" {
-  if (v === null || v === undefined) return "";
-  if (typeof v === "number") return Number.isFinite(v) ? v : "";
-  const n = Number(String(v));
-  return Number.isFinite(n) ? n : "";
-}
-
 function normalizeOptions(raw: unknown): string[] {
-  if (Array.isArray(raw)) {
-    return raw.map((x) => String(x)).filter(Boolean);
-  }
+  if (Array.isArray(raw)) return raw.map((x) => String(x)).map((s) => s.trim()).filter(Boolean);
   if (typeof raw === "string") {
-    const parts = raw
+    return raw
       .split(/[\n,]/g)
       .map((s) => s.trim())
       .filter(Boolean);
-    return parts;
   }
   return [];
 }
@@ -109,9 +86,31 @@ function normalizeOptions(raw: unknown): string[] {
 function safeBool(v: unknown): boolean {
   if (typeof v === "boolean") return v;
   if (typeof v === "number") return v !== 0;
-  if (typeof v === "string")
-    return ["true", "1", "yes", "y", "on"].includes(v.toLowerCase());
+  if (typeof v === "string") return ["true", "1", "yes", "y", "on"].includes(v.toLowerCase());
   return false;
+}
+
+// ✅ nunca devolve boolean (para não quebrar value=)
+function toInputValue(type: FieldType, v: unknown): string | number {
+  if (v === null || v === undefined) return "";
+
+  // se algum boolean cair aqui por engano, vira string
+  if (typeof v === "boolean") return v ? "true" : "false";
+
+  if (type === "number") {
+    if (typeof v === "number") return Number.isFinite(v) ? v : "";
+    const n = Number(String(v));
+    return Number.isFinite(n) ? n : "";
+  }
+
+  return String(v);
+}
+
+// bucket de imagens do evento (ajusta se o seu bucket for outro)
+function getPublicImageUrl(path: string | null): string | null {
+  if (!path) return null;
+  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
+  return data?.publicUrl ?? null;
 }
 
 /* ================= Page ================= */
@@ -119,7 +118,6 @@ function safeBool(v: unknown): boolean {
 export default function EventRegisterPage() {
   const router = useRouter();
   const { id: eventId } = useParams<{ id: string }>();
-
   const supabase = useMemo(() => supabaseBrowser, []);
 
   const [loading, setLoading] = useState(true);
@@ -136,7 +134,7 @@ export default function EventRegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // ✅ página pública: carrega evento + campos
+  // 1) carrega evento (somente published) + campos
   useEffect(() => {
     let cancelled = false;
 
@@ -147,71 +145,65 @@ export default function EventRegisterPage() {
       setError(null);
       setInfo(null);
 
-      // ✅ carrega evento publicado
       const { data: ev, error: evErr } = await supabase
         .from("app_events")
         .select(
           "id,title,description,date,location,image_url,image_path,sport,capacity,waitlist_capacity,price_cents,organizer_whatsapp,contact_email,published"
         )
         .eq("id", eventId)
+        .eq("published", true)
         .single();
 
       if (cancelled) return;
 
       if (evErr) {
-        console.error(evErr);
-        setError(evErr.message || "Falha ao carregar evento.");
         setEvent(null);
         setFields([]);
         setLoading(false);
+        setError("Evento não encontrado ou não está publicado.");
         return;
       }
 
       const safeEvent = ev as AppEventRow;
-
-      // ✅ se não publicado, não mostra
-      if (!safeEvent.published) {
-        setEvent(null);
-        setFields([]);
-        setError("Este evento não está publicado.");
-        setLoading(false);
-        return;
-      }
-
       setEvent(safeEvent);
 
-      // ✅ carrega campos custom do evento
+      // campos dinâmicos
       const { data: ff, error: ffErr } = await supabase
         .from("app_event_registration_fields")
-        .select(
-          "id,event_id,key,label,type,required,options,placeholder,helper_text,sort_order,default_value"
-        )
+        .select("id,event_id,key,label,type,required,options,placeholder,helper_text,sort_order,default_value")
         .eq("event_id", eventId)
         .order("sort_order", { ascending: true });
 
       if (cancelled) return;
 
-      const list = ((ff as RegistrationField[]) ?? []).filter(Boolean);
-      setFields(list);
+      if (ffErr) {
+        // deixa funcionar sem campos dinâmicos
+        console.warn("Campos dinâmicos não carregaram:", ffErr.message);
+        setFields([]);
+      } else {
+        const list = (ff as RegistrationField[]) ?? [];
+        setFields(list);
 
-      // defaults
-      const initial: ValuesState = {
-        attendee_name: "",
-        attendee_email: "",
-        attendee_whatsapp: "",
-      };
+        // aplica defaults (sem quebrar value)
+        const initial: ValuesState = {
+          attendee_name: "",
+          attendee_email: "",
+          attendee_whatsapp: "",
+        };
 
-      for (const f of list) {
-        if (f.type === "checkbox") {
-          initial[f.key] = safeBool(f.default_value);
-        } else if (f.type === "number") {
-          initial[f.key] = toNumberValue(f.default_value);
-        } else {
-          initial[f.key] = f.default_value ?? "";
+        for (const f of list) {
+          if (f.type === "checkbox") {
+            initial[f.key] = safeBool(f.default_value);
+          } else if (f.type === "number") {
+            initial[f.key] =
+              f.default_value && Number.isFinite(Number(f.default_value)) ? Number(f.default_value) : "";
+          } else {
+            initial[f.key] = f.default_value ?? "";
+          }
         }
+        setValues((prev) => ({ ...initial, ...prev }));
       }
 
-      setValues((prev) => ({ ...initial, ...prev }));
       setLoading(false);
     }
 
@@ -226,20 +218,15 @@ export default function EventRegisterPage() {
   }
 
   function validate(): string | null {
-    // básicos
-    const name = toStringValue(values["attendee_name"]).trim();
-    const email = toStringValue(values["attendee_email"]).trim();
-    const wa = toStringValue(values["attendee_whatsapp"]).trim();
+    // ✅ campos básicos (sem login, então vamos exigir nome + email)
+    const name = String(values["attendee_name"] ?? "").trim();
+    const email = String(values["attendee_email"] ?? "").trim();
+    if (!name) return "Por favor, informe seu nome.";
+    if (!email) return "Por favor, informe seu email.";
 
-    if (!name) return "Nome é obrigatório.";
-    if (!email) return "Email é obrigatório.";
-    if (!wa) return "WhatsApp é obrigatório.";
-
-    // custom required
+    // ✅ valida campos dinâmicos required
     for (const f of fields) {
-      const required = !!f.required;
-      if (!required) continue;
-
+      if (!f.required) continue;
       const v = values[f.key];
 
       if (f.type === "checkbox") {
@@ -253,7 +240,7 @@ export default function EventRegisterPage() {
         continue;
       }
 
-      const s = toStringValue(v).trim();
+      const s = String(v ?? "").trim();
       if (!s.length) return `Campo obrigatório: ${f.label || f.key}`;
     }
 
@@ -275,16 +262,19 @@ export default function EventRegisterPage() {
     setInfo(null);
 
     try {
+      // ✅ cria inscrição no banco (sem login)
       const payload = {
         event_id: event.id,
-        status: "draft",
+        status: "pending",
         payment_provider: "stripe",
         payment_status: "pending",
         currency: "usd",
         amount_cents: event.price_cents ?? 0,
-        attendee_name: toStringValue(values["attendee_name"]).trim(),
-        attendee_email: toStringValue(values["attendee_email"]).trim(),
-        attendee_whatsapp: toStringValue(values["attendee_whatsapp"]).trim(),
+
+        attendee_name: String(values["attendee_name"] ?? "").trim() || null,
+        attendee_email: String(values["attendee_email"] ?? "").trim() || null,
+        attendee_whatsapp: String(values["attendee_whatsapp"] ?? "").trim() || null,
+
         custom_fields: values,
       };
 
@@ -294,8 +284,14 @@ export default function EventRegisterPage() {
         .select("id")
         .single();
 
-      if (regErr) throw new Error(regErr.message);
+      if (regErr) {
+        // Se isso acontecer, é 99% RLS bloqueando insert anônimo
+        throw new Error(
+          `Falha ao salvar inscrição. (${regErr.message})\n\nSe você estiver sem login, pode ser RLS bloqueando INSERT em app_event_registrations.`
+        );
+      }
 
+      // ✅ tenta abrir checkout (se sua rota existir)
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -308,9 +304,9 @@ export default function EventRegisterPage() {
 
       if (!res.ok) {
         const t = await res.text().catch(() => "");
-        throw new Error(
-          `Stripe checkout failed (${res.status}). ${t}`.trim()
-        );
+        // mantém a inscrição salva, só avisa
+        setInfo("Inscrição salva. Checkout ainda não configurado neste ambiente.");
+        throw new Error(`Stripe checkout failed (${res.status}). ${t}`.trim());
       }
 
       const json = (await res.json()) as { url?: string };
@@ -330,11 +326,17 @@ export default function EventRegisterPage() {
 
   /* ================= Styles ================= */
 
+  const pageBg: React.CSSProperties = {
+    minHeight: "100vh",
+    background: "#020617",
+    color: "#e5e7eb",
+    padding: 16,
+  };
+
   const cardStyle: React.CSSProperties = {
     borderRadius: 18,
     border: "1px solid rgba(148,163,184,0.35)",
-    background:
-      "radial-gradient(circle at top left, #020617, #020617 55%, #000000 100%)",
+    background: "radial-gradient(circle at top left, #020617, #020617 55%, #000000 100%)",
     padding: 14,
   };
 
@@ -373,47 +375,25 @@ export default function EventRegisterPage() {
     cursor: "pointer",
   };
 
+  const imgUrl = getPublicImageUrl(event?.image_path ?? null) || event?.image_url || null;
+
   /* ================= Render ================= */
 
   if (loading) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          background: "#020617",
-          color: "#e5e7eb",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 16,
-        }}
-      >
-        <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>
-          Carregando…
-        </p>
+      <main style={{ ...pageBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>Carregando…</p>
       </main>
     );
   }
 
   if (!event) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          background: "#020617",
-          color: "#e5e7eb",
-          padding: 16,
-        }}
-      >
+      <main style={pageBg}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <p style={{ fontSize: 14, color: "#fca5a5" }}>
-            {error || "Evento não encontrado."}
-          </p>
-          <Link
-            href="/events"
-            style={{ color: "#93c5fd", textDecoration: "underline", fontSize: 13 }}
-          >
-            Voltar
+          <p style={{ fontSize: 14, color: "#fca5a5" }}>{error || "Evento não encontrado."}</p>
+          <Link href="/events" style={{ color: "#93c5fd", textDecoration: "underline", fontSize: 13 }}>
+            Voltar para eventos
           </Link>
         </div>
       </main>
@@ -421,14 +401,7 @@ export default function EventRegisterPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        padding: 16,
-      }}
-    >
+    <main style={pageBg}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         {/* Header */}
         <header style={{ marginBottom: 14 }}>
@@ -455,60 +428,70 @@ export default function EventRegisterPage() {
             </button>
 
             <div style={{ minWidth: 0 }}>
-              <p
-                style={{
-                  fontSize: 11,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: "#64748b",
-                  margin: 0,
-                }}
-              >
-                Registration
+              <p style={{ fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "#64748b", margin: 0 }}>
+                Event • Registration
               </p>
-              <h1 style={{ fontSize: 20, fontWeight: 900, margin: "6px 0 0 0" }}>
-                {event.title}
-              </h1>
+              <h1 style={{ fontSize: 20, fontWeight: 900, margin: "6px 0 0 0" }}>{event.title}</h1>
               <p style={{ fontSize: 13, color: "#9ca3af", margin: "6px 0 0 0" }}>
-                {formatDateTime(event.date)} • {event.location || "—"} •{" "}
-                {dollarsFromCents(event.price_cents || 0)}
+                {formatDateTime(event.date)} • {event.location || "—"} • {dollarsFromCents(event.price_cents || 0)}
               </p>
+            </div>
+
+            <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Link href="/events" style={{ fontSize: 12, color: "#93c5fd", textDecoration: "underline" }}>
+                Eventos
+              </Link>
             </div>
           </div>
         </header>
 
-        {error ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5" }}>
-            {error}
-          </p>
-        ) : null}
-        {info ? (
-          <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac" }}>
-            {info}
-          </p>
-        ) : null}
+        {error ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#fca5a5", whiteSpace: "pre-wrap" }}>{error}</p> : null}
+        {info ? <p style={{ margin: "0 0 12px 0", fontSize: 13, color: "#86efac", whiteSpace: "pre-wrap" }}>{info}</p> : null}
 
-        {/* Card */}
-        <section style={cardStyle}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
-            Inscrição
-          </h2>
-          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8, marginBottom: 12 }}>
-            Preencha seus dados para continuar para o pagamento.
-          </p>
-
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+        {/* Imagem */}
+        <section style={{ ...cardStyle, marginBottom: 12 }}>
+          <div
+            style={{
+              width: "100%",
+              height: 240,
+              borderRadius: 14,
+              border: "1px solid rgba(148,163,184,0.25)",
+              overflow: "hidden",
+              background: "rgba(0,0,0,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            {/* Campos comuns */}
+            {imgUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imgUrl} alt={event.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            ) : (
+              <span style={{ fontSize: 12, color: "#9ca3af" }}>Sem imagem</span>
+            )}
+          </div>
+
+          {event.description ? (
+            <p style={{ margin: "12px 0 0 0", fontSize: 13, color: "#9ca3af", whiteSpace: "pre-wrap" }}>{event.description}</p>
+          ) : null}
+        </section>
+
+        {/* Form */}
+        <section style={cardStyle}>
+          <h2 style={{ fontSize: 15, fontWeight: 900, margin: 0 }}>Inscrição</h2>
+          <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8, marginBottom: 12 }}>
+            Preencha seus dados para continuar. (Sem login)
+          </p>
+
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {/* básicos */}
             <div>
               <div style={labelStyle}>Nome *</div>
               <input
                 type="text"
-                value={toStringValue(values["attendee_name"])}
+                value={String(values["attendee_name"] ?? "")}
                 onChange={(e) => setField("attendee_name", e.target.value)}
-                placeholder="Nome do participante"
+                placeholder="Seu nome"
                 style={inputStyle}
               />
             </div>
@@ -517,7 +500,7 @@ export default function EventRegisterPage() {
               <div style={labelStyle}>Email *</div>
               <input
                 type="email"
-                value={toStringValue(values["attendee_email"])}
+                value={String(values["attendee_email"] ?? "")}
                 onChange={(e) => setField("attendee_email", e.target.value)}
                 placeholder="email@exemplo.com"
                 style={inputStyle}
@@ -525,60 +508,39 @@ export default function EventRegisterPage() {
             </div>
 
             <div>
-              <div style={labelStyle}>WhatsApp *</div>
+              <div style={labelStyle}>WhatsApp (opcional)</div>
               <input
                 type="tel"
-                value={toStringValue(values["attendee_whatsapp"])}
+                value={String(values["attendee_whatsapp"] ?? "")}
                 onChange={(e) => setField("attendee_whatsapp", e.target.value)}
                 placeholder="+1 (407) ..."
                 style={inputStyle}
               />
             </div>
 
-            {/* Campos dinâmicos */}
+            {/* dinâmicos */}
             {fields.length ? (
               <div style={{ marginTop: 6 }}>
-                <h3
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 800,
-                    margin: "8px 0 10px 0",
-                  }}
-                >
-                  Informações do evento
-                </h3>
+                <h3 style={{ fontSize: 14, fontWeight: 900, margin: "8px 0 10px 0" }}>Informações adicionais</h3>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                   {fields.map((f) => {
                     const commonLabel = (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 10,
-                        }}
-                      >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                         <span>{f.label || f.key}</span>
-                        {f.required ? (
-                          <span style={{ fontSize: 11, color: "#fca5a5" }}>
-                            * obrigatório
-                          </span>
-                        ) : null}
+                        {f.required ? <span style={{ fontSize: 11, color: "#fca5a5" }}>* obrigatório</span> : null}
                       </div>
                     );
 
                     const placeholder = f.placeholder || undefined;
-                    const helper = f.helper_text ? (
-                      <div style={helperStyle}>{f.helper_text}</div>
-                    ) : null;
+                    const helper = f.helper_text ? <div style={helperStyle}>{f.helper_text}</div> : null;
 
                     if (f.type === "textarea") {
                       return (
                         <div key={f.id}>
                           <div style={labelStyle}>{commonLabel}</div>
                           <textarea
-                            value={toStringValue(values[f.key])}
+                            value={String(toInputValue("textarea", values[f.key]))}
                             onChange={(e) => setField(f.key, e.target.value)}
                             placeholder={placeholder}
                             style={{ ...inputStyle, minHeight: 110, resize: "vertical" }}
@@ -594,7 +556,7 @@ export default function EventRegisterPage() {
                         <div key={f.id}>
                           <div style={labelStyle}>{commonLabel}</div>
                           <select
-                            value={toStringValue(values[f.key])}
+                            value={String(toInputValue("select", values[f.key]))}
                             onChange={(e) => setField(f.key, e.target.value)}
                             style={inputStyle}
                           >
@@ -621,14 +583,7 @@ export default function EventRegisterPage() {
                             background: "rgba(2,6,23,0.35)",
                           }}
                         >
-                          <label
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              cursor: "pointer",
-                            }}
-                          >
+                          <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                             <input
                               type="checkbox"
                               checked={safeBool(values[f.key])}
@@ -636,52 +591,26 @@ export default function EventRegisterPage() {
                               style={{ transform: "scale(1.1)" }}
                             />
                             <div style={{ display: "flex", flexDirection: "column" }}>
-                              <span
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 800,
-                                  color: "#e5e7eb",
-                                }}
-                              >
-                                {f.label || f.key}{" "}
-                                {f.required ? (
-                                  <span style={{ color: "#fca5a5" }}>*</span>
-                                ) : null}
+                              <span style={{ fontSize: 13, fontWeight: 900, color: "#e5e7eb" }}>
+                                {f.label || f.key} {f.required ? <span style={{ color: "#fca5a5" }}>*</span> : null}
                               </span>
-                              {f.helper_text ? (
-                                <span
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#9ca3af",
-                                    marginTop: 2,
-                                  }}
-                                >
-                                  {f.helper_text}
-                                </span>
-                              ) : null}
+                              {f.helper_text ? <span style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{f.helper_text}</span> : null}
                             </div>
                           </label>
                         </div>
                       );
                     }
 
-                    // input padrão
+                    // default input
                     const inputType: "text" | "email" | "tel" | "number" | "date" =
-                      (["email", "tel", "number", "date"].includes(f.type)
-                        ? f.type
-                        : "text") as any;
-
-                    const valueForInput =
-                      f.type === "number"
-                        ? toNumberValue(values[f.key])
-                        : toStringValue(values[f.key]);
+                      (["email", "tel", "number", "date"].includes(f.type) ? f.type : "text") as any;
 
                     return (
                       <div key={f.id}>
                         <div style={labelStyle}>{commonLabel}</div>
                         <input
                           type={inputType}
-                          value={valueForInput}
+                          value={String(toInputValue(f.type, values[f.key]))}
                           onChange={(e) => {
                             if (f.type === "number") {
                               const raw = e.target.value;
@@ -701,19 +630,11 @@ export default function EventRegisterPage() {
                   })}
                 </div>
               </div>
-            ) : (
-              <div style={{ marginTop: 6, fontSize: 13, color: "#9ca3af" }}>
-                Nenhum campo dinâmico encontrado para este evento.
-              </div>
-            )}
+            ) : null}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
-              <button
-                type="submit"
-                disabled={busy}
-                style={{ ...btnStyle, opacity: busy ? 0.6 : 1 }}
-              >
-                {busy ? "Abrindo checkout..." : "Continuar (Stripe)"}
+              <button type="submit" disabled={busy} style={{ ...btnStyle, opacity: busy ? 0.6 : 1 }}>
+                {busy ? "Processando..." : "Continuar (Pagamento)"}
               </button>
 
               <button
@@ -724,7 +645,7 @@ export default function EventRegisterPage() {
                   padding: "10px 16px",
                   border: "1px solid rgba(148,163,184,0.35)",
                   fontSize: 13,
-                  fontWeight: 800,
+                  fontWeight: 900,
                   background: "rgba(2,6,23,0.5)",
                   color: "#e5e7eb",
                   cursor: "pointer",
@@ -733,6 +654,15 @@ export default function EventRegisterPage() {
                 Cancelar
               </button>
             </div>
+
+            <p style={{ margin: "10px 0 0 0", fontSize: 12, color: "#64748b" }}>
+              Problema?{" "}
+              {event.contact_email ? (
+                <span style={{ color: "#93c5fd" }}>{event.contact_email}</span>
+              ) : (
+                <span style={{ color: "#93c5fd" }}>Fale com o organizador</span>
+              )}
+            </p>
           </form>
         </section>
       </div>
