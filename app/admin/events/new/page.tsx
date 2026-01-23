@@ -22,6 +22,8 @@ type FormState = {
   price_cents: string;
   organizer_whatsapp: string;
 
+  registration_url: string; // ✅ NOVO (link de inscrição)
+
   published: boolean;
 };
 
@@ -51,6 +53,8 @@ export default function AdminNewEventPage() {
     waitlist_capacity: "0",
     price_cents: "0",
     organizer_whatsapp: "",
+
+    registration_url: "", // ✅ NOVO
 
     published: false,
   });
@@ -108,33 +112,9 @@ export default function AdminNewEventPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  // datetime-local -> ISO
   const toISOFromLocal = (local: string) => {
     const d = new Date(local);
     return d.toISOString();
-  };
-
-  const pageWrap: React.CSSProperties = {
-    minHeight: "100vh",
-    background: "#020617",
-    color: "#e5e7eb",
-    padding: 16,
-  };
-
-  const card: React.CSSProperties = {
-    borderRadius: 18,
-    padding: 14,
-    background: "radial-gradient(circle at top, rgba(15,23,42,0.95), rgba(2,6,23,1) 60%)",
-    border: "1px solid rgba(148,163,184,0.35)",
-    display: "grid",
-    gap: 12,
-  };
-
-  const box: React.CSSProperties = {
-    borderRadius: 16,
-    padding: 12,
-    border: "1px solid rgba(148,163,184,0.18)",
-    background: "rgba(2,6,23,0.35)",
   };
 
   const inputStyle: React.CSSProperties = {
@@ -146,7 +126,6 @@ export default function AdminNewEventPage() {
     background: "rgba(2,6,23,0.65)",
     color: "#e5e7eb",
     fontSize: 13,
-    outline: "none",
   };
 
   const labelStyle: React.CSSProperties = {
@@ -155,12 +134,10 @@ export default function AdminNewEventPage() {
     fontWeight: 800,
   };
 
-  const sectionTitle: React.CSSProperties = {
-    margin: 0,
-    marginBottom: 10,
-    fontSize: 13,
-    fontWeight: 900,
-    color: "#e5e7eb",
+  const helperStyle: React.CSSProperties = {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#9ca3af",
   };
 
   const requireField = (label: string, value: string) => {
@@ -175,36 +152,42 @@ export default function AdminNewEventPage() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
   };
 
-  const toIntOrNull = (s: string) => {
-    const t = (s ?? "").trim();
-    if (!t.length) return null;
-    const n = Number(t);
-    if (!Number.isFinite(n)) return null;
-    return Math.trunc(n);
-  };
-
-  const toIntOrZero = (s: string) => {
-    const t = (s ?? "").trim();
-    if (!t.length) return 0;
-    const n = Number(t);
-    if (!Number.isFinite(n)) return 0;
-    return Math.max(0, Math.trunc(n));
+  const isValidUrlOrEmpty = (s: string) => {
+    const v = (s || "").trim();
+    if (!v) return true;
+    try {
+      // aceita http/https
+      const u = new URL(v);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    // ✅ obrigatórios mínimos
+    if (!imageFile) return setErrorMsg("Imagem do evento é obrigatória.");
+
     if (!requireField("Título", form.title)) return;
     if (!form.dateLocal) return setErrorMsg("Data/hora é obrigatória.");
-    if (!requireField("Endereço (texto)", form.address_text)) return;
-    if (!requireField("Cidade", form.city)) return;
-    if (!requireField("Estado", form.state)) return;
-    if (!requireField("Email de contato", form.contact_email)) return;
+    if (!requireField("Descrição", form.description)) return;
+    if (!requireField("Esporte", form.sport)) return;
 
+    if (!requireField("Local (nome)", form.location_name)) return;
+    if (!requireField("Address", form.address_text)) return;
+    if (!requireField("City", form.city)) return;
+    if (!requireField("State", form.state)) return;
+
+    if (!requireField("Email de contato", form.contact_email)) return;
     if (!isValidEmail(form.contact_email)) {
       setErrorMsg("Email de contato inválido.");
+      return;
+    }
+
+    if (!isValidUrlOrEmpty(form.registration_url)) {
+      setErrorMsg("Link de inscrição inválido. Use um link completo começando com https://");
       return;
     }
 
@@ -222,50 +205,50 @@ export default function AdminNewEventPage() {
 
       const userId = session.user.id;
 
-      // ✅ imagem é opcional (só faz upload se existir)
-      let imagePath: string | null = null;
+      // upload imagem
+      const safeName = imageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const imagePath = `events/${userId}/${Date.now()}_${safeName}`;
 
-      if (imageFile) {
-        const safeName = imageFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        imagePath = `events/${userId}/${Date.now()}_${safeName}`;
-
-        const { error: uploadErr } = await supabaseBrowser.storage.from("event-images").upload(imagePath, imageFile, {
+      const { error: uploadErr } = await supabaseBrowser.storage
+        .from("event-images")
+        .upload(imagePath, imageFile, {
           cacheControl: "3600",
           upsert: false,
           contentType: imageFile.type || "image/jpeg",
         });
 
-        if (uploadErr) {
-          console.error("Erro upload image:", uploadErr);
-          setErrorMsg("Erro ao enviar imagem. Verifique as permissões do bucket.");
-          return;
-        }
+      if (uploadErr) {
+        console.error("Erro upload image:", uploadErr);
+        setErrorMsg("Erro ao enviar imagem. Verifique as permissões do bucket.");
+        return;
       }
 
       const payload: any = {
-        // obrigatórios
         title: form.title.trim(),
+        description: form.description.trim(),
         date: toISOFromLocal(form.dateLocal),
+        sport: form.sport.trim(),
+
+        location_name: form.location_name.trim(),
         address_text: form.address_text.trim(),
         city: form.city.trim(),
         state: form.state.trim(),
+
         contact_email: form.contact_email.trim(),
 
-        // opcionais
-        description: form.description.trim() || null,
-        sport: form.sport.trim() || null,
-        location_name: form.location_name.trim() || null,
+        // ✅ NOVO: link de inscrição (pode ser null)
+        registration_url: form.registration_url.trim() || null,
 
-        capacity: toIntOrNull(form.capacity),
-        waitlist_capacity: toIntOrZero(form.waitlist_capacity),
-        price_cents: toIntOrZero(form.price_cents),
+        capacity: form.capacity ? Number(form.capacity) : null,
+        waitlist_capacity: Number(form.waitlist_capacity || "0"),
+        price_cents: Number(form.price_cents || "0"),
         organizer_whatsapp: form.organizer_whatsapp.trim() || null,
 
         image_path: imagePath,
         image_url: null,
 
         created_by: userId,
-        published: !!form.published,
+        published: form.published,
         updated_at: new Date().toISOString(),
       };
 
@@ -273,10 +256,7 @@ export default function AdminNewEventPage() {
 
       if (insertErr) {
         console.error("Erro insert app_events:", insertErr);
-        // rollback da imagem se foi enviada
-        if (imagePath) {
-          await supabaseBrowser.storage.from("event-images").remove([imagePath]);
-        }
+        await supabaseBrowser.storage.from("event-images").remove([imagePath]);
         setErrorMsg("Erro ao criar evento. Verifique RLS/permissões no app_events.");
         return;
       }
@@ -310,7 +290,7 @@ export default function AdminNewEventPage() {
   }
 
   return (
-    <main style={pageWrap}>
+    <main style={{ minHeight: "100vh", background: "#020617", color: "#e5e7eb", padding: "16px" }}>
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <header style={{ marginBottom: 14 }}>
           <button
@@ -331,9 +311,6 @@ export default function AdminNewEventPage() {
           </button>
 
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>Novo evento</h1>
-          <p style={{ margin: "8px 0 0 0", fontSize: 13, color: "#9ca3af" }}>
-            Obrigatórios: Título, Data/hora, Endereço (texto), Cidade, Estado, Email. (WhatsApp é opcional.)
-          </p>
         </header>
 
         {errorMsg && (
@@ -352,145 +329,131 @@ export default function AdminNewEventPage() {
           </div>
         )}
 
-        <form onSubmit={handleCreate} style={card}>
-          {/* Básico */}
-          <div style={box}>
-            <p style={sectionTitle}>Básico</p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-              <div>
-                <label style={labelStyle}>Título *</label>
-                <input value={form.title} onChange={(e) => setField("title", e.target.value)} style={inputStyle} />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Data e hora *</label>
-                <input
-                  type="datetime-local"
-                  value={form.dateLocal}
-                  onChange={(e) => setField("dateLocal", e.target.value)}
-                  style={inputStyle}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label style={labelStyle}>Esporte (opcional)</label>
-                  <input value={form.sport} onChange={(e) => setField("sport", e.target.value)} style={inputStyle} placeholder="Soccer, Run..." />
-                </div>
-
-                <div>
-                  <label style={labelStyle}>Local (nome) (opcional)</label>
-                  <input value={form.location_name} onChange={(e) => setField("location_name", e.target.value)} style={inputStyle} placeholder="OCSC - Millenia" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Endereço */}
-          <div style={box}>
-            <p style={sectionTitle}>Endereço (usado no mapa)</p>
-
-            <div>
-              <label style={labelStyle}>Endereço (texto) *</label>
-              <input
-                value={form.address_text}
-                onChange={(e) => setField("address_text", e.target.value)}
-                style={inputStyle}
-                placeholder="3516 President Barack Obama Pkwy"
-              />
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
-              <div>
-                <label style={labelStyle}>Cidade *</label>
-                <input value={form.city} onChange={(e) => setField("city", e.target.value)} style={inputStyle} placeholder="Orlando" />
-              </div>
-              <div>
-                <label style={labelStyle}>Estado *</label>
-                <input value={form.state} onChange={(e) => setField("state", e.target.value)} style={inputStyle} placeholder="FL" />
-              </div>
-            </div>
-          </div>
-
-          {/* Contato */}
-          <div style={box}>
-            <p style={sectionTitle}>Contato</p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div>
-                <label style={labelStyle}>Email de contato *</label>
-                <input
-                  type="email"
-                  value={form.contact_email}
-                  onChange={(e) => setField("contact_email", e.target.value)}
-                  style={inputStyle}
-                  placeholder="contato@..."
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>WhatsApp (opcional)</label>
-                <input
-                  value={form.organizer_whatsapp}
-                  onChange={(e) => setField("organizer_whatsapp", e.target.value)}
-                  style={inputStyle}
-                  placeholder="+1 (407) ..."
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Detalhes opcionais */}
-          <div style={box}>
-            <p style={sectionTitle}>Detalhes (opcional)</p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-              <div>
-                <label style={labelStyle}>Capacidade</label>
-                <input type="number" value={form.capacity} onChange={(e) => setField("capacity", e.target.value)} style={inputStyle} placeholder="ex: 32" />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Lista de espera</label>
-                <input
-                  type="number"
-                  value={form.waitlist_capacity}
-                  onChange={(e) => setField("waitlist_capacity", e.target.value)}
-                  style={inputStyle}
-                  placeholder="0"
-                />
-              </div>
-
-              <div>
-                <label style={labelStyle}>Preço (cents)</label>
-                <input type="number" value={form.price_cents} onChange={(e) => setField("price_cents", e.target.value)} style={inputStyle} placeholder="0" />
-              </div>
-            </div>
-
-            <div style={{ marginTop: 10 }}>
-              <label style={labelStyle}>Descrição (opcional)</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setField("description", e.target.value)}
-                rows={4}
-                style={{ ...inputStyle, resize: "vertical" }}
-                placeholder="Detalhes do evento…"
-              />
-            </div>
-          </div>
-
-          {/* Imagem (opcional) */}
-          <div style={box}>
-            <p style={sectionTitle}>Imagem (opcional)</p>
-
-            <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} style={{ color: "#e5e7eb", fontSize: 13 }} />
+        <form
+          onSubmit={handleCreate}
+          style={{
+            borderRadius: 18,
+            padding: "14px",
+            background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
+            border: "1px solid rgba(148,163,184,0.35)",
+            display: "grid",
+            gap: 12,
+          }}
+        >
+          {/* Imagem */}
+          <div>
+            <p style={{ margin: 0, marginBottom: 6, fontSize: 12, color: "#d1d5db", fontWeight: 800 }}>
+              Imagem do evento *
+            </p>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              style={{ color: "#e5e7eb", fontSize: 13 }}
+            />
             {imagePreviewUrl && (
               <div style={{ marginTop: 10, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(148,163,184,0.25)" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imagePreviewUrl} alt="Preview" style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }} />
               </div>
             )}
+          </div>
+
+          {/* Básico */}
+          <div>
+            <label style={labelStyle}>Título *</label>
+            <input value={form.title} onChange={(e) => setField("title", e.target.value)} style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Data e hora *</label>
+            <input type="datetime-local" value={form.dateLocal} onChange={(e) => setField("dateLocal", e.target.value)} style={inputStyle} />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Descrição *</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setField("description", e.target.value)}
+              rows={4}
+              style={{ ...inputStyle, resize: "vertical" }}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Esporte *</label>
+            <input value={form.sport} onChange={(e) => setField("sport", e.target.value)} style={inputStyle} />
+          </div>
+
+          {/* Address */}
+          <div style={{ borderRadius: 16, padding: 12, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(2,6,23,0.35)" }}>
+            <p style={{ margin: 0, marginBottom: 10, fontSize: 13, fontWeight: 900 }}>Endereço</p>
+
+            <div>
+              <label style={labelStyle}>Local (nome) *</label>
+              <input value={form.location_name} onChange={(e) => setField("location_name", e.target.value)} style={inputStyle} />
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <label style={labelStyle}>Address (texto) *</label>
+              <input value={form.address_text} onChange={(e) => setField("address_text", e.target.value)} style={inputStyle} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+              <div>
+                <label style={labelStyle}>City *</label>
+                <input value={form.city} onChange={(e) => setField("city", e.target.value)} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>State *</label>
+                <input value={form.state} onChange={(e) => setField("state", e.target.value)} style={inputStyle} />
+              </div>
+            </div>
+          </div>
+
+          {/* Contato */}
+          <div>
+            <label style={labelStyle}>Email de contato *</label>
+            <input
+              type="email"
+              value={form.contact_email}
+              onChange={(e) => setField("contact_email", e.target.value)}
+              style={inputStyle}
+              placeholder="contato@..."
+            />
+          </div>
+
+          {/* ✅ Link de inscrição */}
+          <div>
+            <label style={labelStyle}>Link de inscrição (Register)</label>
+            <input
+              value={form.registration_url}
+              onChange={(e) => setField("registration_url", e.target.value)}
+              style={inputStyle}
+              placeholder="https://..."
+            />
+            <div style={helperStyle}>Ex: Jotform, Google Forms, Eventbrite, Stripe Checkout, etc.</div>
+          </div>
+
+          {/* Opcionais */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={labelStyle}>Capacity (opcional)</label>
+              <input type="number" value={form.capacity} onChange={(e) => setField("capacity", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Waitlist (opcional)</label>
+              <input type="number" value={form.waitlist_capacity} onChange={(e) => setField("waitlist_capacity", e.target.value)} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Price (cents) (opcional)</label>
+              <input type="number" value={form.price_cents} onChange={(e) => setField("price_cents", e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>WhatsApp do organizer (opcional)</label>
+            <input value={form.organizer_whatsapp} onChange={(e) => setField("organizer_whatsapp", e.target.value)} style={inputStyle} placeholder="+1..." />
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

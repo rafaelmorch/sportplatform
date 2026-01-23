@@ -28,6 +28,8 @@ type AppEventRow = {
   organizer_whatsapp: string | null;
   contact_email: string | null;
 
+  registration_url: string | null; // ✅ NOVO
+
   published: boolean; // NOT NULL
   organizer_id: string | null;
 
@@ -84,6 +86,17 @@ function centsToDollarsString(cents: number | null | undefined): string {
   return (c / 100).toFixed(2);
 }
 
+function isValidUrlOrEmpty(s: string): boolean {
+  const v = safeTrim(s);
+  if (!v) return true;
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 /* ================= Page ================= */
 
 export default function AdminEventEditPage() {
@@ -125,6 +138,8 @@ export default function AdminEventEditPage() {
   const [organizerWhatsapp, setOrganizerWhatsapp] = useState("");
   const [contactEmail, setContactEmail] = useState("");
 
+  const [registrationUrl, setRegistrationUrl] = useState(""); // ✅ NOVO
+
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [imageUrlLegacy, setImageUrlLegacy] = useState<string | null>(null);
 
@@ -163,6 +178,8 @@ export default function AdminEventEditPage() {
 
     setOrganizerWhatsapp(row.organizer_whatsapp ?? "");
     setContactEmail(row.contact_email ?? "");
+
+    setRegistrationUrl(row.registration_url ?? ""); // ✅ NOVO
 
     setImagePath(row.image_path ?? null);
     setImageUrlLegacy(row.image_url ?? null);
@@ -249,6 +266,7 @@ export default function AdminEventEditPage() {
             "series_id",
             "series_index",
             "contact_email",
+            "registration_url", // ✅ NOVO
           ].join(",")
         )
         .eq("id", eventId)
@@ -285,6 +303,8 @@ export default function AdminEventEditPage() {
         sport: row.sport ?? null,
         capacity: row.capacity ?? null,
         organizer_whatsapp: row.organizer_whatsapp ?? null,
+        contact_email: row.contact_email ?? null,
+        registration_url: row.registration_url ?? null, // ✅ NOVO
         location_name: row.location_name ?? null,
         address_text: row.address_text ?? null,
         lat: row.lat ?? null,
@@ -295,7 +315,6 @@ export default function AdminEventEditPage() {
         organizer_id: row.organizer_id ?? null,
         series_id: row.series_id ?? null,
         series_index: row.series_index ?? null,
-        contact_email: row.contact_email ?? null,
       };
 
       setEventRow(safe);
@@ -323,6 +342,10 @@ export default function AdminEventEditPage() {
 
       if (!dateLocal) throw new Error("Data/Hora é obrigatória.");
 
+      if (!isValidUrlOrEmpty(registrationUrl)) {
+        throw new Error("Link de inscrição inválido. Use um link completo começando com https://");
+      }
+
       // datetime-local -> ISO
       const dateISO = new Date(dateLocal).toISOString();
 
@@ -349,6 +372,8 @@ export default function AdminEventEditPage() {
         price_cents: Math.max(0, dollarsToCents(priceDollars)),
         organizer_whatsapp: safeTrim(organizerWhatsapp) ? organizerWhatsapp : null,
         contact_email: safeTrim(contactEmail) ? contactEmail : null,
+
+        registration_url: safeTrim(registrationUrl) ? safeTrim(registrationUrl) : null, // ✅ NOVO
 
         image_path: imagePath ?? null,
         image_url: imageUrlLegacy ?? null,
@@ -625,6 +650,33 @@ export default function AdminEventEditPage() {
             </div>
           </div>
 
+          {/* ✅ Register link */}
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 900, margin: "6px 0 8px 0" }}>Registration</h2>
+
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: "#60a5fa" }}>Registration URL (Register link)</p>
+              <input
+                value={registrationUrl}
+                onChange={(e) => setRegistrationUrl(e.target.value)}
+                placeholder="https://..."
+                style={{
+                  width: "100%",
+                  marginTop: 6,
+                  borderRadius: 12,
+                  padding: "10px 12px",
+                  border: "1px solid rgba(148,163,184,0.35)",
+                  background: "rgba(2,6,23,0.65)",
+                  color: "#e5e7eb",
+                  outline: "none",
+                }}
+              />
+              <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "#9ca3af" }}>
+                Pode ser link do Jotform, Eventbrite, Stripe Checkout, Google Forms, etc.
+              </p>
+            </div>
+          </div>
+
           {/* Location */}
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 900, margin: "6px 0 8px 0" }}>Location</h2>
@@ -890,9 +942,8 @@ export default function AdminEventEditPage() {
             }}
           >
             <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
-              <b>Debug</b> • image_path:{" "}
-              <span style={{ color: "#e5e7eb" }}>{imagePath ?? "—"}</span> • image_url (legado):{" "}
-              <span style={{ color: "#e5e7eb" }}>{imageUrlLegacy ?? "—"}</span>
+              <b>Debug</b> • image_path: <span style={{ color: "#e5e7eb" }}>{imagePath ?? "—"}</span> • image_url
+              (legado): <span style={{ color: "#e5e7eb" }}>{imageUrlLegacy ?? "—"}</span>
             </p>
             <p style={{ margin: "6px 0 0 0", fontSize: 12, color: "#9ca3af" }}>
               (Upload/editar imagem a gente faz no próximo passo — aqui é só pra não perder a referência.)
