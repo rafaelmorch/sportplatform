@@ -69,7 +69,8 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          // 🔴 ÚNICA ALTERAÇÃO AQUI
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
@@ -244,7 +245,6 @@ export default function LoginPage() {
               {loadingGoogle ? "Conectando..." : "Continuar com Google"}
             </button>
 
-            {/* LINK CRIAR CONTA */}
             <div style={{ marginTop: 14, textAlign: "center", fontSize: 13 }}>
               <span style={{ color: "#9ca3af" }}>Ainda não tem conta? </span>
               <Link
