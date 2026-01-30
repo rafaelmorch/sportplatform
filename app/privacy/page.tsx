@@ -1,81 +1,70 @@
-import BackButton from "@/components/BackButton";
-
 export default function PrivacyPolicyPage() {
   return (
     <main
       style={{
         minHeight: "100vh",
-        width: "100%",
-        padding: "24px 20px 32px",
-        background: "radial-gradient(circle at top, #0f172a, #020617)",
-        color: "#e2e8f0",
-        maxWidth: 880,
+        background: "#020617",
+        color: "#e5e7eb",
+        padding: "32px 20px",
+        maxWidth: 900,
         margin: "0 auto",
+        lineHeight: 1.6,
+        fontSize: 14,
       }}
     >
-      <BackButton />
-
-      <h1
-        style={{
-          fontSize: "28px",
-          fontWeight: 700,
-          marginTop: "12px",
-          marginBottom: "16px",
-          letterSpacing: "-0.03em",
-        }}
-      >
-        Privacy Policy
+      <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 20 }}>
+        Privacy Policy – Platform Sports
       </h1>
 
-      <p style={{ marginBottom: 14, lineHeight: 1.7, fontSize: 15 }}>
-        This Privacy Policy explains how Sports Platform (“we”, “our”, or
-        “the platform”) collects, uses, and protects your information when
-        you participate in our activities, challenges, and platform services.
-        We are committed to maintaining the privacy and security of our users.
+      <p><strong>Last updated:</strong> January 2026</p>
+
+      <p>
+        Platform Sports ("we", "our", or "us") respects your privacy and is committed
+        to protecting your personal data. This Privacy Policy explains how we collect,
+        use, and protect your information when you use the Platform Sports mobile
+        application and website.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
-        1. Information We Collect
-      </h2>
-      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
-        We may collect basic profile information (such as name and email) as well
-        as activity data voluntarily synchronized by the user through third-party
-        platforms (e.g., Strava, Fitbit, etc.). We only access data with your
-        explicit consent.
+      <h2>1. Information We Collect</h2>
+      <ul>
+        <li>Name and email address</li>
+        <li>Account authentication data (including Google Sign-In)</li>
+        <li>Sports activities, events, and app usage data</li>
+      </ul>
+
+      <h2>2. How We Use Your Information</h2>
+      <ul>
+        <li>Account creation and authentication</li>
+        <li>Event and activity management</li>
+        <li>App functionality and improvements</li>
+        <li>User support</li>
+      </ul>
+
+      <h2>3. Third-Party Services</h2>
+      <p>
+        We use Supabase and Google Sign-In to provide authentication and backend
+        services. These services may process data according to their own policies.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
-        2. How We Use Your Data
-      </h2>
-      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
-        The data we collect is used to provide activity tracking, group challenges,
-        insights, leaderboards, and other features designed to enhance your
-        training and community experience.
+      <h2>4. Data Sharing</h2>
+      <p>
+        We do not sell or rent your personal data. Data is shared only when required
+        to operate the app securely.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
-        3. Sharing of Information
-      </h2>
-      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
-        We do not sell or share your data with third parties. Information is only
-        shared with the third-party service you authorize for activity sync.
+      <h2>5. Data Security</h2>
+      <p>
+        We apply appropriate security measures to protect your information.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
-        4. Data Security
-      </h2>
-      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
-        We use industry-standard measures to protect your information. All data
-        transfers occur through secure and encrypted communication.
+      <h2>6. Children’s Privacy</h2>
+      <p>
+        Platform Sports is not intended for children under 13 years of age.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 600, marginTop: 22, marginBottom: 10 }}>
-        5. Contact
-      </h2>
-      <p style={{ marginBottom: 14, lineHeight: 1.7 }}>
-        For privacy-related questions, you may contact us at:
-        <br />
-        <strong>privacy@sportsplatform.app</strong>
+      <h2>7. Contact</h2>
+      <p>
+        Email: support@platformsports.app
       </p>
     </main>
   );
