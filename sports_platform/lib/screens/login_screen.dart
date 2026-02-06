@@ -63,8 +63,6 @@ class _LoginScreenState extends State<LoginScreen> {
           password: pass,
         );
 
-        // Dependendo da config do Supabase, pode pedir confirmação por email.
-        // Se confirmar não for obrigatório, o AuthGate já leva pro AppShell.
         _toast("Conta criada. Se pedir confirmação, verifique seu email.");
       } else {
         await _supabase.auth.signInWithPassword(
@@ -75,6 +73,30 @@ class _LoginScreenState extends State<LoginScreen> {
         // ✅ NÃO navega pra lugar nenhum.
         // O AuthGate no main.dart detecta a sessão e abre o AppShell.
       }
+    } on AuthException catch (e) {
+      _toast(e.message);
+    } catch (e) {
+      _toast("Erro: $e");
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+
+    try {
+      // ✅ Deep link que o AndroidManifest já captura:
+      // com.platformsports.app://auth/callback
+      await _supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: "com.platformsports.app://auth/callback",
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+
+      // ✅ Não faz navegação aqui.
+      // Quando voltar pro app via deep link, o Supabase finaliza a sessão
+      // e o AuthGate deve abrir o AppShell.
     } on AuthException catch (e) {
       _toast(e.message);
     } catch (e) {
@@ -150,6 +172,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Column(
                     children: [
+                      // ✅ Google button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _loading ? null : _signInWithGoogle,
+                          icon: const Icon(Icons.g_mobiledata, size: 26),
+                          label: const Text("Entrar com Google"),
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Divider "ou"
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(color: theme.dividerColor.withOpacity(0.35)),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            "ou",
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(0.6),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Divider(color: theme.dividerColor.withOpacity(0.35)),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
                       TextField(
                         controller: _emailCtrl,
                         keyboardType: TextInputType.emailAddress,

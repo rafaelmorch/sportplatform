@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import './models/group.dart';
-import './repositories/groups_repository.dart';
+import '../models/group.dart';
+import '../repositories/groups_repository.dart';
 import 'group_details_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
