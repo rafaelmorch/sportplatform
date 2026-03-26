@@ -19,13 +19,20 @@ export default function RootLayout({
   const hideBottomNav =
     pathname === "/" ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/signup") ||   // ✅ AQUI
+    pathname.startsWith("/signup") ||
     pathname.startsWith("/register") ||
     pathname.startsWith("/contact");
 
   return (
     <html lang="en">
-      <body className={rowdies.className}>
+      <body
+        className={rowdies.className}
+        style={{
+          margin: 0,
+          background: "#000",
+          minHeight: "100vh",
+        }}
+      >
         {children}
         {!hideBottomNav && <BottomNavbar />}
       </body>
