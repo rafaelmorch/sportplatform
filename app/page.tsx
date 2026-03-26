@@ -24,7 +24,7 @@ export default function Home() {
 
       {/* Botão */}
       <a
-        href="https://www.sportsplatform.app/beachtennis"
+        href="/beachtennis"
         style={{
           width: "100%",
           maxWidth: "720px",
@@ -149,3 +149,4 @@ export default function Home() {
     </main>
   );
 }
+
