@@ -2,6 +2,7 @@
 
 import { Rowdies } from "next/font/google";
 import { usePathname } from "next/navigation";
+import { Analytics } from "@vercel/analytics/next";
 import BottomNavbar from "@/components/BottomNavbar";
 
 const rowdies = Rowdies({
@@ -35,6 +36,7 @@ export default function RootLayout({
       >
         {children}
         {!hideBottomNav && <BottomNavbar />}
+        <Analytics />
       </body>
     </html>
   );
