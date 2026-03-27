@@ -699,7 +699,7 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
           </div>
 
           <div style={sectionStyle}>
-            <label style={labelStyle}>Upload do comprovante de pagamento (Zelle)</label>
+            <label style={labelStyle}>Por favor, realize o pagamento via Zelle para platformsports1@gmail.com no valor indicado acima e anexe o comprovante.</label>
             <input
               type="file"
               accept=".jpg,.jpeg,.png,.pdf"
