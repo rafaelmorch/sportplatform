@@ -61,6 +61,7 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [clinicInfoOpen, setClinicInfoOpen] = useState<null | "clinic1" | "clinic2">(null);
 
   const isLevelRequired = ["Feminino", "Masculino", "Mista"].includes(form.category);
 
@@ -539,20 +540,63 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
             <div style={{ display: "grid", gap: 12 }}>
               {participationOptions.map((option) => {
                 const selected = form.participation.includes(option.id);
+                const isClinic = option.id === "clinic1" || option.id === "clinic2";
 
                 return (
-                  <label key={option.id} style={getSelectableCardStyle(selected)}>
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleParticipation(option.id)}
-                    />
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ color: "#111827", fontSize: 15 }}>{option.label}</span>
-                      <span style={{ color: "#64748b", fontSize: 13 }}>
-                        Valor individual: ${option.price.toFixed(2)}
-                      </span>
+                  <label
+                    key={option.id}
+                    style={{
+                      ...getSelectableCardStyle(selected),
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 14,
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleParticipation(option.id)}
+                      />
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span style={{ color: "#111827", fontSize: 15 }}>{option.label}</span>
+                        <span style={{ color: "#64748b", fontSize: 13 }}>
+                          Valor individual: ${option.price.toFixed(2)}
+                        </span>
+                      </div>
                     </div>
+
+                    {isClinic && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setClinicInfoOpen(option.id);
+                        }}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          minWidth: 30,
+                          borderRadius: "999px",
+                          border: "1px solid #cbd5e1",
+                          background: "#ffffff",
+                          color: "#0f172a",
+                          fontSize: 16,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 4px 10px rgba(15, 23, 42, 0.08)",
+                        }}
+                        aria-label="Mais informações sobre a clínica"
+                      >
+                        ?
+                      </button>
+                    )}
                   </label>
                 );
               })}
@@ -749,6 +793,102 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
             </button>
           </div>
         </form>
+
+        {clinicInfoOpen && (
+          <div
+            onClick={() => setClinicInfoOpen(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+              zIndex: 9999,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 560,
+                background: "#ffffff",
+                borderRadius: 22,
+                padding: 24,
+                boxShadow: "0 24px 60px rgba(0,0,0,0.25)",
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  Informações sobre a clínica
+                </h3>
+
+                <button
+                  type="button"
+                  onClick={() => setClinicInfoOpen(null)}
+                  style={{
+                    border: "1px solid #d1d5db",
+                    background: "#ffffff",
+                    borderRadius: 12,
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                    fontFamily: "Calibri, Arial, sans-serif",
+                  }}
+                >
+                  Fechar
+                </button>
+              </div>
+
+              <div
+                style={{
+                  color: "#475569",
+                  lineHeight: 1.8,
+                  fontSize: 15,
+                }}
+              >
+                <p style={{ marginTop: 0 }}>
+                  A clínica de Beach Tennis é um treinamento guiado pelo coach Rodrigo Batista,
+                  desenvolvido para jogadores de todos os níveis.
+                </p>
+
+                <p>
+                  Durante a sessão, serão disponibilizados equipamentos para a aula e orientação
+                  técnica focada em:
+                </p>
+
+                <ul style={{ paddingLeft: 20, marginTop: 0 }}>
+                  <li>Fundamentos do jogo</li>
+                  <li>Posicionamento em quadra</li>
+                  <li>Técnicas de ataque e defesa</li>
+                  <li>Movimentação e tomada de decisão</li>
+                </ul>
+
+                <p style={{ marginBottom: 0 }}>
+                  A clínica é uma excelente oportunidade para evoluir no esporte, corrigir detalhes
+                  técnicos e ganhar mais confiança para competir no torneio. Ideal tanto para
+                  iniciantes quanto para jogadores intermediários que querem melhorar seu desempenho.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
