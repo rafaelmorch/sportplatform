@@ -60,7 +60,7 @@ export default function Home() {
         style={{
           maxWidth: "720px",
           width: "100%",
-	  background: "#e4e1d8",
+	  background: "#f5f5f5",
           color: "#000",
           padding: "28px",
           borderRadius: "4px",
