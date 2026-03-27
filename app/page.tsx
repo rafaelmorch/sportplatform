@@ -5,7 +5,7 @@ export default function Home() {
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "#000",
+        background: "linear-gradient(180deg, #0f172a 0%, #1e293b 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -60,17 +60,17 @@ export default function Home() {
         style={{
           maxWidth: "720px",
           width: "100%",
-	  background: "#f5f5f5",
+          background: "#f5f5f5",
           color: "#000",
           padding: "28px",
           borderRadius: "4px",
           lineHeight: "1.8",
           marginBottom: "28px",
           borderTop: "3px solid #ffffff",
-borderLeft: "3px solid #ffffff",
-borderRight: "3px solid #6d6d6d",
-borderBottom: "3px solid #6d6d6d",
-boxShadow: "inset -1px -1px 0 #00000020, inset 1px 1px 0 #ffffff",
+          borderLeft: "3px solid #ffffff",
+          borderRight: "3px solid #5a5a5a",
+          borderBottom: "3px solid #5a5a5a",
+          boxShadow: "inset -1px -1px 0 #00000030, inset 1px 1px 0 #ffffff",
           fontFamily: "Calibri, Arial, sans-serif",
           fontWeight: "normal",
           boxSizing: "border-box",
@@ -127,7 +127,9 @@ boxShadow: "inset -1px -1px 0 #00000020, inset 1px 1px 0 #ffffff",
         <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Data e Horário</h3>
-        <p>📅 16 de maio de 2026 (sábado)</p>
+        <p>📅 Clínica 1 — 4 de abril de 2026</p>
+        <p>📅 Clínica 2 — 26 de abril de 2026</p>
+        <p>📅 Torneio — 16 de maio de 2026 (sábado)</p>
         <p>⏰ 09 AM às 6 PM</p>
 
         <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
