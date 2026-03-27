@@ -21,7 +21,8 @@ export default function RootLayout({
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/register") ||
-    pathname.startsWith("/contact");
+    pathname.startsWith("/contact") ||
+    pathname.startsWith("/beachtennis");
 
   return (
     <html lang="en">
