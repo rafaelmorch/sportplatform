@@ -574,7 +574,7 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setClinicInfoOpen(option.id);
+                          setClinicInfoOpen(option.id as "clinic1" | "clinic2");
                         }}
                         style={{
                           width: 30,
@@ -893,3 +893,4 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
     </div>
   );
 }
+
