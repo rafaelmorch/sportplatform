@@ -55,26 +55,27 @@ export default function Home() {
         </div>
       </a>
 
-      {/* CARD 3D */}
+      {/* CARD TEXTO */}
       <div
         style={{
           maxWidth: "720px",
           width: "100%",
-          background: "linear-gradient(145deg, #0f172a, #020617)",
-          color: "#e5e7eb",
+          background: "#d4d0c8",
+          color: "#000",
           padding: "28px",
-          borderRadius: "20px",
+          borderRadius: "4px",
           lineHeight: "1.8",
           marginBottom: "28px",
-          boxShadow: `
-            0 25px 50px rgba(0,0,0,0.6),
-            inset 0 1px 0 rgba(255,255,255,0.05)
-          `,
-          border: "1px solid rgba(255,255,255,0.06)",
-          backdropFilter: "blur(6px)",
+          borderTop: "2px solid #ffffff",
+          borderLeft: "2px solid #ffffff",
+          borderRight: "2px solid #808080",
+          borderBottom: "2px solid #808080",
+          fontFamily: "Calibri, Arial, sans-serif",
+          fontWeight: "normal",
+          boxSizing: "border-box",
         }}
       >
-        <h2 style={{ color: "#ff3b30", textAlign: "center" }}>
+        <h2 style={{ color: "#ff3b30", textAlign: "center", marginTop: 0 }}>
           Orlando vai tremer na areia!
         </h2>
 
@@ -98,15 +99,37 @@ export default function Home() {
           Chame seu parceiro(a), prepare a raquete e venha mostrar seu talento nas quadras de areia de Orlando!
         </p>
 
-        <p><strong>As inscrições já estão abertas!</strong></p>
+        <p>As inscrições já estão abertas!</p>
 
-        <hr style={{ opacity: 0.2 }} />
+        <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
+
+        <h3>Clínica de Beach Tennis</h3>
+        <p>
+          Participe de um treinamento exclusivo com o coach Rodrigo Batista, voltado para jogadores de todos os níveis.
+        </p>
+
+        <p>
+          Durante a clínica, você terá acesso a equipamentos e orientação técnica para desenvolver:
+        </p>
+
+        <ul>
+          <li>Fundamentos do jogo</li>
+          <li>Posicionamento em quadra</li>
+          <li>Técnicas de ataque e defesa</li>
+          <li>Movimentação e tomada de decisão</li>
+        </ul>
+
+        <p>
+          Uma excelente oportunidade para evoluir no esporte, ganhar confiança e chegar mais preparado para o torneio.
+        </p>
+
+        <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Data e Horário</h3>
         <p>📅 16 de maio de 2026 (sábado)</p>
         <p>⏰ 09 AM às 6 PM</p>
 
-        <hr style={{ opacity: 0.2 }} />
+        <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Local</h3>
         <p>📍 2020 S Dean Rd, Orlando, FL 32825</p>
@@ -120,7 +143,7 @@ export default function Home() {
           ></iframe>
         </div>
 
-        <hr style={{ opacity: 0.2 }} />
+        <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Kit do Participante</h3>
         <p>Todos os inscritos receberão:</p>
@@ -128,12 +151,12 @@ export default function Home() {
           <li>Camiseta oficial do evento</li>
         </ul>
 
-        <hr style={{ opacity: 0.2 }} />
+        <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Inscrição</h3>
         <p>Idade mínima: <strong>13 anos</strong></p>
 
-        <hr style={{ opacity: 0.2 }} />
+        <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Contato e Suporte</h3>
         <p>📞 Rodrigo Batista (407) 844-1669</p>
@@ -149,4 +172,3 @@ export default function Home() {
     </main>
   );
 }
-
