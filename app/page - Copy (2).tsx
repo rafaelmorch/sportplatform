@@ -24,7 +24,7 @@ export default function Home() {
 
       {/* Botão */}
       <a
-        href="/beachtennis-clinic"
+        href="/beachtennis"
         style={{
           width: "100%",
           maxWidth: "720px",
@@ -81,25 +81,23 @@ export default function Home() {
         </h2>
 
         <p>
-          Vem aí um evento de Beach Tennis que promete muita energia, evolução e
-          diversão sob o sol da Flórida!
+          Vem aí um torneio de Beach Tennis que promete muita energia, competição e diversão sob o sol da Flórida!
         </p>
 
         <p>
-          Se você ama esporte, clima quente e aquela vibe boa de quadra, esse
-          evento é pra você.
+          Se você ama esporte, clima tropical e aquela vibe boa de competição saudável, esse evento é pra você.
         </p>
 
         <ul>
-          <li>Treinamentos dinâmicos</li>
-          <li>Para todos os níveis</li>
-          <li>Ambiente descontraído e focado em evolução</li>
+          <li>Jogos dinâmicos</li>
+          <li>Categorias para todos os níveis</li>
+          <li>Ambiente descontraído e competitivo</li>
+          <li>Premiação especial</li>
           <li>Estrutura completa</li>
         </ul>
 
         <p>
-          Chame seu parceiro(a), prepare a raquete e venha evoluir seu jogo nas
-          quadras de areia de Orlando!
+          Chame seu parceiro(a), prepare a raquete e venha mostrar seu talento nas quadras de areia de Orlando!
         </p>
 
         <p>As inscrições já estão abertas!</p>
@@ -108,13 +106,11 @@ export default function Home() {
 
         <h3>Clínica de Beach Tennis</h3>
         <p>
-          Participe de um treinamento exclusivo com o coach Rodrigo Batista,
-          voltado para jogadores de todos os níveis.
+          Participe de um treinamento exclusivo com o coach Rodrigo Batista, voltado para jogadores de todos os níveis.
         </p>
 
         <p>
-          Durante a clínica, você terá acesso a equipamentos e orientação técnica
-          para desenvolver:
+          Durante a clínica, você terá acesso a equipamentos e orientação técnica para desenvolver:
         </p>
 
         <ul>
@@ -125,16 +121,16 @@ export default function Home() {
         </ul>
 
         <p>
-          Uma excelente oportunidade para evoluir no esporte e ganhar mais
-          confiança dentro de quadra.
+          Uma excelente oportunidade para evoluir no esporte, ganhar confiança e chegar mais preparado para o torneio.
         </p>
 
         <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Data e Horário</h3>
-        <p>📅 Clínica 1 — 26 de abril de 2026</p>
-        <p>📅 Clínica 2 — 19 de maio de 2026</p>
-        <p>⏰ 09 AM às 1 PM</p>
+        <p>📅 Clínica 1 — 4 de abril de 2026</p>
+        <p>📅 Clínica 2 — 26 de abril de 2026</p>
+        <p>📅 Torneio — 16 de maio de 2026 (sábado)</p>
+        <p>⏰ 09 AM às 6 PM</p>
 
         <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
@@ -161,9 +157,7 @@ export default function Home() {
         <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
         <h3>Inscrição</h3>
-        <p>
-          Idade mínima: <strong>13 anos</strong>
-        </p>
+        <p>Idade mínima: <strong>13 anos</strong></p>
 
         <hr style={{ opacity: 0.4, borderColor: "#808080" }} />
 
