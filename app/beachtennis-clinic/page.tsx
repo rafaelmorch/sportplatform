@@ -9,8 +9,8 @@ export default function BeachTennisRegistrationPage() {
   const router = useRouter();
 
   const participationOptions = [
-    { id: "clinic1" as ParticipationId, label: "Clínica 1 - 04/26/2026: Treino de beach tenis + funcional na areia de aquecimento", price: 29.9 },
-    { id: "clinic2" as ParticipationId, label: "Clínica 2 - 05/16/2026: Treino de beach tenis com circuito motor \(técnicas\): Treino de beach tenis com circuito motor \(técnicas\)", price: 29.9 },
+    { id: "clinic1" as ParticipationId, label: "Clínica 1 - 04/26/2026: Treino de beach tenis + funcional na areia de aquecimento", price: 49.9 },
+    { id: "clinic2" as ParticipationId, label: "Clínica 2 - 05/16/2026: Treino de beach tenis com circuito motor \(técnicas\)", price: 49.9 },
   ];
 
   const waiverText = `Acordo de Responsabilidade, Risco e Autorização de Imagem
@@ -54,8 +54,8 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
     const hasClinic1 = form.participation.includes("clinic1");
     const hasClinic2 = form.participation.includes("clinic2");
 
-    if (hasClinic1 && hasClinic2) return 49.9;
-    if ((hasClinic1 || hasClinic2) && !(hasClinic1 && hasClinic2)) return 29.9;
+    if (hasClinic1 && hasClinic2) return 89.9;
+    if ((hasClinic1 || hasClinic2) && !(hasClinic1 && hasClinic2)) return 49.9;
 
     return 0;
   }, [form.participation]);
@@ -661,6 +661,7 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
     </div>
   );
 }
+
 
 
 
