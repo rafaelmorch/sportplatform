@@ -5,6 +5,11 @@ function generateConfirmationCode() {
   return `PS-${Math.floor(100000 + Math.random() * 900000)}`;
 }
 
+function getFileExtension(filename: string) {
+  const parts = filename.split(".");
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : "bin";
+}
+
 async function getSlotByClinicAndTime(
   supabase: ReturnType<typeof createSupabaseServerClient>,
   clinicId: "clinic1" | "clinic2",
@@ -18,13 +23,8 @@ async function getSlotByClinicAndTime(
     .eq("active", true)
     .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
-    throw new Error(`Horário inválido para ${clinicId}.`);
-  }
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error(`Horário inválido para ${clinicId}.`);
 
   return data;
 }
@@ -33,28 +33,19 @@ async function countRegistrationsForSlot(
   supabase: ReturnType<typeof createSupabaseServerClient>,
   slotId: string
 ) {
-  const clinic1CountPromise = supabase
-    .from("beach_tennis_registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("clinic1_slot_id", slotId);
-
-  const clinic2CountPromise = supabase
-    .from("beach_tennis_registrations")
-    .select("id", { count: "exact", head: true })
-    .eq("clinic2_slot_id", slotId);
-
   const [clinic1CountResult, clinic2CountResult] = await Promise.all([
-    clinic1CountPromise,
-    clinic2CountPromise,
+    supabase
+      .from("beach_tennis_registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic1_slot_id", slotId),
+    supabase
+      .from("beach_tennis_registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic2_slot_id", slotId),
   ]);
 
-  if (clinic1CountResult.error) {
-    throw new Error(clinic1CountResult.error.message);
-  }
-
-  if (clinic2CountResult.error) {
-    throw new Error(clinic2CountResult.error.message);
-  }
+  if (clinic1CountResult.error) throw new Error(clinic1CountResult.error.message);
+  if (clinic2CountResult.error) throw new Error(clinic2CountResult.error.message);
 
   return (clinic1CountResult.count || 0) + (clinic2CountResult.count || 0);
 }
@@ -70,6 +61,7 @@ export async function POST(request: Request) {
     const clinic1Slot = String(formData.get("clinic1Slot") || "").trim() || null;
     const clinic2Slot = String(formData.get("clinic2Slot") || "").trim() || null;
     const termsAccepted = String(formData.get("termsAccepted") || "") === "true";
+    const proof = formData.get("proof");
 
     if (!participant1 || !email || !phone) {
       return NextResponse.json(
@@ -88,6 +80,13 @@ export async function POST(request: Request) {
     if (!clinic1Slot && !clinic2Slot) {
       return NextResponse.json(
         { error: "Selecione ao menos um horário." },
+        { status: 400 }
+      );
+    }
+
+    if (!(proof instanceof File)) {
+      return NextResponse.json(
+        { error: "Anexe o comprovante de pagamento." },
         { status: 400 }
       );
     }
@@ -132,6 +131,30 @@ export async function POST(request: Request) {
 
     const confirmationCode = generateConfirmationCode();
 
+    const extension = getFileExtension(proof.name || "proof");
+    const safeEmail = email.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const filePath = `beachtennis-clinic/${confirmationCode}-${safeEmail}.${extension}`;
+
+    const fileBuffer = Buffer.from(await proof.arrayBuffer());
+
+    const uploadResult = await supabase.storage
+      .from("registration-proofs")
+      .upload(filePath, fileBuffer, {
+        contentType: proof.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadResult.error) {
+      return NextResponse.json(
+        { error: uploadResult.error.message },
+        { status: 500 }
+      );
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("registration-proofs")
+      .getPublicUrl(filePath);
+
     const insertResult = await supabase
       .from("beach_tennis_registrations")
       .insert({
@@ -144,6 +167,8 @@ export async function POST(request: Request) {
         terms_accepted: true,
         total_amount: totalAmount,
         status: "submitted",
+        payment_proof_path: filePath,
+        payment_proof_url: publicUrlData?.publicUrl || null,
       });
 
     if (insertResult.error) {
@@ -156,11 +181,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, confirmationCode });
   } catch (error) {
     console.error("BEACH TENNIS ERROR:", error);
+
     const message =
       error instanceof Error ? error.message : "Erro inesperado ao enviar inscrição.";
 
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-
-

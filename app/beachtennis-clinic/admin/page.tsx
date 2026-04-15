@@ -14,6 +14,8 @@ type RegistrationRow = {
   clinic2_slot_id: string | null;
   total_amount: number | null;
   status: string | null;
+  payment_proof_path: string | null;
+  payment_proof_url: string | null;
 };
 
 type SlotRow = {
@@ -38,6 +40,7 @@ export default function BeachTennisClinicAdminPage() {
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [slots, setSlots] = useState<SlotRow[]>([]);
   const [slotsMap, setSlotsMap] = useState<Record<string, SlotRow>>({});
+  const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
 
   function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,7 +64,7 @@ export default function BeachTennisClinicAdminPage() {
       const [registrationsResult, slotsResult] = await Promise.all([
         supabase
           .from("beach_tennis_registrations")
-          .select("id, created_at, participant_1_name, contact_email, contact_phone, confirmation_code, clinic1_slot_id, clinic2_slot_id, total_amount, status")
+          .select("id, created_at, participant_1_name, contact_email, contact_phone, confirmation_code, clinic1_slot_id, clinic2_slot_id, total_amount, status, payment_proof_path, payment_proof_url")
           .order("created_at", { ascending: false }),
         supabase
           .from("beach_tennis_clinic_slots")
@@ -121,6 +124,8 @@ export default function BeachTennisClinicAdminPage() {
     const usage: Record<string, number> = {};
 
     registrations.forEach((item) => {
+      if (item.status === "denied") return;
+
       if (item.clinic1_slot_id) {
         usage[item.clinic1_slot_id] = (usage[item.clinic1_slot_id] || 0) + 1;
       }
@@ -139,6 +144,30 @@ export default function BeachTennisClinicAdminPage() {
     };
   }, [slots]);
 
+  async function updateRegistrationStatus(id: string, nextStatus: string) {
+    setSavingStatusId(id);
+    setError("");
+
+    const { error: updateError } = await supabase
+      .from("beach_tennis_registrations")
+      .update({ status: nextStatus })
+      .eq("id", id);
+
+    if (updateError) {
+      setError("Não foi possível atualizar o status.");
+      setSavingStatusId(null);
+      return;
+    }
+
+    setRegistrations((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, status: nextStatus } : item
+      )
+    );
+
+    setSavingStatusId(null);
+  }
+
   function exportToCsv() {
     if (!filteredRegistrations.length) return;
 
@@ -152,6 +181,7 @@ export default function BeachTennisClinicAdminPage() {
       "Clinica 2",
       "Valor",
       "Status",
+      "Comprovante",
     ];
 
     const escapeCsv = (value: unknown) => {
@@ -169,6 +199,7 @@ export default function BeachTennisClinicAdminPage() {
       item.clinic2_slot_id ? (slotsMap[item.clinic2_slot_id]?.slot_time || "-") : "-",
       item.total_amount != null ? Number(item.total_amount).toFixed(2) : "",
       item.status || "",
+      item.payment_proof_path || "",
     ]);
 
     const csvContent = [
@@ -183,6 +214,27 @@ export default function BeachTennisClinicAdminPage() {
     link.download = "beachtennis-clinic-inscricoes.csv";
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function openProof(path: string | null, fallbackUrl: string | null) {
+    if (!path && !fallbackUrl) return;
+
+    if (path) {
+      const { data, error } = await supabase.storage
+        .from("registration-proofs")
+        .createSignedUrl(path, 120);
+
+      if (!error && data?.signedUrl) {
+        window.open(data.signedUrl, "_blank");
+        return;
+      }
+    }
+
+    if (fallbackUrl) {
+      window.open(fallbackUrl, "_blank");
+    } else {
+      alert("Não foi possível abrir o comprovante.");
+    }
   }
 
   const pageStyle: React.CSSProperties = {
@@ -226,6 +278,20 @@ export default function BeachTennisClinicAdminPage() {
     color: "#111827",
     outline: "none",
     boxSizing: "border-box",
+  };
+
+  const selectStyle: React.CSSProperties = {
+    width: "100%",
+    minWidth: 130,
+    borderRadius: 10,
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    padding: "8px 10px",
+    fontSize: 13,
+    color: "#0f172a",
+    outline: "none",
+    boxSizing: "border-box",
+    fontFamily: "Calibri, Arial, sans-serif",
   };
 
   const buttonStyle: React.CSSProperties = {
@@ -303,16 +369,7 @@ export default function BeachTennisClinicAdminPage() {
         <div style={heroStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
             <div>
-              <p
-                style={{
-                  margin: 0,
-                  marginBottom: 8,
-                  fontSize: 12,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.72)",
-                }}
-              >
+              <p style={{ margin: 0, marginBottom: 8, fontSize: 12, letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(255,255,255,0.72)" }}>
                 Beach Tennis Clinic
               </p>
 
@@ -321,19 +378,11 @@ export default function BeachTennisClinicAdminPage() {
               </h1>
 
               <p style={{ marginTop: 10, marginBottom: 0, color: "rgba(255,255,255,0.82)", fontSize: 16, lineHeight: 1.7 }}>
-                Acompanhe os inscritos por horário e visualize os dados principais de cada inscrição.
+                Acompanhe os inscritos por horário e confira os comprovantes do Zelle.
               </p>
             </div>
 
-            <div
-              style={{
-                minWidth: 220,
-                borderRadius: 20,
-                background: "rgba(255,255,255,0.10)",
-                border: "1px solid rgba(255,255,255,0.16)",
-                padding: 18,
-              }}
-            >
+            <div style={{ minWidth: 220, borderRadius: 20, background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.16)", padding: 18 }}>
               <p style={{ margin: 0, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.16em", color: "rgba(255,255,255,0.70)" }}>
                 Total de inscrições
               </p>
@@ -353,17 +402,7 @@ export default function BeachTennisClinicAdminPage() {
 
             return (
               <div key={clinicId} style={cardStyle}>
-                <p
-                  style={{
-                    margin: 0,
-                    marginBottom: 8,
-                    fontSize: 12,
-                    letterSpacing: "0.16em",
-                    textTransform: "uppercase",
-                    color: "#2563eb",
-                    fontWeight: 700,
-                  }}
-                >
+                <p style={{ margin: 0, marginBottom: 8, fontSize: 12, letterSpacing: "0.16em", textTransform: "uppercase", color: "#2563eb", fontWeight: 700 }}>
                   {clinicId === "clinic1" ? "Dia 1" : "Dia 2"}
                 </p>
 
@@ -424,16 +463,7 @@ export default function BeachTennisClinicAdminPage() {
         </div>
 
         <div style={cardStyle}>
-          <div
-            style={{
-              display: "flex",
-              gap: 12,
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              marginBottom: 18,
-            }}
-          >
+          <div style={{ display: "flex", gap: 12, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", marginBottom: 18 }}>
             <div style={{ flex: "1 1 320px", maxWidth: 420 }}>
               <input
                 type="text"
@@ -449,27 +479,29 @@ export default function BeachTennisClinicAdminPage() {
             </button>
           </div>
 
+          {error && (
+            <div
+              style={{
+                marginBottom: 14,
+                borderRadius: 12,
+                border: "1px solid #fecaca",
+                background: "#fff5f5",
+                color: "#b91c1c",
+                padding: 12,
+                fontSize: 14,
+              }}
+            >
+              {error}
+            </div>
+          )}
+
           {loading ? (
             <p style={{ margin: 0, color: "#475569" }}>Carregando inscrições...</p>
           ) : filteredRegistrations.length === 0 ? (
             <p style={{ margin: 0, color: "#475569" }}>Nenhuma inscrição encontrada.</p>
           ) : (
-            <div
-              style={{
-                overflowX: "auto",
-                border: "1px solid #e2e8f0",
-                borderRadius: 18,
-                background: "#ffffff",
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  minWidth: 980,
-                  color: "#0f172a",
-                }}
-              >
+            <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: 18, background: "#ffffff" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1220, color: "#0f172a" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", textAlign: "left" }}>
                     <th style={{ padding: 14, borderBottom: "1px solid #e2e8f0", fontSize: 13 }}>Código</th>
@@ -480,19 +512,14 @@ export default function BeachTennisClinicAdminPage() {
                     <th style={{ padding: 14, borderBottom: "1px solid #e2e8f0", fontSize: 13 }}>Clínica 2</th>
                     <th style={{ padding: 14, borderBottom: "1px solid #e2e8f0", fontSize: 13 }}>Valor</th>
                     <th style={{ padding: 14, borderBottom: "1px solid #e2e8f0", fontSize: 13 }}>Status</th>
+                    <th style={{ padding: 14, borderBottom: "1px solid #e2e8f0", fontSize: 13 }}>Comprovante</th>
                     <th style={{ padding: 14, borderBottom: "1px solid #e2e8f0", fontSize: 13 }}>Data</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {filteredRegistrations.map((item, index) => (
-                    <tr
-                      key={item.id}
-                      style={{
-                        background: index % 2 === 0 ? "#ffffff" : "#fbfdff",
-                        borderBottom: "1px solid #edf2f7",
-                      }}
-                    >
+                    <tr key={item.id} style={{ background: index % 2 === 0 ? "#ffffff" : "#fbfdff", borderBottom: "1px solid #edf2f7" }}>
                       <td style={{ padding: 14, fontWeight: 600 }}>{item.confirmation_code || "-"}</td>
                       <td style={{ padding: 14 }}>{item.participant_1_name || "-"}</td>
                       <td style={{ padding: 14 }}>{item.contact_email || "-"}</td>
@@ -507,19 +534,29 @@ export default function BeachTennisClinicAdminPage() {
                         {item.total_amount != null ? "$" + Number(item.total_amount).toFixed(2) : "-"}
                       </td>
                       <td style={{ padding: 14 }}>
-                        <span
-                          style={{
-                            borderRadius: 999,
-                            padding: "6px 10px",
-                            background: "#e0f2fe",
-                            color: "#075985",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                          }}
+                        <select
+                          value={item.status || "submitted"}
+                          onChange={(e) => updateRegistrationStatus(item.id, e.target.value)}
+                          disabled={savingStatusId === item.id}
+                          style={selectStyle}
                         >
-                          {item.status || "-"}
-                        </span>
+                          <option value="submitted">submitted</option>
+                          <option value="approved">approved</option>
+                          <option value="denied">denied</option>
+                        </select>
+                      </td>
+                      <td style={{ padding: 14 }}>
+                        {item.payment_proof_path || item.payment_proof_url ? (
+                          <button
+                            type="button"
+                            onClick={() => openProof(item.payment_proof_path, item.payment_proof_url)}
+                            style={secondaryButtonStyle}
+                          >
+                            Ver comprovante
+                          </button>
+                        ) : (
+                          "-"
+                        )}
                       </td>
                       <td style={{ padding: 14 }}>{new Date(item.created_at).toLocaleString()}</td>
                     </tr>

@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
 type ParticipationId = "clinic1" | "clinic2";
 type ClinicSlotTime = "8am" | "9am" | "10am";
 
 const clinicTimes: ClinicSlotTime[] = ["8am", "9am", "10am"];
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function BeachTennisRegistrationPage() {
   const router = useRouter();
@@ -47,6 +53,9 @@ const [form, setForm] = useState({
   const [error, setError] = useState("");
   const [expandedClinics, setExpandedClinics] = useState<ParticipationId[]>([]);
   const [clinicInfoOpen, setClinicInfoOpen] = useState<null | "clinic1" | "clinic2">(null);
+  const [slotIdByKey, setSlotIdByKey] = useState<Record<string, string>>({});
+  const [slotUsage, setSlotUsage] = useState<Record<string, number>>({});
+  const [slotCapacity, setSlotCapacity] = useState<Record<string, number>>({});
 
   const originalTotal = useMemo(() => {
     let sum = 0;
@@ -83,6 +92,56 @@ const [form, setForm] = useState({
   function setField<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
+
+  useEffect(() => {
+    async function loadSlotAvailability() {
+      const { data: slots, error: slotsError } = await supabase
+        .from("beach_tennis_clinic_slots")
+        .select("id, clinic_id, slot_time, capacity")
+        .eq("active", true);
+
+      if (slotsError || !slots) return;
+
+      const nextSlotIdByKey: Record<string, string> = {};
+      const nextSlotCapacity: Record<string, number> = {};
+      const slotIds: string[] = [];
+
+      slots.forEach((slot) => {
+        const key = `${slot.clinic_id}_${slot.slot_time}`;
+        nextSlotIdByKey[key] = slot.id;
+        nextSlotCapacity[key] = slot.capacity;
+        slotIds.push(slot.id);
+      });
+
+      const usage: Record<string, number> = {};
+
+      const { data: clinic1Regs } = await supabase
+        .from("beach_tennis_registrations")
+        .select("clinic1_slot_id")
+        .not("clinic1_slot_id", "is", null);
+
+      const { data: clinic2Regs } = await supabase
+        .from("beach_tennis_registrations")
+        .select("clinic2_slot_id")
+        .not("clinic2_slot_id", "is", null);
+
+      (clinic1Regs || []).forEach((row) => {
+        const slotId = row.clinic1_slot_id as string | null;
+        if (slotId) usage[slotId] = (usage[slotId] || 0) + 1;
+      });
+
+      (clinic2Regs || []).forEach((row) => {
+        const slotId = row.clinic2_slot_id as string | null;
+        if (slotId) usage[slotId] = (usage[slotId] || 0) + 1;
+      });
+
+      setSlotIdByKey(nextSlotIdByKey);
+      setSlotCapacity(nextSlotCapacity);
+      setSlotUsage(usage);
+    }
+
+    loadSlotAvailability();
+  }, []);
 
   function toggleClinic(clinicId: ParticipationId) {
     setExpandedClinics((prev) => {
@@ -415,26 +474,62 @@ const [form, setForm] = useState({
                       >
                         {clinicTimes.map((slotTime) => {
                           const active = selectedSlot === slotTime;
+                          const slotKey = `${option.id}_${slotTime}`;
+                          const slotId = slotIdByKey[slotKey];
+                          const used = slotId ? (slotUsage[slotId] || 0) : 0;
+                          const capacity = slotCapacity[slotKey] || 12;
+                          const isFull = used >= capacity;
 
                           return (
                             <button
                               key={slotTime}
                               type="button"
-                              onClick={() => selectClinicSlot(option.id, slotTime)}
+                              onClick={() => {
+                                if (!isFull) {
+                                  selectClinicSlot(option.id, slotTime);
+                                }
+                              }}
+                              disabled={isFull}
                               style={{
                                 borderRadius: 14,
-                                border: active ? "1px solid #2563eb" : "1px solid #dbe2ea",
-                                background: active ? "#dbeafe" : "#ffffff",
-                                color: active ? "#1d4ed8" : "#0f172a",
+                                border: isFull
+                                  ? "1px solid #fecaca"
+                                  : active
+                                    ? "1px solid #2563eb"
+                                    : "1px solid #dbe2ea",
+                                background: isFull
+                                  ? "#fff5f5"
+                                  : active
+                                    ? "#dbeafe"
+                                    : "#ffffff",
+                                color: isFull
+                                  ? "#b91c1c"
+                                  : active
+                                    ? "#1d4ed8"
+                                    : "#0f172a",
                                 padding: "12px 10px",
                                 fontSize: 14,
                                 fontWeight: 600,
-                                cursor: "pointer",
+                                cursor: isFull ? "not-allowed" : "pointer",
                                 fontFamily: "Calibri, Arial, sans-serif",
-                                boxShadow: active ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
+                                boxShadow: active && !isFull ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
+                                opacity: isFull ? 0.9 : 1,
+                                display: "grid",
+                                gap: 4,
+                                justifyItems: "center",
                               }}
                             >
-                              {slotTime}
+                              <span>{slotTime}</span>
+                              {isFull && (
+                                <span style={{ fontSize: 11, fontWeight: 700 }}>
+                                  FULL
+                                </span>
+                              )}
+                              {!isFull && capacity - used <= 3 && (
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "#b45309" }}>
+                                  Últimas vagas
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -736,6 +831,9 @@ const [form, setForm] = useState({
     </div>
   );
 }
+
+
+
 
 
 
