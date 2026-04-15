@@ -4,9 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type ParticipationId = "clinic1" | "clinic2";
-type ClinicSlotTime = "8am" | "9am" | "10am";
-
-const clinicTimes: ClinicSlotTime[] = ["8am", "9am", "10am"];
 
 export default function BeachTennisRegistrationPage() {
   const router = useRouter();
@@ -33,37 +30,35 @@ Isento e desobrigo os organizadores, parceiros, patrocinadores, voluntários e t
 5. Uso de Imagem e Voz:
 Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, vídeos e materiais promocionais relacionados ao evento, em meios digitais, impressos ou audiovisuais, sem limitação de tempo ou território.`;
 
-const [form, setForm] = useState({
-  participant1: "",
-  email: "",
-  phone: "",
-  termsAccepted: false,
-  clinic1Slot: null as string | null,
-  clinic2Slot: null as string | null,
-  proof: null as File | null,
-});
+  const [form, setForm] = useState({
+    participant1: "",
+    email: "",
+    phone: "",
+    termsAccepted: false,
+    participation: [] as ParticipationId[],
+    proof: null as File | null,
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [expandedClinics, setExpandedClinics] = useState<ParticipationId[]>([]);
   const [clinicInfoOpen, setClinicInfoOpen] = useState<null | "clinic1" | "clinic2">(null);
 
   const originalTotal = useMemo(() => {
-    let sum = 0;
-    if (form.clinic1Slot) sum += 29.9;
-    if (form.clinic2Slot) sum += 29.9;
-    return sum;
-  }, [form.clinic1Slot, form.clinic2Slot]);
+    return form.participation.reduce((sum, id) => {
+      const option = participationOptions.find((item) => item.id === id);
+      return sum + (option?.price || 0);
+    }, 0);
+  }, [form.participation]);
 
   const total = useMemo(() => {
-    const hasClinic1 = !!form.clinic1Slot;
-    const hasClinic2 = !!form.clinic2Slot;
+    const hasClinic1 = form.participation.includes("clinic1");
+    const hasClinic2 = form.participation.includes("clinic2");
 
     if (hasClinic1 && hasClinic2) return 49.9;
-    if (hasClinic1 || hasClinic2) return 29.9;
+    if ((hasClinic1 || hasClinic2) && !(hasClinic1 && hasClinic2)) return 29.9;
 
     return 0;
-  }, [form.clinic1Slot, form.clinic2Slot]);
+  }, [form.participation]);
 
   const discount = useMemo(() => {
     const value = originalTotal - total;
@@ -71,70 +66,43 @@ const [form, setForm] = useState({
   }, [originalTotal, total]);
 
   const summary = useMemo(() => {
-    const hasClinic1 = !!form.clinic1Slot;
-    const hasClinic2 = !!form.clinic2Slot;
+    const hasClinic1 = form.participation.includes("clinic1");
+    const hasClinic2 = form.participation.includes("clinic2");
 
     if (hasClinic1 && hasClinic2) return "Você selecionou as 2 clínicas.";
-    if (hasClinic1 || hasClinic2) return "Você selecionou apenas 1 clínica.";
+    if ((hasClinic1 || hasClinic2) && !(hasClinic1 && hasClinic2)) return "Você selecionou apenas 1 clínica.";
 
     return "Selecione uma ou mais opções para ver o valor total.";
-  }, [form.clinic1Slot, form.clinic2Slot]);
+  }, [form.participation]);
 
   function setField<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function toggleClinic(clinicId: ParticipationId) {
-    setExpandedClinics((prev) => {
-      const isOpen = prev.includes(clinicId);
-
-      if (isOpen) {
-        return prev.filter((c) => c !== clinicId);
-      } else {
-        return [...prev, clinicId];
-      }
+  function toggleParticipation(option: ParticipationId) {
+    setForm((prev) => {
+      const exists = prev.participation.includes(option);
+      return {
+        ...prev,
+        participation: exists
+          ? prev.participation.filter((item) => item !== option)
+          : [...prev.participation, option],
+      };
     });
-
-    setForm((prev) => ({
-      ...prev,
-      clinic1Slot: clinicId === "clinic1" && prev.clinic1Slot ? prev.clinic1Slot : prev.clinic1Slot,
-      clinic2Slot: clinicId === "clinic2" && prev.clinic2Slot ? prev.clinic2Slot : prev.clinic2Slot,
-    }));
-  }
-
-  function selectClinicSlot(clinicId: ParticipationId, slotTime: ClinicSlotTime) {
-    setForm((prev) => ({
-      ...prev,
-      clinic1Slot: clinicId === "clinic1" ? slotTime : prev.clinic1Slot,
-      clinic2Slot: clinicId === "clinic2" ? slotTime : prev.clinic2Slot,
-    }));
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
-
-    if (!form.clinic1Slot && !form.clinic2Slot) {
-      setError("Selecione pelo menos 1 horário para continuar.");
-      return;
-    }
-
     setLoading(true);
 
     try {
       const body = new FormData();
-      body.append("participant1", form.participant1);
-      body.append("email", form.email);
+      body.append("participant1", form.participant1);      body.append("email", form.email);
       body.append("phone", form.phone);
       body.append("termsAccepted", String(form.termsAccepted));
 
-      if (form.clinic1Slot) {
-        body.append("clinic1Slot", form.clinic1Slot);
-      }
-
-      if (form.clinic2Slot) {
-        body.append("clinic2Slot", form.clinic2Slot);
-      }
+      form.participation.forEach((item) => body.append("participation", item));
 
       if (form.proof) {
         body.append("proof", form.proof);
@@ -334,55 +302,48 @@ const [form, setForm] = useState({
           <div style={sectionStyle}>
             <label style={labelStyle}>Escolha o que você gostaria de participar</label>
             <p style={{ ...helperTextStyle, marginTop: 0, marginBottom: 14 }}>
-              Clique no check da clínica para abrir os horários disponíveis. Você pode escolher apenas 1 horário por clínica.
+              Você pode selecionar uma ou mais opções.
             </p>
 
             <div style={{ display: "grid", gap: 12 }}>
               {participationOptions.map((option) => {
-                const selectedSlot = option.id === "clinic1" ? form.clinic1Slot : form.clinic2Slot;
-                const isExpanded = expandedClinics.includes(option.id);
+                const selected = form.participation.includes(option.id);
+                const isClinic = option.id === "clinic1" || option.id === "clinic2";
 
                 return (
-                  <div
+                  <label
                     key={option.id}
                     style={{
-                      ...getSelectableCardStyle(isExpanded || !!selectedSlot),
-                      display: "grid",
+                      ...getSelectableCardStyle(selected),
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                       gap: 14,
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 14,
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
-                        <input
-                          type="checkbox"
-                          checked={isExpanded || !!selectedSlot}
-                          onChange={() => toggleClinic(option.id)}
-                          style={{ marginTop: 2 }}
-                        />
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleParticipation(option.id)}
+                      />
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-                          <span style={{ color: "#111827", fontSize: 15 }}>{option.label}</span>
-                          <span style={{ color: "#64748b", fontSize: 13 }}>
-                            Valor individual: ${option.price.toFixed(2)}
-                          </span>
-                          {selectedSlot && (
-                            <span style={{ color: "#2563eb", fontSize: 13, fontWeight: 600 }}>
-                              Horário selecionado: {selectedSlot}
-                            </span>
-                          )}
-                        </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <span style={{ color: "#111827", fontSize: 15 }}>{option.label}</span>
+                        <span style={{ color: "#64748b", fontSize: 13 }}>
+                          Valor individual: ${option.price.toFixed(2)}
+                        </span>
                       </div>
+                    </div>
 
+                    {isClinic && (
                       <button
                         type="button"
-                        onClick={() => setClinicInfoOpen(option.id as "clinic1" | "clinic2")}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setClinicInfoOpen(option.id as "clinic1" | "clinic2");
+                        }}
                         style={{
                           width: 30,
                           height: 30,
@@ -403,44 +364,8 @@ const [form, setForm] = useState({
                       >
                         ?
                       </button>
-                    </div>
-
-                    {isExpanded && (
-                      <div
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                          gap: 10,
-                        }}
-                      >
-                        {clinicTimes.map((slotTime) => {
-                          const active = selectedSlot === slotTime;
-
-                          return (
-                            <button
-                              key={slotTime}
-                              type="button"
-                              onClick={() => selectClinicSlot(option.id, slotTime)}
-                              style={{
-                                borderRadius: 14,
-                                border: active ? "1px solid #2563eb" : "1px solid #dbe2ea",
-                                background: active ? "#dbeafe" : "#ffffff",
-                                color: active ? "#1d4ed8" : "#0f172a",
-                                padding: "12px 10px",
-                                fontSize: 14,
-                                fontWeight: 600,
-                                cursor: "pointer",
-                                fontFamily: "Calibri, Arial, sans-serif",
-                                boxShadow: active ? "0 0 0 3px rgba(37, 99, 235, 0.12)" : "none",
-                              }}
-                            >
-                              {slotTime}
-                            </button>
-                          );
-                        })}
-                      </div>
                     )}
-                  </div>
+                  </label>
                 );
               })}
             </div>
@@ -736,18 +661,6 @@ const [form, setForm] = useState({
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -95,7 +95,7 @@ export default function LoginPage() {
           minHeight: "100vh",
           background:
             "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
-          color: "#e5e7eb",
+          color: "#374151",
           padding: "120px 16px 24px",
           display: "flex",
           flexDirection: "column",
@@ -250,7 +250,7 @@ export default function LoginPage() {
               <Link
                 href="/signup"
                 style={{
-                  color: "#e5e7eb",
+                  color: "#374151",
                   fontWeight: 700,
                   textDecoration: "underline",
                   textUnderlineOffset: 3,
@@ -265,4 +265,5 @@ export default function LoginPage() {
     </>
   );
 }
+
 
