@@ -19,7 +19,7 @@ export default function BeachTennisRegistrationPage() {
 
   const participationOptions = [
     { id: "clinic1" as ParticipationId, label: "Clínica 1 - 04/26/2026: Treino de beach tenis + funcional na areia de aquecimento", price: 29.9 },
-    { id: "clinic2" as ParticipationId, label: "Clínica 2 - 05/19/2026: Treino de beach tenis com circuito motor \(técnicas\)", price: 29.9 },
+    { id: "clinic2" as ParticipationId, label: "Clínica 2 - 05/16/2026: Treino de beach tenis com circuito motor \(técnicas\)", price: 29.9 },
   ];
 
   const waiverText = `Acordo de Responsabilidade, Risco e Autorização de Imagem
