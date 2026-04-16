@@ -101,7 +101,7 @@ export default function Home() {
 
         <h3>Data e Horário</h3>
         <p>📅 Clínica 1 — 26 de abril de 2026</p>
-        <p>📅 Clínica 2 — 19 de maio de 2026</p>
+        <p>📅 Clínica 2 — 16 de maio de 2026</p>
         <p>⏰ 08 AM às 11 AM</p>
 
         <hr style={{ opacity: 0.4 }} />
