@@ -20,6 +20,8 @@ type StravaRefreshResponse = {
 };
 
 type StravaActivity = {
+  average_heartrate?: number | null;
+  max_heartrate?: number | null;
   id: number;
   athlete?: { id: number };
   name?: string;
@@ -234,6 +236,8 @@ export async function GET(req: NextRequest) {
           elapsed_time: a.elapsed_time ?? null,
           total_elevation_gain: a.total_elevation_gain ?? null,
           average_speed: a.average_speed ?? null,
+          average_heartrate: a.average_heartrate ?? null,
+          max_heartrate: a.max_heartrate ?? null,
           max_speed: a.max_speed ?? null,
           is_trainer: a.trainer ?? null,
           is_commute: a.commute ?? null,
@@ -271,3 +275,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

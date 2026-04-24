@@ -1,0 +1,396 @@
+              <div>
+                <h2
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    margin: "0 0 4px 0",
+                    color: "#0f172a",
+                  }}
+                >
+                  Check-in
+                </h2>
+                <div style={{ color: "#64748b", fontSize: 13 }}>
+                  Register your activity and earn points for the ranking.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                {!hasStrava && communityId && (
+                  <Link
+                    href={`/memberships/${communityId}/inside/checkins`}
+                    style={{
+                      textDecoration: "none",
+                      borderRadius: 999,
+                      padding: "10px 16px",
+                      background: "#e2e8f0",
+                      color: "#0f172a",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    View History
+                  </Link>
+                )}
+
+                {!hasStrava && communityId && (
+                  <Link
+                href={hasStrava ? "#" : `/memberships/${communityId}/inside/checkin/new`}
+                    style={{
+                      textDecoration: "none",
+                      borderRadius: 999,
+                      padding: "10px 16px",
+                      background: "#0f172a",
+                      color: "#fff",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    New Check-in
+                  </Link>
+                )}
+              </div>
+            </div>
+            {hasStrava && (
+              <div style={{ marginTop: 16 }}>
+                <div style={{
+  background: "#ffffff",
+  borderRadius: 12,
+  padding: 16,
+  border: "1px solid #e2e8f0",
+  marginBottom: 16
+}}>
+  <DashboardClient />
+</div>
+              </div>
+            )}
+
+
+            {checkinsLoading ? (
+              <div style={{ color: "#64748b", fontSize: 14 }}>Loading check-ins...</div>
+            ) : recentCheckins.length === 0 ? (
+              <div
+                style={{
+                  borderRadius: 0,
+                  padding: 18,
+                  background: "#f8fafc",
+                  borderBottom: "1px solid #e2e8f0",
+                  color: "#475569",
+                  fontSize: 14,
+                  lineHeight: 1.7,
+                }}
+              >
+                No check-ins yet. Start registering activities to build the ranking.
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 2,
+                  }}
+                >
+                  <div
+                    style={{
+                      borderRadius: 999,
+                      padding: "3px 8px",
+                      background: "#dcfce7",
+                      color: "#166534",
+                      border: "1px solid #86efac",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {checkinTotalCount} visible check-in{checkinTotalCount === 1 ? "" : "s"}
+                  </div>
+
+                  <div
+                    style={{
+                      borderRadius: 999,
+                      padding: "3px 8px",
+                      background: "#dbeafe",
+                      color: "#1d4ed8",
+                      border: "1px solid #93c5fd",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Ranking ignores disregarded entries
+                  </div>
+                </div>
+
+                <div className="membership-checkin-scroll">
+                  <div style={{ display: "grid", gap: 6 }}>
+                    {recentCheckins.map((item) => {
+                      const authorLabel = getDisplayName(item.author_name);
+                      const isImageOpen = openCheckinImages.has(item.id);
+                      const isChallengeCheckin = Boolean(item.challenge_id);
+                      const isMine = item.user_id === userId;
+
+                      return (
+                        <article
+                          key={item.id}
+                          style={{
+                            borderRadius: 0,
+                            padding: "8px 0",
+                            background: item.is_disregarded
+                              ? "linear-gradient(180deg, #fff7ed 0%, #ffffff 100%)"
+                              : "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+                            borderBottom: "1px solid #e2e8f0",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 12,
+                              flexWrap: "wrap",
+                              marginBottom: 6,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                minWidth: 0,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 30,
+                                  height: 30,
+                                  borderRadius: 999,
+                                  background: getAvatarBackground(authorLabel),
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  color: "#f8fafc",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {getInitials(authorLabel)}
+                              </div>
+
+                              <div style={{ minWidth: 0 }}>
+                                <div
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                    whiteSpace: "nowrap",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}
+                                >
+                                  {authorLabel}
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: 10,
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  {new Date(item.created_at).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  borderRadius: 999,
+                                  padding: "3px 8px",
+                                  background: "#ede9fe",
+                                  color: "#6d28d9",
+                                  border: "1px solid #c4b5fd",
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {formatActivityType(item.activity_type)}
+                              </div>
+
+                              {isChallengeCheckin && (
+                                <div
+                                  style={{
+                                    borderRadius: 999,
+                                    padding: "3px 8px",
+                                    background: "#dbeafe",
+                                    color: "#1d4ed8",
+                                    border: "1px solid #93c5fd",
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  Challenge
+                                </div>
+                              )}
+
+                              <div
+                                style={{
+                                  borderRadius: 999,
+                                  padding: "3px 8px",
+                                  background: item.is_disregarded ? "#fee2e2" : "#fef3c7",
+                                  color: item.is_disregarded ? "#b91c1c" : "#b45309",
+                                  border: item.is_disregarded ? "1px solid #fca5a5" : "1px solid #fcd34d",
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {item.is_disregarded ? "Disregarded" : `+${item.points} pts`}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gap: 4,
+                            }}
+                          >
+                            <div
+                              style={{
+                                color: "#475569",
+                                fontSize: 12,
+                                lineHeight: 1.35,
+                              }}
+                            >
+                              {item.comment?.trim()
+                                ? item.comment
+                                : isChallengeCheckin
+                                ? "Challenge proof submitted."
+                                : "Workout proof submitted."}
+                            </div>
+
+                            {item.is_disregarded && (
+                              <div
+                                style={{
+                                  borderRadius: 14,
+                                  padding: "10px 12px",
+                                  background: "#fff7ed",
+                                  border: "1px solid #fdba74",
+                                  color: "#9a3412",
+                                  fontSize: 12,
+                                  lineHeight: 1.55,
+                                }}
+                              >
+                                {isMine
+                                  ? "This check-in was disregarded by an admin and is hidden from other members."
+                                  : "This check-in is currently disregarded and hidden from regular members."}
+                              </div>
+                            )}
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              {item.image_url ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleCheckinImage(item.id)}
+                                  style={{
+                                    border: "none",
+                                    background: "transparent",
+                                    color: "#2563eb",
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    padding: 0,
+                                  }}
+                                >
+                                  {isImageOpen ? "Hide photo" : "View photo"}
+                                </button>
+                              ) : (
+                                <span style={{ fontSize: 12, color: "#64748b" }}>No photo attached</span>
+                              )}
+
+                              {canManageHighlights && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDisregardToggle(item.id, item.is_disregarded)}
+                                  disabled={checkinActionId === item.id}
+                                  style={{
+                                    border: item.is_disregarded ? "1px solid #86efac" : "1px solid #fdba74",
+                                    background: item.is_disregarded ? "#f0fdf4" : "#fff7ed",
+                                    color: item.is_disregarded ? "#166534" : "#9a3412",
+                                    borderRadius: 999,
+                                    padding: "8px 12px",
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    whiteSpace: "nowrap",
+                                    opacity: checkinActionId === item.id ? 0.7 : 1,
+                                  }}
+                                >
+                                  {checkinActionId === item.id
+                                    ? "Saving..."
+                                    : item.is_disregarded
+                                    ? "Add again"
+                                    : "Disregard"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {isImageOpen && item.image_url && (
+                            <div
+                              style={{
+                                marginTop: 12,
+                                borderRadius: 18,
+                                overflow: "hidden",
+                                border: "1px solid #dbe2ea",
+                                background: "#eef2f7",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 8,
+                              }}
+                            >
+                              <img
+                                src={item.image_url}
+                                alt="Check-in proof"
+                                style={{
+                                  width: "100%",
+                                  maxHeight: 300,
+                                  objectFit: "contain",
+                                  display: "block",
+                                  borderRadius: 0,
+                                }}
+                              />
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
