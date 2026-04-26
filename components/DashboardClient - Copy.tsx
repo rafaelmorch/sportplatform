@@ -178,7 +178,6 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
 
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  const [isStravaConnected, setIsStravaConnected] = useState<boolean>(true);
   const autoSyncRanRef = useRef(false);
 
   const safeActivities = Array.isArray(activities) ? activities : [];
@@ -213,13 +212,8 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
       if (!res.ok) {
   setSyncMsg(
     (json?.message as string) ??
-      "Não foi possível sincronizar agora."
+      "Não foi possível sincronizar agora. Verifique se o Strava está conectado."
   );
-
-  if ((json?.message as string)?.toLowerCase().includes("strava")) {
-    setIsStravaConnected(false);
-  }
-
   setSyncing(false);
   return;
 }
@@ -748,31 +742,11 @@ style={{
         })}
       </div>
 
-      {syncMsg && !isStravaConnected && (
-  <div style={{ marginTop: -6, marginBottom: 12 }}>
-    <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 8px" }}>
-      {syncMsg}
-    </p>
-
-    <a
-      href="/integrations"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "7px 14px",
-        borderRadius: 999,
-        background: "#fc4c02",
-        color: "#ffffff",
-        fontSize: 12,
-        fontWeight: 700,
-        textDecoration: "none",
-      }}
-    >
-      Connect Strava
-    </a>
-  </div>
-)}
+      {syncMsg && (
+        <p style={{ fontSize: 12, color: "#64748b", marginTop: -6, marginBottom: 12 }}>
+          {syncMsg}
+        </p>
+      )}
 
       {/* MEME DO CHURRASCO */}
       {lastPlace && (

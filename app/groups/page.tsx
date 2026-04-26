@@ -1,262 +1,556 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import BottomNavbar from "@/components/BottomNavbar";
-import { trainingGroups } from "./groups-data";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
 
-// ✅ Mapa por TÍTULO (mais seguro do que slug)
-const groupImagesByTitle: Record<string, string> = {
-  "Maratona 42K": "/images/groups/marathon42k.png",
-  "Triathlon Endurance": "/images/groups/triathlon.png",
-  "Corrida para Beginners": "/images/groups/beginners.png",
-  "Running & Weight Loss": "/images/groups/loss.png",
-  "Performance 5K": "/images/groups/performance5k.png",
-  "Performance 10K": "/images/groups/performance10k.png",
+type MembershipCommunity = {
+  id: string;
+  name: string | null;
+  slug: string | null;
+  short_description: string | null;
+  full_description: string | null;
+  price_cents: number | null;
+  billing_interval: string | null;
+  cover_image_url: string | null;
+  banner_image_url: string | null;
+  card_highlight: string | null;
+  is_active: boolean;
+  created_at: string | null;
+  created_by?: string | null;
 };
 
-export default function GroupsPage() {
-  const router = useRouter();
-  const [allowed, setAllowed] = useState(false);
+function formatPrice(priceCents: number | null, billingInterval: string | null): string {
+  const cents = priceCents ?? 0;
+  const interval = (billingInterval ?? "month").toLowerCase();
+
+  if (cents <= 0) return "Coming soon";
+
+  const price = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(cents / 100);
+
+  if (interval === "year") return `${price}/year`;
+  if (interval === "week") return `${price}/week`;
+
+  return `${price}/month`;
+}
+
+function getInitials(name: string | null): string {
+  if (!name) return "MS";
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+export default function MembershipsPage() {
+  const supabase = useMemo(() => supabaseBrowser, []);
+  const [communities, setCommunities] = useState<MembershipCommunity[]>([]);
+  const [approvedIds, setApprovedIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const check = async () => {
-      const {
-        data: { session },
-      } = await (await import("@/lib/supabase-browser")).supabaseBrowser.auth.getSession();
+    let cancelled = false;
 
-      if (!session) {
-        router.push("/login");
-        return;
+    async function load() {
+      setLoading(true);
+      setWarning(null);
+
+      try {
+        const { data: communityData, error: communityError } = await supabase
+          .from("app_membership_communities")
+          .select(
+            "id,name,slug,short_description,full_description,price_cents,billing_interval,cover_image_url,banner_image_url,card_highlight,is_active,created_at,created_by"
+          )
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+
+        if (cancelled) return;
+
+        if (communityError) {
+          console.error("Error loading memberships:", communityError);
+          setWarning("I couldn't load the memberships right now.");
+          setCommunities([]);
+          setApprovedIds([]);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
+
+        const rows = (communityData as MembershipCommunity[]) ?? [];
+        setCommunities(rows);
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (cancelled) return;
+
+        if (user) {
+          setUserId(user.id);
+
+          const [{ data: requestData, error: requestError }, { data: profileData, error: profileError }] =
+            await Promise.all([
+              supabase
+                .from("app_membership_requests")
+                .select("community_id")
+                .eq("user_id", user.id)
+                .eq("status", "approved"),
+              supabase
+                .from("profiles")
+                .select("is_admin")
+                .eq("id", user.id)
+                .maybeSingle(),
+            ]);
+
+          if (!requestError && requestData) {
+            setApprovedIds(requestData.map((row) => row.community_id));
+          } else {
+            setApprovedIds([]);
+          }
+
+          if (!profileError && profileData?.is_admin === true) {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
+        } else {
+          setApprovedIds([]);
+          setIsAdmin(false);
+          setUserId(null);
+        }
+
+        if (rows.length === 0) {
+          setWarning("There are no active memberships yet.");
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        if (!cancelled) {
+          setWarning("Failed to connect to Supabase.");
+          setCommunities([]);
+          setApprovedIds([]);
+          setIsAdmin(false);
+          setUserId(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    }
 
-      setAllowed(true);
+    load();
+
+    return () => {
+      cancelled = true;
     };
+  }, [supabase]);
 
-    check();
-  }, [router]);
+  return (
+    <>
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+          width: 100%;
+          height: 100%;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        #__next {
+          height: 100%;
+        }
+        * {
+          box-sizing: border-box;
+        }
+      `}</style>
 
-  // opcional: evita recalcular
-  const groupsWithImages = useMemo(() => {
-    return trainingGroups.map((g) => ({
-      ...g,
-      imageSrc: groupImagesByTitle[g.title] ?? null,
-    }));
-  }, []);
-
-  if (!allowed) {
-    return (
       <main
         style={{
           minHeight: "100vh",
-          backgroundColor: "#020617",
-          color: "#e5e7eb",
-          padding: "16px",
-          paddingBottom: "80px",
+          width: "100%",
+          overflowX: "hidden",
+          background: "#ffffff",
+          color: "#000000",
+          padding: 16,
+          paddingBottom: 92,
         }}
       >
-        <p style={{ fontSize: 13, color: "#64748b" }}>Carregando…</p>
-      </main>
-    );
-  }
-
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#020617",
-        color: "#e5e7eb",
-        padding: "16px",
-        paddingBottom: "80px",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-        }}
-      >
-        <header
-          style={{
-            marginBottom: 20,
-            display: "flex",
-            flexDirection: "column",
-            gap: 6,
-          }}
-        >
-          <p
+        <div style={{ maxWidth: 980, margin: "0 auto" }}>
+          <header
             style={{
-              fontSize: 11,
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "#64748b",
-              margin: 0,
+              marginBottom: 18,
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "flex-start",
+              gap: 0,
+              textAlign: "left",
             }}
           >
-            Comunidades
-          </p>
-          <h1
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              margin: 0,
-            }}
-          >
-            Grupos de treino
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#9ca3af",
-              margin: 0,
-            }}
-          >
-            Escolha um grupo que combine com o seu momento e acompanhe sua evolução
-            junto com outros atletas.
-          </p>
-        </header>
-
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: 12,
-          }}
-        >
-          {groupsWithImages.map((group) => (
-            <Link
-              key={group.slug}
-              href={`/groups/${group.slug}`}
-              style={{
-                textDecoration: "none",
-                color: "inherit",
-              }}
-            >
-              <div
+            <div>
+              <h1
                 style={{
-                  borderRadius: 18,
-                  border: "1px solid rgba(148,163,184,0.35)",
-                  background:
-                    "radial-gradient(circle at top left, #020617, #020617 50%, #000000 100%)",
-                  overflow: "hidden", // ✅ garante bordas arredondadas na imagem
+                  fontSize: 26,
+                  fontWeight: 700,
+                  fontFamily: "Montserrat, sans-serif",
+                  margin: 0,
                 }}
               >
-                {/* ✅ Imagem do grupo (se existir) */}
-                {group.imageSrc ? (
-                  <img
-                    src={group.imageSrc}
-                    alt={group.title}
-                    loading="lazy"
-                    style={{
-                      width: "100%",
-                      height: 120,
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                    onError={(e) => {
-                      console.error("❌ Falhou carregar imagem:", group.title, group.imageSrc);
-                      // esconde a imagem pra não ficar ícone quebrado
-                      (e.currentTarget as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                ) : null}
+                Communities
+              </h1>
 
-                {/* Conteúdo do card */}
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#6b7280",
+                  fontFamily: "Arial, sans-serif",
+                  margin: "8px 0 0 0",
+                  maxWidth: 540,
+                }}
+              >
+                Join premium communities, unlock exclusive access, and build your journey with the
+                right tribe.
+              </p>
+            </div>
+          </header>
+
+          <section
+            style={{
+              marginBottom: 18,
+              borderRadius: 8,
+              padding: 18,
+              border: "1px solid #e5e7eb",
+              background: "#ffffff",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                borderRadius: 6,
+                padding: "6px 10px",
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                fontSize: 11,
+                fontWeight: 700,
+                fontFamily: "Montserrat, sans-serif",
+                color: "#1e3a8a",
+                marginBottom: 10,
+              }}
+            >
+              Exclusive access
+            </div>
+
+            <div
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                fontFamily: "Montserrat, sans-serif",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
+                color: "#1e3a8a",
+                marginBottom: 8,
+              }}
+            >
+              Your next level starts inside the right community.
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "#374151",
+                fontFamily: "Arial, sans-serif",
+                maxWidth: 720,
+              }}
+            >
+              Training, accountability, rankings, internal feed, check-ins and premium interaction
+              in one place.
+            </div>
+          </section>
+
+          {warning && (
+            <div
+              style={{
+                marginBottom: 12,
+                borderRadius: 14,
+                padding: "10px 12px",
+                background: "rgba(245,158,11,0.14)",
+                border: "1px solid rgba(245,158,11,0.22)",
+                color: "#92400e",
+                fontSize: 12,
+                lineHeight: 1.35,
+                fontFamily: "Arial, sans-serif",
+              }}
+            >
+              {warning}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 10,
+            }}
+          >
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
                 <div
+                  key={i}
                   style={{
-                    padding: "14px 14px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                    border: "1px solid #e5e7eb",
+                    background: "#ffffff",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 8,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    <div>
-                      <h2
-                        style={{
-                          fontSize: 16,
-                          fontWeight: 600,
-                          margin: 0,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {group.title}
-                      </h2>
-                      <p
-                        style={{
-                          fontSize: 13,
-                          color: "#9ca3af",
-                          margin: 0,
-                        }}
-                      >
-                        {group.shortDescription}
-                      </p>
-                    </div>
-
-                    <span
-                      style={{
-                        fontSize: 11,
-                        padding: "4px 10px",
-                        borderRadius: 999,
-                        border: "1px solid rgba(56,189,248,0.5)",
-                        background:
-                          "linear-gradient(135deg, rgba(8,47,73,0.9), rgba(12,74,110,0.9))",
-                        color: "#e0f2fe",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Grupo ativo
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-end",
-                      marginTop: 6,
-                      gap: 10,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: 12,
-                        color: "#60a5fa",
-                        margin: 0,
-                      }}
-                    >
-                      Plano de 12 semanas pensado para este grupo.
-                    </p>
-
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "#93c5fd",
-                        textDecoration: "underline",
-                      }}
-                    >
-                      Ver detalhes
-                    </span>
-                  </div>
+                  <div style={{ aspectRatio: "16 / 10", background: "#f8fafc" }} />
+                  <div style={{ height: 56, background: "#1e3a8a" }} />
                 </div>
-              </div>
-            </Link>
-          ))}
-        </section>
-      </div>
+              ))
+            ) : (
+              communities.map((community) => {
+                const image = community.cover_image_url || community.banner_image_url || null;
+                const priceLabel = formatPrice(community.price_cents, community.billing_interval);
+                const isApproved = approvedIds.includes(community.id);
+                const href = isApproved
+                  ? `/memberships/${community.id}/inside`
+                  : `/memberships/${community.id}`;
+                const canEdit = isAdmin || (!!userId && community.created_by === userId);
 
-      <BottomNavbar />
-    </main>
+                return (
+                  <div
+                    key={community.id}
+                    style={{
+                      position: "relative",
+                    }}
+                  >
+                    <Link
+                      href={href}
+                      style={{ textDecoration: "none", color: "inherit", display: "block" }}
+                    >
+                      <div
+                        style={{
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          border: "1px solid #e5e7eb",
+                          background: "#ffffff",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: "relative",
+                            width: "100%",
+                            aspectRatio: "16 / 10",
+                            background: "#f8fafc",
+                          }}
+                        >
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={community.name ?? "Membership"}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 42,
+                                fontWeight: 700,
+                                fontFamily: "Montserrat, sans-serif",
+                                color: "#94a3b8",
+                                letterSpacing: "0.06em",
+                              }}
+                            >
+                              {getInitials(community.name)}
+                            </div>
+                          )}
+
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: 8,
+                              top: 8,
+                              padding: "clamp(4px, 1.4vw, 6px) clamp(7px, 2vw, 10px)",
+                              borderRadius: 6,
+                              fontSize: "clamp(9px, 2vw, 11px)",
+                              fontWeight: 700,
+                              fontFamily: "Montserrat, sans-serif",
+                              background: "#1e3a8a",
+                              border: "1px solid #1e3a8a",
+                              color: "#ffffff",
+                              lineHeight: 1.1,
+                            }}
+                          >
+                            {isApproved ? "MEMBER AREA" : "MEMBERSHIP"}
+                          </div>
+
+                          <div
+                            style={{
+                              position: "absolute",
+                              right: 8,
+                              top: 8,
+                              padding: "clamp(4px, 1.4vw, 6px) clamp(7px, 2vw, 10px)",
+                              borderRadius: 6,
+                              fontSize: "clamp(9px, 2vw, 11px)",
+                              fontWeight: 700,
+                              fontFamily: "Montserrat, sans-serif",
+                              background: "#ffffff",
+                              color: "#000000",
+                              border: "1px solid #e5e7eb",
+                              lineHeight: 1.1,
+                            }}
+                          >
+                            {priceLabel}
+                          </div>
+
+                          {community.card_highlight && (
+                            <div
+                              style={{
+                                position: "absolute",
+                                left: 8,
+                                bottom: 8,
+                                padding: "clamp(5px, 1.6vw, 7px) clamp(8px, 2.2vw, 11px)",
+                                borderRadius: 6,
+                                fontSize: "clamp(9px, 2vw, 11px)",
+                                fontWeight: 700,
+                                fontFamily: "Montserrat, sans-serif",
+                                background: "#f8fafc",
+                                color: "#111827",
+                                border: "1px solid #e5e7eb",
+                                maxWidth: "calc(100% - 16px)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                lineHeight: 1.1,
+                              }}
+                            >
+                              {community.card_highlight}
+                            </div>
+                          )}
+
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.location.href = `/memberships/${community.id}/edit`;
+                              }}
+                              style={{
+                                position: "absolute",
+                                right: 8,
+                                bottom: 8,
+                                borderRadius: 6,
+                                padding: "clamp(5px, 1.6vw, 7px) clamp(8px, 2.2vw, 11px)",
+                                fontSize: "clamp(9px, 2vw, 11px)",
+                                fontWeight: 700,
+                                fontFamily: "Montserrat, sans-serif",
+                                background: "#ffffff",
+                                color: "#000000",
+                                border: "1px solid #e5e7eb",
+                                cursor: "pointer",
+                                lineHeight: 1.1,
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            background: "#1e3a8a",
+                            padding: "8px 8px",
+                            minHeight: 40,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            textAlign: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "clamp(15px, 2.8vw, 20px)",
+                              fontWeight: 700,
+                              fontFamily: "Montserrat, sans-serif",
+                              lineHeight: 1.15,
+                              color: "#ffffff",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {community.name ?? "Membership"}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {isAdmin && (
+          <Link
+            href="/memberships/new"
+            style={{
+              position: "fixed",
+              right: 18,
+              bottom: 108,
+              width: 58,
+              height: 58,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              textDecoration: "none",
+              background: "#000000",
+              color: "#ffffff",
+              fontSize: 34,
+              fontWeight: 700,
+              fontFamily: "Montserrat, sans-serif",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.10)",
+              zIndex: 20,
+            }}
+            aria-label="Create community"
+            title="Create community"
+          >
+            +
+          </Link>
+        )}
+
+        <BottomNavbar />
+      </main>
+    </>
   );
 }
+

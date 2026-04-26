@@ -10,7 +10,6 @@ const supabase = supabaseBrowser;
 type StravaActivity = {
   id: string;
   athlete_id: number;
-  athlete_name?: string;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -178,7 +177,6 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
 
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  const [isStravaConnected, setIsStravaConnected] = useState<boolean>(true);
   const autoSyncRanRef = useRef(false);
 
   const safeActivities = Array.isArray(activities) ? activities : [];
@@ -211,18 +209,13 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-  setSyncMsg(
-    (json?.message as string) ??
-      "Não foi possível sincronizar agora."
-  );
-
-  if ((json?.message as string)?.toLowerCase().includes("strava")) {
-    setIsStravaConnected(false);
-  }
-
-  setSyncing(false);
-  return;
-}
+        console.error("Sync falhou:", json);
+        setSyncMsg(
+          (json?.message as string) ?? "Falha ao sincronizar com o Strava. Tente novamente."
+        );
+        setSyncing(false);
+        return;
+      }
 
       setSyncMsg(
         typeof json?.fetched === "number"
@@ -491,19 +484,13 @@ export default function DashboardClient({ activities, eventsSummary }: Dashboard
       });
     }
 
-const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) => {
-  const activityWithName = groupActivities.find(
-    (a) => a.athlete_id === athleteId
-  );
-
-  return {
-    athleteId,
- label: activityWithName?.athlete_name ?? `Atleta ${athleteId}`,
-    totalPoints: Math.round(v.points),
-    totalHours: v.hours,
-    isCurrent: currentAthleteId === athleteId,
-  };
-});
+    const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) => ({
+      athleteId,
+      label: athleteNames[athleteId] ?? `Atleta ${athleteId}`,
+      totalPoints: Math.round(v.points),
+      totalHours: v.hours,
+      isCurrent: currentAthleteId === athleteId,
+    }));
 
     entries.sort((a, b) => b.totalPoints - a.totalPoints);
     return entries;
@@ -610,13 +597,13 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
               height: 32,
               borderRadius: "999px",
               background:
-                "linear-gradient(135deg, #22c55e, #86efac)",
+                "radial-gradient(circle at 20% 20%, #22c55e, #16a34a 40%, #0f172a 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 16,
               fontWeight: 700,
-              color: "#052e16",
+              color: "#0b1120",
             }}
           >
             SP
@@ -649,12 +636,12 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
             marginTop: 4,
           }}
         >
-          <span style={{ fontSize: 12, color: "#64748b" }}>
+          <span style={{ fontSize: 12, color: "#9ca3af" }}>
             {groups.length > 1 ? "Selecione o grupo para ver ranking e métricas:" : "Grupo atual:"}
           </span>
 
           {groups.length === 0 ? (
-            <span style={{ fontSize: 12, color: "#64748b" }}>Nenhum grupo encontrado.</span>
+            <span style={{ fontSize: 12, color: "#6b7280" }}>Nenhum grupo encontrado.</span>
           ) : (
             <select
               value={selectedGroupId ?? ""}
@@ -663,9 +650,9 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
                 fontSize: 12,
                 padding: "4px 10px",
                 borderRadius: 999,
-                border: "1px solid #cbd5e1",
-                backgroundColor: "#ffffff",
-                color: "#0f172a",
+                border: "1px solid rgba(55,65,81,0.9)",
+                backgroundColor: "#020617",
+                color: "#e5e7eb",
                 outline: "none",
                 cursor: "pointer",
                 maxWidth: "100%",
@@ -675,7 +662,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
                 <option
                   key={g.id}
                   value={g.id}
-                  style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
+                  style={{ backgroundColor: "#020617", color: "#e5e7eb" }}
                 >
                   {g.name}
                 </option>
@@ -684,11 +671,11 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
           )}
 
           {(loadingGroups || loadingGroupAthletes) && (
-            <span style={{ fontSize: 11, color: "#64748b" }}>Carregando grupos/atletas...</span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>Carregando grupos/atletas...</span>
           )}
         </div>
 
-        <p style={{ fontSize: 13, color: "#64748b", margin: 0, marginTop: 4 }}>
+        <p style={{ fontSize: 13, color: "#9ca3af", margin: 0, marginTop: 4 }}>
           Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e
           resumo das suas atividades.
         </p>
@@ -709,17 +696,19 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
           type="button"
           onClick={handleSync}
           disabled={syncing}
-style={{
-  fontSize: 12,
-  padding: "6px 14px",
-  borderRadius: 999,
-  border: "1px solid #16a34a",
-  background: syncing ? "#e2e8f0" : "#16a34a",
-  color: syncing ? "#64748b" : "#ffffff",
-  fontWeight: 600,
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-}}          title="Puxa atividades novas do Strava"
+          style={{
+            fontSize: 11,
+            padding: "4px 10px",
+            borderRadius: 999,
+            border: syncing
+              ? "1px solid rgba(55,65,81,0.9)"
+              : "1px solid rgba(34,197,94,0.8)",
+            background: syncing ? "transparent" : "radial-gradient(circle at top, #22c55e33, transparent)",
+            color: syncing ? "#9ca3af" : "#bbf7d0",
+            cursor: syncing ? "not-allowed" : "pointer",
+            transition: "all 0.15s ease-out",
+          }}
+          title="Puxa atividades novas do Strava"
         >
           {syncing ? "Sincronizando..." : "Sincronizar agora"}
         </button>
@@ -735,9 +724,9 @@ style={{
                 fontSize: 11,
                 padding: "4px 10px",
                 borderRadius: 999,
-                border: active ? "1px solid #22c55e" : "1px solid #cbd5e1",
-                background: active ? "#dcfce7" : "transparent",
-                color: active ? "#166534" : "#475569",
+                border: active ? "1px solid rgba(34,197,94,0.8)" : "1px solid rgba(55,65,81,0.9)",
+                background: active ? "radial-gradient(circle at top, #22c55e33, transparent)" : "transparent",
+                color: active ? "#bbf7d0" : "#e5e7eb",
                 cursor: "pointer",
                 transition: "all 0.15s ease-out",
               }}
@@ -748,31 +737,11 @@ style={{
         })}
       </div>
 
-      {syncMsg && !isStravaConnected && (
-  <div style={{ marginTop: -6, marginBottom: 12 }}>
-    <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 8px" }}>
-      {syncMsg}
-    </p>
-
-    <a
-      href="/integrations"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "7px 14px",
-        borderRadius: 999,
-        background: "#fc4c02",
-        color: "#ffffff",
-        fontSize: 12,
-        fontWeight: 700,
-        textDecoration: "none",
-      }}
-    >
-      Connect Strava
-    </a>
-  </div>
-)}
+      {syncMsg && (
+        <p style={{ fontSize: 12, color: "#9ca3af", marginTop: -6, marginBottom: 12 }}>
+          {syncMsg}
+        </p>
+      )}
 
       {/* MEME DO CHURRASCO */}
       {lastPlace && (
@@ -786,7 +755,7 @@ style={{
             padding: "10px 12px",
             borderRadius: 18,
             border: "1px solid rgba(248,113,113,0.6)",
-            background: "linear-gradient(135deg, #fff1f2, #ffffff)",
+            background: "linear-gradient(135deg, rgba(248,113,113,0.16), rgba(15,23,42,0.95))",
             flexWrap: "wrap",
           }}
         >
@@ -805,7 +774,7 @@ style={{
             >
               {lastPlace.label}
             </span>
-            <span style={{ fontSize: 11, color: "#64748b" }}>Último colocado no ranking neste período.</span>
+            <span style={{ fontSize: 11, color: "#9ca3af" }}>Último colocado no ranking neste período.</span>
           </div>
 
           <div
@@ -833,13 +802,13 @@ style={{
           marginBottom: 18,
           padding: "14px 14px",
           borderRadius: 22,
-          border: "1px solid #e2e8f0",
-          background: "#ffffff",
+          border: "1px solid rgba(51,65,85,0.7)",
+          background: "linear-gradient(180deg, rgba(2,6,23,0.9), rgba(15,23,42,0.85))",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Ranking do grupo ({rangeLabel})</h2>
-          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
+          <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
             Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100 pts/h, caminhada = 15 pts/h.
           </p>
         </div>
@@ -851,9 +820,9 @@ style={{
               gridTemplateColumns: "80px 1fr 140px 140px",
               gap: 10,
               padding: "10px 10px",
-              color: "#64748b",
+              color: "#9ca3af",
               fontSize: 12,
-              borderBottom: "1px solid #e2e8f0",
+              borderBottom: "1px solid rgba(51,65,85,0.6)",
             }}
           >
             <div>Pos.</div>
@@ -863,7 +832,7 @@ style={{
           </div>
 
           {ranking.length === 0 ? (
-            <div style={{ padding: "12px 10px", color: "#64748b", fontSize: 13 }}>
+            <div style={{ padding: "12px 10px", color: "#9ca3af", fontSize: 13 }}>
               Ainda não há atividades suficientes neste período.
             </div>
           ) : (
@@ -875,8 +844,8 @@ style={{
                   gridTemplateColumns: "80px 1fr 140px 140px",
                   gap: 10,
                   padding: "12px 10px",
-                  borderBottom: idx === ranking.length - 1 ? "none" : "1px solid #e2e8f0",
-                  background: r.isCurrent ? "#ecfdf5" : "transparent",
+                  borderBottom: idx === ranking.length - 1 ? "none" : "1px solid rgba(51,65,85,0.35)",
+                  background: r.isCurrent ? "rgba(34,197,94,0.10)" : "transparent",
                 }}
               >
                 <div style={{ fontWeight: 800, fontSize: 18 }}>#{idx + 1}</div>
@@ -900,9 +869,9 @@ style={{
                         fontSize: 11,
                         padding: "3px 10px",
                         borderRadius: 999,
-                        border: "1px solid #22c55e",
-                        color: "#166534",
-                        background: "#dcfce7",
+                        border: "1px solid rgba(34,197,94,0.7)",
+                        color: "#bbf7d0",
+                        background: "rgba(34,197,94,0.12)",
                         fontWeight: 700,
                       }}
                     >
@@ -928,23 +897,23 @@ style={{
           marginBottom: 18,
         }}
       >
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Atividades</div>
+        <div style={{ padding: 14, borderRadius: 18, border: "1px solid rgba(51,65,85,0.7)", background: "rgba(2,6,23,0.75)" }}>
+          <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700 }}>Atividades</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteActivitiesCount}</div>
         </div>
 
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Distância (km)</div>
+        <div style={{ padding: 14, borderRadius: 18, border: "1px solid rgba(51,65,85,0.7)", background: "rgba(2,6,23,0.75)" }}>
+          <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700 }}>Distância (km)</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteDistance.toFixed(1)}</div>
         </div>
 
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Tempo em movimento</div>
+        <div style={{ padding: 14, borderRadius: 18, border: "1px solid rgba(51,65,85,0.7)", background: "rgba(2,6,23,0.75)" }}>
+          <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700 }}>Tempo em movimento</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{formatDuration(athleteMovingTime)}</div>
         </div>
 
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Elevação (m)</div>
+        <div style={{ padding: 14, borderRadius: 18, border: "1px solid rgba(51,65,85,0.7)", background: "rgba(2,6,23,0.75)" }}>
+          <div style={{ fontSize: 12, color: "#9ca3af", fontWeight: 700 }}>Elevação (m)</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{Math.round(athleteElevation)}</div>
         </div>
       </section>
@@ -966,8 +935,8 @@ style={{
           marginBottom: 18,
           padding: "14px 14px",
           borderRadius: 22,
-          border: "1px solid #e2e8f0",
-          background: "#ffffff",
+          border: "1px solid rgba(51,65,85,0.7)",
+          background: "rgba(2,6,23,0.75)",
         }}
       >
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
@@ -975,7 +944,7 @@ style={{
         </h2>
 
         {lastActivities.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>
             Ainda não há atividades neste período.
           </p>
         ) : (
@@ -996,8 +965,8 @@ style={{
                     gap: 12,
                     padding: "10px 10px",
                     borderRadius: 16,
-                    border: "1px solid #e2e8f0",
-                    background: "#f8fafc",
+                    border: "1px solid rgba(51,65,85,0.45)",
+                    background: "rgba(15,23,42,0.55)",
                     flexWrap: "wrap",
                   }}
                 >
@@ -1014,7 +983,7 @@ style={{
                     >
                       {title}
                     </div>
-                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
                       {formatDate(a.start_date)}
                     </div>
                   </div>
@@ -1025,7 +994,7 @@ style={{
                       gap: 14,
                       alignItems: "center",
                       fontSize: 12,
-                      color: "#0f172a",
+                      color: "#e5e7eb",
                       flexWrap: "wrap",
                       justifyContent: "flex-end",
                     }}
@@ -1052,9 +1021,3 @@ style={{
     </div>
   );
 }
-
-
-
-
-
-
