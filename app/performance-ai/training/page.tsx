@@ -862,6 +862,8 @@ export default function PerformanceAIPage() {
     weeklyMovingTime,
   });
 
+  const goalText = userGoal || profile?.goal || "General fitness";
+
   const next7DaySuggestions = getNext7DaySuggestions({
     goalText,
     level,
@@ -1811,6 +1813,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
