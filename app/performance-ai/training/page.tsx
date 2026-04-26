@@ -863,6 +863,7 @@ export default function PerformanceAIPage() {
   });
 
   const goalText = goal || "General fitness";
+  const level = "beginner";
 
   const next7DaySuggestions = getNext7DaySuggestions({
     goalText,
@@ -1813,6 +1814,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
