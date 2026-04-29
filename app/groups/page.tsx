@@ -329,8 +329,8 @@ export default function MembershipsPage() {
                 const priceLabel = formatPrice(community.price_cents, community.billing_interval);
                 const isApproved = approvedIds.includes(community.id);
                 const href = isApproved
-                  ? `/memberships/${community.id}/inside`
-                  : `/memberships/${community.id}`;
+                  ? `/groups/${community.id}/inside`
+                  : `/groups/${community.id}`;
                 const canEdit = isAdmin || (!!userId && community.created_by === userId);
 
                 return (
@@ -460,7 +460,7 @@ export default function MembershipsPage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                window.location.href = `/memberships/${community.id}/edit`;
+                                window.location.href = `/groups/${community.id}/edit`;
                               }}
                               style={{
                                 position: "absolute",
@@ -521,7 +521,7 @@ export default function MembershipsPage() {
 
         {isAdmin && (
           <Link
-            href="/memberships/new"
+            href="/groups/new"
             style={{
               position: "fixed",
               right: 18,

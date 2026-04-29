@@ -1,12 +1,12 @@
-// app/login/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import LoginTopMenu from "@/components/LoginTopMenu";
+import BottomNavbar from "@/components/BottomNavbar";
 
+// ================= SUPABASE =================
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -18,141 +18,102 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const [loadingEmail, setLoadingEmail] = useState(false);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // ================= AUTH STATE =================
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        router.replace("/dashboard");
+        router.replace("/activities");
       }
     });
 
     return () => subscription.unsubscribe();
   }, [router]);
 
+  // ================= EMAIL LOGIN =================
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
-    setLoadingEmail(true);
+    setLoading(true);
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-      if (error) {
-        if (error.message.toLowerCase().includes("email not confirmed")) {
-          setErrorMsg(
-            "Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada."
-          );
-        } else {
-          setErrorMsg("E-mail ou senha inválidos.");
-        }
-      }
-    } catch {
-      setErrorMsg("Erro inesperado ao fazer login.");
-    } finally {
-      setLoadingEmail(false);
+    if (error) {
+      setErrorMsg("Invalid email or password.");
+      setLoading(false);
     }
   }
-
-  async function handleGoogle() {
-    setErrorMsg(null);
-    setLoadingGoogle(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          // 🔴 ÚNICA ALTERAÇÃO AQUI
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) {
-        setErrorMsg("Erro ao iniciar login com Google.");
-        setLoadingGoogle(false);
-      }
-    } catch {
-      setErrorMsg("Erro inesperado no login com Google.");
-      setLoadingGoogle(false);
-    }
-  }
-
-  const anyLoading = loadingEmail || loadingGoogle;
 
   return (
     <>
-      <LoginTopMenu />
+      <style jsx global>{`
+        html,
+        body {
+          height: 100%;
+          overflow: hidden;
+          background: #000;
+        }
+      `}</style>
 
       <main
         style={{
-          minHeight: "100vh",
+          height: "100vh",
+          width: "100vw",
           background:
-            "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
-          color: "#374151",
-          padding: "120px 16px 24px",
+            "radial-gradient(circle at top, #020617 0%, #020617 45%, #000 100%)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
+          padding: "24px 16px",
+          paddingBottom: 96,
+          color: "#e5e7eb",
+          boxSizing: "border-box",
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: 18,
-          }}
-        >
-          <img
-            src="/logo-sports-platform.png"
-            alt="Sports Platform"
-            style={{
-              width: 640,
-              maxWidth: "92vw",
-              height: "auto",
-              display: "block",
-            }}
-          />
-        </div>
+        <img
+          src="/logo-sports-platform.png"
+          alt="Platform Sports"
+          style={{ width: 520, maxWidth: "92vw", marginBottom: 24 }}
+        />
 
         <div
           style={{
             width: "100%",
-            maxWidth: "420px",
-            borderRadius: "24px",
-            border: "1px solid #111827",
+            maxWidth: 420,
+            borderRadius: 28,
+            padding: 26,
             background:
-              "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
-            boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
-            padding: "24px 22px 22px",
+              "linear-gradient(145deg, rgba(15,23,42,0.95), rgba(15,23,42,0.9))",
+            boxShadow: "0 30px 80px rgba(0,0,0,0.85)",
           }}
         >
           <h1
             style={{
+              textAlign: "center",
               fontSize: 22,
               fontWeight: 700,
-              marginBottom: 12,
-              textAlign: "center",
+              marginBottom: 16,
             }}
           >
-            Entrar
+            Sign in
           </h1>
 
           {errorMsg && (
             <div
               style={{
-                marginBottom: 12,
-                padding: 8,
-                borderRadius: 8,
                 background: "rgba(220,38,38,0.25)",
+                padding: 10,
+                borderRadius: 10,
                 fontSize: 13,
+                marginBottom: 12,
               }}
             >
               {errorMsg}
@@ -165,31 +126,33 @@ export default function LoginPage() {
           >
             <input
               type="email"
-              placeholder="E-mail"
+              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               style={{
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #1f2937",
-                background: "#020617",
-                color: "#fff",
+                height: 44,
+                borderRadius: 999,
+                padding: "0 16px",
+                border: "none",
+                background: "#e5eefc",
+                color: "#000",
               }}
             />
 
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="Senha"
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               style={{
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #1f2937",
-                background: "#020617",
-                color: "#fff",
+                height: 44,
+                borderRadius: 999,
+                padding: "0 16px",
+                border: "none",
+                background: "#e5eefc",
+                color: "#000",
               }}
             />
 
@@ -205,65 +168,58 @@ export default function LoginPage() {
                 cursor: "pointer",
               }}
             >
-              {showPassword ? "Esconder senha" : "Mostrar senha"}
+              {showPassword ? "Hide password" : "Show password"}
             </button>
+
+            <Link
+              href="/forgot-password"
+              style={{
+                color: "#9ca3af",
+                fontSize: 12,
+                textAlign: "right",
+                textDecoration: "underline",
+              }}
+            >
+              Forgot password?
+            </Link>
 
             <button
               type="submit"
-              disabled={anyLoading}
+              disabled={loading}
               style={{
+                height: 44,
+                borderRadius: 999,
+                border: "none",
+                background: "#22c55e",
+                color: "#fff",
+                fontWeight: 700,
                 marginTop: 6,
-                padding: 11,
-                borderRadius: 999,
-                border: "none",
-                background: "linear-gradient(135deg,#22c55e,#16a34a)",
-                color: "#020617",
-                fontWeight: 700,
-                cursor: anyLoading ? "not-allowed" : "pointer",
-                opacity: anyLoading ? 0.85 : 1,
+                cursor: "pointer",
               }}
             >
-              {loadingEmail ? "Entrando..." : "Entrar"}
+              {loading ? "Signing in..." : "Sign in"}
             </button>
 
-            <button
-              type="button"
-              onClick={handleGoogle}
-              disabled={anyLoading}
-              style={{
-                marginTop: 8,
-                padding: 11,
-                borderRadius: 999,
-                border: "none",
-                background: "#dc2626",
-                color: "#ffffff",
-                fontWeight: 700,
-                cursor: anyLoading ? "not-allowed" : "pointer",
-                opacity: anyLoading ? 0.85 : 1,
-              }}
-            >
-              {loadingGoogle ? "Conectando..." : "Continuar com Google"}
-            </button>
+            {/* BOTAO GOOGLE (DESATIVADO TEMPORARIAMENTE)
+              Para voltar, mova a lógica de auth e o botão para cá.
+            */}
 
-            <div style={{ marginTop: 14, textAlign: "center", fontSize: 13 }}>
-              <span style={{ color: "#9ca3af" }}>Ainda não tem conta? </span>
-              <Link
-                href="/signup"
-                style={{
-                  color: "#374151",
-                  fontWeight: 700,
-                  textDecoration: "underline",
-                  textUnderlineOffset: 3,
-                }}
-              >
-                Criar conta
+            <div style={{ marginTop: 12, textAlign: "center", fontSize: 13 }}>
+              <span style={{ color: "#9ca3af" }}>
+                Don&apos;t have an account?{" "}
+              </span>
+              <Link href="/signup" style={{ color: "#fff", fontWeight: 700 }}>
+                Create account
               </Link>
             </div>
           </form>
         </div>
       </main>
+
+      <div style={{ position: "fixed", left: 0, right: 0, bottom: 0 }}>
+        <div style={{ background: "#000" }}><BottomNavbar /></div>
+      </div>
     </>
   );
 }
-
 

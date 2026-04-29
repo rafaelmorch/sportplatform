@@ -4,9 +4,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import BottomNavbar from "@/components/BottomNavbar";
 
-// Cliente Supabase para o navegador usando as envs públicas
+// Supabase client for the browser using public env vars
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -27,7 +26,6 @@ export default function NewFeedPostPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Busca o nome do usuário logado ao carregar a página
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -39,15 +37,13 @@ export default function NewFeedPostPage() {
         } = await supabase.auth.getUser();
 
         if (userError) {
-          console.error("Erro ao buscar usuário:", userError);
-          setErrorMsg("Erro ao carregar usuário.");
-          setLoadingAuthor(false);
+          console.error("Error fetching user:", userError);
+          setErrorMsg("Error loading user.");
           return;
         }
 
         if (!user) {
-          setErrorMsg("Você precisa estar logado para postar.");
-          setLoadingAuthor(false);
+          setErrorMsg("You must be logged in to post.");
           return;
         }
 
@@ -57,21 +53,19 @@ export default function NewFeedPostPage() {
           .eq("id", user.id)
           .maybeSingle<Profile>();
 
-        if (profileError) {
-          console.error("Erro ao buscar perfil:", profileError);
-        }
+        if (profileError) console.error("Error fetching profile:", profileError);
 
         const nameFromProfile = profile?.full_name || null;
         const meta: any = user.user_metadata || {};
         const nameFromMeta = meta.full_name || meta.name || null;
 
         const finalName =
-          nameFromProfile || nameFromMeta || user.email || "Atleta";
+          nameFromProfile || nameFromMeta || user.email || "Athlete";
 
         setAuthorName(finalName);
       } catch (err) {
-        console.error("Erro inesperado ao carregar perfil:", err);
-        setErrorMsg("Erro inesperado ao carregar perfil.");
+        console.error("Unexpected error loading profile:", err);
+        setErrorMsg("Unexpected error loading profile.");
       } finally {
         setLoadingAuthor(false);
       }
@@ -84,17 +78,11 @@ export default function NewFeedPostPage() {
     const file = e.target.files?.[0] || null;
     setImageFile(file);
 
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
-    } else {
-      setImagePreview(null);
-    }
+    if (file) setImagePreview(URL.createObjectURL(file));
+    else setImagePreview(null);
   };
 
-  const uploadImageIfNeeded = async (
-    userId: string
-  ): Promise<string | null> => {
+  const uploadImageIfNeeded = async (userId: string): Promise<string | null> => {
     if (!imageFile) return null;
 
     const fileExt = imageFile.name.split(".").pop() || "jpg";
@@ -102,12 +90,12 @@ export default function NewFeedPostPage() {
     const filePath = fileName;
 
     const { error: uploadError } = await supabase.storage
-      .from("feed-images") // <- bucket no Supabase
+      .from("feed-images")
       .upload(filePath, imageFile);
 
     if (uploadError) {
-      console.error("Erro ao fazer upload da imagem:", uploadError);
-      throw new Error("Não foi possível enviar a imagem.");
+      console.error("Error uploading image:", uploadError);
+      throw new Error("Could not upload the image.");
     }
 
     const { data: publicData } = supabase.storage
@@ -122,12 +110,12 @@ export default function NewFeedPostPage() {
     setErrorMsg(null);
 
     if (!authorName) {
-      setErrorMsg("Não foi possível carregar o nome do perfil.");
+      setErrorMsg("Could not load the profile name.");
       return;
     }
 
     if (!content.trim() && !imageFile) {
-      setErrorMsg("Escreva algo ou selecione uma imagem para postar.");
+      setErrorMsg("Write something or select an image to post.");
       return;
     }
 
@@ -140,29 +128,23 @@ export default function NewFeedPostPage() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setErrorMsg("Você precisa estar logado para postar.");
+        setErrorMsg("You must be logged in to post.");
         setLoading(false);
         return;
       }
 
-      // Upload da imagem (se tiver)
       let imageUrl: string | null = null;
-      if (imageFile) {
-        imageUrl = await uploadImageIfNeeded(user.id);
-      }
+      if (imageFile) imageUrl = await uploadImageIfNeeded(user.id);
 
-      // INSERT na tabela feed_posts – sem o campo author_id (a coluna não existe)
       const { error: insertError } = await supabase.from("feed_posts").insert({
         content: content.trim() || null,
         author_name: authorName,
-        image_url: imageUrl, // URL pública da imagem
-        // se no futuro você criar uma coluna user_id na tabela,
-        // pode adicionar aqui: user_id: user.id,
+        image_url: imageUrl,
       });
 
       if (insertError) {
-        console.error("Erro ao salvar post:", insertError);
-        setErrorMsg("Erro ao salvar a postagem.");
+        console.error("Error saving post:", insertError);
+        setErrorMsg("Error saving the post.");
         setLoading(false);
         return;
       }
@@ -170,195 +152,195 @@ export default function NewFeedPostPage() {
       setLoading(false);
       router.push("/feed");
     } catch (err: any) {
-      console.error("Erro inesperado ao salvar post:", err);
-      setErrorMsg(err.message || "Erro inesperado ao salvar a postagem.");
+      console.error("Unexpected error saving post:", err);
+      setErrorMsg(err.message || "Unexpected error saving the post.");
       setLoading(false);
     }
   };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#020617",
-        color: "#e5e7eb",
-        padding: "16px",
-        paddingBottom: "80px",
-      }}
-    >
-      <div
+    <>
+      {/* ✅ FIX da margem branca no app (WebView): zera html/body/#__next e força fundo escuro */}
+      <style jsx global>{`
+        html,
+        body,
+        #__next {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #020617 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow-x: hidden;
+        }
+      `}</style>
+
+      <main
         style={{
-          maxWidth: 600,
-          margin: "0 auto",
+          minHeight: "100vh",
+          background: "#020617",
+          color: "#e5e7eb",
+          padding: "16px",
+          paddingRight: "18px", // ✅ pequena “margem” extra à direita
+          paddingBottom: "24px",
+          margin: 0,
+          boxSizing: "border-box", // ✅ evita estourar pra fora
+          width: "100%", // ✅ NÃO usar 100vw (causa overflow no mobile)
         }}
       >
-        <header
-          style={{
-            marginBottom: 16,
-          }}
-        >
-          <h1
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              margin: 0,
-            }}
-          >
-            Nova postagem
-          </h1>
-          <p
-            style={{
-              fontSize: 12,
-              color: "#9ca3af",
-              marginTop: 4,
-            }}
-          >
-            Compartilhe um treino, uma conquista ou um recado com o seu grupo.
-          </p>
-        </header>
-
-        {/* Nome do autor (somente leitura) */}
+        {/* Top bar with Back (standard) */}
         <div
           style={{
-            marginBottom: 12,
-            fontSize: 13,
-            color: "#9ca3af",
-          }}
-        >
-          Publicando como{" "}
-          <span
-            style={{
-              color: "#e5e7eb",
-              fontWeight: 600,
-            }}
-          >
-            {loadingAuthor ? "carregando..." : authorName ?? "—"}
-          </span>
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          style={{
+            maxWidth: 600,
+            margin: "0 auto",
             display: "flex",
-            flexDirection: "column",
-            gap: 12,
+            alignItems: "center",
+            gap: 10,
+            marginBottom: 12,
           }}
         >
-          {/* Texto da postagem */}
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Escreva sua postagem..."
-            rows={4}
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Back"
             style={{
-              width: "100%",
-              borderRadius: 12,
-              padding: 10,
-              border: "1px solid rgba(55,65,81,0.9)",
-              backgroundColor: "#020617",
+              height: 36,
+              padding: "0 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(148,163,184,0.35)",
+              background: "rgba(2,6,23,0.65)",
               color: "#e5e7eb",
-              fontSize: 13,
-              resize: "vertical",
-            }}
-          />
-
-          {/* Upload de imagem */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 900,
+              letterSpacing: "0.02em",
+              boxShadow:
+                "0 10px 22px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
+              flex: "0 0 auto",
+              whiteSpace: "nowrap",
             }}
           >
-            <label
-              htmlFor="image"
-              style={{
-                fontSize: 12,
-                color: "#d1d5db",
-              }}
-            >
-              Imagem (opcional)
-            </label>
-            <input
-              id="image"
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={{
-                fontSize: 12,
-                color: "#e5e7eb",
-              }}
-            />
-            {imagePreview && (
-              <div
-                style={{
-                  marginTop: 6,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  border: "1px solid rgba(55,65,81,0.9)",
-                  maxHeight: 260,
-                }}
-              >
-                <img
-                  src={imagePreview}
-                  alt="Pré-visualização"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-              </div>
-            )}
+            <span style={{ fontSize: 16, lineHeight: 1, marginTop: -1 }}>
+              ←
+            </span>
+            <span>Back</span>
+          </button>
+
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>
+              New post
+            </h1>
             <p
               style={{
-                fontSize: 11,
-                color: "#6b7280",
+                fontSize: 12,
+                color: "#9ca3af",
                 margin: 0,
+                marginTop: 2,
               }}
             >
-              Formatos suportados: JPG, PNG, etc. A imagem será exibida junto
-              com sua postagem no feed.
+              Share a workout, an achievement, or a message with your group.
             </p>
           </div>
+        </div>
 
-          {errorMsg && (
-            <p
+        <div style={{ maxWidth: 600, margin: "0 auto" }}>
+          <div style={{ marginBottom: 12, fontSize: 13, color: "#9ca3af" }}>
+            Posting as{" "}
+            <span style={{ color: "#e5e7eb", fontWeight: 600 }}>
+              {loadingAuthor ? "loading..." : authorName ?? "—"}
+            </span>
+          </div>
+
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Write your post..."
+              rows={4}
               style={{
-                fontSize: 12,
-                color: "#fca5a5",
-                margin: 0,
+                width: "100%",
+                borderRadius: 12,
+                padding: 10,
+                border: "1px solid rgba(55,65,81,0.9)",
+                backgroundColor: "#020617",
+                color: "#e5e7eb",
+                fontSize: 16,
+                resize: "vertical",
+              }}
+            />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label htmlFor="image" style={{ fontSize: 12, color: "#d1d5db" }}>
+                Image (optional)
+              </label>
+              <input
+                id="image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                style={{ fontSize: 16, color: "#e5e7eb" }}
+              />
+
+              {imagePreview && (
+                <div
+                  style={{
+                    marginTop: 6,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    border: "1px solid rgba(55,65,81,0.9)",
+                    maxHeight: 260,
+                  }}
+                >
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                </div>
+              )}
+
+              <p style={{ fontSize: 11, color: "#6b7280", margin: 0 }}>
+                Supported formats: JPG, PNG, etc.
+              </p>
+            </div>
+
+            {errorMsg && (
+              <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
+                {errorMsg}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || loadingAuthor}
+              style={{
+                marginTop: 4,
+                borderRadius: 999,
+                padding: "10px 16px",
+                border: "none",
+                fontSize: 14,
+                fontWeight: 700,
+                background: "#22c55e",
+                color: "#ffffff",
+                cursor: loading || loadingAuthor ? "not-allowed" : "pointer",
+                opacity: loading || loadingAuthor ? 0.6 : 1,
               }}
             >
-              {errorMsg}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || loadingAuthor}
-            style={{
-              marginTop: 4,
-              borderRadius: 999,
-              padding: "10px 16px",
-              border: "none",
-              fontSize: 14,
-              fontWeight: 600,
-              background:
-                "linear-gradient(to right, #22c55e, #16a34a, #15803d)",
-              color: "#0b1120",
-              cursor: loading || loadingAuthor ? "not-allowed" : "pointer",
-              opacity: loading || loadingAuthor ? 0.6 : 1,
-              transition: "opacity 0.15s ease-out",
-            }}
-          >
-            {loading ? "Publicando..." : "Publicar"}
-          </button>
-        </form>
-      </div>
-
-      <BottomNavbar />
-    </main>
+              {loading ? "Posting..." : "Post"}
+            </button>
+          </form>
+        </div>
+      </main>
+    </>
   );
 }

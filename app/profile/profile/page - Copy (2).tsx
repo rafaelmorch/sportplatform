@@ -18,7 +18,6 @@ export default function ProfilePage() {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [deleting, setDeleting] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -80,6 +79,7 @@ export default function ProfilePage() {
       return;
     }
 
+    // ✅ Avoid emails being used as display name
     if (trimmed.includes("@")) {
       setErrorMsg("Please enter your name (not an email).");
       return;
@@ -149,68 +149,22 @@ export default function ProfilePage() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    const confirmDelete = confirm(
-      "Are you sure you want to delete your account? This action is permanent and cannot be undone."
-    );
-
-    if (!confirmDelete) return;
-
-    try {
-      setDeleting(true);
-      setErrorMsg(null);
-      setSuccessMsg(null);
-
-      const {
-        data: { session },
-      } = await supabaseBrowser.auth.getSession();
-
-      if (!session) {
-        router.replace("/login");
-        return;
-      }
-
-      const user = session.user;
-
-      const res = await fetch("/api/delete-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId: user.id }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Error deleting account.");
-      }
-
-      await supabaseBrowser.auth.signOut();
-      router.replace("/login");
-      router.refresh();
-    } catch (err) {
-      console.error("Delete account error:", err);
-      setErrorMsg("Error deleting account. Please try again.");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   return (
     <>
+      {/* ✅ remove white margin in WebView */}
       <style jsx global>{`
         html,
         body {
           margin: 0 !important;
           padding: 0 !important;
-          background: #ffffff !important;
+          background: #020617 !important;
           width: 100%;
           height: 100%;
           overflow-x: hidden;
         }
       `}</style>
 
+      {/* ✅ iPad-friendly spacing + readable controls */}
       <style jsx>{`
         .wrap {
           max-width: 560px;
@@ -244,9 +198,10 @@ export default function ProfilePage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#ffffff",
-          color: "#374151",
+          background: "#020617",
+          color: "#e5e7eb",
           padding: 16,
+          // ✅ extra safe-area so content is not crowded by bottom nav on iPad/iPhone
           paddingBottom: "calc(110px + env(safe-area-inset-bottom))",
           boxSizing: "border-box",
           overflowX: "hidden",
@@ -276,7 +231,7 @@ export default function ProfilePage() {
                   justifyContent: "center",
                   fontSize: 20,
                   fontWeight: 700,
-                  color: "#ffffff",
+                  color: "#0b1120",
                   flex: "0 0 auto",
                 }}
               >
@@ -284,10 +239,10 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <h1 className="title" style={{ fontSize: 20, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>
+                <h1 className="title" style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>
                   My Profile
                 </h1>
-                <p className="subtitle" style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#374151", margin: 0 }}>
+                <p className="subtitle" style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>
                   Manage the name shown in SportPlatform.
                 </p>
               </div>
@@ -299,10 +254,10 @@ export default function ProfilePage() {
               style={{
                 borderRadius: 999,
                 padding: "9px 14px",
-                border: "1px solid #e5e7eb",
-                background: "#ffffff",
-                color: "#374151",
-                fontSize: 13, fontFamily: "Arial, sans-serif",
+                border: "1px solid rgba(148,163,184,0.35)",
+                background: "rgba(2,6,23,0.6)",
+                color: "#e5e7eb",
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: signingOut ? "not-allowed" : "pointer",
                 opacity: signingOut ? 0.7 : 1,
@@ -319,21 +274,21 @@ export default function ProfilePage() {
             style={{
               borderRadius: 18,
               padding: "16px 14px",
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
+              background: "radial-gradient(circle at top, #0f172a, #020617 60%)",
+              border: "1px solid rgba(148,163,184,0.4)",
               marginBottom: 20,
             }}
           >
-            <h2 style={{ fontSize: 15, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0, marginBottom: 10 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, marginBottom: 10 }}>
               Basic info
             </h2>
 
             {loadingProfile ? (
-              <p style={{ fontSize: 13, fontFamily: "Arial, sans-serif", color: "#374151", margin: 0 }}>Loading profile...</p>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: 0 }}>Loading profile...</p>
             ) : (
               <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label htmlFor="name" style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#374151" }}>
+                  <label htmlFor="name" style={{ fontSize: 12, color: "#d1d5db" }}>
                     Name
                   </label>
                   <input
@@ -346,30 +301,30 @@ export default function ProfilePage() {
                     style={{
                       borderRadius: 10,
                       padding: "8px 10px",
-                      border: "1px solid #e5e7eb",
-                      backgroundColor: "#ffffff",
-                      color: "#374151",
-                      fontSize: 13, fontFamily: "Arial, sans-serif",
+                      border: "1px solid rgba(55,65,81,0.9)",
+                      backgroundColor: "#020617",
+                      color: "#e5e7eb",
+                      fontSize: 13,
                       width: "100%",
                       boxSizing: "border-box",
                     }}
                   />
-                  <p style={{ fontSize: 11, fontFamily: "Arial, sans-serif", color: "#374151", margin: 0, marginTop: 2 }}>
+                  <p style={{ fontSize: 11, color: "#6b7280", margin: 0, marginTop: 2 }}>
                     This is the name that will appear in the feed, dashboard, and other areas of the app.
                   </p>
                 </div>
 
                 {email && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#374151" }}>Email (read-only)</span>
+                    <span style={{ fontSize: 12, color: "#d1d5db" }}>Email (read-only)</span>
                     <div
                       style={{
                         borderRadius: 10,
                         padding: "8px 10px",
                         border: "1px solid rgba(31,41,55,0.9)",
-                        backgroundColor: "#ffffff",
-                        fontSize: 13, fontFamily: "Arial, sans-serif",
-                        color: "#374151",
+                        backgroundColor: "#020617",
+                        fontSize: 13,
+                        color: "#9ca3af",
                         width: "100%",
                         boxSizing: "border-box",
                         wordBreak: "break-word",
@@ -381,11 +336,11 @@ export default function ProfilePage() {
                 )}
 
                 {errorMsg && (
-                  <p style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#fca5a5", margin: 0, marginTop: 4 }}>{errorMsg}</p>
+                  <p style={{ fontSize: 12, color: "#fca5a5", margin: 0, marginTop: 4 }}>{errorMsg}</p>
                 )}
 
                 {successMsg && (
-                  <p style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#bbf7d0", margin: 0, marginTop: 4 }}>{successMsg}</p>
+                  <p style={{ fontSize: 12, color: "#bbf7d0", margin: 0, marginTop: 4 }}>{successMsg}</p>
                 )}
 
                 <button
@@ -398,37 +353,16 @@ export default function ProfilePage() {
                     borderRadius: 999,
                     padding: "8px 16px",
                     border: "none",
-                    fontSize: 13, fontFamily: "Arial, sans-serif",
+                    fontSize: 13,
                     fontWeight: 600,
-                    background: "#1e3a8a",
-                    color: "#ffffff",
+                    background: "linear-gradient(to right, #38bdf8, #0ea5e9, #0284c7)",
+                    color: "#0b1120",
                     cursor: saving ? "not-allowed" : "pointer",
                     opacity: saving ? 0.7 : 1,
                     transition: "opacity 0.15s ease-out",
                   }}
                 >
                   {saving ? "Saving..." : "Save changes"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleDeleteAccount}
-                  disabled={deleting}
-                  style={{
-                    marginTop: 16,
-                    alignSelf: "flex-start",
-                    borderRadius: 999,
-                    padding: "8px 16px",
-                    border: "1px solid rgba(239,68,68,0.5)",
-                    fontSize: 13, fontFamily: "Arial, sans-serif",
-                    fontWeight: 600,
-                    background: "transparent",
-                    color: "#f87171",
-                    cursor: deleting ? "not-allowed" : "pointer",
-                    opacity: deleting ? 0.7 : 1,
-                  }}
-                >
-                  {deleting ? "Processing..." : "Delete Account"}
                 </button>
               </form>
             )}
@@ -438,8 +372,3 @@ export default function ProfilePage() {
     </>
   );
 }
-
-
-
-
-

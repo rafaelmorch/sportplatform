@@ -1,166 +1,387 @@
-// app/events/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+
 import Link from "next/link";
-import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
 
-type EventItem = {
-  title: string;
-  city: string;
-  state: string;
-  dateLabel: string;
-  slug: string;
+type EventRow = {
+  id: string;
+  title: string | null;
+  sport: string | null;
+  description: string | null;
+  date: string | null;
+
+  address_text: string | null;
+  city: string | null;
+  state: string | null;
+
+  capacity: number | null;
+  waitlist_capacity: number | null;
+  price_cents: number | null;
+
+  image_path: string | null; // Storage
+  image_url: string | null; // legacy
+  published: boolean;
 };
 
-const EVENTS: EventItem[] = [
-  {
-    title: "Futebol Society",
-    city: "Windermere",
-    state: "FL",
-    dateLabel: "Dec 23, 2025",
-    slug: "futebol-society-2025-12-23",
-  },
-  {
-    title: "Futebol Society",
-    city: "Windermere",
-    state: "FL",
-    dateLabel: "Dec 30, 2025",
-    slug: "futebol-society-2025-12-30",
-  },
-  {
-    title: "Futebol Society",
-    city: "Windermere",
-    state: "FL",
-    dateLabel: "Jan 08, 2026",
-    slug: "futebol-society-2026-01-08",
-  },
-];
+function formatDateTime(dt: string | null): string {
+  if (!dt) return "Date TBD";
+  try {
+    return new Date(dt).toLocaleString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return dt;
+  }
+}
+
+function formatPrice(priceCents: number | null): string {
+  const cents = priceCents ?? 0;
+  if (cents <= 0) return "Free";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(cents / 100);
+}
+
+function buildAddress(e: EventRow): string {
+  const a = (e.address_text ?? "").trim();
+  const city = (e.city ?? "").trim();
+  const state = (e.state ?? "").trim();
+
+  const parts: string[] = [];
+  if (a) parts.push(a);
+  if (city && state) parts.push(`${city}, ${state}`);
+  else if (city) parts.push(city);
+  else if (state) parts.push(state);
+
+  return parts.join(" • ") || "Location TBD";
+}
+
+function getPublicImageUrl(path: string | null): string | null {
+  if (!path) return null;
+  const { data } = supabaseBrowser.storage.from("event-images").getPublicUrl(path);
+  return data?.publicUrl ?? null;
+}
 
 export default function EventsPage() {
-  const router = useRouter();
-  const [allowed, setAllowed] = useState(false);
+  const supabase = useMemo(() => supabaseBrowser, []);
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [warning, setWarning] = useState<string | null>(null);
 
   useEffect(() => {
-    const check = async () => {
-      const {
-        data: { session },
-      } = await supabaseBrowser.auth.getSession();
+    let cancelled = false;
 
-      if (!session) {
-        router.push("/login");
-        return;
+    async function load() {
+      setLoading(true);
+      setWarning(null);
+
+      try {
+        const nowIso = new Date().toISOString();
+
+        const { data, error } = await supabase
+          .from("app_events")
+          .select(
+            "id,title,sport,description,date,address_text,city,state,capacity,waitlist_capacity,price_cents,image_path,image_url,published"
+          )
+          .eq("published", true)
+          .gte("date", nowIso)
+          .order("date", { ascending: true });
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("Error loading events:", error);
+          setWarning("I couldn't load the events right now.");
+          setEvents([]);
+        } else {
+          const rows = (data as EventRow[]) ?? [];
+          if (rows.length === 0) {
+            setWarning("There are no upcoming published events yet.");
+            setEvents([]);
+          } else {
+            setEvents(rows);
+          }
+        }
+      } catch (err) {
+        console.error("Unexpected error:", err);
+        if (!cancelled) {
+          setWarning("Failed to connect to Supabase.");
+          setEvents([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    }
 
-      setAllowed(true);
+    load();
+    return () => {
+      cancelled = true;
     };
+  }, [supabase]);
 
-    check();
-  }, [router]);
-
-  if (!allowed) {
-    return (
-      <main
+  return (
+    <>
+      {/* ✅ remove “borda branca” (margin padrão do body) e garante fundo escuro */}
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #fff !important;
+          width: 100%;
+          height: 100%;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        #__next {
+          height: 100%;
+        }
+        * {
+          box-sizing: border-box;
+        }
+      `}</style><main
         style={{
           minHeight: "100vh",
-          backgroundColor: "#020617",
-          color: "#e5e7eb",
+          width: "100%",
+          overflowX: "hidden",
+          backgroundColor: "#ffffff",
+          color: "#000000",
           padding: 16,
           paddingBottom: 80,
         }}
       >
-        <p style={{ fontSize: 13, color: "#64748b" }}>Carregando…</p>
-      </main>
-    );
-  }
+        <div style={{ maxWidth: 980, margin: "0 auto" }}>
+          {/* Header */}
+          <header
+            style={{
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  margin: 0,
+                }}
+              >
+                Events
+              </p>
 
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#020617",
-        color: "#e5e7eb",
-        padding: 16,
-        paddingBottom: 80,
-      }}
-    >
-      <div style={{ maxWidth: 900, margin: "0 auto" }}>
-        <header style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 11, letterSpacing: "0.16em", color: "#64748b" }}>
-            EVENTOS
-          </p>
-          <h1 style={{ fontSize: 24, fontWeight: 800 }}>Eventos</h1>
-          <p style={{ fontSize: 13, color: "#9ca3af" }}>
-            Escolha uma data para se inscrever (Windermere, FL)
-          </p>
-        </header>
+              <h1 style={{ fontSize: 24, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: "8px 0 0 0" }}>Events</h1>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {EVENTS.map((ev) => (
-            <Link
-              key={ev.slug}
-              href={`/events/${ev.slug}`}
+              <p style={{ fontSize: 13, color: "#374151", fontFamily: "Montserrat, sans-serif", margin: "8px 0 0 0" }}>Official platform events.</p>
+            </div>
+
+            {/* Platform Sports Logo (2x) */}
+           
+          </header>
+
+          {warning && (
+            <div
               style={{
-                textDecoration: "none",
-                color: "inherit",
+                marginBottom: 12,
                 borderRadius: 14,
-                border: "1px solid rgba(148,163,184,0.18)",
-                background:
-                  "linear-gradient(180deg, rgba(2,6,23,0.65), rgba(2,6,23,0.35))",
-                padding: 12,
+                padding: "10px 12px",
+                background: "rgba(245,158,11,0.14)",
+                border: "1px solid rgba(245,158,11,0.22)",
+                color: "#fde68a",
+                fontSize: 12,
+                lineHeight: 1.35,
               }}
             >
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              {warning}
+            </div>
+          )}
+
+          {/* Grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 14,
+            }}
+          >
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
                 <div
+                  key={i}
                   style={{
-                    width: 86,
-                    height: 56,
-                    borderRadius: 10,
+                    borderRadius: 8,
                     overflow: "hidden",
-                    border: "1px solid rgba(148,163,184,0.18)",
+                    border: "1px solid #e5e7eb",
+                    background: "#000000",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
                   }}
                 >
-                  <Image
-                    src="/events/soccer-field.jpg"
-                    alt="Futebol Society"
-                    width={172}
-                    height={112}
-                    style={{ objectFit: "cover", width: "100%", height: "100%" }}
-                  />
+                  <div style={{ height: 160, background: "rgba(148,163,184,0.10)" }} />
+                  <div style={{ padding: 14 }} />
                 </div>
+              ))
+            ) : (
+              events.map((e) => {
+                const img = getPublicImageUrl(e.image_path) || e.image_url || null;
 
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800 }}>{ev.title}</div>
-                  <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                    {ev.city}, {ev.state}
-                  </div>
-                  <div style={{ fontSize: 13, marginTop: 6 }}>{ev.dateLabel}</div>
-                </div>
+                const priceLabel = formatPrice(e.price_cents);
+                const when = formatDateTime(e.date);
+                const where = buildAddress(e);
 
-                <div
-                  style={{
-                    fontSize: 12,
-                    padding: "10px 14px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(56,189,248,0.45)",
-                    color: "#e0f2fe",
-                    fontWeight: 800,
-                  }}
-                >
-                  Inscrever
-                </div>
-              </div>
-            </Link>
-          ))}
+                return (
+                  <Link key={e.id} href={`/events/${e.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <div
+                      style={{
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        border: "1px solid #e5e7eb",
+                        background: "#ffffff",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      {/* Banner */}
+                      <div
+                        style={{
+                          position: "relative",
+                          width: "100%",
+                          aspectRatio: "16 / 9",
+                          background: "rgba(148,163,184,0.10)",
+                        }}
+                      >
+                        {img && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={img}
+                            alt={e.title ?? "Event"}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                            }}
+                          />
+                        )}
+
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: 12,
+                            top: 12,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700, fontFamily: "Montserrat, sans-serif",
+                            background: "#1e3a8a",
+                            border: "1px solid #1e3a8a",
+                            color: "#ffffff",
+                          }}
+                        >
+                          {e.sport?.toUpperCase() ?? "EVENT"}
+                        </div>
+
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 12,
+                            top: 12,
+                            padding: "6px 10px",
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700, fontFamily: "Montserrat, sans-serif",
+                            background: "#ffffff",
+                            color: "#000000",
+                          }}
+                        >
+                          {priceLabel}
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div style={{ padding: 14 }}>
+                        <div style={{ fontSize: 12, color: "#374151", fontFamily: "Montserrat, sans-serif", marginBottom: 10 }}>
+                          {when} &nbsp;&nbsp;•&nbsp;&nbsp; {where}
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 700, fontFamily: "Montserrat, sans-serif",
+                            lineHeight: 1.15,
+                            marginBottom: 10,
+                          }}
+                        >
+                          {e.title}
+                        </div>
+
+                        {e.description && (
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "#111827", fontFamily: "Montserrat, sans-serif",
+                              lineHeight: 1.35,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                              marginBottom: 12,
+                            }}
+                          >
+                            {e.description}
+                          </div>
+                        )}
+
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={{ fontSize: 12, color: "#374151", fontFamily: "Montserrat, sans-serif" }}>View details</div>
+
+                          <div
+                            style={{
+                              borderRadius: 6,
+                              padding: "10px 14px",
+                              fontSize: 12,
+                              fontWeight: 700, fontFamily: "Montserrat, sans-serif",
+                              background: "#000000",
+                              color: "#ffffff",
+                            }}
+                          >
+                            View
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
+          </div>
         </div>
-      </div>
 
-      <BottomNavbar />
-    </main>
+        <BottomNavbar />
+      </main>
+    </>
   );
 }
+
+

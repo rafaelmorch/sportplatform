@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@capacitor/cli": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.1",
     "@fontsource/montserrat": "^5.2.8",
     "@supabase/supabase-js": "^2.81.1",
     "@vercel/analytics": "^1.6.1",

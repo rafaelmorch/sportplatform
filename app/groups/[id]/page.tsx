@@ -95,7 +95,7 @@ export default function MembershipCommunityPage() {
         membershipData?.subscription_status === "active";
 
       if (isGlobalAdmin || isCreator || hasApprovedAccess) {
-        router.replace(`/memberships/${id}/inside`);
+        router.replace(`/groups/${id}/inside`);
         return;
       }
 
@@ -168,7 +168,7 @@ export default function MembershipCommunityPage() {
       }
 
       console.log("membership request upsert success:", data);
-      router.push(`/memberships/pending?community_id=${community!.id}`);
+      router.push(`/groups/pending?community_id=${community!.id}`);
     } catch (err: any) {
       const msg =
         err?.message ||
