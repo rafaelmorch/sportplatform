@@ -1,4 +1,4 @@
-// app/memberships/[id]/inside/events/page.tsx
+// app/groups/[id]/inside/events/page.tsx
 "use client";
 
 import "@fontsource/montserrat/400.css";
@@ -91,7 +91,7 @@ export default function MembershipEventsPage() {
 
     async function load() {
       if (!communityId || typeof communityId !== "string") {
-        router.push("/memberships");
+        router.push("/groups");
         return;
       }
 
@@ -115,7 +115,7 @@ export default function MembershipEventsPage() {
           .single();
 
         if (!community) {
-          router.push("/memberships");
+          router.push("/groups");
           return;
         }
 
@@ -131,7 +131,7 @@ export default function MembershipEventsPage() {
             .single();
 
           if (!request || request.status !== "approved") {
-            router.push(`/memberships/${communityId}`);
+            router.push(`/groups/${communityId}`);
             return;
           }
         }
@@ -476,3 +476,4 @@ export default function MembershipEventsPage() {
     </>
   );
 }
+

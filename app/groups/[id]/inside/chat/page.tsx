@@ -113,7 +113,7 @@ export default function MembershipChatPage() {
   useEffect(() => {
     async function load() {
       if (!communityId || typeof communityId !== "string") {
-        router.push("/memberships");
+        router.push("/groups");
         return;
       }
 
@@ -135,7 +135,7 @@ export default function MembershipChatPage() {
         .single();
 
       if (!community) {
-        router.push("/memberships");
+        router.push("/groups");
         return;
       }
 
@@ -151,7 +151,7 @@ export default function MembershipChatPage() {
           .single();
 
         if (!request || request.status !== "approved") {
-          router.push(`/memberships/${communityId}`);
+          router.push(`/groups/${communityId}`);
           return;
         }
       }
@@ -425,4 +425,5 @@ export default function MembershipChatPage() {
     </>
   );
 }
+
 

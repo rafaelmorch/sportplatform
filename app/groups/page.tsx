@@ -232,7 +232,7 @@ export default function MembershipsPage() {
               padding: 18,
               border: "1px solid #e5e7eb",
               background: "#ffffff",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
             }}
           >
             <div
@@ -303,7 +303,7 @@ export default function MembershipsPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gridTemplateColumns: "1fr",
               gap: 10,
             }}
           >
@@ -316,7 +316,7 @@ export default function MembershipsPage() {
                     overflow: "hidden",
                     border: "1px solid #e5e7eb",
                     background: "#ffffff",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
                   }}
                 >
                   <div style={{ aspectRatio: "16 / 10", background: "#f8fafc" }} />
@@ -344,15 +344,7 @@ export default function MembershipsPage() {
                       href={href}
                       style={{ textDecoration: "none", color: "inherit", display: "block" }}
                     >
-                      <div
-                        style={{
-                          borderRadius: 8,
-                          overflow: "hidden",
-                          border: "1px solid #e5e7eb",
-                          background: "#ffffff",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-                        }}
-                      >
+                      <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb", background: "#ffffff", boxShadow: "0 2px 6px rgba(0,0,0,0.15)", display: "flex" }}>
                         <div
                           style={{
                             position: "relative",
@@ -398,7 +390,7 @@ export default function MembershipsPage() {
                               top: 8,
                               padding: "clamp(4px, 1.4vw, 6px) clamp(7px, 2vw, 10px)",
                               borderRadius: 6,
-                              fontSize: "clamp(9px, 2vw, 11px)",
+                              fontSize: "10px",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
                               background: "#1e3a8a",
@@ -417,7 +409,7 @@ export default function MembershipsPage() {
                               top: 8,
                               padding: "clamp(4px, 1.4vw, 6px) clamp(7px, 2vw, 10px)",
                               borderRadius: 6,
-                              fontSize: "clamp(9px, 2vw, 11px)",
+                              fontSize: "10px",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
                               background: "#ffffff",
@@ -437,7 +429,7 @@ export default function MembershipsPage() {
                                 bottom: 8,
                                 padding: "clamp(5px, 1.6vw, 7px) clamp(8px, 2.2vw, 11px)",
                                 borderRadius: 6,
-                                fontSize: "clamp(9px, 2vw, 11px)",
+                                fontSize: "10px",
                                 fontWeight: 700,
                                 fontFamily: "Montserrat, sans-serif",
                                 background: "#f8fafc",
@@ -468,7 +460,7 @@ export default function MembershipsPage() {
                                 bottom: 8,
                                 borderRadius: 6,
                                 padding: "clamp(5px, 1.6vw, 7px) clamp(8px, 2.2vw, 11px)",
-                                fontSize: "clamp(9px, 2vw, 11px)",
+                                fontSize: "10px",
                                 fontWeight: 700,
                                 fontFamily: "Montserrat, sans-serif",
                                 background: "#ffffff",
@@ -483,20 +475,10 @@ export default function MembershipsPage() {
                           )}
                         </div>
 
-                        <div
-                          style={{
-                            background: "#1e3a8a",
-                            padding: "8px 8px",
-                            minHeight: 40,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            textAlign: "center",
-                          }}
-                        >
+                        <div style={{ background: "#1e3a8a", width: 58, minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", order: -1 }}>
                           <div
                             style={{
-                              fontSize: "clamp(15px, 2.8vw, 20px)",
+                              fontSize: "clamp(18px, 4vw, 28px)", writingMode: "vertical-rl", transform: "rotate(180deg)",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
                               lineHeight: 1.15,
@@ -538,7 +520,7 @@ export default function MembershipsPage() {
               fontSize: 34,
               fontWeight: 700,
               fontFamily: "Montserrat, sans-serif",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.10)",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
               zIndex: 20,
             }}
             aria-label="Create community"
@@ -553,4 +535,8 @@ export default function MembershipsPage() {
     </>
   );
 }
+
+
+
+
 

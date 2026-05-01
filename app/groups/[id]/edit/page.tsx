@@ -5,6 +5,7 @@ import "@fontsource/montserrat/500.css";
 import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 import "@fontsource/montserrat/800.css";
+import "react-quill-new/dist/quill.snow.css";
 
 import dynamicImport from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
@@ -341,7 +342,7 @@ export default function EditMembershipPage() {
         return;
       }
 
-      router.push(`/memberships/${membershipId}`);
+      router.push(`/groups/${membershipId}`);
     } catch (err: any) {
       console.error(err);
       setWarning(err?.message || "Unexpected error while updating the community.");
@@ -350,18 +351,7 @@ export default function EditMembershipPage() {
     }
   }
 
-  const quillModules = {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      [{ size: ["small", false, "large", "huge"] }],
-      ["bold", "italic", "underline"],
-      [{ color: [] }, { background: [] }],
-      [{ align: [] }],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["link"],
-      ["clean"],
-    ],
-  };
+  const quillModules = { toolbar: [ ["bold", "italic", "underline"], [{ list: "ordered" }, { list: "bullet" }], ["link"], ["clean"] ] };
 
   return (
     <>
@@ -905,6 +895,10 @@ const emptyPreviewTextStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
 };
+
+
+
+
 
 
 

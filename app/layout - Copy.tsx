@@ -1,5 +1,4 @@
 "use client";
-import RouteLoading from "@/components/RouteLoading";
 
 import { Rowdies } from "next/font/google";
 import { usePathname } from "next/navigation";
@@ -39,7 +38,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body style={{ background: "#ffffff", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}><RouteLoading />
+      <body style={{ background: "#ffffff" }}>
         {showHeader && <Header />}
 
         {children}
@@ -49,10 +48,5 @@ export default function RootLayout({
     </html>
   );
 }
-
-
-
-
-
 
 

@@ -303,9 +303,12 @@ export default function MembershipCommunityPage() {
         >
           <h2 style={{ color: "#000", marginTop: 0 }}>{community.name}</h2>
           <p style={{ fontWeight: 700, marginBottom: "18px" }}>{priceLabel}</p>
-          <div>{community.full_description || "No description available yet."}</div>
+          <div style={{ whiteSpace: "pre-line", wordBreak: "break-word", overflowWrap: "break-word" }}>{(community.full_description || "No description available yet.").replace(/&nbsp;/g, " ").replace(/&amp;nbsp;/g, " ").replace(/—+/g, "\n\n")}</div>
         </div>
       </main>
     </>
   );
 }
+
+
+

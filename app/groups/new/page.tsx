@@ -1,4 +1,6 @@
 "use client";
+import "react-quill-new/dist/quill.snow.css";
+
 
 import "@fontsource/montserrat/400.css";
 import "@fontsource/montserrat/500.css";
@@ -218,18 +220,7 @@ export default function NewMembershipPage() {
     }
   }
 
-  const quillModules = {
-    toolbar: [
-      [{ header: [1, 2, 3, false] }],
-      [{ size: ["small", false, "large", "huge"] }],
-      ["bold", "italic", "underline"],
-      [{ color: [] }, { background: [] }],
-      [{ align: [] }],
-      [{ list: "ordered" }, { list: "bullet" }],
-      ["link"],
-      ["clean"],
-    ],
-  };
+  const quillModules = { toolbar: [ ["bold", "italic", "underline"], [{ list: "ordered" }, { list: "bullet" }], ["link"], ["clean"] ] };
 
   return (
     <>
@@ -757,6 +748,9 @@ const emptyPreviewTextStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
 };
+
+
+
 
 
 
