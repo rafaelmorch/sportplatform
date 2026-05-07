@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import BackButton from "@/components/BackButton";
 import { createClient } from "@supabase/supabase-js";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
@@ -180,8 +179,6 @@ export default function IntegrationsPage() {
         padding: "24px", fontFamily: "Montserrat, sans-serif",
       }}
     >
-      <div style={{ position: "absolute", top: 20, left: 20 }}><BackButton /></div>
-
       <section
         style={{
           width: "100%",
@@ -354,7 +351,7 @@ export default function IntegrationsPage() {
 
         <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
           <Link
-            href="/groups"
+            href="/dashboard"
             style={{
               fontSize: "13px",
               color: "#475569",
@@ -362,16 +359,13 @@ export default function IntegrationsPage() {
               textUnderlineOffset: 4,
             }}
           >
-            Ir para meus grupos
+            Voltar ao dashboard
           </Link>
         </div>
       </section>
     </main>
   );
 }
-
-
-
 
 
 

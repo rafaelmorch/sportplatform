@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import BackButton from "@/components/BackButton";
 import { createClient } from "@supabase/supabase-js";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
@@ -173,22 +172,20 @@ export default function IntegrationsPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#ffffff",
+        background: "#020617",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "24px", fontFamily: "Montserrat, sans-serif",
+        padding: "24px",
       }}
     >
-      <div style={{ position: "absolute", top: 20, left: 20 }}><BackButton /></div>
-
       <section
         style={{
           width: "100%",
-          maxWidth: "900px",
-          borderRadius: "12px",
+          maxWidth: "640px",
+          borderRadius: "24px",
           padding: "32px 28px",
-          background: "#ffffff",
+          background: "radial-gradient(circle at top, #020617, #020617 40%, #000000 100%)",
           border: "1px solid rgba(148, 163, 184, 0.35)",
           boxShadow: "0 18px 45px rgba(15, 23, 42, 0.8), 0 0 0 1px rgba(15, 23, 42, 0.9)",
         }}
@@ -199,7 +196,7 @@ export default function IntegrationsPage() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: "10px",
+              borderRadius: "999px",
               background:
                 "radial-gradient(circle at 20% 20%, #16a34a, #22c55e 40%, #0f172a 100%)",
               display: "flex",
@@ -218,38 +215,38 @@ export default function IntegrationsPage() {
                 fontSize: "13px",
                 letterSpacing: "0.16em",
                 textTransform: "uppercase",
-                color: "#475569",
+                color: "#64748b",
                 margin: 0,
               }}
             >
               Integrações
             </p>
-            <h1 style={{ fontSize: "24px", margin: 0, color: "#0f172a" }}>
+            <h1 style={{ fontSize: "24px", margin: 0, color: "#e5e7eb" }}>
               Conectar Apps de Treino
             </h1>
           </div>
         </div>
 
-        <p style={{ fontSize: "21px", lineHeight: 1.6, color: "#475569", marginBottom: "18px" }}>
+        <p style={{ fontSize: "14px", lineHeight: 1.6, color: "#cbd5f5", marginBottom: "18px" }}>
           Conecte sua conta do Strava ao Sports Platform para centralizar histórico de atividades,
           métricas e desafios em um só lugar.
         </p>
 
         {errorMsg && (
           <div style={{ marginBottom: 12 }}>
-            <p style={{ fontSize: 15, color: "#fca5a5", margin: 0 }}>{errorMsg}</p>
+            <p style={{ fontSize: 13, color: "#fca5a5", margin: 0 }}>{errorMsg}</p>
             <div style={{ marginTop: 10 }}>
               <Link
                 href="/login"
                 style={{
                   display: "inline-flex",
                   padding: "10px 14px",
-                  borderRadius: "10px",
+                  borderRadius: 999,
                   background: "rgba(148,163,184,0.12)",
                   border: "1px solid rgba(148,163,184,0.35)",
-                  color: "#0f172a",
+                  color: "#e5e7eb",
                   textDecoration: "none",
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: 600,
                 }}
               >
@@ -261,7 +258,7 @@ export default function IntegrationsPage() {
 
         {successMsg && (
           <div style={{ marginBottom: 12 }}>
-            <p style={{ fontSize: 15, color: "#166534", margin: 0 }}>{successMsg}</p>
+            <p style={{ fontSize: 13, color: "#bbf7d0", margin: 0 }}>{successMsg}</p>
           </div>
         )}
 
@@ -273,13 +270,13 @@ export default function IntegrationsPage() {
               borderRadius: 18,
               padding: "14px 16px",
               border: "1px solid rgba(148,163,184,0.4)",
-              background: "#ffffff",
+              background: "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(15,23,42,0.9))",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>Strava</div>
-                <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: "#e5e7eb" }}>Strava</div>
+                <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
                   Importa suas corridas, pedaladas e outras atividades.
                 </div>
               </div>
@@ -289,11 +286,11 @@ export default function IntegrationsPage() {
                   style={{
                     alignSelf: "center",
                     fontSize: 12,
-                    color: "#166534",
-                    border: "1px solid #22c55e",
-                    background: "#dcfce7",
+                    color: "#bbf7d0",
+                    border: "1px solid rgba(34,197,94,0.35)",
+                    background: "rgba(22,163,74,0.12)",
                     padding: "6px 10px",
-                    borderRadius: "10px",
+                    borderRadius: 999,
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -310,14 +307,14 @@ export default function IntegrationsPage() {
                 justifyContent: "center",
                 alignItems: "center",
                 height: 44,
-                borderRadius: "10px",
+                borderRadius: "999px",
                 marginTop: 10,
                 background: disabledStrava
-                  ? "#fc4c02"
-                  : "#fc4c02",
-                color: "#ffffff",
+                  ? "linear-gradient(135deg, #4b5563 0%, #374151 40%, #111827 100%)"
+                  : "linear-gradient(135deg, #fb923c 0%, #f97316 40%, #ea580c 100%)",
+                color: disabledStrava ? "#9ca3af" : "#0b1120",
                 fontWeight: 700,
-                fontSize: "21px",
+                fontSize: "14px",
                 border: "1px solid rgba(248, 250, 252, 0.08)",
                 textDecoration: "none",
                 pointerEvents: disabledStrava ? "none" : "auto",
@@ -336,12 +333,12 @@ export default function IntegrationsPage() {
                   marginTop: 10,
                   width: "100%",
                   height: 40,
-                  borderRadius: "10px",
-                  border: "2px solid #fc4c02",
-                  background: "#ffffff",
-                  color: "#fc4c02",
+                  borderRadius: 999,
+                  border: "1px solid rgba(248,113,113,0.45)",
+                  background: "rgba(248,113,113,0.10)",
+                  color: "#fecaca",
                   fontWeight: 700,
-                  fontSize: 15,
+                  fontSize: 13,
                   cursor: revokingStrava ? "not-allowed" : "pointer",
                   opacity: revokingStrava ? 0.7 : 1,
                 }}
@@ -354,40 +351,18 @@ export default function IntegrationsPage() {
 
         <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
           <Link
-            href="/groups"
+            href="/dashboard"
             style={{
               fontSize: "13px",
-              color: "#475569",
+              color: "#9ca3af",
               textDecoration: "underline",
               textUnderlineOffset: 4,
             }}
           >
-            Ir para meus grupos
+            Voltar ao dashboard
           </Link>
         </div>
       </section>
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
