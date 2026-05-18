@@ -12,7 +12,7 @@ export default function BackButton() {
         display: "flex",
         alignItems: "center",
         gap: "8px",
-        color: "#cbd5e1", // cinza claro
+        color: "#0f172a", // cinza claro
         background: "transparent",
         border: "none",
         fontSize: "15px",
@@ -28,3 +28,4 @@ export default function BackButton() {
     </button>
   );
 }
+

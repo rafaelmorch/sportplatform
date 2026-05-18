@@ -2477,7 +2477,7 @@ overflow: "hidden",
               </div>
             )}
           </div>
-{/* 
+
           <div style={{ ...dividerSectionStyle, marginBottom: 22 }}>
             {leaderLoading ? (
               <div style={{ color: "#64748b", fontSize: 14 }}>Loading leader...</div>
@@ -2585,8 +2585,8 @@ overflow: "hidden",
                 No leader yet for this month. The first completed check-in of the month will start the race.
               </div>
             )}
-          // </div> */}
-{/* 
+          </div>
+
           <div
             style={{
               ...dividerSectionStyle,
@@ -2667,9 +2667,9 @@ overflow: "hidden",
                 Total visible check-ins registered by this membership.
               </div>
             </div>
-          </div> */}
+          </div>
 
-          {/* <div
+          <div
   style={{
     ...dividerSectionStyle,
     marginBottom: 28,
@@ -3074,8 +3074,8 @@ overflow: "hidden",
                 </div>
               </div>
             )}
-          </div> */}
-{/* 
+          </div>
+
           <div style={dividerSectionStyle}>
             <div
               style={{
@@ -3227,7 +3227,7 @@ overflow: "hidden",
                 })}
               </div>
             )}
-          </div> */}
+          </div>
         </div>
       </main>
     </>
