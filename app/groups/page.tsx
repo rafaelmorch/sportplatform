@@ -475,12 +475,10 @@ export default function MembershipsPage() {
                           )}
                         </div>
 
-                        <div style={{ background: "#1e3a8a", width: 58, minHeight: "100%", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", order: -1 }}>
+                        <div style={{ background: "#1e3a8a", width: "100%", height: 46, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", order: -1 }}>
                           <div
                             style={{
-                              fontSize: "clamp(18px, 4vw, 28px)",
-                              writingMode: "sideways-rl",
-                              textOrientation: "mixed",
+                              fontSize: "clamp(16px, 3.5vw, 22px)",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
                               lineHeight: 1.15,
