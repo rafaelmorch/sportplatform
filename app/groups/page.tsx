@@ -479,37 +479,19 @@ export default function MembershipsPage() {
                           <div
                             style={{
                               fontSize: "clamp(18px, 4vw, 28px)",
-                              writingMode:
-                                typeof navigator !== "undefined" &&
-                                /iPhone|iPad|iPod/.test(navigator.userAgent)
-                                  ? "horizontal-tb"
-                                  : "vertical-rl",
-                              transform:
-                                typeof navigator !== "undefined" &&
-                                /iPhone|iPad|iPod/.test(navigator.userAgent)
-                                  ? "none"
-                                  : "rotate(180deg)",
-                              ["WebkitTransform" as any]:
-                                typeof navigator !== "undefined" &&
-                                /iPhone|iPad|iPod/.test(navigator.userAgent)
-                                  ? "none"
-                                  : "rotate(180deg)",
-                              flexDirection:
-                                typeof navigator !== "undefined" &&
-                                /iPhone|iPad|iPod/.test(navigator.userAgent)
-                                  ? "column"
-                                  : undefined,
+                              writingMode: "sideways-rl",
+                              textOrientation: "mixed",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
                               lineHeight: 1.15,
                               color: "#ffffff",
-                              display: "flex",
+                              display: "-webkit-box",
                               WebkitLineClamp: 2,
                               WebkitBoxOrient: "vertical",
                               overflow: "hidden",
                             }}
                           >
-                            {typeof navigator !== "undefined" && /iPhone|iPad|iPod/.test(navigator.userAgent) ? Array.from(community.name ?? "Membership").map((letter, i) => <span key={i}>{letter}</span>) : (community.name ?? "Membership")}
+                            {community.name ?? "Membership"}
                           </div>
                         </div>
                       </div>
@@ -555,11 +537,6 @@ export default function MembershipsPage() {
     </>
   );
 }
-
-
-
-
-
 
 
 
