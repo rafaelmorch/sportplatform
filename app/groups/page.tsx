@@ -483,12 +483,12 @@ export default function MembershipsPage() {
                               transform:
                                 typeof navigator !== "undefined" &&
                                 /iPhone|iPad|iPod/.test(navigator.userAgent)
-                                  ? "rotate(0deg)"
+                                  ? "rotate(180deg) scaleX(-1)"
                                   : "rotate(180deg)",
                               ["WebkitTransform" as any]:
                                 typeof navigator !== "undefined" &&
                                 /iPhone|iPad|iPod/.test(navigator.userAgent)
-                                  ? "rotate(0deg)"
+                                  ? "rotate(180deg) scaleX(-1)"
                                   : "rotate(180deg)",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
@@ -546,6 +546,7 @@ export default function MembershipsPage() {
     </>
   );
 }
+
 
 
 
