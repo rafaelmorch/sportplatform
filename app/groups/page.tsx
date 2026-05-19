@@ -480,8 +480,16 @@ export default function MembershipsPage() {
                             style={{
                               fontSize: "clamp(18px, 4vw, 28px)",
                               writingMode: "vertical-rl",
-                              transform: "rotate(180deg)",
-                              ["WebkitTransform" as any]: "rotate(180deg)",
+                              transform:
+                                typeof navigator !== "undefined" &&
+                                /iPhone|iPad|iPod/.test(navigator.userAgent)
+                                  ? "rotate(0deg)"
+                                  : "rotate(180deg)",
+                              ["WebkitTransform" as any]:
+                                typeof navigator !== "undefined" &&
+                                /iPhone|iPad|iPod/.test(navigator.userAgent)
+                                  ? "rotate(0deg)"
+                                  : "rotate(180deg)",
                               fontWeight: 700,
                               fontFamily: "Montserrat, sans-serif",
                               lineHeight: 1.15,
@@ -538,6 +546,7 @@ export default function MembershipsPage() {
     </>
   );
 }
+
 
 
 
