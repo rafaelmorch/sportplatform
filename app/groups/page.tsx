@@ -344,7 +344,7 @@ export default function MembershipsPage() {
                       href={href}
                       style={{ textDecoration: "none", color: "inherit", display: "block" }}
                     >
-                      <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb", background: "#ffffff", boxShadow: "0 2px 6px rgba(0,0,0,0.15)", display: "flex" }}>
+                      <div style={{ borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb", background: "#ffffff", boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }}>
                         <div
                           style={{
                             position: "relative",
@@ -474,24 +474,6 @@ export default function MembershipsPage() {
                             </button>
                           )}
                         </div>
-
-                        <div style={{ background: "#1e3a8a", width: "100%", height: 46, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", order: -1 }}>
-                          <div
-                            style={{
-                              fontSize: "clamp(16px, 3.5vw, 22px)",
-                              fontWeight: 700,
-                              fontFamily: "Montserrat, sans-serif",
-                              lineHeight: 1.15,
-                              color: "#ffffff",
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                            }}
-                          >
-                            {community.name ?? "Membership"}
-                          </div>
-                        </div>
                       </div>
                     </Link>
                   </div>
@@ -535,6 +517,8 @@ export default function MembershipsPage() {
     </>
   );
 }
+
+
 
 
 
