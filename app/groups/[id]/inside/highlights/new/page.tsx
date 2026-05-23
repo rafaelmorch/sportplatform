@@ -6,6 +6,7 @@ import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
 import dynamicImport from "next/dynamic";
+import "react-quill-new/dist/quill.snow.css";
 import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
@@ -134,7 +135,7 @@ export default function NewMembershipHighlightPage() {
         return;
       }
 
-      router.push(`/memberships/${communityId}/inside`);
+      router.push(`/groups/${communityId}/inside`);
     } catch (err: any) {
       setMessage(err?.message || "Unexpected error.");
     } finally {
@@ -501,3 +502,5 @@ const emptyPreviewTextStyle: React.CSSProperties = {
   textAlign: "center",
   padding: "12px",
 };
+
+
