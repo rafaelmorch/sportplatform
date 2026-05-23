@@ -1,6 +1,11 @@
 // app/feed/page.tsx
 "use client";
 
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -340,6 +345,7 @@ export default function FeedPage() {
       <div
         style={{
           minHeight: "100vh",
+          fontFamily: "Montserrat, sans-serif",
           background: "#020617",
           color: "#e5e7eb",
           display: "flex",
@@ -826,3 +832,5 @@ export default function FeedPage() {
     </>
   );
 }
+
+

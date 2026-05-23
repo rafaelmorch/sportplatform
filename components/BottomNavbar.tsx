@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/events", label: "Events" },
+  { href: "/feed", label: "Feed" },
   { href: "/groups", label: "Groups" },
   { href: "/activities", label: "Group\nActivities" },
   { href: "/profile", label: "Profile" },
@@ -63,3 +63,4 @@ export default function BottomNavbar() {
     </nav>
   );
 }
+
