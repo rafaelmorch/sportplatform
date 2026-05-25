@@ -1031,7 +1031,7 @@ export default function PerformanceAIPage() {
         </div>
 
         <a
-          href="#perfil"
+          href="/performance-ai/profile"
           style={{
             display: "grid",
             gap: 8,
@@ -1965,6 +1965,8 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
+
 
 
 
