@@ -438,6 +438,9 @@ export default function PerformanceAIPage() {
   const [bloodTestFile, setBloodTestFile] = useState<File | null>(null);
   const [bloodTestNotes, setBloodTestNotes] = useState("");
   const [uploadingBloodTest, setUploadingBloodTest] = useState(false);
+
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState("");
   const [meals, setMeals] = useState<MealRow[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLogRow[]>([]);
   const [stravaActivities, setStravaActivities] = useState<StravaActivityRow[]>([]);
@@ -639,6 +642,64 @@ export default function PerformanceAIPage() {
   };
 
   
+  
+  const handleAnalyzeWithAI = async () => {
+    if (!userId) return;
+
+    setAiLoading(true);
+    setMessage(null);
+    setAiResult("");
+
+    const { data: bloodTests } = await supabase
+      .from("performance_ai_blood_tests")
+      .select("file_url, notes, ai_summary, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    const payload = {
+      profile: {
+        weightKg,
+        heightCm,
+        age,
+        gender,
+        goal,
+        healthNotes,
+      },
+      training: {
+        activities: stravaActivities.slice(0, 30),
+        totalActivities: weeklyActivitiesCount,
+        totalDistanceKm: weeklyDistanceKm,
+        totalMovingTimeSeconds: weeklyMovingTime,
+        avgHeartRate,
+        maxHeartRate,
+      },
+      nutrition: {
+        meals: meals.slice(0, 20),
+      },
+      weightHistory: weightLogs.slice(0, 10),
+      bloodTests: bloodTests ?? [],
+    };
+
+    const res = await fetch("/api/performance-ai/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      setMessage(json?.error ?? "Erro ao analisar com IA.");
+      setAiLoading(false);
+      return;
+    }
+
+    setAiResult(json?.analysis ?? "Não foi possível gerar análise.");
+    setAiLoading(false);
+  };
   const handleUploadBloodTest = async () => {
     console.log("CLICK ENVIAR EXAME", { userId, bloodTestFile });
     setMessage("Tentando enviar exame...");
@@ -1248,6 +1309,40 @@ export default function PerformanceAIPage() {
         <h2 style={sectionHeaderStyle}>Treino</h2>
 
         <div style={cardStyle}>
+          <h3 style={cardTitleStyle}>Coach IA</h3>
+
+          <div style={emptyTextStyle}>
+            Gere um plano com treino para os próximos 7 dias, sugestões de alimentação e pontos de atenção.
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAnalyzeWithAI}
+            disabled={aiLoading}
+            style={darkButtonStyle}
+          >
+            {aiLoading ? "Analisando..." : "Analisar com IA"}
+          </button>
+
+          {aiResult ? (
+            <div
+              style={{
+                whiteSpace: "pre-wrap",
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: "#334155",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: 6,
+                padding: 14,
+              }}
+            >
+              {aiResult}
+            </div>
+          ) : null}
+        </div>
+
+        <div style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <h3 style={cardTitleStyle}>Resumo do Strava</h3>
             <button type="button" onClick={handleSync} disabled={syncing} style={darkButtonStyle}>
@@ -1757,6 +1852,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
