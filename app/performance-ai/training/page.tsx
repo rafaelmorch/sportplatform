@@ -514,6 +514,18 @@ export default function PerformanceAIPage() {
         setStravaActivities((activitiesData ?? []) as StravaActivityRow[]);
       }
 
+      
+      const { data: latestAI } = await supabase
+        .from("performance_ai_ai_results")
+        .select("analysis")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestAI?.analysis) {
+        setAiResult(latestAI.analysis);
+      }
       setLoading(false);
     };
 
@@ -1976,6 +1988,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
