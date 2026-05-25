@@ -413,132 +413,6 @@ function getNutritionCoachInsight(params: {
 }
 
 
-
-function getDailyTrainingAction(params: {
-  weeklyActivitiesCount: number;
-  weeklyDistanceKm: number;
-  weeklyMovingTime: number;
-  avgHeartRate: number | null;
-}) {
-  const { weeklyActivitiesCount, weeklyDistanceKm, weeklyMovingTime, avgHeartRate } = params;
-  const totalTrainingHours = weeklyMovingTime / 3600;
-
-  if (weeklyActivitiesCount === 0) {
-    return "Hoje: faça um treino leve para retomar consistência.";
-  }
-
-  if (weeklyDistanceKm >= 30 || totalTrainingHours >= 4) {
-    return "Hoje: priorize recuperação ativa ou descanso.";
-  }
-
-  if (avgHeartRate && avgHeartRate >= 155) {
-    return "Hoje: mantenha intensidade controlada e evite forçar demais.";
-  }
-
-  if (weeklyActivitiesCount >= 4) {
-    return "Hoje: faça um treino leve ou moderado para sustentar a frequência.";
-  }
-
-  return "Hoje: mantenha o plano com treino moderado e boa execução.";
-}
-
-function getDailyNutritionAction(params: {
-  meals: MealRow[];
-  weeklyDistanceKm: number;
-  weeklyMovingTime: number;
-}) {
-  const { meals, weeklyDistanceKm, weeklyMovingTime } = params;
-
-  const lowQualityMeals = meals.filter((meal) => meal.quality_level === "baixa").length;
-  const highProteinMeals = meals.filter((meal) => meal.protein_level === "alta").length;
-  const totalTrainingHours = weeklyMovingTime / 3600;
-
-  if (meals.length === 0) {
-    return "Hoje: registre suas refeições e priorize comida de verdade.";
-  }
-
-  if ((weeklyDistanceKm >= 25 || totalTrainingHours >= 3) && highProteinMeals <= 1) {
-    return "Hoje: aumente a proteína para apoiar recuperação.";
-  }
-
-  if (lowQualityMeals >= 2) {
-    return "Hoje: reduza ultraprocessados e faça pelo menos uma refeição bem completa.";
-  }
-
-  if (highProteinMeals >= 2) {
-    return "Hoje: mantenha hidratação e constância nas refeições.";
-  }
-
-  return "Hoje: mantenha refeições equilibradas e boa hidratação.";
-}
-
-
-function getNext7DaySuggestions(params: {
-  goalText: string;
-  level: string;
-  weeklyActivitiesCount: number;
-  weeklyDistanceKm: number;
-  weeklyMovingTime: number;
-  avgHeartRate: number | null;
-}) {
-  const {
-    goalText,
-    level,
-    weeklyActivitiesCount,
-    weeklyDistanceKm,
-    weeklyMovingTime,
-    avgHeartRate,
-  } = params;
-
-  const goal = (goalText || "").toLowerCase();
-  const totalTrainingHours = weeklyMovingTime / 3600;
-  const suggestions: string[] = [];
-
-  if (goal.includes("ironman") || goal.includes("triathlon")) {
-    suggestions.push("Corrida leve de 40 a 50 min em ritmo confortável.");
-    suggestions.push("Bike de 60 a 90 min em zona aeróbica.");
-    suggestions.push("Natação técnica de 30 a 40 min com foco em eficiência.");
-    suggestions.push("Treino de força para core e estabilidade por 30 min.");
-    suggestions.push("Brick leve: bike + corrida curta de transição.");
-    suggestions.push("Mobilidade e recuperação ativa por 20 a 30 min.");
-    suggestions.push("Longo leve no fim da semana, sem passar do ritmo confortável.");
-  } else if (goal.includes("meia") || goal.includes("maratona") || goal.includes("10k") || goal.includes("5k")) {
-    suggestions.push("Corrida leve de 30 a 40 min para base aeróbica.");
-    suggestions.push("Treino moderado com blocos progressivos curtos.");
-    suggestions.push("Corrida contínua de 45 a 60 min em ritmo controlado.");
-    suggestions.push("Força de membros inferiores e core por 25 a 35 min.");
-    suggestions.push("Treino regenerativo ou caminhada forte de 30 min.");
-    suggestions.push("Longão leve a moderado conforme seu nível.");
-    suggestions.push("Mobilidade e técnica de corrida.");
-  } else {
-    suggestions.push("Treino leve de 30 a 40 min para manter consistência.");
-    suggestions.push("Sessão moderada de cardio contínuo por 40 a 50 min.");
-    suggestions.push("Treino de força geral por 25 a 35 min.");
-    suggestions.push("Recuperação ativa com caminhada ou bike leve.");
-    suggestions.push("Treino intervalado leve, sem exagerar na intensidade.");
-    suggestions.push("Sessão de mobilidade e alongamento.");
-    suggestions.push("Treino contínuo confortável para consolidar base.");
-  }
-
-  if (weeklyActivitiesCount >= 5) {
-    suggestions[0] = "Recuperação ativa de 20 a 30 min — sua frequência recente já está alta.";
-  }
-
-  if (weeklyDistanceKm >= 30 || totalTrainingHours >= 4) {
-    suggestions[1] = "Reduza a intensidade em uma sessão da semana para evitar sobrecarga.";
-  }
-
-  if (avgHeartRate && avgHeartRate >= 155) {
-    suggestions[2] = "Inclua pelo menos um treino regenerativo com intensidade bem controlada.";
-  }
-
-  if (level === "iniciante") {
-    suggestions[6] = "Mantenha intensidade baixa a moderada e foque em terminar bem cada sessão.";
-  }
-
-  return suggestions.slice(0, 7);
-}
-
 export default function PerformanceAIPage() {
   const router = useRouter();
   const supabase = useMemo(() => supabaseBrowser, []);
@@ -548,14 +422,6 @@ export default function PerformanceAIPage() {
   const [addingMeal, setAddingMeal] = useState(false);
   const [savingWeight, setSavingWeight] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    x: number;
-    y: number;
-    km: number;
-    label: string;
-    title: string;
-    movingTime: number;
-  } | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -568,6 +434,10 @@ export default function PerformanceAIPage() {
   const [healthNotes, setHealthNotes] = useState("");
   const [mealText, setMealText] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+
+  const [bloodTestFile, setBloodTestFile] = useState<File | null>(null);
+  const [bloodTestNotes, setBloodTestNotes] = useState("");
+  const [uploadingBloodTest, setUploadingBloodTest] = useState(false);
   const [meals, setMeals] = useState<MealRow[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLogRow[]>([]);
   const [stravaActivities, setStravaActivities] = useState<StravaActivityRow[]>([]);
@@ -768,6 +638,53 @@ export default function PerformanceAIPage() {
     setSavingWeight(false);
   };
 
+  
+  const handleUploadBloodTest = async () => {
+    console.log("CLICK ENVIAR EXAME", { userId, bloodTestFile });
+    setMessage("Tentando enviar exame...");
+    if (!userId || !bloodTestFile) {
+      setMessage("Selecione um PDF ou imagem do exame.");
+      return;
+    }
+
+    setUploadingBloodTest(true);
+    setMessage(null);
+
+    const extension = bloodTestFile.name.split(".").pop();
+    const fileName = `${userId}/${Date.now()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("blood-tests")
+      .upload(fileName, bloodTestFile, { upsert: true });
+
+    if (uploadError) {
+      setMessage(uploadError.message);
+      setUploadingBloodTest(false);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("blood-tests")
+      .getPublicUrl(fileName);
+
+    const { error: dbError } = await supabase
+      .from("performance_ai_blood_tests")
+      .insert({
+        user_id: userId,
+        file_url: publicData.publicUrl,
+        notes: bloodTestNotes || null,
+      });
+
+    if (dbError) {
+      setMessage(dbError.message);
+    } else {
+      setMessage("Exame enviado com sucesso.");
+      setBloodTestFile(null);
+      setBloodTestNotes("");
+    }
+
+    setUploadingBloodTest(false);
+  };
   const handleDeleteWeight = async (id: string) => {
     const { error } = await supabase
       .from("performance_ai_weight_logs")
@@ -855,36 +772,12 @@ export default function PerformanceAIPage() {
     weightLogs,
   });
 
-    const nutritionCoachInsight = getNutritionCoachInsight({
+  const nutritionCoachInsight = getNutritionCoachInsight({
     meals,
     weeklyActivitiesCount,
     weeklyDistanceKm,
     weeklyMovingTime,
-  });
 
-  const goalText = goal || "General fitness";
-  const level = "beginner";
-
-  const next7DaySuggestions = getNext7DaySuggestions({
-    goalText,
-    level,
-    weeklyActivitiesCount,
-    weeklyDistanceKm,
-    weeklyMovingTime,
-    avgHeartRate,
-  });
-
-  const dailyTrainingAction = getDailyTrainingAction({
-    weeklyActivitiesCount,
-    weeklyDistanceKm,
-    weeklyMovingTime,
-    avgHeartRate,
-  });
-
-  const dailyNutritionAction = getDailyNutritionAction({
-    meals,
-    weeklyDistanceKm,
-    weeklyMovingTime,
   });
 
 
@@ -922,7 +815,6 @@ export default function PerformanceAIPage() {
       km,
       label: formatShortDate(activity.start_date),
       title: activity.name ?? activity.type ?? activity.sport_type ?? "Atividade",
-      movingTime: activity.moving_time ?? 0,
     };
   });
 
@@ -1227,6 +1119,65 @@ export default function PerformanceAIPage() {
       <section id="perfil" style={sectionStyle}>
         <h2 style={sectionHeaderStyle}>Meu perfil</h2>
 
+        <div style={cardStyle}>
+          <h3 style={cardTitleStyle}>Exame de sangue</h3>
+
+          <div style={emptyTextStyle}>
+            Selecione um PDF ou imagem do exame para futura análise junto com treino, alimentação e objetivo.
+          </div>
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 48,
+              border: "1px dashed #64748b",
+              borderRadius: 6,
+              background: "#f8fafc",
+              color: "#0f172a",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "Montserrat, sans-serif",
+            }}
+          >
+            Selecionar PDF ou imagem
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.currentTarget.files?.[0] ?? null;
+                console.log("ARQUIVO SELECIONADO", file);
+                setBloodTestFile(file);
+              }}
+            />
+          </label>
+
+          {bloodTestFile ? (
+            <div style={rowSecondaryStyle}>
+              Arquivo selecionado: {bloodTestFile.name}
+            </div>
+          ) : null}
+
+          <textarea
+            value={bloodTestNotes}
+            onChange={(e) => setBloodTestNotes(e.target.value)}
+            placeholder="Observações opcionais sobre o exame"
+            rows={4}
+            style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
+          />
+
+          <button
+            type="button"
+            onClick={handleUploadBloodTest}
+            disabled={uploadingBloodTest}
+            style={darkButtonStyle}
+          >
+            {uploadingBloodTest ? "Enviando..." : "Enviar exame"}
+          </button>
+        </div>
+
         <div style={gridTwoStyle}>
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Dados do atleta</h3>
@@ -1474,23 +1425,15 @@ export default function PerformanceAIPage() {
           )}
         </div>
 
-        <div style={cardStyle}>
-          <h3 style={cardTitleStyle}>Coach de treino</h3>
-          <div style={summaryTextStyle}>{trainingCoachInsight}</div>
-        </div>
+        <div style={gridTwoStyle}>
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>Coach de treino</h3>
+            <div style={summaryTextStyle}>{trainingCoachInsight}</div>
+          </div>
 
-        <div style={cardStyle}>
-          <h3 style={cardTitleStyle}>Sugestões para os próximos 7 dias</h3>
-
-          <div style={{ display: "grid", gap: 10 }}>
-            {next7DaySuggestions.map((item, index) => (
-              <div key={index} style={rowCardStyle}>
-                <div>
-                  <div style={rowPrimaryStyle}>Sugestão {index + 1}</div>
-                  <div style={rowSecondaryStyle}>{item}</div>
-                </div>
-              </div>
-            ))}
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>Coach de alimentação</h3>
+            <div style={summaryTextStyle}>{nutritionCoachInsight}</div>
           </div>
         </div>
       </section>
@@ -1814,12 +1757,6 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
-
-
-
-
-
-
 
 
 

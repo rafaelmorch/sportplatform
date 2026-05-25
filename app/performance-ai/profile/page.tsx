@@ -56,6 +56,10 @@ export default function ProfilePage() {
   const [weightLogs, setWeightLogs] = useState<WeightLogRow[]>([]);
   const [message, setMessage] = useState<string | null>(null);
 
+  const [bloodTestFile, setBloodTestFile] = useState<File | null>(null);
+  const [bloodTestNotes, setBloodTestNotes] = useState("");
+  const [uploadingBloodTest, setUploadingBloodTest] = useState(false);
+
   useEffect(() => {
     const loadPage = async () => {
       const { data: authData } = await supabase.auth.getUser();
@@ -184,6 +188,53 @@ export default function ProfilePage() {
     setSavingWeight(false);
   };
 
+  
+  const handleUploadBloodTest = async () => {
+    if (!userId || !bloodTestFile) {
+      setMessage("Selecione um arquivo.");
+      return;
+    }
+
+    setUploadingBloodTest(true);
+    setMessage(null);
+
+    const extension = bloodTestFile.name.split(".").pop();
+    const fileName = `${userId}/${Date.now()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("blood-tests")
+      .upload(fileName, bloodTestFile, {
+        upsert: true,
+      });
+
+    if (uploadError) {
+      setMessage(uploadError.message);
+      setUploadingBloodTest(false);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("blood-tests")
+      .getPublicUrl(fileName);
+
+    const { error: dbError } = await supabase
+      .from("performance_ai_blood_tests")
+      .insert({
+        user_id: userId,
+        file_url: publicData.publicUrl,
+        notes: bloodTestNotes || null,
+      });
+
+    if (dbError) {
+      setMessage(dbError.message);
+    } else {
+      setMessage("Exame enviado com sucesso.");
+      setBloodTestFile(null);
+      setBloodTestNotes("");
+    }
+
+    setUploadingBloodTest(false);
+  };
   const handleDeleteWeight = async (id: string) => {
     const { error } = await supabase
       .from("performance_ai_weight_logs")
@@ -213,6 +264,12 @@ export default function ProfilePage() {
         <h2 style={sectionHeaderStyle}>Meu perfil</h2>
 
         <div style={cardStyle}>
+        <div style={cardStyle}>
+          <h3 style={cardTitleStyle}>Exame de sangue</h3>
+
+          <div style={emptyTextStyle}>
+            Envie exames laboratoriais para análise futura junto com treino e alimentação.
+          </div>
           <h3 style={cardTitleStyle}>Dados do atleta</h3>
 
           <input
@@ -314,7 +371,43 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        <div style={cardStyle}>
+        
+
+          <div style={rowSecondaryStyle}>Selecione um PDF ou imagem do exame para futura análise da IA.</div>
+
+          <input
+            type="file"
+            accept=".pdf,image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null;
+              setBloodTestFile(file);
+            }}
+            style={inputStyle}
+          />
+
+          <textarea
+            value={bloodTestNotes}
+            onChange={(e) => setBloodTestNotes(e.target.value)}
+            placeholder="Observações opcionais"
+            rows={4}
+            style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
+          />
+
+          {bloodTestFile ? (
+            <div style={rowSecondaryStyle}>
+              Arquivo selecionado: {bloodTestFile.name}
+            </div>
+          ) : null}
+
+          <button
+            onClick={handleUploadBloodTest}
+            disabled={uploadingBloodTest}
+            style={darkButtonStyle}
+          >
+            {uploadingBloodTest ? "Enviando..." : "Enviar exame"}
+          </button>
+        </div>
+<div style={cardStyle}>
           <h3 style={cardTitleStyle}>Histórico de peso</h3>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -464,3 +557,5 @@ const deleteButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
+
