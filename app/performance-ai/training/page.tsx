@@ -697,7 +697,18 @@ export default function PerformanceAIPage() {
       return;
     }
 
-    setAiResult(json?.analysis ?? null);
+        const analysisData = json?.analysis ?? null;
+
+    setAiResult(analysisData);
+
+    if (analysisData && userId) {
+      await supabase
+        .from("performance_ai_ai_results")
+        .insert({
+          user_id: userId,
+          analysis: analysisData,
+        });
+    }
     setAiLoading(false);
   };
   const handleUploadBloodTest = async () => {
@@ -1965,6 +1976,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
