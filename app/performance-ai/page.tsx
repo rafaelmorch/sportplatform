@@ -440,7 +440,7 @@ export default function PerformanceAIPage() {
   const [uploadingBloodTest, setUploadingBloodTest] = useState(false);
 
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState("");
+  const [aiResult, setAiResult] = useState<any | null>(null);
   const [meals, setMeals] = useState<MealRow[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLogRow[]>([]);
   const [stravaActivities, setStravaActivities] = useState<StravaActivityRow[]>([]);
@@ -648,7 +648,7 @@ export default function PerformanceAIPage() {
 
     setAiLoading(true);
     setMessage(null);
-    setAiResult("");
+    setAiResult(null);
 
     const { data: bloodTests } = await supabase
       .from("performance_ai_blood_tests")
@@ -697,7 +697,7 @@ export default function PerformanceAIPage() {
       return;
     }
 
-    setAiResult(json?.analysis ?? "Não foi possível gerar análise.");
+    setAiResult(json?.analysis ?? null);
     setAiLoading(false);
   };
   const handleUploadBloodTest = async () => {
@@ -1325,19 +1325,132 @@ export default function PerformanceAIPage() {
           </button>
 
           {aiResult ? (
-            <div
-              style={{
-                whiteSpace: "pre-wrap",
-                fontSize: 14,
-                lineHeight: 1.7,
-                color: "#334155",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                padding: 14,
-              }}
-            >
-              {aiResult}
+            <div style={{ display: "grid", gap: 14 }}>
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 6,
+                  padding: 14,
+                }}
+              >
+                <h3 style={{ ...cardTitleStyle, marginBottom: 8 }}>Resumo geral</h3>
+                <div style={summaryTextStyle}>{aiResult.summary}</div>
+              </div>
+
+              {Array.isArray(aiResult.days) ? (
+                <div style={{ display: "grid", gap: 14 }}>
+                  {aiResult.days.map((day: any, index: number) => (
+                    <div
+                      key={index}
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 8,
+                        padding: 16,
+                        display: "grid",
+                        gap: 14,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 12,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
+                          Dia {day.day ?? index + 1}
+                        </h3>
+
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "#1d4ed8",
+                            background: "#eff6ff",
+                            border: "1px solid #bfdbfe",
+                            borderRadius: 999,
+                            padding: "5px 10px",
+                          }}
+                        >
+                          Plano IA
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 6,
+                          padding: 14,
+                          display: "grid",
+                          gap: 8,
+                        }}
+                      >
+                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Treino</h4>
+                        <div><strong>Modalidade:</strong> {day.training?.modality}</div>
+                        <div><strong>Duração:</strong> {day.training?.duration}</div>
+                        <div><strong>Intensidade:</strong> {day.training?.intensity}</div>
+                        <div><strong>Explicação:</strong> {day.training?.intensityExplanation}</div>
+                        <div><strong>Detalhes:</strong> {day.training?.details}</div>
+                        <div><strong>Objetivo:</strong> {day.training?.goal}</div>
+                        {day.training?.caution ? (
+                          <div><strong>Atenção:</strong> {day.training.caution}</div>
+                        ) : null}
+                      </div>
+
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 6,
+                          padding: 14,
+                          display: "grid",
+                          gap: 8,
+                        }}
+                      >
+                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 800 }}>Alimentação do dia</h4>
+                        <div><strong>Foco:</strong> {day.nutrition?.dailyFocus}</div>
+                        <div><strong>Café da manhã:</strong> {day.nutrition?.breakfast}</div>
+                        <div><strong>Almoço:</strong> {day.nutrition?.lunch}</div>
+                        <div><strong>Pré-treino:</strong> {day.nutrition?.preWorkout}</div>
+                        <div><strong>Pós-treino:</strong> {day.nutrition?.postWorkout}</div>
+                        <div><strong>Jantar:</strong> {day.nutrition?.dinner}</div>
+                        <div><strong>Hidratação:</strong> {day.nutrition?.hydration}</div>
+                        <div><strong>Proteína alvo:</strong> {day.nutrition?.proteinTarget}</div>
+                        <div><strong>Carboidrato alvo:</strong> {day.nutrition?.carbTarget}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {Array.isArray(aiResult.attentionPoints) ? (
+                <div
+                  style={{
+                    background: "#fff7ed",
+                    border: "1px solid #fed7aa",
+                    borderRadius: 6,
+                    padding: 14,
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  <h3 style={{ ...cardTitleStyle, marginBottom: 4 }}>Pontos de atenção</h3>
+                  {aiResult.attentionPoints.map((point: string, index: number) => (
+                    <div key={index} style={summaryTextStyle}>• {point}</div>
+                  ))}
+                </div>
+              ) : null}
+
+              {aiResult.disclaimer ? (
+                <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+                  {aiResult.disclaimer}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -1852,6 +1965,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 

@@ -16,53 +16,63 @@ export async function POST(req: Request) {
     const prompt = `
 Você é um coach de performance esportiva e nutrição esportiva.
 
-IMPORTANTE:
-- Responda em português.
-- Seja prático, claro e explicativo.
-- Não dê diagnóstico médico.
-- Se houver exames de sangue, use apenas como contexto de performance/recuperação e recomende acompanhamento profissional quando necessário.
-- O treino deve considerar histórico recente do Strava, objetivo, nível, peso, idade, tempo disponível e carga recente.
-- A alimentação deve considerar peso, altura, idade, gênero, objetivo e carga de treino.
-- Explique termos técnicos. Exemplo: se usar "zona 2", explique o que é.
+Responda SOMENTE em JSON válido.
+Não use markdown.
+Não use texto fora do JSON.
 
-DADOS DO USUÁRIO:
+Regras:
+- O plano deve ter exatamente 7 dias.
+- Cada dia deve ter treino e alimentação específica para aquele treino.
+- A alimentação deve conter exemplos e quantidades aproximadas.
+- Explique termos técnicos de forma simples.
+- Se usar zona 2, explique no campo intensityExplanation.
+- Não dê diagnóstico médico.
+- Exames de sangue devem ser usados apenas como contexto de performance e recuperação.
+- Se houver exame, inclua alertas apenas como pontos de atenção, sempre sugerindo acompanhamento profissional.
+
+Dados do usuário:
 ${JSON.stringify(body, null, 2)}
 
-FORMATO OBRIGATÓRIO DA RESPOSTA:
-
-# Resumo geral
-Explique em 3 a 5 linhas o estado atual do usuário.
-
-# Plano de treino — próximos 7 dias
-Para cada dia, use este formato:
-
-## Dia 1
-Treino:
-- Modalidade:
-- Duração:
-- Intensidade:
-- Explicação:
-- Objetivo do treino:
-
-Repita até Dia 7.
-
-# Alimentação sugerida
-Monte uma orientação prática com exemplos e quantidades aproximadas.
-
-Use:
-- Café da manhã
-- Almoço
-- Lanche / pré-treino
-- Jantar / pós-treino
-- Hidratação
-
-Inclua exemplos como gramas, unidades ou porções.
-
-# Pontos de atenção
-Liste pontos sobre recuperação, carga de treino, alimentação e exames se existirem.
-
-# Aviso
-Inclua uma frase curta dizendo que isso não substitui orientação médica, nutricional ou de treinador presencial.
+Formato obrigatório:
+{
+  "summary": "Resumo geral em 3 a 5 linhas.",
+  "profileSnapshot": {
+    "age": "",
+    "weight": "",
+    "height": "",
+    "goal": ""
+  },
+  "days": [
+    {
+      "day": 1,
+      "title": "Dia 1",
+      "training": {
+        "modality": "",
+        "duration": "",
+        "intensity": "",
+        "intensityExplanation": "",
+        "details": "",
+        "goal": "",
+        "caution": ""
+      },
+      "nutrition": {
+        "dailyFocus": "",
+        "breakfast": "",
+        "lunch": "",
+        "preWorkout": "",
+        "postWorkout": "",
+        "dinner": "",
+        "hydration": "",
+        "proteinTarget": "",
+        "carbTarget": ""
+      }
+    }
+  ],
+  "attentionPoints": [
+    ""
+  ],
+  "disclaimer": "Texto curto de aviso."
+}
 `;
 
     const response = await fetch("https://api.openai.com/v1/responses", {
@@ -74,6 +84,10 @@ Inclua uma frase curta dizendo que isso não substitui orientação médica, nut
       body: JSON.stringify({
         model: "gpt-4.1-mini",
         input: prompt,
+        temperature: 0.4,
+        response_format: {
+          type: "json_object",
+        },
       }),
     });
 
@@ -89,9 +103,20 @@ Inclua uma frase curta dizendo que isso não substitui orientação médica, nut
     const text =
       data?.output_text ??
       data?.output?.[0]?.content?.[0]?.text ??
-      "Não foi possível gerar análise.";
+      "";
 
-    return NextResponse.json({ analysis: text });
+    let parsed = null;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return NextResponse.json(
+        { error: "A IA retornou um formato inválido.", raw: text },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ analysis: parsed });
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message ?? "Erro inesperado." },
