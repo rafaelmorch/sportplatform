@@ -85,8 +85,10 @@ Formato obrigatório:
         model: "gpt-4.1-mini",
         input: prompt,
         temperature: 0.4,
-        response_format: {
-          type: "json_object",
+        text: {
+          format: {
+            type: "json_object",
+          },
         },
       }),
     });
@@ -124,3 +126,4 @@ Formato obrigatório:
     );
   }
 }
+
