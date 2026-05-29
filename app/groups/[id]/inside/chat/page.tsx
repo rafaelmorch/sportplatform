@@ -150,7 +150,7 @@ export default function MembershipChatPage() {
           .eq("user_id", user.id)
           .single();
 
-        if (!request || request.status !== "approved") {
+        if (!request || !["approved", "active"].includes(request.status)) {
           router.push(`/groups/${communityId}`);
           return;
         }
@@ -425,5 +425,6 @@ export default function MembershipChatPage() {
     </>
   );
 }
+
 
 

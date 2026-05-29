@@ -28,12 +28,15 @@ export default function BackArrow({ href, label }: BackArrowProps) {
         display: "inline-flex",
         alignItems: "center",
         gap: 8,
+        color: "#fff",
       }}
       aria-label={label || "Go back"}
       type="button"
     >
-      <span>←</span>
+      <span>←</span><span style={{ fontSize: 14 }}>Back</span>
       {label ? <span style={{ fontSize: 14 }}>{label}</span> : null}
     </button>
   );
 }
+
+
