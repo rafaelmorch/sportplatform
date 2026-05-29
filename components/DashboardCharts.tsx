@@ -31,7 +31,7 @@ export default function DashboardCharts({
   const hasData = data && data.length > 0;
 
   return (
-    <div style={{ width: "100%", height: 260 }}>
+    <div style={{ width: "100%", minHeight: 360, height: "auto" }}>
       <h2
         style={{
           fontSize: 16,
@@ -60,7 +60,7 @@ export default function DashboardCharts({
           dos treinos.
         </p>
       ) : (
-        <ResponsiveContainer width="100%" height="100%">
+        <div style={{ width: "100%", height: 260 }}><ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
             margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
@@ -115,8 +115,9 @@ export default function DashboardCharts({
               activeDot={{ r: 4 }}
             />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></div>
       )}
     </div>
   );
 }
+
