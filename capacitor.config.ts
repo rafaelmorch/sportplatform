@@ -1,13 +1,21 @@
-import type { CapacitorConfig } from "@capacitor/cli";
+import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: "com.platformsports.app",
-  appName: "Platform Sports",
-  webDir: "capacitor-www",
+  appId: 'com.platformsports.app',
+  appName: 'Platform Sports',
+  webDir: 'public',
   server: {
-    url: "https://sportsplatform.app",
-    cleartext: false
+    url: 'https://www.sportsplatform.app',
+    cleartext: false,
+  },
+  plugins: {
+    StatusBar: {
+      overlaysWebView: false
+    }
   }
 };
 
 export default config;
+
+
+

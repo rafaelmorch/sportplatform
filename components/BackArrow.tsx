@@ -21,22 +21,29 @@ export default function BackArrow({ href, label }: BackArrowProps) {
         router.back();
       }}
       style={{
-        background: "none",
-        border: "none",
-        fontSize: "20px",
+        height: 36,
+        padding: "0 12px",
+        borderRadius: 999,
+        border: "1px solid #cbd5e1",
+        background: "#ffffff",
+        color: "#0f172a",
         cursor: "pointer",
         display: "inline-flex",
         alignItems: "center",
         gap: 8,
-        color: "#fff",
+        fontSize: 12,
+        fontWeight: 900,
+        letterSpacing: "0.02em",
+        boxShadow: "0 4px 10px rgba(15,23,42,0.12)",
+        whiteSpace: "nowrap",
+        fontFamily: "Montserrat, sans-serif",
       }}
       aria-label={label || "Go back"}
       type="button"
     >
-      <span>←</span><span style={{ fontSize: 14 }}>Back</span>
-      {label ? <span style={{ fontSize: 14 }}>{label}</span> : null}
+      <span style={{ fontSize: 16, lineHeight: 1, marginTop: -1 }}>←</span>
+      <span>Back</span>
+      {label ? <span>{label}</span> : null}
     </button>
   );
 }
-
-

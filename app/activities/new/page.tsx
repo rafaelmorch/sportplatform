@@ -4,6 +4,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
 
 export const dynamic = "force-dynamic";
 
@@ -340,7 +344,7 @@ export default function NewActivityPage() {
           boxSizing: "border-box",
         }}
       >
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        <div style={{ maxWidth: "900px", margin: "0 auto", fontFamily: "Montserrat, sans-serif" }}>
           <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>Loading...</p>
         </div>
 
@@ -349,7 +353,7 @@ export default function NewActivityPage() {
           body {
             margin: 0 !important;
             padding: 0 !important;
-            background: #020617 !important;
+            background: #ffffff !important;
             overflow-x: hidden !important;
           }
           * {
@@ -380,7 +384,7 @@ export default function NewActivityPage() {
         boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "900px", margin: "0 auto", fontFamily: "Montserrat, sans-serif" }}>
         <header style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <BackButton onClick={handleBack} />
@@ -644,7 +648,7 @@ export default function NewActivityPage() {
         body {
           margin: 0 !important;
           padding: 0 !important;
-          background: #020617 !important;
+          background: #ffffff !important;
           overflow-x: hidden !important;
         }
         * {
@@ -654,5 +658,9 @@ export default function NewActivityPage() {
     </main>
   );
 }
+
+
+
+
 
 

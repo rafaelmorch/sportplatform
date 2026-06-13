@@ -167,7 +167,7 @@ export default function NewFeedPostPage() {
         #__next {
           margin: 0 !important;
           padding: 0 !important;
-          background: #020617 !important;
+          background: #ffffff !important;
           width: 100% !important;
           height: 100% !important;
           overflow-x: hidden;
@@ -177,9 +177,10 @@ export default function NewFeedPostPage() {
       <main
         style={{
           minHeight: "100vh",
-          background: "#020617",
-          color: "#e5e7eb",
+          background: "#ffffff",
+          color: "#0f172a",
           padding: "16px",
+          fontFamily: "Montserrat, sans-serif",
           paddingRight: "18px", // ✅ pequena “margem” extra à direita
           paddingBottom: "24px",
           margin: 0,
@@ -206,9 +207,9 @@ export default function NewFeedPostPage() {
               height: 36,
               padding: "0 12px",
               borderRadius: 999,
-              border: "1px solid rgba(148,163,184,0.35)",
-              background: "rgba(2,6,23,0.65)",
-              color: "#e5e7eb",
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+              color: "#0f172a",
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
@@ -217,7 +218,7 @@ export default function NewFeedPostPage() {
               fontWeight: 900,
               letterSpacing: "0.02em",
               boxShadow:
-                "0 10px 22px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
+                "0 4px 10px rgba(15,23,42,0.12)",
               flex: "0 0 auto",
               whiteSpace: "nowrap",
             }}
@@ -235,7 +236,7 @@ export default function NewFeedPostPage() {
             <p
               style={{
                 fontSize: 12,
-                color: "#9ca3af",
+                color: "#64748b",
                 margin: 0,
                 marginTop: 2,
               }}
@@ -246,9 +247,9 @@ export default function NewFeedPostPage() {
         </div>
 
         <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <div style={{ marginBottom: 12, fontSize: 13, color: "#9ca3af" }}>
+          <div style={{ marginBottom: 12, fontSize: 13, color: "#64748b" }}>
             Posting as{" "}
-            <span style={{ color: "#e5e7eb", fontWeight: 600 }}>
+            <span style={{ color: "#0f172a", fontWeight: 600 }}>
               {loadingAuthor ? "loading..." : authorName ?? "—"}
             </span>
           </div>
@@ -266,16 +267,16 @@ export default function NewFeedPostPage() {
                 width: "100%",
                 borderRadius: 12,
                 padding: 10,
-                border: "1px solid rgba(55,65,81,0.9)",
-                backgroundColor: "#020617",
-                color: "#e5e7eb",
+                border: "1px solid #cbd5e1",
+                backgroundColor: "#ffffff",
+                color: "#0f172a",
                 fontSize: 16,
                 resize: "vertical",
               }}
             />
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label htmlFor="image" style={{ fontSize: 12, color: "#d1d5db" }}>
+              <label htmlFor="image" style={{ fontSize: 12, color: "#334155" }}>
                 Image (optional)
               </label>
               <input
@@ -292,7 +293,7 @@ export default function NewFeedPostPage() {
                     marginTop: 6,
                     borderRadius: 12,
                     overflow: "hidden",
-                    border: "1px solid rgba(55,65,81,0.9)",
+                    border: "1px solid #cbd5e1",
                     maxHeight: 260,
                   }}
                 >
@@ -315,7 +316,7 @@ export default function NewFeedPostPage() {
             </div>
 
             {errorMsg && (
-              <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
+              <p style={{ fontSize: 12, color: "#dc2626", margin: 0 }}>
                 {errorMsg}
               </p>
             )}
@@ -344,3 +345,6 @@ export default function NewFeedPostPage() {
     </>
   );
 }
+
+
+

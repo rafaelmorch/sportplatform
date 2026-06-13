@@ -162,7 +162,7 @@ export default function NewCheckinPage() {
       return;
     }
 
-    router.push(`/memberships/${communityId}/inside`);
+    router.push(`/groups/${communityId}/inside`);
   }
 
   return (
@@ -348,3 +348,4 @@ export default function NewCheckinPage() {
     </main>
   );
 }
+

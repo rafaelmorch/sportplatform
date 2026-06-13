@@ -120,7 +120,7 @@ export default function NewMembershipPostPage() {
     }
 
     console.log("Post created successfully:", data);
-    router.push(`/memberships/${communityId}/inside`);
+    router.push(`/groups/${communityId}/inside`);
   }
 
   return (
@@ -229,4 +229,5 @@ export default function NewMembershipPostPage() {
     </main>
   );
 }
+
 

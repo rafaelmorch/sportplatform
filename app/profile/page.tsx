@@ -112,7 +112,7 @@ export default function ProfilePage() {
 
       if (upsertError) {
         console.error("Error saving profile:", upsertError);
-        setErrorMsg("Error saving profile data.");
+        setErrorMsg(upsertError.message || "Error saving profile data.");
         return;
       }
 
@@ -275,7 +275,8 @@ export default function ProfilePage() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: 20,
-                  fontWeight: 700,
+                  fontWeight: 800,
+                  fontFamily: "Montserrat, sans-serif",
                   color: "#ffffff",
                   flex: "0 0 auto",
                 }}
@@ -287,7 +288,7 @@ export default function ProfilePage() {
                 <h1 className="title" style={{ fontSize: 20, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>
                   My Profile
                 </h1>
-                <p className="subtitle" style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#374151", margin: 0 }}>
+                <p className="subtitle" style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0 }}>
                   Manage the name shown in SportPlatform.
                 </p>
               </div>
@@ -302,7 +303,7 @@ export default function ProfilePage() {
                 border: "1px solid #e5e7eb",
                 background: "#ffffff",
                 color: "#374151",
-                fontSize: 13, fontFamily: "Arial, sans-serif",
+                fontSize: 13, fontFamily: "Montserrat, sans-serif",
                 fontWeight: 600,
                 cursor: signingOut ? "not-allowed" : "pointer",
                 opacity: signingOut ? 0.7 : 1,
@@ -329,11 +330,11 @@ export default function ProfilePage() {
             </h2>
 
             {loadingProfile ? (
-              <p style={{ fontSize: 13, fontFamily: "Arial, sans-serif", color: "#374151", margin: 0 }}>Loading profile...</p>
+              <p style={{ fontSize: 13, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0 }}>Loading profile...</p>
             ) : (
               <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label htmlFor="name" style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#374151" }}>
+                  <label htmlFor="name" style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151" }}>
                     Name
                   </label>
                   <input
@@ -349,26 +350,26 @@ export default function ProfilePage() {
                       border: "1px solid #e5e7eb",
                       backgroundColor: "#ffffff",
                       color: "#374151",
-                      fontSize: 13, fontFamily: "Arial, sans-serif",
+                      fontSize: 13, fontFamily: "Montserrat, sans-serif",
                       width: "100%",
                       boxSizing: "border-box",
                     }}
                   />
-                  <p style={{ fontSize: 11, fontFamily: "Arial, sans-serif", color: "#374151", margin: 0, marginTop: 2 }}>
+                  <p style={{ fontSize: 11, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0, marginTop: 2 }}>
                     This is the name that will appear in the feed, dashboard, and other areas of the app.
                   </p>
                 </div>
 
                 {email && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#374151" }}>Email (read-only)</span>
+                    <span style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151" }}>Email (read-only)</span>
                     <div
                       style={{
                         borderRadius: 10,
                         padding: "8px 10px",
                         border: "1px solid rgba(31,41,55,0.9)",
                         backgroundColor: "#ffffff",
-                        fontSize: 13, fontFamily: "Arial, sans-serif",
+                        fontSize: 13, fontFamily: "Montserrat, sans-serif",
                         color: "#374151",
                         width: "100%",
                         boxSizing: "border-box",
@@ -381,11 +382,11 @@ export default function ProfilePage() {
                 )}
 
                 {errorMsg && (
-                  <p style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#fca5a5", margin: 0, marginTop: 4 }}>{errorMsg}</p>
+                  <p style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#fca5a5", margin: 0, marginTop: 4 }}>{errorMsg}</p>
                 )}
 
                 {successMsg && (
-                  <p style={{ fontSize: 12, fontFamily: "Arial, sans-serif", color: "#bbf7d0", margin: 0, marginTop: 4 }}>{successMsg}</p>
+                  <p style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#bbf7d0", margin: 0, marginTop: 4 }}>{successMsg}</p>
                 )}
 
                 <button
@@ -398,7 +399,7 @@ export default function ProfilePage() {
                     borderRadius: 999,
                     padding: "8px 16px",
                     border: "none",
-                    fontSize: 13, fontFamily: "Arial, sans-serif",
+                    fontSize: 13, fontFamily: "Montserrat, sans-serif",
                     fontWeight: 600,
                     background: "#1e3a8a",
                     color: "#ffffff",
@@ -420,7 +421,7 @@ export default function ProfilePage() {
                     borderRadius: 999,
                     padding: "8px 16px",
                     border: "1px solid rgba(239,68,68,0.5)",
-                    fontSize: 13, fontFamily: "Arial, sans-serif",
+                    fontSize: 13, fontFamily: "Montserrat, sans-serif",
                     fontWeight: 600,
                     background: "transparent",
                     color: "#f87171",
@@ -438,6 +439,10 @@ export default function ProfilePage() {
     </>
   );
 }
+
+
+
+
 
 
 

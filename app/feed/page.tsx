@@ -335,7 +335,7 @@ export default function FeedPage() {
         #__next {
           margin: 0 !important;
           padding: 0 !important;
-          background: #020617 !important;
+          background: #ffffff !important;
           width: 100% !important;
           height: 100% !important;
           overflow-x: hidden;
@@ -346,8 +346,8 @@ export default function FeedPage() {
         style={{
           minHeight: "100vh",
           fontFamily: "Montserrat, sans-serif",
-          background: "#020617",
-          color: "#e5e7eb",
+          background: "#ffffff",
+          color: "#0f172a",
           display: "flex",
           flexDirection: "column",
           width: "100vw",
@@ -378,7 +378,7 @@ export default function FeedPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logo-sports-platform.png"
+                src="/feed-banner.png"
                 alt="Sports Platform"
                 style={{
                   width: "100%",
@@ -488,8 +488,8 @@ export default function FeedPage() {
                     key={post.id}
                     style={{
                       borderRadius: "16px",
-                      border: "1px solid #1e293b",
-                      background: "#020617",
+                      border: "1px solid #e2e8f0",
+                      background: "#ffffff",
                       padding: "14px 14px 12px 14px",
                     }}
                   >
@@ -552,7 +552,7 @@ export default function FeedPage() {
                     <p
                       style={{
                         fontSize: "13px",
-                        color: "#e5e7eb",
+                        color: "#0f172a",
                         marginBottom: post.image_url ? "10px" : "8px",
                         lineHeight: 1.5,
                       }}
@@ -565,7 +565,7 @@ export default function FeedPage() {
                         style={{
                           borderRadius: "14px",
                           overflow: "hidden",
-                          border: "1px solid #1e293b",
+                          border: "1px solid #e2e8f0",
                           marginBottom: "8px",
                           background: "rgba(0,0,0,0.25)",
                           display: "flex",
@@ -613,7 +613,7 @@ export default function FeedPage() {
                             background: isLiked
                               ? "rgba(34,197,94,0.15)"
                               : "transparent",
-                            color: isLiked ? "#4ade80" : "#e5e7eb",
+                            color: isLiked ? "#16a34a" : "#334155",
                             display: "flex",
                             alignItems: "center",
                             gap: "6px",
@@ -684,9 +684,9 @@ export default function FeedPage() {
                             fontSize: "12px",
                             padding: "6px 10px",
                             borderRadius: "999px",
-                            border: "1px solid #1e293b",
-                            backgroundColor: "#020617",
-                            color: "#e5e7eb",
+                            border: "1px solid #e2e8f0",
+                            backgroundColor: "#ffffff",
+                            color: "#0f172a",
                             outline: "none",
                           }}
                         />
@@ -790,7 +790,7 @@ export default function FeedPage() {
                                     <span
                                       style={{
                                         fontWeight: 600,
-                                        color: "#e5e7eb",
+                                        color: "#0f172a",
                                       }}
                                     >
                                       {c.author_name || "Atleta"}
@@ -832,5 +832,8 @@ export default function FeedPage() {
     </>
   );
 }
+
+
+
 
 
