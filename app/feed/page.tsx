@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import BottomNavbar from "@/components/BottomNavbar";
+import UserAvatar from "@/components/UserAvatar";
 
 type Post = {
   id: string;
@@ -30,6 +31,37 @@ type Comment = {
   created_at: string;
 };
 
+function getAvatarGradient(name: string | null) {
+  const palettes = [
+    "radial-gradient(circle at 30% 30%, #38bdf8, #1d4ed8)",
+    "radial-gradient(circle at 30% 30%, #22c55e, #15803d)",
+    "radial-gradient(circle at 30% 30%, #f97316, #b45309)",
+    "radial-gradient(circle at 30% 30%, #a78bfa, #6d28d9)",
+    "radial-gradient(circle at 30% 30%, #fb7185, #be123c)",
+    "radial-gradient(circle at 30% 30%, #14b8a6, #0f766e)",
+    "radial-gradient(circle at 30% 30%, #facc15, #ca8a04)",
+    "radial-gradient(circle at 30% 30%, #60a5fa, #2563eb)",
+  ];
+
+  const key = (name || "Athlete").trim();
+  let hash = 0;
+
+  for (let i = 0; i < key.length; i++) {
+    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  return palettes[Math.abs(hash) % palettes.length];
+}
+
+function getInitials(name: string | null) {
+  const parts = (name || "Athlete").trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+
+  return (name || "AT").substring(0, 2).toUpperCase();
+}
 export default function FeedPage() {
   const router = useRouter();
 
@@ -501,28 +533,7 @@ export default function FeedPage() {
                         marginBottom: "10px",
                       }}
                     >
-                      <div
-                        style={{
-                          width: "36px",
-                          height: "36px",
-                          borderRadius: "999px",
-                          background:
-                            "radial-gradient(circle at 30% 30%, #22c55e, #0f172a)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "14px",
-                          fontWeight: 700,
-                          color: "#0b1120",
-                        }}
-                      >
-                        {(post.author_name || "AT")
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
+                      <UserAvatar name={post.author_name} size={36} />
                       <div
                         style={{
                           display: "flex",
@@ -750,29 +761,7 @@ export default function FeedPage() {
                                 key={c.id}
                                 style={{ display: "flex", gap: "8px" }}
                               >
-                                <div
-                                  style={{
-                                    width: "22px",
-                                    height: "22px",
-                                    borderRadius: "999px",
-                                    background:
-                                      "radial-gradient(circle at 30% 30%, #38bdf8, #0f172a)",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: "11px",
-                                    fontWeight: 600,
-                                    color: "#0b1120",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {(c.author_name || "AT")
-                                    .split(" ")
-                                    .map((n) => n[0])
-                                    .join("")
-                                    .slice(0, 2)
-                                    .toUpperCase()}
-                                </div>
+                                <UserAvatar name={c.author_name} size={22} />
                                 <div
                                   style={{
                                     flex: 1,
@@ -832,6 +821,17 @@ export default function FeedPage() {
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

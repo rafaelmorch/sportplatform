@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import UserAvatar from "@/components/UserAvatar";
 
 type ProfileRow = {
   full_name: string | null;
@@ -264,25 +265,7 @@ export default function ProfilePage() {
             }}
           >
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: "999px",
-                  background:
-                    "radial-gradient(circle at 20% 20%, #38bdf8, #0ea5e9 40%, #0f172a 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 20,
-                  fontWeight: 800,
-                  fontFamily: "Montserrat, sans-serif",
-                  color: "#ffffff",
-                  flex: "0 0 auto",
-                }}
-              >
-                {name ? name.charAt(0).toUpperCase() : "A"}
-              </div>
+              <UserAvatar name={name} size={48} />
 
               <div>
                 <h1 className="title" style={{ fontSize: 20, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>
@@ -439,6 +422,11 @@ export default function ProfilePage() {
     </>
   );
 }
+
+
+
+
+
 
 
 

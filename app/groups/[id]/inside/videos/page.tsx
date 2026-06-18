@@ -416,84 +416,20 @@ export default function MembershipVideosPage() {
                             allow="autoplay; encrypted-media; picture-in-picture"
                             allowFullScreen
                           />
-                        </div>
-                      ) : video.thumbnail_url ? (
-                        <a
-                          href={video.video_url}
-                          target="_blank"
-                          rel="noreferrer"
+                        </div>                      ) : (
+                        <div
                           style={{
-                            textDecoration: "none",
-                            display: "block",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: "100%",
-                              aspectRatio: "16 / 9",
-                              borderRadius: 18,
-                              overflow: "hidden",
-                              border: "1px solid #dbe2ea",
-                              background: "#eef2f7",
-                            }}
-                          >
-                            <img
-                              src={video.thumbnail_url}
-                              alt={video.title}
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                display: "block",
-                              }}
-                            />
-                          </div>
-                        </a>
-                      ) : (
-                        <a
-                          href={video.video_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            textDecoration: "none",
                             borderRadius: 16,
-                            padding: "12px 14px",
-                            background: "#0f172a",
-                            color: "#fff",
-                            fontWeight: 700,
+                            padding: "14px",
+                            border: "1px solid #dbe2ea",
+                            background: "#f8fafc",
+                            color: "#64748b",
                             fontSize: 13,
-                            width: "fit-content",
                           }}
                         >
-                          Open video
-                        </a>
+                          This video cannot be previewed inside the app.
+                        </div>
                       )}
-
-                      <div
-                        style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: 10,
-                        }}
-                      >
-                        <a
-                          href={video.video_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            textDecoration: "none",
-                            borderRadius: 999,
-                            padding: "10px 14px",
-                            background: "#0f172a",
-                            color: "#fff",
-                            fontWeight: 700,
-                            fontSize: 13,
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          Open original link
-                        </a>
-                      </div>
                     </div>
                   </article>
                 );
@@ -505,3 +441,6 @@ export default function MembershipVideosPage() {
     </>
   );
 }
+
+
+

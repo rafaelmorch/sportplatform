@@ -5,6 +5,7 @@ import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
 import BackArrow from "@/components/BackArrow";
+import UserAvatar from "@/components/UserAvatar";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -949,24 +950,12 @@ export default function ActivityDetailPage() {
 
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     {avatarShown.map((p) => (
-                      <div
+                      <UserAvatar
                         key={p.user_id}
-                        title={p.full_name ?? ""}
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: "8px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 12,
-                          fontWeight: 900,
-                          letterSpacing: "0.04em",
-                          ...avatarStyleFromUserId(p.user_id),
-                        }}
-                      >
-                        {initialsFromProfile(p.full_name, p.user_id)}
-                      </div>
+                        name={p.full_name}
+                        userId={p.user_id}
+                        size={34}
+                      />
                     ))}
 
                     {avatarExtra > 0 ? (
@@ -1120,24 +1109,11 @@ export default function ActivityDetailPage() {
 
                           return (
                             <div key={m.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                              <div
-                                title={name ?? ""}
-                                style={{
-                                  width: 34,
-                                  height: 34,
-                                  borderRadius: "8px",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  fontSize: 12,
-                                  fontWeight: 900,
-                                  letterSpacing: "0.04em",
-                                  flex: "0 0 auto",
-                                  ...avatarStyleFromUserId(m.user_id),
-                                }}
-                              >
-                                {initialsFromProfile(name, m.user_id)}
-                              </div>
+                              <UserAvatar
+                                name={name}
+                                userId={m.user_id}
+                                size={34}
+                              />
 
                               <div style={{ minWidth: 0, flex: "1 1 auto" }}>
                                 <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
@@ -1251,6 +1227,10 @@ export default function ActivityDetailPage() {
     </>
   );
 }
+
+
+
+
 
 
 
