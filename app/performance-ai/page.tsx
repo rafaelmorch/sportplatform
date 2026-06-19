@@ -26,6 +26,36 @@ type MealRow = {
   ai_notes: string | null;
 };
 
+type BloodTestRow = {
+  id: string;
+  exam_date: string | null;
+  hemoglobin: number | null;
+  ferritin: number | null;
+  vitamin_d: number | null;
+  glucose: number | null;
+  total_cholesterol: number | null;
+  hdl: number | null;
+  ldl: number | null;
+  triglycerides: number | null;
+  tsh: number | null;
+  creatinine: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+type BioimpedanceRow = {
+  id: string;
+  assessment_date: string | null;
+  weight_kg: number | null;
+  body_fat_percent: number | null;
+  muscle_mass_kg: number | null;
+  visceral_fat: number | null;
+  body_water_percent: number | null;
+  bmr: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
 type WeightLogRow = {
   id: string;
   weight_kg: number;
@@ -446,15 +476,35 @@ export default function PerformanceAIPage() {
   const [bloodTestFile, setBloodTestFile] = useState<File | null>(null);
   const [bloodTestNotes, setBloodTestNotes] = useState("");
   const [uploadingBloodTest, setUploadingBloodTest] = useState(false);
+  const [bloodExamDate, setBloodExamDate] = useState(new Date().toISOString().split("T")[0]);
+  const [bloodHemoglobin, setBloodHemoglobin] = useState("");
+  const [bloodFerritin, setBloodFerritin] = useState("");
+  const [bloodVitaminD, setBloodVitaminD] = useState("");
+  const [bloodGlucose, setBloodGlucose] = useState("");
+  const [bloodTotalCholesterol, setBloodTotalCholesterol] = useState("");
+  const [bloodHdl, setBloodHdl] = useState("");
+  const [bloodLdl, setBloodLdl] = useState("");
+  const [bloodTriglycerides, setBloodTriglycerides] = useState("");
+  const [bloodTsh, setBloodTsh] = useState("");
+  const [bloodCreatinine, setBloodCreatinine] = useState("");
 
   const [bioimpedanceFile, setBioimpedanceFile] = useState<File | null>(null);
   const [bioimpedanceNotes, setBioimpedanceNotes] = useState("");
   const [uploadingBioimpedance, setUploadingBioimpedance] = useState(false);
+  const [bioAssessmentDate, setBioAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [bioWeightKg, setBioWeightKg] = useState("");
+  const [bioBodyFat, setBioBodyFat] = useState("");
+  const [bioMuscleMass, setBioMuscleMass] = useState("");
+  const [bioVisceralFat, setBioVisceralFat] = useState("");
+  const [bioBodyWater, setBioBodyWater] = useState("");
+  const [bioBmr, setBioBmr] = useState("");
 
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any | null>(null);
   const [meals, setMeals] = useState<MealRow[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLogRow[]>([]);
+  const [bioimpedanceLogs, setBioimpedanceLogs] = useState<BioimpedanceRow[]>([]);
+  const [bloodTestLogs, setBloodTestLogs] = useState<BloodTestRow[]>([]);
   const [stravaActivities, setStravaActivities] = useState<StravaActivityRow[]>([]);
   const [stravaConnected, setStravaConnected] = useState(false);
   const [range, setRange] = useState<RangeKey>("7d");
@@ -504,6 +554,25 @@ export default function PerformanceAIPage() {
         .limit(10);
 
       setWeightLogs((weightData ?? []) as WeightLogRow[]);
+
+
+      const { data: bioimpedanceData } = await supabase
+        .from("performance_ai_bioimpedance")
+        .select("id, assessment_date, weight_kg, body_fat_percent, muscle_mass_kg, visceral_fat, body_water_percent, bmr, notes, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      setBioimpedanceLogs((bioimpedanceData ?? []) as BioimpedanceRow[]);
+
+      const { data: bloodTestData } = await supabase
+        .from("performance_ai_blood_tests")
+        .select("id, exam_date, hemoglobin, ferritin, vitamin_d, glucose, total_cholesterol, hdl, ldl, triglycerides, tsh, creatinine, notes, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      setBloodTestLogs((bloodTestData ?? []) as BloodTestRow[]);
 
       const { data: tokenRow } = await supabase
         .from("strava_tokens")
@@ -702,6 +771,8 @@ export default function PerformanceAIPage() {
         meals: meals.slice(0, 20),
       },
       weightHistory: weightLogs.slice(0, 10),
+      bloodTestsStructured: bloodTestLogs.slice(0, 5),
+      bioimpedance: bioimpedanceLogs.slice(0, 5),
       bloodTests: bloodTests ?? [],
     };
 
@@ -735,98 +806,99 @@ export default function PerformanceAIPage() {
     }
     setAiLoading(false);
   };
-  const handleUploadBloodTest = async () => {
-    console.log("CLICK ENVIAR EXAME", { userId, bloodTestFile });
-    setMessage("Tentando enviar exame...");
-    if (!userId || !bloodTestFile) {
-      setMessage("Selecione um PDF ou imagem do exame.");
-      return;
-    }
+  const handleSaveBloodTest = async () => {
+    if (!userId) return;
 
     setUploadingBloodTest(true);
     setMessage(null);
 
-    const extension = bloodTestFile.name.split(".").pop();
-    const fileName = `${userId}/${Date.now()}.${extension}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("blood-tests")
-      .upload(fileName, bloodTestFile, { upsert: true });
-
-    if (uploadError) {
-      setMessage(uploadError.message);
-      setUploadingBloodTest(false);
-      return;
-    }
-
-    const { data: publicData } = supabase.storage
-      .from("blood-tests")
-      .getPublicUrl(fileName);
-
-    const { error: dbError } = await supabase
+    const { data, error } = await supabase
       .from("performance_ai_blood_tests")
       .insert({
         user_id: userId,
-        file_url: publicData.publicUrl,
+        profile_id: profileId,
+        exam_date: bloodExamDate || null,
+        hemoglobin: bloodHemoglobin ? Number(bloodHemoglobin) : null,
+        ferritin: bloodFerritin ? Number(bloodFerritin) : null,
+        vitamin_d: bloodVitaminD ? Number(bloodVitaminD) : null,
+        glucose: bloodGlucose ? Number(bloodGlucose) : null,
+        total_cholesterol: bloodTotalCholesterol ? Number(bloodTotalCholesterol) : null,
+        hdl: bloodHdl ? Number(bloodHdl) : null,
+        ldl: bloodLdl ? Number(bloodLdl) : null,
+        triglycerides: bloodTriglycerides ? Number(bloodTriglycerides) : null,
+        tsh: bloodTsh ? Number(bloodTsh) : null,
+        creatinine: bloodCreatinine ? Number(bloodCreatinine) : null,
         notes: bloodTestNotes || null,
-      });
+      })
+      .select("id, exam_date, hemoglobin, ferritin, vitamin_d, glucose, total_cholesterol, hdl, ldl, triglycerides, tsh, creatinine, notes, created_at")
+      .single();
 
-    if (dbError) {
-      setMessage(dbError.message);
+    if (error) {
+      setMessage(error.message);
     } else {
-      setMessage("Exame enviado com sucesso.");
-      setBloodTestFile(null);
+      setMessage("Exame de sangue salvo com sucesso.");
+      if (data) {
+        setBloodTestLogs((prev) => [data as BloodTestRow, ...prev].slice(0, 5));
+      }
+      setBloodExamDate(new Date().toISOString().split("T")[0]);
+      setBloodHemoglobin("");
+      setBloodFerritin("");
+      setBloodVitaminD("");
+      setBloodGlucose("");
+      setBloodTotalCholesterol("");
+      setBloodHdl("");
+      setBloodLdl("");
+      setBloodTriglycerides("");
+      setBloodTsh("");
+      setBloodCreatinine("");
       setBloodTestNotes("");
     }
 
     setUploadingBloodTest(false);
   };
-  const handleUploadBioimpedance = async () => {
-    if (!userId || !bioimpedanceFile) {
-      setMessage("Selecione um PDF ou imagem da bioimpedância.");
-      return;
-    }
+  const handleSaveBioimpedance = async () => {
+    if (!userId) return;
 
     setUploadingBioimpedance(true);
     setMessage(null);
 
-    const extension = bioimpedanceFile.name.split(".").pop();
-    const fileName = `${userId}/bioimpedance-${Date.now()}.${extension}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("blood-tests")
-      .upload(fileName, bioimpedanceFile, { upsert: true });
-
-    if (uploadError) {
-      setMessage(uploadError.message);
-      setUploadingBioimpedance(false);
-      return;
-    }
-
-    const { data: publicData } = supabase.storage
-      .from("blood-tests")
-      .getPublicUrl(fileName);
-
-    const { error: dbError } = await supabase
+    const { data, error } = await supabase
       .from("performance_ai_bioimpedance")
       .insert({
         user_id: userId,
         profile_id: profileId,
-        file_url: publicData.publicUrl,
+        assessment_date: bioAssessmentDate || null,
+        weight_kg: bioWeightKg ? Number(bioWeightKg) : null,
+        body_fat_percent: bioBodyFat ? Number(bioBodyFat) : null,
+        muscle_mass_kg: bioMuscleMass ? Number(bioMuscleMass) : null,
+        visceral_fat: bioVisceralFat ? Number(bioVisceralFat) : null,
+        body_water_percent: bioBodyWater ? Number(bioBodyWater) : null,
+        bmr: bioBmr ? Number(bioBmr) : null,
         notes: bioimpedanceNotes || null,
-      });
+      })
+      .select("id, assessment_date, weight_kg, body_fat_percent, muscle_mass_kg, visceral_fat, body_water_percent, bmr, notes, created_at")
+      .single();
 
-    if (dbError) {
-      setMessage(dbError.message);
+    if (error) {
+      setMessage(error.message);
     } else {
-      setMessage("Bioimpedância enviada com sucesso.");
-      setBioimpedanceFile(null);
+      setMessage("Bioimpedância salva com sucesso.");
+      if (data) {
+        setBioimpedanceLogs((prev) => [data as BioimpedanceRow, ...prev].slice(0, 5));
+      }
+
+      setBioAssessmentDate(new Date().toISOString().split("T")[0]);
+      setBioWeightKg("");
+      setBioBodyFat("");
+      setBioMuscleMass("");
+      setBioVisceralFat("");
+      setBioBodyWater("");
+      setBioBmr("");
       setBioimpedanceNotes("");
     }
 
     setUploadingBioimpedance(false);
   };
-
   const handleDeleteWeight = async (id: string) => {
     const { error } = await supabase
       .from("performance_ai_weight_logs")
@@ -1266,116 +1338,90 @@ export default function PerformanceAIPage() {
 
         <div style={cardStyle}>
           <h3 style={cardTitleStyle}>Exame de sangue</h3>
+          <div style={emptyTextStyle}>Preencha os principais marcadores do exame para análise da IA.</div>
 
-          <div style={emptyTextStyle}>
-            Selecione um PDF ou imagem do exame para futura análise junto com treino, alimentação e objetivo.
-          </div>
+          <input type="date" value={bloodExamDate} onChange={(e) => setBloodExamDate(e.target.value)} style={inputStyle} />
+          <input value={bloodHemoglobin} onChange={(e) => setBloodHemoglobin(e.target.value)} placeholder="Hemoglobina" style={inputStyle} />
+          <input value={bloodFerritin} onChange={(e) => setBloodFerritin(e.target.value)} placeholder="Ferritina" style={inputStyle} />
+          <input value={bloodVitaminD} onChange={(e) => setBloodVitaminD(e.target.value)} placeholder="Vitamina D" style={inputStyle} />
+          <input value={bloodGlucose} onChange={(e) => setBloodGlucose(e.target.value)} placeholder="Glicose" style={inputStyle} />
+          <input value={bloodTotalCholesterol} onChange={(e) => setBloodTotalCholesterol(e.target.value)} placeholder="Colesterol total" style={inputStyle} />
+          <input value={bloodHdl} onChange={(e) => setBloodHdl(e.target.value)} placeholder="HDL" style={inputStyle} />
+          <input value={bloodLdl} onChange={(e) => setBloodLdl(e.target.value)} placeholder="LDL" style={inputStyle} />
+          <input value={bloodTriglycerides} onChange={(e) => setBloodTriglycerides(e.target.value)} placeholder="Triglicerídeos" style={inputStyle} />
+          <input value={bloodTsh} onChange={(e) => setBloodTsh(e.target.value)} placeholder="TSH" style={inputStyle} />
+          <input value={bloodCreatinine} onChange={(e) => setBloodCreatinine(e.target.value)} placeholder="Creatinina" style={inputStyle} />
 
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 48,
-              border: "1px dashed #64748b",
-              borderRadius: 6,
-              background: "#f8fafc",
-              color: "#0f172a",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "Montserrat, sans-serif",
-            }}
-          >
-            Selecionar PDF ou imagem
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const file = e.currentTarget.files?.[0] ?? null;
-                console.log("ARQUIVO SELECIONADO", file);
-                setBloodTestFile(file);
-              }}
-            />
-          </label>
+          <textarea value={bloodTestNotes} onChange={(e) => setBloodTestNotes(e.target.value)} placeholder="Observações opcionais" rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 80 }} />
 
-          {bloodTestFile ? (
-            <div style={rowSecondaryStyle}>
-              Arquivo selecionado: {bloodTestFile.name}
-            </div>
-          ) : null}
-
-          <textarea
-            value={bloodTestNotes}
-            onChange={(e) => setBloodTestNotes(e.target.value)}
-            placeholder="Observações opcionais sobre o exame"
-            rows={4}
-            style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
-          />
-
-          <button
-            type="button"
-            onClick={handleUploadBloodTest}
-            disabled={uploadingBloodTest}
-            style={darkButtonStyle}
-          >
-            {uploadingBloodTest ? "Enviando..." : "Enviar exame"}
+          <button type="button" onClick={handleSaveBloodTest} disabled={uploadingBloodTest} style={darkButtonStyle}>
+            {uploadingBloodTest ? "Salvando..." : "Salvar exame"}
           </button>
+
+
+          {bloodTestLogs.length === 0 ? (
+            <div style={emptyTextStyle}>Nenhum exame registrado ainda.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {bloodTestLogs.map((item) => (
+                <div key={item.id} style={rowCardStyle}>
+                  <div>
+                    <div style={rowPrimaryStyle}>{item.exam_date ? new Date(item.exam_date).toLocaleDateString() : new Date(item.created_at).toLocaleDateString()}</div>
+                    <div style={rowSecondaryStyle}>
+                      Hemoglobina: {item.hemoglobin ?? "-"} | Ferritina: {item.ferritin ?? "-"} | Vitamina D: {item.vitamin_d ?? "-"}
+                    </div>
+                    <div style={rowSecondaryStyle}>
+                      Glicose: {item.glucose ?? "-"} | Colesterol: {item.total_cholesterol ?? "-"} | HDL: {item.hdl ?? "-"} | LDL: {item.ldl ?? "-"}
+                    </div>
+                    <div style={rowSecondaryStyle}>
+                      Triglicerídeos: {item.triglycerides ?? "-"} | TSH: {item.tsh ?? "-"} | Creatinina: {item.creatinine ?? "-"}
+                    </div>
+                    {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={cardStyle}>
           <h3 style={cardTitleStyle}>Bioimpedância</h3>
+          <div style={emptyTextStyle}>Preencha os principais dados da avaliação corporal.</div>
 
-          <div style={emptyTextStyle}>
-            Anexe o PDF ou imagem da avaliação de bioimpedância.
-          </div>
+          <input type="date" value={bioAssessmentDate} onChange={(e) => setBioAssessmentDate(e.target.value)} style={inputStyle} />
+          <input value={bioWeightKg} onChange={(e) => setBioWeightKg(e.target.value)} placeholder="Peso (kg)" style={inputStyle} />
+          <input value={bioBodyFat} onChange={(e) => setBioBodyFat(e.target.value)} placeholder="% Gordura corporal" style={inputStyle} />
+          <input value={bioMuscleMass} onChange={(e) => setBioMuscleMass(e.target.value)} placeholder="Massa muscular (kg)" style={inputStyle} />
+          <input value={bioVisceralFat} onChange={(e) => setBioVisceralFat(e.target.value)} placeholder="Gordura visceral" style={inputStyle} />
+          <input value={bioBodyWater} onChange={(e) => setBioBodyWater(e.target.value)} placeholder="Água corporal (%)" style={inputStyle} />
+          <input value={bioBmr} onChange={(e) => setBioBmr(e.target.value)} placeholder="BMR / Metabolismo basal (kcal)" style={inputStyle} />
 
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: 48,
-              border: "1px dashed #64748b",
-              borderRadius: 6,
-              background: "#f8fafc",
-              color: "#0f172a",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: "Montserrat, sans-serif",
-            }}
-          >
-            Selecionar PDF ou imagem
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              style={{ display: "none" }}
-              onChange={(e) => setBioimpedanceFile(e.currentTarget.files?.[0] ?? null)}
-            />
-          </label>
+          <textarea value={bioimpedanceNotes} onChange={(e) => setBioimpedanceNotes(e.target.value)} placeholder="Observações opcionais" rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 80 }} />
 
-          {bioimpedanceFile ? (
-            <div style={rowSecondaryStyle}>
-              Arquivo selecionado: {bioimpedanceFile.name}
-            </div>
-          ) : null}
-
-          <textarea
-            value={bioimpedanceNotes}
-            onChange={(e) => setBioimpedanceNotes(e.target.value)}
-            placeholder="Observações opcionais sobre a bioimpedância"
-            rows={4}
-            style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
-          />
-
-          <button
-            type="button"
-            onClick={handleUploadBioimpedance}
-            disabled={uploadingBioimpedance}
-            style={darkButtonStyle}
-          >
-            {uploadingBioimpedance ? "Enviando..." : "Enviar bioimpedância"}
+          <button type="button" onClick={handleSaveBioimpedance} disabled={uploadingBioimpedance} style={darkButtonStyle}>
+            {uploadingBioimpedance ? "Salvando..." : "Salvar bioimpedância"}
           </button>
+
+          {bioimpedanceLogs.length === 0 ? (
+            <div style={emptyTextStyle}>Nenhuma bioimpedância registrada ainda.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {bioimpedanceLogs.map((item) => (
+                <div key={item.id} style={rowCardStyle}>
+                  <div>
+                    <div style={rowPrimaryStyle}>{item.assessment_date ? new Date(item.assessment_date).toLocaleDateString() : new Date(item.created_at).toLocaleDateString()}</div>
+                    <div style={rowSecondaryStyle}>
+                      Peso: {item.weight_kg ?? "-"} kg | Gordura: {item.body_fat_percent ?? "-"}% | Massa muscular: {item.muscle_mass_kg ?? "-"} kg
+                    </div>
+                    <div style={rowSecondaryStyle}>
+                      Visceral: {item.visceral_fat ?? "-"} | Água: {item.body_water_percent ?? "-"}% | BMR: {item.bmr ?? "-"} kcal
+                    </div>
+                    {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
 
@@ -2110,6 +2156,15 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
+
+
+
+
+
+
+
+
 
 
 

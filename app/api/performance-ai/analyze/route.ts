@@ -27,7 +27,11 @@ Regras:
 - Explique termos técnicos de forma simples.
 - Se usar zona 2, explique no campo intensityExplanation.
 - Não dê diagnóstico médico.
-- Exames de sangue devem ser usados apenas como contexto de performance e recuperação.
+- Exames de sangue estruturados devem ser usados como contexto de performance, recuperação, nutrição e saúde geral.
+- Bioimpedância estruturada deve ser usada para avaliar composição corporal, hidratação, massa muscular, gordura corporal e necessidade energética.
+- Ao analisar ferritina, hemoglobina, vitamina D, glicose, colesterol, HDL, LDL, triglicerídeos, TSH e creatinina, nunca dê diagnóstico médico.
+- Ao analisar bioimpedância, relacione peso, gordura corporal, massa muscular, gordura visceral, água corporal e BMR com treino, recuperação e alimentação.
+- Se houver dados de exames ou bioimpedância, inclua pelo menos um ponto relevante em "attentionPoints".
 - Se houver exame, inclua alertas apenas como pontos de atenção, sempre sugerindo acompanhamento profissional.
 
 Dados do usuário:
@@ -126,4 +130,5 @@ Formato obrigatório:
     );
   }
 }
+
 
