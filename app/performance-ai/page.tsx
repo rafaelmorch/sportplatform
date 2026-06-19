@@ -447,6 +447,10 @@ export default function PerformanceAIPage() {
   const [bloodTestNotes, setBloodTestNotes] = useState("");
   const [uploadingBloodTest, setUploadingBloodTest] = useState(false);
 
+  const [bioimpedanceFile, setBioimpedanceFile] = useState<File | null>(null);
+  const [bioimpedanceNotes, setBioimpedanceNotes] = useState("");
+  const [uploadingBioimpedance, setUploadingBioimpedance] = useState(false);
+
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<any | null>(null);
   const [meals, setMeals] = useState<MealRow[]>([]);
@@ -777,6 +781,52 @@ export default function PerformanceAIPage() {
 
     setUploadingBloodTest(false);
   };
+  const handleUploadBioimpedance = async () => {
+    if (!userId || !bioimpedanceFile) {
+      setMessage("Selecione um PDF ou imagem da bioimpedância.");
+      return;
+    }
+
+    setUploadingBioimpedance(true);
+    setMessage(null);
+
+    const extension = bioimpedanceFile.name.split(".").pop();
+    const fileName = `${userId}/bioimpedance-${Date.now()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("blood-tests")
+      .upload(fileName, bioimpedanceFile, { upsert: true });
+
+    if (uploadError) {
+      setMessage(uploadError.message);
+      setUploadingBioimpedance(false);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage
+      .from("blood-tests")
+      .getPublicUrl(fileName);
+
+    const { error: dbError } = await supabase
+      .from("performance_ai_bioimpedance")
+      .insert({
+        user_id: userId,
+        profile_id: profileId,
+        file_url: publicData.publicUrl,
+        notes: bioimpedanceNotes || null,
+      });
+
+    if (dbError) {
+      setMessage(dbError.message);
+    } else {
+      setMessage("Bioimpedância enviada com sucesso.");
+      setBioimpedanceFile(null);
+      setBioimpedanceNotes("");
+    }
+
+    setUploadingBioimpedance(false);
+  };
+
   const handleDeleteWeight = async (id: string) => {
     const { error } = await supabase
       .from("performance_ai_weight_logs")
@@ -1275,10 +1325,59 @@ export default function PerformanceAIPage() {
 
         <div style={cardStyle}>
           <h3 style={cardTitleStyle}>Bioimpedância</h3>
+
           <div style={emptyTextStyle}>
-            Em breve: acompanhamento de percentual de gordura, massa muscular e composição corporal.
+            Anexe o PDF ou imagem da avaliação de bioimpedância.
           </div>
+
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 48,
+              border: "1px dashed #64748b",
+              borderRadius: 6,
+              background: "#f8fafc",
+              color: "#0f172a",
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "Montserrat, sans-serif",
+            }}
+          >
+            Selecionar PDF ou imagem
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              style={{ display: "none" }}
+              onChange={(e) => setBioimpedanceFile(e.currentTarget.files?.[0] ?? null)}
+            />
+          </label>
+
+          {bioimpedanceFile ? (
+            <div style={rowSecondaryStyle}>
+              Arquivo selecionado: {bioimpedanceFile.name}
+            </div>
+          ) : null}
+
+          <textarea
+            value={bioimpedanceNotes}
+            onChange={(e) => setBioimpedanceNotes(e.target.value)}
+            placeholder="Observações opcionais sobre a bioimpedância"
+            rows={4}
+            style={{ ...inputStyle, resize: "vertical", minHeight: 90 }}
+          />
+
+          <button
+            type="button"
+            onClick={handleUploadBioimpedance}
+            disabled={uploadingBioimpedance}
+            style={darkButtonStyle}
+          >
+            {uploadingBioimpedance ? "Enviando..." : "Enviar bioimpedância"}
+          </button>
         </div>
+
 
 
         <div style={gridTwoStyle}>
@@ -2011,6 +2110,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
