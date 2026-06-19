@@ -433,6 +433,14 @@ export default function PerformanceAIPage() {
   const [goal, setGoal] = useState("");
   const [healthNotes, setHealthNotes] = useState("");
   const [mealText, setMealText] = useState("");
+
+  const [mealDate, setMealDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+
+  const [mealTime, setMealTime] = useState(
+    new Date().toTimeString().slice(0, 5)
+  );
   const [message, setMessage] = useState<string | null>(null);
 
   const [bloodTestFile, setBloodTestFile] = useState<File | null>(null);
@@ -794,6 +802,7 @@ export default function PerformanceAIPage() {
         user_id: userId,
         profile_id: profileId,
         meal_text: mealText.trim(),
+        eaten_at: `${mealDate}T${mealTime}:00`,
         ...mealAnalysis,
       })
       .select("id, meal_text, eaten_at, meal_type, protein_level, quality_level, ai_notes")
@@ -802,6 +811,8 @@ export default function PerformanceAIPage() {
     if (!error && data) {
       setMeals((prev) => [data as MealRow, ...prev].slice(0, 10));
       setMealText("");
+      setMealDate(new Date().toISOString().split("T")[0]);
+      setMealTime(new Date().toTimeString().slice(0, 5));
       setMessage("Refeição adicionada.");
     } else {
       setMessage(error?.message ?? "Erro ao adicionar refeição.");
@@ -1675,6 +1686,22 @@ export default function PerformanceAIPage() {
         <div style={gridTwoStyle}>
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Adicionar alimentação</h3>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="date"
+                value={mealDate}
+                onChange={(e) => setMealDate(e.target.value)}
+                style={{ ...inputStyle, flex: 1 }}
+              />
+
+              <input
+                type="time"
+                value={mealTime}
+                onChange={(e) => setMealTime(e.target.value)}
+                style={{ ...inputStyle, flex: 1 }}
+              />
+            </div>
+
             <input
               value={mealText}
               onChange={(e) => setMealText(e.target.value)}
@@ -1988,6 +2015,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 
