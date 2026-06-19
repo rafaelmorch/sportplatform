@@ -1273,6 +1273,14 @@ export default function PerformanceAIPage() {
           </button>
         </div>
 
+        <div style={cardStyle}>
+          <h3 style={cardTitleStyle}>Bioimpedância</h3>
+          <div style={emptyTextStyle}>
+            Em breve: acompanhamento de percentual de gordura, massa muscular e composição corporal.
+          </div>
+        </div>
+
+
         <div style={gridTwoStyle}>
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Dados do atleta</h3>
