@@ -14,6 +14,9 @@ type ProfileRow = {
   gender: string | null;
   goal: string | null;
   health_notes: string | null;
+  goal_date: string | null;
+  goal_type: string | null;
+  goal_priority: string | null;
 };
 
 type MealRow = {
@@ -462,6 +465,9 @@ export default function PerformanceAIPage() {
   const [gender, setGender] = useState("");
   const [goal, setGoal] = useState("");
   const [healthNotes, setHealthNotes] = useState("");
+  const [goalDate, setGoalDate] = useState("");
+  const [goalType, setGoalType] = useState("");
+  const [goalPriority, setGoalPriority] = useState("");
   const [mealText, setMealText] = useState("");
 
   const [mealDate, setMealDate] = useState(
@@ -533,8 +539,15 @@ export default function PerformanceAIPage() {
         setHeightCm(profile.height_cm?.toString() ?? "");
         setAge(profile.age?.toString() ?? "");
         setGender(profile.gender ?? "");
-        setGoal(profile.goal ?? "");
+        setGoal(
+          profile.goal && ["performance", "weight_loss", "conditioning", "maintenance"].includes(profile.goal)
+            ? ""
+            : profile.goal ?? ""
+        );
         setHealthNotes(profile.health_notes ?? "");
+        setGoalDate(profile.goal_date ?? "");
+        setGoalType(profile.goal_type ?? "");
+        setGoalPriority(profile.goal_priority ?? "");
       }
 
       const { data: mealsData } = await supabase
@@ -677,6 +690,9 @@ export default function PerformanceAIPage() {
       gender: gender || null,
       goal: goal || null,
       health_notes: healthNotes || null,
+      goal_date: goalDate || null,
+      goal_type: goalType || null,
+      goal_priority: goalPriority || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -899,6 +915,34 @@ export default function PerformanceAIPage() {
 
     setUploadingBioimpedance(false);
   };
+  const handleDeleteBloodTest = async (id: string) => {
+    const { error } = await supabase
+      .from("performance_ai_blood_tests")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      setBloodTestLogs((prev) => prev.filter((item) => item.id !== id));
+      setMessage("Exame removido.");
+    } else {
+      setMessage(error.message);
+    }
+  };
+
+  const handleDeleteBioimpedance = async (id: string) => {
+    const { error } = await supabase
+      .from("performance_ai_bioimpedance")
+      .delete()
+      .eq("id", id);
+
+    if (!error) {
+      setBioimpedanceLogs((prev) => prev.filter((item) => item.id !== id));
+      setMessage("Bioimpedância removida.");
+    } else {
+      setMessage(error.message);
+    }
+  };
+
   const handleDeleteWeight = async (id: string) => {
     const { error } = await supabase
       .from("performance_ai_weight_logs")
@@ -1057,6 +1101,8 @@ export default function PerformanceAIPage() {
       <div style={{ marginBottom: 16 }}>
         <BackButton />
       </div>
+
+      {message ? <div style={globalMessageStyle}>{message}</div> : null}
 
       {/* ===== PAGINA 1 ===== */}
       <section
@@ -1336,97 +1382,50 @@ export default function PerformanceAIPage() {
       <section id="perfil" style={sectionStyle}>
         <h2 style={sectionHeaderStyle}>Meu perfil</h2>
 
-        <div style={cardStyle}>
-          <h3 style={cardTitleStyle}>Exame de sangue</h3>
-          <div style={emptyTextStyle}>Preencha os principais marcadores do exame para análise da IA.</div>
 
-          <input type="date" value={bloodExamDate} onChange={(e) => setBloodExamDate(e.target.value)} style={inputStyle} />
-          <input value={bloodHemoglobin} onChange={(e) => setBloodHemoglobin(e.target.value)} placeholder="Hemoglobina" style={inputStyle} />
-          <input value={bloodFerritin} onChange={(e) => setBloodFerritin(e.target.value)} placeholder="Ferritina" style={inputStyle} />
-          <input value={bloodVitaminD} onChange={(e) => setBloodVitaminD(e.target.value)} placeholder="Vitamina D" style={inputStyle} />
-          <input value={bloodGlucose} onChange={(e) => setBloodGlucose(e.target.value)} placeholder="Glicose" style={inputStyle} />
-          <input value={bloodTotalCholesterol} onChange={(e) => setBloodTotalCholesterol(e.target.value)} placeholder="Colesterol total" style={inputStyle} />
-          <input value={bloodHdl} onChange={(e) => setBloodHdl(e.target.value)} placeholder="HDL" style={inputStyle} />
-          <input value={bloodLdl} onChange={(e) => setBloodLdl(e.target.value)} placeholder="LDL" style={inputStyle} />
-          <input value={bloodTriglycerides} onChange={(e) => setBloodTriglycerides(e.target.value)} placeholder="Triglicerídeos" style={inputStyle} />
-          <input value={bloodTsh} onChange={(e) => setBloodTsh(e.target.value)} placeholder="TSH" style={inputStyle} />
-          <input value={bloodCreatinine} onChange={(e) => setBloodCreatinine(e.target.value)} placeholder="Creatinina" style={inputStyle} />
-
-          <textarea value={bloodTestNotes} onChange={(e) => setBloodTestNotes(e.target.value)} placeholder="Observações opcionais" rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 80 }} />
-
-          <button type="button" onClick={handleSaveBloodTest} disabled={uploadingBloodTest} style={darkButtonStyle}>
-            {uploadingBloodTest ? "Salvando..." : "Salvar exame"}
-          </button>
-
-
-          {bloodTestLogs.length === 0 ? (
-            <div style={emptyTextStyle}>Nenhum exame registrado ainda.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {bloodTestLogs.map((item) => (
-                <div key={item.id} style={rowCardStyle}>
-                  <div>
-                    <div style={rowPrimaryStyle}>{item.exam_date ? new Date(item.exam_date).toLocaleDateString() : new Date(item.created_at).toLocaleDateString()}</div>
-                    <div style={rowSecondaryStyle}>
-                      Hemoglobina: {item.hemoglobin ?? "-"} | Ferritina: {item.ferritin ?? "-"} | Vitamina D: {item.vitamin_d ?? "-"}
-                    </div>
-                    <div style={rowSecondaryStyle}>
-                      Glicose: {item.glucose ?? "-"} | Colesterol: {item.total_cholesterol ?? "-"} | HDL: {item.hdl ?? "-"} | LDL: {item.ldl ?? "-"}
-                    </div>
-                    <div style={rowSecondaryStyle}>
-                      Triglicerídeos: {item.triglycerides ?? "-"} | TSH: {item.tsh ?? "-"} | Creatinina: {item.creatinine ?? "-"}
-                    </div>
-                    {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={cardStyle}>
-          <h3 style={cardTitleStyle}>Bioimpedância</h3>
-          <div style={emptyTextStyle}>Preencha os principais dados da avaliação corporal.</div>
-
-          <input type="date" value={bioAssessmentDate} onChange={(e) => setBioAssessmentDate(e.target.value)} style={inputStyle} />
-          <input value={bioWeightKg} onChange={(e) => setBioWeightKg(e.target.value)} placeholder="Peso (kg)" style={inputStyle} />
-          <input value={bioBodyFat} onChange={(e) => setBioBodyFat(e.target.value)} placeholder="% Gordura corporal" style={inputStyle} />
-          <input value={bioMuscleMass} onChange={(e) => setBioMuscleMass(e.target.value)} placeholder="Massa muscular (kg)" style={inputStyle} />
-          <input value={bioVisceralFat} onChange={(e) => setBioVisceralFat(e.target.value)} placeholder="Gordura visceral" style={inputStyle} />
-          <input value={bioBodyWater} onChange={(e) => setBioBodyWater(e.target.value)} placeholder="Água corporal (%)" style={inputStyle} />
-          <input value={bioBmr} onChange={(e) => setBioBmr(e.target.value)} placeholder="BMR / Metabolismo basal (kcal)" style={inputStyle} />
-
-          <textarea value={bioimpedanceNotes} onChange={(e) => setBioimpedanceNotes(e.target.value)} placeholder="Observações opcionais" rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 80 }} />
-
-          <button type="button" onClick={handleSaveBioimpedance} disabled={uploadingBioimpedance} style={darkButtonStyle}>
-            {uploadingBioimpedance ? "Salvando..." : "Salvar bioimpedância"}
-          </button>
-
-          {bioimpedanceLogs.length === 0 ? (
-            <div style={emptyTextStyle}>Nenhuma bioimpedância registrada ainda.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {bioimpedanceLogs.map((item) => (
-                <div key={item.id} style={rowCardStyle}>
-                  <div>
-                    <div style={rowPrimaryStyle}>{item.assessment_date ? new Date(item.assessment_date).toLocaleDateString() : new Date(item.created_at).toLocaleDateString()}</div>
-                    <div style={rowSecondaryStyle}>
-                      Peso: {item.weight_kg ?? "-"} kg | Gordura: {item.body_fat_percent ?? "-"}% | Massa muscular: {item.muscle_mass_kg ?? "-"} kg
-                    </div>
-                    <div style={rowSecondaryStyle}>
-                      Visceral: {item.visceral_fat ?? "-"} | Água: {item.body_water_percent ?? "-"}% | BMR: {item.bmr ?? "-"} kcal
-                    </div>
-                    {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
 
 
         <div style={gridTwoStyle}>
+
+
+        </div>
+      </section>
+
+          <div style={cardStyle}>
+            <h3 style={cardTitleStyle}>Objetivo e planejamento</h3>
+            <input value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Objetivo específico (ex.: Maratona NYC sub 5h)" style={inputStyle} />
+            <input value={goalDate} onChange={(e) => setGoalDate(e.target.value)} type="date" style={inputStyle} />
+
+            <select value={goalType} onChange={(e) => setGoalType(e.target.value)} style={inputStyle}>
+              <option value="">Tipo de objetivo</option>
+              <option value="running">Corrida</option>
+              <option value="triathlon">Triathlon</option>
+              <option value="cycling">Ciclismo</option>
+              <option value="strength">Musculação</option>
+              <option value="weight_loss">Emagrecimento</option>
+              <option value="health">Saúde geral</option>
+              <option value="other">Outro</option>
+            </select>
+
+            <select value={goalPriority} onChange={(e) => setGoalPriority(e.target.value)} style={inputStyle}>
+              <option value="">Prioridade atual</option>
+              <option value="performance">Performance</option>
+              <option value="weight_loss">Emagrecimento</option>
+              <option value="recovery">Recuperação</option>
+              <option value="body_composition">Composição corporal</option>
+              <option value="health">Saúde</option>
+            </select>
+
+            <div style={hintTextStyle}>
+              Use o campo acima para escrever algo específico, como: Maratona NYC sub 5h, Ironman Florida ou perder 8 kg.
+            </div>
+
+            <button onClick={handleSave} disabled={saving} style={primaryButtonStyle}>
+              {saving ? "Salvando..." : "Salvar objetivo"}
+            </button>
+          </div>
+
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Dados do atleta</h3>
             <input value={weightKg} onChange={(e) => setWeightKg(e.target.value)} placeholder="Peso (kg)" style={inputStyle} />
@@ -1437,13 +1436,6 @@ export default function PerformanceAIPage() {
               <option value="male">Masculino</option>
               <option value="female">Feminino</option>
               <option value="other">Outro</option>
-            </select>
-            <select value={goal} onChange={(e) => setGoal(e.target.value)} style={inputStyle}>
-              <option value="">Objetivo</option>
-              <option value="performance">Performance</option>
-              <option value="weight_loss">Perda de peso</option>
-              <option value="conditioning">Condicionamento</option>
-              <option value="maintenance">Manutenção</option>
             </select>
             <textarea
               value={healthNotes}
@@ -1489,8 +1481,100 @@ export default function PerformanceAIPage() {
               </div>
             )}
           </div>
+
+        <div style={cardStyle}>
+          <h3 style={cardTitleStyle}>Exame de sangue</h3>
+          <div style={emptyTextStyle}>Preencha os principais marcadores do exame para análise da IA.</div>
+
+          <input type="date" value={bloodExamDate} onChange={(e) => setBloodExamDate(e.target.value)} style={inputStyle} />
+          <input value={bloodHemoglobin} onChange={(e) => setBloodHemoglobin(e.target.value)} placeholder="Hemoglobina" style={inputStyle} />
+          <input value={bloodFerritin} onChange={(e) => setBloodFerritin(e.target.value)} placeholder="Ferritina" style={inputStyle} />
+          <input value={bloodVitaminD} onChange={(e) => setBloodVitaminD(e.target.value)} placeholder="Vitamina D" style={inputStyle} />
+          <input value={bloodGlucose} onChange={(e) => setBloodGlucose(e.target.value)} placeholder="Glicose" style={inputStyle} />
+          <input value={bloodTotalCholesterol} onChange={(e) => setBloodTotalCholesterol(e.target.value)} placeholder="Colesterol total" style={inputStyle} />
+          <input value={bloodHdl} onChange={(e) => setBloodHdl(e.target.value)} placeholder="HDL" style={inputStyle} />
+          <input value={bloodLdl} onChange={(e) => setBloodLdl(e.target.value)} placeholder="LDL" style={inputStyle} />
+          <input value={bloodTriglycerides} onChange={(e) => setBloodTriglycerides(e.target.value)} placeholder="Triglicerídeos" style={inputStyle} />
+          <input value={bloodTsh} onChange={(e) => setBloodTsh(e.target.value)} placeholder="TSH" style={inputStyle} />
+          <input value={bloodCreatinine} onChange={(e) => setBloodCreatinine(e.target.value)} placeholder="Creatinina" style={inputStyle} />
+
+          <textarea value={bloodTestNotes} onChange={(e) => setBloodTestNotes(e.target.value)} placeholder="Observações opcionais" rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 80 }} />
+
+          <button type="button" onClick={handleSaveBloodTest} disabled={uploadingBloodTest} style={darkButtonStyle}>
+            {uploadingBloodTest ? "Salvando..." : "Salvar exame"}
+          </button>
+
+
+          {bloodTestLogs.length === 0 ? (
+            <div style={emptyTextStyle}>Nenhum exame registrado ainda.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {bloodTestLogs.map((item) => (
+                <div key={item.id} style={rowCardStyle}>
+                  <div>
+                    <div style={rowPrimaryStyle}>{item.exam_date ? new Date(item.exam_date).toLocaleDateString() : new Date(item.created_at).toLocaleDateString()}</div>
+                    <div style={rowSecondaryStyle}>
+                      Hemoglobina: {item.hemoglobin ?? "-"} | Ferritina: {item.ferritin ?? "-"} | Vitamina D: {item.vitamin_d ?? "-"}
+                    </div>
+                    <div style={rowSecondaryStyle}>
+                      Glicose: {item.glucose ?? "-"} | Colesterol: {item.total_cholesterol ?? "-"} | HDL: {item.hdl ?? "-"} | LDL: {item.ldl ?? "-"}
+                    </div>
+                    <div style={rowSecondaryStyle}>
+                      Triglicerídeos: {item.triglycerides ?? "-"} | TSH: {item.tsh ?? "-"} | Creatinina: {item.creatinine ?? "-"}
+                    </div>
+                    {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
+                  </div>
+                  <button onClick={() => handleDeleteBloodTest(item.id)} style={deleteButtonStyle}>
+                    Excluir
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      </section>
+
+        <div style={cardStyle}>
+          <h3 style={cardTitleStyle}>Bioimpedância</h3>
+          <div style={emptyTextStyle}>Preencha os principais dados da avaliação corporal.</div>
+
+          <input type="date" value={bioAssessmentDate} onChange={(e) => setBioAssessmentDate(e.target.value)} style={inputStyle} />
+          <input value={bioWeightKg} onChange={(e) => setBioWeightKg(e.target.value)} placeholder="Peso (kg)" style={inputStyle} />
+          <input value={bioBodyFat} onChange={(e) => setBioBodyFat(e.target.value)} placeholder="% Gordura corporal" style={inputStyle} />
+          <input value={bioMuscleMass} onChange={(e) => setBioMuscleMass(e.target.value)} placeholder="Massa muscular (kg)" style={inputStyle} />
+          <input value={bioVisceralFat} onChange={(e) => setBioVisceralFat(e.target.value)} placeholder="Gordura visceral" style={inputStyle} />
+          <input value={bioBodyWater} onChange={(e) => setBioBodyWater(e.target.value)} placeholder="Água corporal (%)" style={inputStyle} />
+          <input value={bioBmr} onChange={(e) => setBioBmr(e.target.value)} placeholder="BMR / Metabolismo basal (kcal)" style={inputStyle} />
+
+          <textarea value={bioimpedanceNotes} onChange={(e) => setBioimpedanceNotes(e.target.value)} placeholder="Observações opcionais" rows={3} style={{ ...inputStyle, resize: "vertical", minHeight: 80 }} />
+
+          <button type="button" onClick={handleSaveBioimpedance} disabled={uploadingBioimpedance} style={darkButtonStyle}>
+            {uploadingBioimpedance ? "Salvando..." : "Salvar bioimpedância"}
+          </button>
+
+          {bioimpedanceLogs.length === 0 ? (
+            <div style={emptyTextStyle}>Nenhuma bioimpedância registrada ainda.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 10 }}>
+              {bioimpedanceLogs.map((item) => (
+                <div key={item.id} style={rowCardStyle}>
+                  <div>
+                    <div style={rowPrimaryStyle}>{item.assessment_date ? new Date(item.assessment_date).toLocaleDateString() : new Date(item.created_at).toLocaleDateString()}</div>
+                    <div style={rowSecondaryStyle}>
+                      Peso: {item.weight_kg ?? "-"} kg | Gordura: {item.body_fat_percent ?? "-"}% | Massa muscular: {item.muscle_mass_kg ?? "-"} kg
+                    </div>
+                    <div style={rowSecondaryStyle}>
+                      Visceral: {item.visceral_fat ?? "-"} | Água: {item.body_water_percent ?? "-"}% | BMR: {item.bmr ?? "-"} kcal
+                    </div>
+                    {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
+                  </div>
+                  <button onClick={() => handleDeleteBloodTest(item.id)} style={deleteButtonStyle}>
+                    Excluir
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
       <section id="treino" style={sectionStyle}>
         <h2 style={sectionHeaderStyle}>Treino</h2>
@@ -1679,7 +1763,7 @@ export default function PerformanceAIPage() {
       <section id="alimentacao" style={sectionStyle}>
         <h2 style={sectionHeaderStyle}>Alimentação</h2>
 
-        <div style={gridTwoStyle}>
+        <div style={{ display: "grid", gap: 16 }}>
           <div style={cardStyle}>
             <h3 style={cardTitleStyle}>Adicionar alimentação</h3>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1735,8 +1819,6 @@ export default function PerformanceAIPage() {
           )}
         </div>
       </section>
-
-      {message ? <div style={globalMessageStyle}>{message}</div> : null}
 
       <section id="coach-ia" style={sectionStyle}>
         <h2 style={sectionHeaderStyle}>Coach IA</h2>
@@ -2156,6 +2238,18 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
