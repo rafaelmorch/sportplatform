@@ -1098,6 +1098,7 @@ export default function PerformanceAIPage() {
 
   return (
     <main style={pageStyle}>
+      <div id="topo" />
       <div style={{ marginBottom: 16 }}>
         <BackButton />
       </div>
@@ -1233,7 +1234,7 @@ export default function PerformanceAIPage() {
         </div>
 
         <a
-          href="/performance-ai/profile"
+          href="#perfil"
           style={{
             display: "grid",
             gap: 8,
@@ -1377,6 +1378,32 @@ export default function PerformanceAIPage() {
             </div>
           </a>
         </div>
+
+          <a
+            href="#coach-ia"
+            style={{
+              display: "grid",
+              gap: 8,
+              textDecoration: "none",
+              background: "#cbd5e1",
+              border: "1px solid #94a3b8",
+              borderRadius: 6,
+              padding: 20,
+              color: "#0f172a",
+            }}
+          >
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: "#334155" }}>
+              Seção 04
+            </div>
+
+            <div style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>
+              Coach IA
+            </div>
+
+            <div style={{ fontSize: 14, lineHeight: 1.6, color: "#334155" }}>
+              Plano personalizado com treino, alimentação e dados de saúde.
+            </div>
+          </a>
       </section>
 
       <section id="perfil" style={sectionStyle}>
@@ -1524,7 +1551,7 @@ export default function PerformanceAIPage() {
                     </div>
                     {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
                   </div>
-                  <button onClick={() => handleDeleteBloodTest(item.id)} style={deleteButtonStyle}>
+                  <button onClick={() => handleDeleteBioimpedance(item.id)} style={deleteButtonStyle}>
                     Excluir
                   </button>
                 </div>
@@ -1567,13 +1594,20 @@ export default function PerformanceAIPage() {
                     </div>
                     {item.notes ? <div style={rowSecondaryStyle}>{item.notes}</div> : null}
                   </div>
-                  <button onClick={() => handleDeleteBloodTest(item.id)} style={deleteButtonStyle}>
+                  <button onClick={() => handleDeleteBioimpedance(item.id)} style={deleteButtonStyle}>
                     Excluir
                   </button>
                 </div>
               ))}
             </div>
           )}
+        </div>
+
+
+        <div style={{ marginTop: 20 }}>
+          <a href="#topo" style={backToTopStyle}>
+            ↑ Voltar ao topo
+          </a>
         </div>
 
       <section id="treino" style={sectionStyle}>
@@ -1757,10 +1791,22 @@ export default function PerformanceAIPage() {
             </div>
           )}
         </div>
+        <div style={{ marginTop: 20 }}>
+          <a href="#topo" style={backToTopStyle}>
+            ↑ Voltar ao topo
+          </a>
+        </div>
 
       </section>
 
       <section id="alimentacao" style={sectionStyle}>
+
+        <div style={{ marginTop: 20 }}>
+          <a href="#topo" style={backToTopStyle}>
+            ↑ Voltar ao topo
+          </a>
+        </div>
+
         <h2 style={sectionHeaderStyle}>Alimentação</h2>
 
         <div style={{ display: "grid", gap: 16 }}>
@@ -1817,6 +1863,11 @@ export default function PerformanceAIPage() {
               ))}
             </div>
           )}
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <a href="#topo" style={backToTopStyle}>
+            ↑ Voltar ao topo
+          </a>
         </div>
       </section>
 
@@ -1968,6 +2019,11 @@ export default function PerformanceAIPage() {
               ) : null}
             </div>
           ) : null}
+        </div>
+        <div style={{ marginTop: 20 }}>
+          <a href="#topo" style={backToTopStyle}>
+            ↑ Voltar ao topo
+          </a>
         </div>
       </section>
 
@@ -2272,4 +2328,24 @@ const filterButtonActiveStyle: React.CSSProperties = {
 
 
 
+
+
+
+
+
+
+const backToTopStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "10px 14px",
+  borderRadius: 6,
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
+  fontWeight: 800,
+  fontSize: 13,
+  textDecoration: "none",
+  fontFamily: "Montserrat, sans-serif",
+};
 
