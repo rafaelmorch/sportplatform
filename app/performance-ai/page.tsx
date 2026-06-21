@@ -1801,12 +1801,6 @@ export default function PerformanceAIPage() {
 
       <section id="alimentacao" style={sectionStyle}>
 
-        <div style={{ marginTop: 20 }}>
-          <a href="#topo" style={backToTopStyle}>
-            ↑ Voltar ao topo
-          </a>
-        </div>
-
         <h2 style={sectionHeaderStyle}>Alimentação</h2>
 
         <div style={{ display: "grid", gap: 16 }}>
