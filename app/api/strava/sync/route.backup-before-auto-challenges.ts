@@ -1,7 +1,6 @@
 // app/api/strava/sync/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { processChallengeCompletions } from "@/lib/membership/processChallengeCompletions";
 
 export const runtime = "nodejs";
 
@@ -218,8 +217,6 @@ export async function GET(req: NextRequest) {
     }
 
     // 6) Upsert no Supabase (CORRIGIDO: usa activity_id e NÃO mexe no id uuid)
-    let challengeEvaluation = null;
-
     if (all.length > 0) {
       const nowIso = new Date().toISOString();
 
@@ -261,19 +258,12 @@ export async function GET(req: NextRequest) {
           { status: 500 }
         );
       }
-      challengeEvaluation = await processChallengeCompletions({
-        supabase: supabaseAdmin,
-        userId,
-        athleteId,
-        activities: rows,
-      });
     }
 
     return NextResponse.json({
       ok: true,
       user_id: userId,
       athlete_id: athleteId,
-      challengeEvaluation,
       fetched: all.length,
       note: afterUnix ? "incremental_after" : "full_fetch_first_time",
     });
@@ -285,8 +275,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-
-
 

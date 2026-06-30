@@ -388,7 +388,6 @@ export default function MembershipInsidePage() {
   const [openCheckinImages, setOpenCheckinImages] = useState<Set<string>>(new Set());
   const [checkinActionId, setCheckinActionId] = useState<string | null>(null);
   const [completedChallengeIds, setCompletedChallengeIds] = useState<Set<string>>(new Set());
-  const [runnerCurrentLevel, setRunnerCurrentLevel] = useState("yellow");
 
   const [rankingLoading, setRankingLoading] = useState(false);
   const [rankingRows, setRankingRows] = useState<RankingRow[]>([]);
@@ -406,7 +405,7 @@ export default function MembershipInsidePage() {
   const purpleChallenges = challenges.filter((challenge) => challenge.runner_level === "purple");
   const darkBlueChallenges = challenges.filter((challenge) => challenge.runner_level === "dark_blue");
 
-  const currentRunnerLevel = runnerCurrentLevel;
+  const currentRunnerLevel = "yellow";
   const currentLevelChallenges = yellowChallenges;
   const currentLevelCompleted = 0;
   const currentLevelTotal = currentLevelChallenges.length;
@@ -859,24 +858,6 @@ const typedCommunity = community as CommunityRow;
           return;
         }
       }
-      const { data: runnerProgress } = await supabase
-        .from("app_membership_runner_progress")
-        .select("current_level")
-        .eq("community_id", id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (runnerProgress?.current_level) {
-        setRunnerCurrentLevel(runnerProgress.current_level);
-      } else {
-        await supabase.from("app_membership_runner_progress").insert({
-          community_id: id,
-          user_id: user.id,
-          current_level: "yellow",
-        });
-        setRunnerCurrentLevel("yellow");
-      }
-
       const { data: highlightRows } = await supabase
         .from("app_membership_highlights")
         .select(`
@@ -1629,35 +1610,6 @@ overflow: "hidden",
                 <div style={{ color: "#64748b", fontSize: 13 }}>
                   Complete all challenges in your level to earn your runner shirt.
                 </div>
-
-                {isAdmin && communityId && (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "flex-end",
-                      marginTop: 12,
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        router.push(`/groups/${communityId}/inside/challenges/proofs`)
-                      }
-                      style={{
-                        border: "0",
-                        borderRadius: 999,
-                        padding: "9px 13px",
-                        background: "#0f172a",
-                        color: "#ffffff",
-                        fontSize: 12,
-                        fontWeight: 900,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✅ Review Proofs
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -3155,10 +3107,6 @@ overflow: "hidden",
     </>
   );
 }
-
-
-
-
 
 
 

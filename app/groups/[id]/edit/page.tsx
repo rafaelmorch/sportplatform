@@ -30,6 +30,7 @@ type MembershipCommunityRow = {
   banner_image_path: string | null;
   banner_image_url: string | null;
   card_highlight: string | null;
+  journey_title: string | null;
   gallery_urls: string[] | null;
   checkout_url: string | null;
   checkout_button_text: string | null;
@@ -50,6 +51,7 @@ export default function EditMembershipPage() {
   const [priceDollars, setPriceDollars] = useState("");
   const [billingInterval, setBillingInterval] = useState("month");
   const [cardHighlight, setCardHighlight] = useState("");
+  const [journeyTitle, setJourneyTitle] = useState("Runner Journey");
   const [galleryText, setGalleryText] = useState("");
   const [checkoutUrl, setCheckoutUrl] = useState("");
   const [checkoutButtonText, setCheckoutButtonText] = useState("");
@@ -156,7 +158,7 @@ export default function EditMembershipPage() {
         const { data, error } = await supabase
           .from("app_membership_communities")
           .select(
-            "id,name,slug,full_description,full_description_rich,price_cents,billing_interval,cover_image_path,cover_image_url,banner_image_path,banner_image_url,card_highlight,gallery_urls,checkout_url,checkout_button_text,is_active,stripe_price_id"
+            "id,name,slug,journey_title,full_description,full_description_rich,price_cents,billing_interval,cover_image_path,cover_image_url,banner_image_path,banner_image_url,card_highlight,gallery_urls,checkout_url,checkout_button_text,is_active,stripe_price_id"
           )
           .eq("id", membershipId)
           .single();
@@ -179,6 +181,7 @@ export default function EditMembershipPage() {
         );
         setBillingInterval(row.billing_interval ?? "month");
         setCardHighlight(row.card_highlight ?? "");
+        setJourneyTitle(row.journey_title ?? "Runner Journey");
         setGalleryText((row.gallery_urls ?? []).join("\n"));
         setCheckoutUrl(row.checkout_url ?? "");
         setCheckoutButtonText(row.checkout_button_text ?? "");
@@ -328,6 +331,7 @@ export default function EditMembershipPage() {
           banner_image_path: bannerPath,
           banner_image_url: bannerUrl || null,
           card_highlight: cleanCardHighlight || null,
+          journey_title: journeyTitle.trim() || "Runner Journey",
           gallery_urls: galleryUrls.length > 0 ? galleryUrls : null,
           checkout_url: cleanCheckoutUrl,
           checkout_button_text: cleanCheckoutButtonText,
@@ -537,6 +541,16 @@ export default function EditMembershipPage() {
                       value={name}
                       onChange={(e) => handleNameChange(e.target.value)}
                       placeholder="Run Club"
+                      style={inputStyle}
+                    />
+                  </label>
+
+                  <label style={{ display: "block", marginBottom: 14 }}>
+                    <div style={labelStyle}>Journey title</div>
+                    <input
+                      value={journeyTitle}
+                      onChange={(e) => setJourneyTitle(e.target.value)}
+                      placeholder="Runner Journey"
                       style={inputStyle}
                     />
                   </label>
@@ -895,6 +909,7 @@ const emptyPreviewTextStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 600,
 };
+
 
 
 

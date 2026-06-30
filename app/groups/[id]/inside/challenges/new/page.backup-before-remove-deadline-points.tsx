@@ -19,16 +19,13 @@ export default function NewMembershipChallengePage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-const [activityType, setActivityType] = useState("run");
-const [goalMetric, setGoalMetric] = useState("distance");
-const [goalValue, setGoalValue] = useState("");
-const [goalCriteria, setGoalCriteria] = useState("");
-  const [deadline] = useState("2099-12-31T23:59");
-  const [pointsActive] = useState("0");
-  const [pointsLate] = useState("0");
-  const [runnerLevel, setRunnerLevel] = useState("yellow");
-  const [validationMethod, setValidationMethod] = useState("strava");
+  const [activityType, setActivityType] = useState("run");
+  const [goalCriteria, setGoalCriteria] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [pointsActive, setPointsActive] = useState("25");
+  const [pointsLate, setPointsLate] = useState("15");
   const [isActive, setIsActive] = useState(true);
+  const [runnerLevel, setRunnerLevel] = useState("yellow");
 
   const [loading, setLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -66,8 +63,7 @@ const [goalCriteria, setGoalCriteria] = useState("");
     }
 
     const activePointsNumber = Number(pointsActive);
-const latePointsNumber = Number(pointsLate);
-const goalValueNumber = Number(goalValue);
+    const latePointsNumber = Number(pointsLate);
 
     if (Number.isNaN(activePointsNumber) || activePointsNumber < 0) {
       setErrorText("Points on time must be a valid number.");
@@ -80,11 +76,7 @@ const goalValueNumber = Number(goalValue);
       setLoading(false);
       return;
     }
-if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) {
-  setErrorText("Goal value must be a valid number greater than zero.");
-  setLoading(false);
-  return;
-}
+
     const deadlineIso = new Date(deadline).toISOString();
 
     const { error } = await supabase.from("app_membership_challenges").insert({
@@ -93,13 +85,10 @@ if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) 
       title: title.trim(),
       description: description.trim() || null,
       activity_type: activityType.trim().toLowerCase(),
-      goal_metric: goalMetric,
-      goal_value: goalValueNumber,
       goal_criteria: goalCriteria.trim() || null,
       deadline: deadlineIso,
       points_active: activePointsNumber,
       runner_level: runnerLevel,
-      validation_method: validationMethod,
       points_late: latePointsNumber,
       is_active: isActive,
     });
@@ -110,7 +99,7 @@ if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) 
       return;
     }
 
-    router.push(`/groups/${communityId}/inside`);
+    router.push(`/memberships/${communityId}/inside`);
   }
 
   return (
@@ -245,74 +234,9 @@ if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) 
                 <option value="workout">Workout</option>
                 <option value="trail">Trail</option>
                 <option value="other">Other</option>
-                            </select>
-            </div>
-
-            <div style={{ minWidth: 0 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  marginBottom: 6,
-                }}
-              >
-                Goal metric
-              </label>
-              <select
-                value={goalMetric}
-                onChange={(e) => setGoalMetric(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                  outline: "none",
-                  background: "#fff",
-                }}
-              >
-                <option value="distance">Distance</option>
-                <option value="moving_time">Moving time</option>
-                <option value="elevation">Elevation</option>
-                <option value="activity_count">Activity count</option>
               </select>
             </div>
 
-            <div style={{ minWidth: 0 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  marginBottom: 6,
-                }}
-              >
-                Goal value
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={goalValue}
-                onChange={(e) => setGoalValue(e.target.value)}
-                placeholder="Example: 5000 for 5 km, 3600 for 1 hour"
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
-              <div style={{ marginTop: 6, fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
-                Distance and elevation are saved in meters. Time is saved in seconds.
-              </div>
-            </div>
 
             <div style={{ minWidth: 0 }}>
               <label
@@ -345,39 +269,9 @@ if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) 
                 <option value="dark_blue">Dark Blue Shirt</option>
               </select>
             </div>
-            
             <div style={{ minWidth: 0 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#334155",
-                  marginBottom: 6,
-                }}
-              >
-                Validation Method
-              </label>
-              <select
-                value={validationMethod}
-                onChange={(e) => setValidationMethod(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 12,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                  outline: "none",
-                  background: "#fff",
-                }}
-              >
-                <option value="strava">Automatic (Strava)</option>
-                <option value="manual">Manual proof required</option>
-              </select>
-            </div>
-                        <div style={{ minWidth: 0 }}>
-              <label
-                style={{
+                <label
+                  style={{
                   display: "block",
                   fontSize: 13,
                   fontWeight: 700,
@@ -401,6 +295,93 @@ if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) 
                   outline: "none",
                   resize: "vertical",                  boxSizing: "border-box",                }}
               />
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+                <label
+                  style={{
+                  display: "block",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#334155",
+                  marginBottom: 6,
+                }}
+              >
+                Deadline
+              </label>
+              <input
+                type="datetime-local"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: 12,
+                  borderRadius: 12,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  outline: "none",                  boxSizing: "border-box",                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",                gap: 12,                alignItems: "start",
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#334155",
+                    marginBottom: 6,
+                  }}
+                >
+                  Points on time
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={pointsActive}
+                  onChange={(e) => setPointsActive(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    outline: "none",                  boxSizing: "border-box",                }}
+                />
+              </div>
+
+              <div style={{ minWidth: 0 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#334155",
+                    marginBottom: 6,
+                  }}
+                >
+                  Points late
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={pointsLate}
+                  onChange={(e) => setPointsLate(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    outline: "none",                  boxSizing: "border-box",                }}
+                />
+              </div>
             </div>
 
             <label
@@ -458,13 +439,6 @@ if (!goalValue.trim() || Number.isNaN(goalValueNumber) || goalValueNumber <= 0) 
     </main>
   );
 }
-
-
-
-
-
-
-
 
 
 
