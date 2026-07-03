@@ -189,7 +189,7 @@ export async function processChallengeCompletions({
 
     const { data: recentActivities, error: recentActivitiesError } = await supabase
       .from("strava_activities")
-      .select("activity_id, distance, moving_time, elapsed_time, type, sport_type, activity_type, start_date, start_date_local")
+      .select("activity_id, distance, moving_time, elapsed_time, type, sport_type, start_date, start_date_local")
       .eq("athlete_id", athleteId)
       .gte("start_date", now30);
 
@@ -253,5 +253,6 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
 
 
