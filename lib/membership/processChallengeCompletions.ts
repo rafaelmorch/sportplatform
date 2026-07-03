@@ -142,10 +142,12 @@ export async function processChallengeCompletions({
         continue;
       }
 
+      const minimumDistance = Number(challenge.secondary_goal_value ?? 5000);
+
       const activeDays = new Set(
         ((recentRuns ?? []) as any[])
           .filter(isRunActivity)
-          .filter((row) => Number(row.distance ?? 0) >= 5000)
+          .filter((row) => Number(row.distance ?? 0) >= minimumDistance)
           .map((row) => String(row.start_date_local || row.start_date || "").slice(0, 10))
           .filter(Boolean)
       );
@@ -254,6 +256,7 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
 
 
 
