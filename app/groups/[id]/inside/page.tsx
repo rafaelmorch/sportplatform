@@ -1529,25 +1529,31 @@ overflow: "hidden",
             <div
               style={{
                 display: "flex",
-                justifyContent: "center",
+                justifyContent: "flex-start",
                 alignItems: "center",
-                gap: 36,
+                gap: 8,
                 borderBottom: "1px solid #e2e8f0",
                 marginBottom: 22,
                 overflowX: "auto",
-                paddingBottom: 2,
+                maxWidth: "100%",
+                WebkitOverflowScrolling: "touch",
+                padding: "6px 2px 8px 2px",
+                scrollbarWidth: "none",
               }}
             >
               <Link
                 href={`/groups/${communityId}/inside`}
                 style={{
                   textDecoration: "none",
-                  color: "#0f172a",
                   fontSize: 14,
                   fontWeight: 700,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid #facc15",
+                  padding: "9px 14px",
+                  borderRadius: 999,
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  borderBottom: "none",
                   whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 Home
@@ -1560,15 +1566,18 @@ overflow: "hidden",
                   color: "#64748b",
                   fontSize: 14,
                   fontWeight: 600,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid transparent",
+                  padding: "9px 14px",
+                  borderRadius: 999,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
                   whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 Chat
               </Link>
 
-<Link href={`/groups/${communityId}/inside/performance`} style={{ textDecoration: 'none', color: '#64748b', fontSize: 14, fontWeight: 600 }}>Performance</Link>
+<Link href={`/groups/${communityId}/inside/performance`} style={{ textDecoration: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: "9px 14px", borderRadius: 999, background: "#f8fafc", border: "1px solid #e2e8f0", whiteSpace: "nowrap", flexShrink: 0 }}>Performance</Link>
 
               <Link
                 href={`/groups/${communityId}/inside/events`}
@@ -1577,9 +1586,12 @@ overflow: "hidden",
                   color: "#64748b",
                   fontSize: 14,
                   fontWeight: 600,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid transparent",
+                  padding: "9px 14px",
+                  borderRadius: 999,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
                   whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 Events
@@ -1593,9 +1605,12 @@ overflow: "hidden",
                     color: "#64748b",
                     fontSize: 14,
                     fontWeight: 600,
-                    padding: "10px 0 12px 0",
-                    borderBottom: "3px solid transparent",
-                    whiteSpace: "nowrap",
+                    padding: "9px 14px",
+                  borderRadius: 999,
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                   }}
                 >
                   Videos
@@ -3155,6 +3170,8 @@ overflow: "hidden",
     </>
   );
 }
+
+
 
 
 
