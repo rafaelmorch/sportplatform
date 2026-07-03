@@ -23,6 +23,7 @@ type ProcessChallengeCompletionsParams = {
   userId: string;
   athleteId: number | string;
   activities: ActivityWithStravaId[];
+  evaluationStartIso?: string | null;
 };
 
 function getThirtyDaysAgoIso() {
@@ -45,6 +46,7 @@ export async function processChallengeCompletions({
   userId,
   athleteId,
   activities,
+  evaluationStartIso,
 }: ProcessChallengeCompletionsParams) {
   console.log("========== PROCESS CHALLENGES ==========");
   console.log({
@@ -90,7 +92,11 @@ export async function processChallengeCompletions({
   );
 
   const checkinsToInsert: any[] = [];
-  const now30 = getThirtyDaysAgoIso();
+  const thirtyDaysAgoIso = getThirtyDaysAgoIso();
+  const now30 =
+    evaluationStartIso && new Date(evaluationStartIso) > new Date(thirtyDaysAgoIso)
+      ? evaluationStartIso
+      : thirtyDaysAgoIso;
 
   for (const challenge of activeChallenges) {
     if (alreadyCompleted.has(challenge.id)) continue;
@@ -256,6 +262,7 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
 
 
 

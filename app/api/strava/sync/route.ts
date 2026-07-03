@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
     // 2) Busca tokens Strava do usuário
     const { data: tokenRow, error: tokenErr } = await supabaseAdmin
       .from("strava_tokens")
-      .select("athlete_id, access_token, refresh_token, expires_at, updated_at")
+      .select("athlete_id, access_token, refresh_token, expires_at, updated_at, created_at")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
       .limit(1)
@@ -267,6 +267,7 @@ export async function GET(req: NextRequest) {
       userId,
       athleteId,
       activities: rows,
+      evaluationStartIso: tokenRow.created_at,
     });
     console.log("=== Challenge Evaluation ===");
     console.log(challengeEvaluation);
@@ -289,6 +290,8 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+
 
 
 
