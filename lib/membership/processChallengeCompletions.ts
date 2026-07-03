@@ -46,6 +46,13 @@ export async function processChallengeCompletions({
   athleteId,
   activities,
 }: ProcessChallengeCompletionsParams) {
+  console.log("========== PROCESS CHALLENGES ==========");
+  console.log({
+    userId,
+    athleteId,
+    activitiesReceived: activities.length,
+  });
+
   if (!userId || !athleteId) {
     return { checkedActivities: activities.length, activeChallenges: 0, matchedChallenges: 0, createdCheckins: 0 };
   }
@@ -61,6 +68,8 @@ export async function processChallengeCompletions({
   }
 
   const activeChallenges = (challenges ?? []) as ChallengeRow[];
+
+  console.log("Active challenges:", activeChallenges.length);
   const challengeIds = activeChallenges.map((challenge) => challenge.id);
 
   const { data: existingCheckins, error: existingError } = await supabase
@@ -196,6 +205,9 @@ export async function processChallengeCompletions({
     }
   }
 
+  console.log("Check-ins to insert:", checkinsToInsert.length);
+  console.log(checkinsToInsert);
+
   if (checkinsToInsert.length === 0) {
     return {
       checkedActivities: activities.length,
@@ -230,3 +242,4 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
