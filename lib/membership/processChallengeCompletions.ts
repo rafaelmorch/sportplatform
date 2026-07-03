@@ -16,6 +16,7 @@ type ChallengeRow = ChallengeForEvaluation & {
   title?: string | null;
   points_active?: number | null;
   goal_metric?: string | null;
+  runner_level?: string | null;
 };
 
 type ProcessChallengeCompletionsParams = {
@@ -255,6 +256,66 @@ export async function processChallengeCompletions({
     };
   }
 
+  const levelOrder = ["yellow", "orange", "purple", "dark_blue"];
+
+  for (const communityId of Array.from(new Set(checkinsToInsert.map((row) => row.community_id).filter(Boolean)))) {
+    const completedIdsAfterInsert = new Set([
+      ...Array.from(alreadyCompleted),
+      ...checkinsToInsert
+        .filter((row) => row.community_id === communityId)
+        .map((row) => row.challenge_id)
+        .filter(Boolean),
+    ]);
+
+    for (let index = 0; index < levelOrder.length - 1; index += 1) {
+      const level = levelOrder[index];
+      const nextLevel = levelOrder[index + 1];
+
+      const levelChallenges = activeChallenges.filter(
+        (challenge) => challenge.community_id === communityId && (challenge.runner_level || "yellow") === level
+      );
+
+      console.log("Runner level promotion debug:", {
+        communityId,
+        level,
+        nextLevel,
+        levelChallenges: levelChallenges.length,
+        levelChallengeIds: levelChallenges.map((challenge) => challenge.id),
+        completedIdsAfterInsert: Array.from(completedIdsAfterInsert),
+      });
+
+      if (levelChallenges.length === 0) continue;
+
+      const completedAllLevelChallenges = levelChallenges.every((challenge) =>
+        completedIdsAfterInsert.has(challenge.id)
+      );
+
+      console.log("Runner level promotion result:", {
+        communityId,
+        level,
+        nextLevel,
+        completedAllLevelChallenges,
+      });
+
+      if (!completedAllLevelChallenges) continue;
+
+      const { error: progressError } = await supabase.from("app_membership_runner_progress").upsert(
+        {
+          community_id: communityId,
+          user_id: userId,
+          current_level: nextLevel,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "community_id,user_id" }
+      );
+
+      if (progressError) {
+        console.error("Error updating runner progress:", progressError);
+      }
+    }
+  }
+
   return {
     checkedActivities: activities.length,
     activeChallenges: activeChallenges.length,
@@ -262,6 +323,9 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
+
+
 
 
 
