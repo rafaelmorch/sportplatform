@@ -187,7 +187,18 @@ export async function processChallengeCompletions({
       continue;
     }
 
-    for (const activity of activities) {
+    const { data: recentActivities, error: recentActivitiesError } = await supabase
+      .from("strava_activities")
+      .select("activity_id, distance, moving_time, elapsed_time, type, sport_type, activity_type, start_date, start_date_local")
+      .eq("athlete_id", athleteId)
+      .gte("start_date", now30);
+
+    if (recentActivitiesError) {
+      console.error("Error loading recent Strava activities:", recentActivitiesError);
+      continue;
+    }
+
+    for (const activity of ((recentActivities ?? []) as ActivityWithStravaId[])) {
       if (evaluateChallenge(activity, challenge)) {
         checkinsToInsert.push({
           community_id: challenge.community_id,
@@ -242,4 +253,5 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
 
