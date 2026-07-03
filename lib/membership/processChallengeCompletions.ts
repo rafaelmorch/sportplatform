@@ -229,21 +229,20 @@ export async function processChallengeCompletions({
   console.log("Check-ins to insert:", checkinsToInsert.length);
   console.log(checkinsToInsert);
 
-  if (checkinsToInsert.length === 0) {
-    return {
-      checkedActivities: activities.length,
-      activeChallenges: activeChallenges.length,
-      matchedChallenges: 0,
-      createdCheckins: 0,
-    };
-  }
+  // Continue even when no new check-ins are created.
+  // The runner may already have completed all challenges and still need level promotion.
 
-  const { error: insertError } = await supabase
-    .from("app_membership_checkins")
-    .upsert(checkinsToInsert, {
-      onConflict: "user_id,challenge_id,strava_activity_id",
-      ignoreDuplicates: true,
-    });
+  const insertResult =
+    checkinsToInsert.length > 0
+      ? await supabase
+          .from("app_membership_checkins")
+          .upsert(checkinsToInsert, {
+            onConflict: "user_id,challenge_id,strava_activity_id",
+            ignoreDuplicates: true,
+          })
+      : { error: null };
+
+  const insertError = insertResult.error;
 
   if (insertError) {
     console.error("Error creating automatic membership check-ins:", insertError);
@@ -323,6 +322,8 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
+
 
 
 
