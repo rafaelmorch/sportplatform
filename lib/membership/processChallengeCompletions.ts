@@ -133,7 +133,7 @@ export async function processChallengeCompletions({
     if (metric === "active_days_30d") {
       const { data: recentRuns, error: runsError } = await supabase
         .from("strava_activities")
-        .select("type, sport_type, start_date, start_date_local")
+        .select("type, sport_type, start_date, start_date_local, distance")
         .eq("athlete_id", athleteId)
         .gte("start_date", now30);
 
@@ -145,6 +145,7 @@ export async function processChallengeCompletions({
       const activeDays = new Set(
         ((recentRuns ?? []) as any[])
           .filter(isRunActivity)
+          .filter((row) => Number(row.distance ?? 0) >= 5000)
           .map((row) => String(row.start_date_local || row.start_date || "").slice(0, 10))
           .filter(Boolean)
       );
@@ -253,6 +254,7 @@ export async function processChallengeCompletions({
     createdCheckins: checkinsToInsert.length,
   };
 }
+
 
 
 
