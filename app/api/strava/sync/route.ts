@@ -261,12 +261,16 @@ export async function GET(req: NextRequest) {
           { status: 500 }
         );
       }
-      challengeEvaluation = await processChallengeCompletions({
-        supabase: supabaseAdmin,
-        userId,
-        athleteId,
-        activities: rows,
-      });
+
+    challengeEvaluation = await processChallengeCompletions({
+      supabase: supabaseAdmin,
+      userId,
+      athleteId,
+      activities: rows,
+    });
+    console.log("=== Challenge Evaluation ===");
+    console.log(challengeEvaluation);
+    console.log("============================");
     }
 
     return NextResponse.json({
@@ -285,6 +289,7 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 
 
 
