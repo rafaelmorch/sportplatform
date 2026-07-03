@@ -1695,7 +1695,7 @@ overflow: "hidden",
 
                 <JourneyLevelCard
   communityId={communityId ?? undefined}
-  locked={!isAdmin}
+  locked={!["orange", "purple", "dark_blue"].includes(runnerCurrentLevel)}
   title="🟧 Orange Shirt"
   label="NEXT LEVEL"
   challenges={orangeChallenges}
@@ -1709,7 +1709,7 @@ overflow: "hidden",
 
                 <JourneyLevelCard
   communityId={communityId ?? undefined}
-  locked={!isAdmin}
+  locked={!["purple", "dark_blue"].includes(runnerCurrentLevel)}
   title="🟪 Purple Shirt"
   label="ADVANCED LEVEL"
   challenges={purpleChallenges}
@@ -1723,7 +1723,7 @@ overflow: "hidden",
 
 <JourneyLevelCard
   communityId={communityId ?? undefined}
-  locked={!isAdmin}
+  locked={runnerCurrentLevel !== "dark_blue"}
   title="🟦 Dark Blue Shirt"
   label="ELITE LEVEL"
   challenges={darkBlueChallenges}
@@ -3155,6 +3155,7 @@ overflow: "hidden",
     </>
   );
 }
+
 
 
 
