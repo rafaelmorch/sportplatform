@@ -361,6 +361,9 @@ export default function MembershipInsidePage() {
   const [canManageHighlights, setCanManageHighlights] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasVideos, setHasVideos] = useState(false);
+  const [stripeSubscriptionId, setStripeSubscriptionId] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -844,10 +847,14 @@ const typedCommunity = community as CommunityRow;
       if (!isCreator && profile?.is_admin !== true) {
         const { data: request } = await supabase
           .from("app_membership_requests")
-          .select("status, subscription_status")
+          .select("status, subscription_status, stripe_subscription_id, current_period_end")
           .eq("community_id", id)
           .eq("user_id", user.id)
           .maybeSingle();
+
+        setStripeSubscriptionId(request?.stripe_subscription_id ?? null);
+        setSubscriptionStatus(request?.subscription_status ?? null);
+        setCurrentPeriodEnd(request?.current_period_end ?? null);
 
         const hasValidAccess =
           request &&
@@ -3170,6 +3177,9 @@ overflow: "hidden",
     </>
   );
 }
+
+
+
 
 
 
