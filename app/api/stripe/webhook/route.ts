@@ -109,6 +109,14 @@ export async function POST(req: Request) {
           stripeSubscriptionId
         )) as any;
 
+        console.log("DEBUG Stripe subscription period fields", {
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          current_period_end: subscription.current_period_end,
+          items_current_period_end: subscription.items?.data?.[0]?.current_period_end,
+          billing_cycle_anchor: subscription.billing_cycle_anchor,
+        });
+
         const { error: updateError } = await supabase
           .from("app_membership_requests")
           .update({
@@ -265,6 +273,14 @@ export async function POST(req: Request) {
           stripeSubscriptionId
         )) as any;
 
+        console.log("DEBUG Stripe subscription period fields", {
+          subscriptionId: subscription.id,
+          status: subscription.status,
+          current_period_end: subscription.current_period_end,
+          items_current_period_end: subscription.items?.data?.[0]?.current_period_end,
+          billing_cycle_anchor: subscription.billing_cycle_anchor,
+        });
+
         const { error: updateError } = await supabase
           .from("app_membership_requests")
           .update({
@@ -301,4 +317,5 @@ export async function POST(req: Request) {
     );
   }
 }
+
 
