@@ -853,6 +853,7 @@ const typedCommunity = community as CommunityRow;
           .eq("user_id", user.id)
           .maybeSingle();
 
+
         setStripeSubscriptionId(request?.stripe_subscription_id ?? null);
         setSubscriptionStatus(request?.subscription_status ?? null);
         setCurrentPeriodEnd(request?.current_period_end ?? null);
@@ -1269,7 +1270,7 @@ const typedCommunity = community as CommunityRow;
 
   const orderedRanking = rankingRows;
 
-  return (
+return (
     <>
       <style jsx global>{`
         html,
@@ -1567,47 +1568,6 @@ overflow: "hidden",
             </div>
           </div>
 
-          {!canManageHighlights && stripeSubscriptionId && (
-            <div
-              style={{
-                border: "1px solid #fecaca",
-                background: "#fff7ed",
-                borderRadius: 18,
-                padding: 16,
-                marginBottom: 18,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
-                Membership
-              </div>
-
-              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
-                Status: <strong>{subscriptionStatus || "active"}</strong>
-                {currentPeriodEnd ? (
-                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
-                ) : null}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCancelSubscription}
-                disabled={cancelingSubscription}
-                style={{
-                  border: "1px solid #fecaca",
-                  background: "#fee2e2",
-                  color: "#991b1b",
-                  borderRadius: 999,
-                  padding: "9px 14px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
-                  opacity: cancelingSubscription ? 0.7 : 1,
-                }}
-              >
-                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
-              </button>
-            </div>
-          )}
           {communityId && (
             <div
               style={{
@@ -2018,47 +1978,6 @@ overflow: "hidden",
                 </div>
               </div>
 
-              {!canManageHighlights && stripeSubscriptionId && (
-            <div
-              style={{
-                border: "1px solid #fecaca",
-                background: "#fff7ed",
-                borderRadius: 18,
-                padding: 16,
-                marginBottom: 18,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
-                Membership
-              </div>
-
-              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
-                Status: <strong>{subscriptionStatus || "active"}</strong>
-                {currentPeriodEnd ? (
-                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
-                ) : null}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCancelSubscription}
-                disabled={cancelingSubscription}
-                style={{
-                  border: "1px solid #fecaca",
-                  background: "#fee2e2",
-                  color: "#991b1b",
-                  borderRadius: 999,
-                  padding: "9px 14px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
-                  opacity: cancelingSubscription ? 0.7 : 1,
-                }}
-              >
-                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
-              </button>
-            </div>
-          )}
           {communityId && (
                 <Link
                   href={`/groups/${communityId}/inside/feed/new`}
@@ -2774,47 +2693,6 @@ overflow: "hidden",
                   flexWrap: "wrap",
                 }}
               >
-                {!canManageHighlights && stripeSubscriptionId && (
-            <div
-              style={{
-                border: "1px solid #fecaca",
-                background: "#fff7ed",
-                borderRadius: 18,
-                padding: 16,
-                marginBottom: 18,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
-                Membership
-              </div>
-
-              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
-                Status: <strong>{subscriptionStatus || "active"}</strong>
-                {currentPeriodEnd ? (
-                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
-                ) : null}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCancelSubscription}
-                disabled={cancelingSubscription}
-                style={{
-                  border: "1px solid #fecaca",
-                  background: "#fee2e2",
-                  color: "#991b1b",
-                  borderRadius: 999,
-                  padding: "9px 14px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
-                  opacity: cancelingSubscription ? 0.7 : 1,
-                }}
-              >
-                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
-              </button>
-            </div>
-          )}
           {communityId && (
                   <Link
                     href={`/groups/${communityId}/inside/checkins`}
@@ -2833,47 +2711,6 @@ overflow: "hidden",
                   </Link>
                 )}
 
-                {!canManageHighlights && stripeSubscriptionId && (
-            <div
-              style={{
-                border: "1px solid #fecaca",
-                background: "#fff7ed",
-                borderRadius: 18,
-                padding: 16,
-                marginBottom: 18,
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
-                Membership
-              </div>
-
-              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
-                Status: <strong>{subscriptionStatus || "active"}</strong>
-                {currentPeriodEnd ? (
-                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
-                ) : null}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleCancelSubscription}
-                disabled={cancelingSubscription}
-                style={{
-                  border: "1px solid #fecaca",
-                  background: "#fee2e2",
-                  color: "#991b1b",
-                  borderRadius: 999,
-                  padding: "9px 14px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
-                  opacity: cancelingSubscription ? 0.7 : 1,
-                }}
-              >
-                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
-              </button>
-            </div>
-          )}
           {communityId && (
                   <Link
                     href={`/groups/${communityId}/inside/checkin/new`}
@@ -3371,11 +3208,60 @@ overflow: "hidden",
               </div>
             )}
           </div> */}
+          {!canManageHighlights && (
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fff7ed",
+                borderRadius: 18,
+                padding: 16,
+                marginTop: 24,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
+                Membership
+              </div>
+
+              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
+                Status: <strong>{subscriptionStatus || "active"}</strong>
+                {currentPeriodEnd ? (
+                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancelingSubscription}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  borderRadius: 999,
+                  padding: "9px 14px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
+                  opacity: cancelingSubscription ? 0.7 : 1,
+                }}
+              >
+                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </>
   );
 }
+
+
+
+
+
+
+
+
 
 
 
