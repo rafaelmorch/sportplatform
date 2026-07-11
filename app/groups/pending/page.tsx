@@ -19,11 +19,7 @@ function PendingMembershipContent() {
 
   const communityId = searchParams.get("community_id");
 
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const [proofPreview, setProofPreview] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
   const [creatingCheckout, setCreatingCheckout] = useState(false);
 
   useEffect(() => {
@@ -42,15 +38,18 @@ function PendingMembershipContent() {
 
       const { data, error } = await supabase
         .from("app_membership_requests")
-        .select("status")
+        .select("status, subscription_status")
         .eq("community_id", communityId)
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (!isMounted || error || !data) return;
 
-      if (data.status === "active") {
-        router.replace(`/memberships/${communityId}/inside`);
+      if (
+        data.status === "active" &&
+        data.subscription_status === "active"
+      ) {
+        router.replace(`/groups/${communityId}/inside`);
       }
     }
 
@@ -59,20 +58,12 @@ function PendingMembershipContent() {
 
     return () => {
       isMounted = false;
-      if (intervalId) clearInterval(intervalId);
+
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [communityId, router, supabase]);
-
-  function handleProofChange(file: File | null) {
-    setProofFile(file);
-    setMessage(null);
-
-    if (file) {
-      setProofPreview(URL.createObjectURL(file));
-    } else {
-      setProofPreview("");
-    }
-  }
 
   async function handleCreateStripeCheckout() {
     try {
@@ -85,12 +76,12 @@ function PendingMembershipContent() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setMessage("You must be logged in.");
+        setMessage("You must be logged in. | Você precisa estar conectado.");
         return;
       }
 
       if (!communityId) {
-        setMessage("Missing community id.");
+        setMessage("Missing community id. | Comunidade não identificada.");
         return;
       }
 
@@ -108,99 +99,45 @@ function PendingMembershipContent() {
         );
 
       if (requestError) {
-        setMessage(requestError.message || "Failed to create membership request.");
+        setMessage(
+          requestError.message ||
+            "Failed to create membership request. | Não foi possível iniciar a assinatura."
+        );
         return;
       }
 
-      const response = await fetch("/api/stripe/create-subscription-checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          community_id: communityId,
-          user_id: user.id,
-        }),
-      });
+      const response = await fetch(
+        "/api/stripe/create-subscription-checkout",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            community_id: communityId,
+            user_id: user.id,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok || !data?.url) {
-        setMessage(data?.error || "Failed to create Stripe checkout.");
+        setMessage(
+          data?.error ||
+            "Failed to create Stripe checkout. | Não foi possível abrir o pagamento."
+        );
         return;
       }
 
       window.location.href = data.url;
     } catch (err: any) {
-      setMessage(err?.message || "Unexpected Stripe error.");
+      setMessage(
+        err?.message ||
+          "Unexpected Stripe error. | Ocorreu um erro inesperado."
+      );
     } finally {
       setCreatingCheckout(false);
-    }
-  }
-
-  async function handleUploadProof() {
-    if (!communityId) {
-      setMessage("Missing community id.");
-      return;
-    }
-
-    if (!proofFile) {
-      setMessage("Select a payment proof image first.");
-      return;
-    }
-
-    try {
-      setUploading(true);
-      setMessage(null);
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        setMessage("You must be logged in.");
-        return;
-      }
-
-      const extension = proofFile.name.split(".").pop()?.toLowerCase() || "jpg";
-      const filePath = `${user.id}/${communityId}/payment-proof-${Date.now()}.${extension}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("membership-proofs")
-        .upload(filePath, proofFile, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (uploadError) {
-        setMessage(uploadError.message || "Failed to upload proof.");
-        return;
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from("membership-proofs")
-        .getPublicUrl(filePath);
-
-      const { error: updateError } = await supabase
-        .from("app_membership_requests")
-        .update({
-          payment_proof_path: filePath,
-          payment_proof_url: publicUrlData.publicUrl,
-        })
-        .eq("community_id", communityId)
-        .eq("user_id", user.id);
-
-      if (updateError) {
-        setMessage(updateError.message || "Failed to attach proof to request.");
-        return;
-      }
-
-      setMessage("Payment proof uploaded successfully.");
-    } catch (err: any) {
-      setMessage(err?.message || "Unexpected error.");
-    } finally {
-      setUploading(false);
     }
   }
 
@@ -216,7 +153,14 @@ function PendingMembershipContent() {
         boxSizing: "border-box",
       }}
     >
-      <div style={{ width: "100%", maxWidth: 900, margin: "0 auto 16px auto", boxSizing: "border-box" }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 900,
+          margin: "0 auto 16px auto",
+          boxSizing: "border-box",
+        }}
+      >
         <BackArrow />
       </div>
 
@@ -239,14 +183,14 @@ function PendingMembershipContent() {
           style={{
             fontSize: 26,
             fontWeight: 800,
-            marginBottom: 16,
+            margin: "0 0 16px 0",
             color: "#0f172a",
           }}
         >
-          You're almost in 🚀
+          Join Membership
         </h1>
 
-        <p
+        <div
           style={{
             fontSize: 16,
             lineHeight: 1.7,
@@ -254,39 +198,102 @@ function PendingMembershipContent() {
             marginBottom: 24,
           }}
         >
-          Your request to join this community has been received.
-        </p>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            Unlock your full Platform Sports experience.
+          </div>
 
-        <div
-          style={{
-            borderRadius: 20,
-            padding: 20,
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            marginBottom: 24,
-            boxSizing: "border-box",
-          }}
-        >
-          <p
-            style={{
-              fontSize: 15,
-              lineHeight: 1.7,
-              color: "#0f172a",
-              margin: 0,
-              fontWeight: 500,
-            }}
-          >
-            Please complete your monthly subscription to unlock full access to the community.
-          </p>
+          <div>
+            Assine e desbloqueie toda a experiência da Platform Sports.
+          </div>
         </div>
 
         <div
           style={{
             width: "100%",
-            maxWidth: 560,
-            margin: "0 auto 16px auto",
+            maxWidth: 640,
+            margin: "0 auto 24px auto",
+            borderRadius: 20,
+            padding: "20px clamp(18px, 4vw, 28px)",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            boxSizing: "border-box",
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#0f172a",
+              marginBottom: 12,
+            }}
+          >
+            Your membership includes
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.9,
+              color: "#334155",
+            }}
+          >
+            ✓ Runner Journey progression
+            <br />
+            ✓ Exclusive training videos
+            <br />
+            ✓ Community feed
+            <br />
+            ✓ Challenges and rankings
+            <br />
+            ✓ Performance tracking
+          </div>
+
+          <div
+            style={{
+              height: 1,
+              background: "#e2e8f0",
+              margin: "20px 0",
+            }}
+          />
+
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#0f172a",
+              marginBottom: 12,
+            }}
+          >
+            Sua assinatura inclui
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.9,
+              color: "#334155",
+            }}
+          >
+            ✓ Progressão no Runner Journey
+            <br />
+            ✓ Vídeos exclusivos de treinamento
+            <br />
+            ✓ Feed da comunidade
+            <br />
+            ✓ Desafios e ranking
+            <br />
+            ✓ Acompanhamento de desempenho
+          </div>
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            margin: "0 auto 24px auto",
             borderRadius: 24,
-            padding: "clamp(16px, 4vw, 22px)",
+            padding: "clamp(18px, 4vw, 24px)",
             boxSizing: "border-box",
             border: "1px solid #d6dbe4",
             background: "linear-gradient(180deg, #f8fafc 0%, #edf1f5 100%)",
@@ -300,24 +307,68 @@ function PendingMembershipContent() {
             style={{
               fontSize: 18,
               fontWeight: 700,
-              margin: "0 0 10px 0",
+              margin: "0 0 16px 0",
               color: "#0f172a",
             }}
           >
-            Monthly subscription
+            Monthly Membership
           </h2>
 
-          <p
+          <div
             style={{
               fontSize: 14,
-              lineHeight: 1.7,
+              lineHeight: 1.85,
               color: "#475569",
-              marginTop: 0,
-              marginBottom: 14,
             }}
           >
-            Start your monthly plan here.
-          </p>
+            <div
+              style={{
+                fontWeight: 700,
+                color: "#0f172a",
+                marginBottom: 8,
+              }}
+            >
+              English
+            </div>
+
+            <div>
+              ✓ Cancel anytime
+              <br />
+              ✓ No long-term commitment
+              <br />
+              ✓ Secure payment powered by Stripe
+              <br />
+              ✓ Automatic monthly renewal
+            </div>
+
+            <div
+              style={{
+                height: 1,
+                background: "#dbe2ea",
+                margin: "18px 0",
+              }}
+            />
+
+            <div
+              style={{
+                fontWeight: 700,
+                color: "#0f172a",
+                marginBottom: 8,
+              }}
+            >
+              Português
+            </div>
+
+            <div>
+              ✓ Cancele quando quiser
+              <br />
+              ✓ Sem fidelidade
+              <br />
+              ✓ Pagamento seguro via Stripe
+              <br />
+              ✓ Renovação automática mensal
+            </div>
+          </div>
 
           <button
             type="button"
@@ -328,6 +379,7 @@ function PendingMembershipContent() {
               border: "1px solid #cbd5e1",
               borderRadius: 999,
               padding: "14px 18px",
+              marginTop: 20,
               fontSize: 13,
               fontWeight: 700,
               background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
@@ -340,166 +392,33 @@ function PendingMembershipContent() {
           >
             {creatingCheckout ? "Opening checkout..." : "Subscribe Monthly"}
           </button>
-        </div>
-
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 560,
-            margin: "0 auto 24px auto",
-            borderRadius: 24,
-            padding: "clamp(16px, 4vw, 22px)",
-            boxSizing: "border-box",
-            border: "1px solid #d6dbe4",
-            background: "linear-gradient(180deg, #f8fafc 0%, #edf1f5 100%)",
-            boxShadow:
-              "8px 8px 24px rgba(148,163,184,0.14), -6px -6px 20px rgba(255,255,255,0.9)",
-            textAlign: "left",
-            overflow: "hidden",
-          }}
-        >
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              margin: "0 0 10px 0",
-              color: "#0f172a",
-            }}
-          >
-            Optional payment proof
-          </h2>
-
-          <p
-            style={{
-              fontSize: 14,
-              lineHeight: 1.7,
-              color: "#475569",
-              marginTop: 0,
-              marginBottom: 14,
-            }}
-          >
-            You may upload a screenshot of your payment to help with verification if needed.
-          </p>
-
-          <input
-            id="payment-proof-input"
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleProofChange(e.target.files?.[0] ?? null)}
-            style={{ display: "none" }}
-          />
-
-          <label
-            htmlFor="payment-proof-input"
-            style={{
-              display: "block",
-              width: "100%",
-              maxWidth: "100%",
-              boxSizing: "border-box",
-              borderRadius: 18,
-              border: "1px solid #d6dbe4",
-              background: "linear-gradient(180deg, #ffffff 0%, #edf2f7 100%)",
-              color: "#111827",
-              padding: "12px 14px",
-              fontSize: 14,
-              boxShadow:
-                "inset 1px 1px 0 rgba(255,255,255,0.98), inset -2px -2px 6px rgba(203,213,225,0.45)",
-              marginBottom: 10,
-              cursor: "pointer",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-            }}
-          >
-            {proofFile ? proofFile.name : "Choose payment proof image"}
-          </label>
 
           <div
             style={{
+              marginTop: 16,
+              textAlign: "center",
               fontSize: 12,
               color: "#64748b",
-              marginBottom: 14,
-              lineHeight: 1.5,
+              lineHeight: 1.8,
             }}
           >
-            Recommended: JPG or PNG • up to 3 MB
+            🔒 Secure checkout powered by Stripe.
+            <br />
+            🔒 Pagamento seguro processado pelo Stripe.
           </div>
-
-          <div
-            style={{
-              width: "100%",
-              minHeight: 220,
-              borderRadius: 20,
-              overflow: "hidden",
-              border: "1px solid #d6dbe4",
-              background: "linear-gradient(180deg, #ffffff 0%, #e5e7eb 100%)",
-              boxShadow:
-                "inset 1px 1px 0 rgba(255,255,255,0.95), inset -2px -2px 6px rgba(203,213,225,0.45)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 16,
-              boxSizing: "border-box",
-            }}
-          >
-            {proofPreview ? (
-              <img
-                src={proofPreview}
-                alt="Payment proof preview"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
-                  display: "block",
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  color: "#64748b",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
-                Proof preview
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={handleUploadProof}
-            disabled={uploading}
-            style={{
-              width: "100%",
-              border: "1px solid #cbd5e1",
-              borderRadius: 999,
-              padding: "14px 18px",
-              fontSize: 13,
-              fontWeight: 700,
-              background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
-              color: "#f8fafc",
-              boxShadow:
-                "0 14px 28px rgba(15,23,42,0.18), inset 1px 1px 0 rgba(255,255,255,0.1)",
-              cursor: uploading ? "not-allowed" : "pointer",
-              opacity: uploading ? 0.7 : 1,
-            }}
-          >
-            {uploading ? "Uploading..." : "Upload payment proof"}
-          </button>
 
           {message && (
             <div
               style={{
-                marginTop: 14,
+                marginTop: 16,
                 fontSize: 13,
                 lineHeight: 1.6,
-                color: message.toLowerCase().includes("success") ? "#166534" : "#9a3412",
-                background: message.toLowerCase().includes("success") ? "#f0fdf4" : "#fff7ed",
-                border: "1px solid " + (message.toLowerCase().includes("success") ? "#86efac" : "#fdba74"),
+                color: "#9a3412",
+                background: "#fff7ed",
+                border: "1px solid #fdba74",
                 borderRadius: 14,
                 padding: "10px 12px",
+                textAlign: "center",
               }}
             >
               {message}
@@ -509,12 +428,51 @@ function PendingMembershipContent() {
 
         <div
           style={{
+            width: "100%",
+            maxWidth: 640,
+            margin: "0 auto",
+            borderTop: "1px solid #dbe2ea",
+            paddingTop: 20,
             fontSize: 13,
             color: "#64748b",
-            lineHeight: 1.6,
+            lineHeight: 1.7,
+            textAlign: "left",
           }}
         >
-          Access will be released automatically after confirmed subscription payment.
+          <div
+            style={{
+              fontWeight: 700,
+              color: "#334155",
+              marginBottom: 6,
+            }}
+          >
+            English
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            Your subscription renews automatically every month until canceled.
+            <br />
+            Cancellation takes effect immediately, and access ends when you
+            cancel.
+          </div>
+
+          <div
+            style={{
+              fontWeight: 700,
+              color: "#334155",
+              marginBottom: 6,
+            }}
+          >
+            Português
+          </div>
+
+          <div>
+            Sua assinatura é renovada automaticamente todos os meses até o
+            cancelamento.
+            <br />
+            O cancelamento entra em vigor imediatamente, e o acesso é encerrado
+            ao cancelar.
+          </div>
         </div>
       </div>
     </main>
