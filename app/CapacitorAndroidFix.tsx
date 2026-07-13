@@ -8,13 +8,16 @@ export default function CapacitorAndroidFix() {
       const { Capacitor } = await import("@capacitor/core");
 
       if (!Capacitor.isNativePlatform()) return;
-      if (Capacitor.getPlatform() !== "android") return;
+
+      const platform = Capacitor.getPlatform();
 
       const { StatusBar } = await import("@capacitor/status-bar");
-      const { Keyboard, KeyboardResize } = await import("@capacitor/keyboard");
-
       await StatusBar.setOverlaysWebView({ overlay: false });
-      await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
+
+      if (platform === "android") {
+        const { Keyboard, KeyboardResize } = await import("@capacitor/keyboard");
+        await Keyboard.setResizeMode({ mode: KeyboardResize.Body });
+      }
     })();
   }, []);
 

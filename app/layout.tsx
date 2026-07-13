@@ -1,5 +1,6 @@
 "use client";
 import RouteLoading from "@/components/RouteLoading";
+import CapacitorAndroidFix from "./CapacitorAndroidFix";
 
 import { Rowdies } from "next/font/google";
 import { usePathname } from "next/navigation";
@@ -45,7 +46,8 @@ export default function RootLayout({
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
         />
       </head>
-      <body style={{ background: "#ffffff", paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}><RouteLoading />
+      <body style={{ background: "#ffffff" }}><RouteLoading />
+        <CapacitorAndroidFix />
         {showHeader && <Header />}
 
         {children}
@@ -55,6 +57,9 @@ export default function RootLayout({
     </html>
   );
 }
+
+
+
 
 
 
