@@ -11,6 +11,10 @@ export default function CapacitorAndroidFix() {
 
       const platform = Capacitor.getPlatform();
 
+      if (platform === "ios") {
+        document.documentElement.classList.add("capacitor-ios");
+      }
+
       const { StatusBar } = await import("@capacitor/status-bar");
       await StatusBar.setOverlaysWebView({ overlay: false });
 
@@ -23,3 +27,4 @@ export default function CapacitorAndroidFix() {
 
   return null;
 }
+
