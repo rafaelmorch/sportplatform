@@ -65,7 +65,7 @@ export default function LoginPage() {
       <main
         style={{
           height: "100vh",
-          width: "100vw",
+          width: "100%",
           background:
             "radial-gradient(circle at top, #020617 0%, #020617 45%, #000 100%)",
           display: "flex",
@@ -137,6 +137,7 @@ export default function LoginPage() {
                 border: "none",
                 background: "#e5eefc",
                 color: "#000",
+                fontSize: 16,
               }}
             />
 
@@ -153,6 +154,7 @@ export default function LoginPage() {
                 border: "none",
                 background: "#e5eefc",
                 color: "#000",
+                fontSize: 16,
               }}
             />
 
@@ -222,4 +224,6 @@ export default function LoginPage() {
     </>
   );
 }
+
+
 
