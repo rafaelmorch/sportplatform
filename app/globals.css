@@ -39,8 +39,9 @@ html {
 }
 
 
-html.capacitor-ios input,
-html.capacitor-ios textarea,
-html.capacitor-ios select {
+input,
+textarea,
+select {
   font-size: 16px !important;
 }
+
