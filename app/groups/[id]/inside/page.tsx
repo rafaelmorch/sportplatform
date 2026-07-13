@@ -1462,7 +1462,7 @@ return (
           minHeight: "100vh",
           background:
             "linear-gradient(180deg, #eef1f5 0%, #e5e7eb 45%, #dfe3e8 100%)",
-          paddingTop: "max(60px, env(safe-area-inset-top))",
+          paddingTop: "max(16px, env(safe-area-inset-top))",
           paddingRight: "max(16px, env(safe-area-inset-right))",
           paddingBottom: "max(16px, env(safe-area-inset-bottom))",
           paddingLeft: "max(16px, env(safe-area-inset-left))",
@@ -3254,6 +3254,7 @@ overflow: "hidden",
     </>
   );
 }
+
 
 
 

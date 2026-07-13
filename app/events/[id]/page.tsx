@@ -313,7 +313,7 @@ export default function EventDetailPage() {
     <main
       style={{
         minHeight: "100vh",
-        width: "100vw",
+        width: "100%",
         margin: 0,
         background: "#ffffff",
         color: "#000000",
@@ -621,6 +621,7 @@ export default function EventDetailPage() {
     </main>
   );
 }
+
 
 
 
