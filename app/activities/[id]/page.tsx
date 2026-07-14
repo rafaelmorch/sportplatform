@@ -602,7 +602,7 @@ export default function ActivityDetailPage() {
                   {loading ? "Loading..." : fieldValue(activity?.title ?? null)}
                 </h1>
 
-                <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif", margin: "6px 0 0 0" }}>
+                <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif", margin: "6px 0 0 0" }}>
                   {typeText} • {dateText}
                 </p>
               </div>
@@ -854,8 +854,9 @@ export default function ActivityDetailPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 <span
                   style={{
-                    fontSize: 11,
-                    padding: "4px 10px",
+                    fontSize: 13,
+                    fontWeight: 600,                     fontFamily: "Montserrat, sans-serif",
+                    padding: "6px 12px",
                     borderRadius: 6,
                     border: "1px solid rgba(56,189,248,0.5)",
                     background: "#1e3a8a",
@@ -868,8 +869,9 @@ export default function ActivityDetailPage() {
 
                 <span
                   style={{
-                    fontSize: 11,
-                    padding: "4px 10px",
+                    fontSize: 13,
+                    fontWeight: 600,                     fontFamily: "Montserrat, sans-serif",
+                    padding: "6px 12px",
                     borderRadius: 6,
                     border: "1px solid rgba(148,163,184,0.35)",
                     background: "#ffffff",
@@ -882,8 +884,9 @@ export default function ActivityDetailPage() {
 
                 <span
                   style={{
-                    fontSize: 11,
-                    padding: "4px 10px",
+                    fontSize: 13,
+                    fontWeight: 600,                     fontFamily: "Montserrat, sans-serif",
+                    padding: "6px 12px",
                     borderRadius: 6,
                     border: "1px solid rgba(148,163,184,0.35)",
                     background: "#ffffff",
@@ -907,8 +910,8 @@ export default function ActivityDetailPage() {
                         { label: "Start date", value: formatDateTime(activity?.start_date ?? null) },
                       ].map((row) => (
                         <div key={row.label}>
-                          <p style={{ margin: 0, fontSize: 12, color: "#1e3a8a" }}>{row.label}</p>
-                          <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "Montserrat, sans-serif", color: "#1e3a8a" }}>{row.label}</p>
+                          <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                             {String(row.value || "—")}
                           </p>
                         </div>
@@ -922,8 +925,8 @@ export default function ActivityDetailPage() {
                         { label: "State", value: activity?.state ?? "—" },
                       ].map((row) => (
                         <div key={row.label}>
-                          <p style={{ margin: 0, fontSize: 12, color: "#1e3a8a" }}>{row.label}</p>
-                          <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "Montserrat, sans-serif", color: "#1e3a8a" }}>{row.label}</p>
+                          <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                             {String(row.value || "—")}
                           </p>
                         </div>
@@ -936,7 +939,7 @@ export default function ActivityDetailPage() {
               {activity?.description ? (
                 <div>
                   <h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: "10px 0 6px 0" }}>Description</h2>
-                  <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif", margin: 0, whiteSpace: "pre-wrap" }}>{activity.description}</p>
+                  <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif", margin: 0, whiteSpace: "pre-wrap" }}>{activity.description}</p>
                 </div>
               ) : null}
 
@@ -944,7 +947,7 @@ export default function ActivityDetailPage() {
                 <h2 style={{ fontSize: 16, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: "10px 0 6px 0" }}>Attendance</h2>
 
                 <div style={{ padding: 12, display: "flex", flexDirection: "column", gap: 10, ...boxStyle }}>
-                  <p style={{ margin: 0, fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif" }}>
+                  <p style={{ margin: 0, fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif" }}>
                     Confirmed: <span style={{ color: "#374151", fontWeight: 900 }}>{confirmedCount}</span>
                   </p>
 
@@ -1005,7 +1008,7 @@ export default function ActivityDetailPage() {
                       </h3>
 
                       {creatorLoading ? (
-                        <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Arial, sans-serif" }}>Loading list...</p>
+                        <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Montserrat, sans-serif" }}>Loading list...</p>
                       ) : creatorAttendees.length ? (
                         <div style={{ borderRadius: 12, overflow: "hidden", ...boxStyle }}>
                           <div
@@ -1043,7 +1046,7 @@ export default function ActivityDetailPage() {
                           ))}
                         </div>
                       ) : (
-                        <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Arial, sans-serif" }}>No confirmations yet.</p>
+                        <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Montserrat, sans-serif" }}>No confirmations yet.</p>
                       )}
                     </div>
                   ) : null}
@@ -1055,12 +1058,12 @@ export default function ActivityDetailPage() {
 
                 {mapUrl ? (
                   <>
-                    <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif", margin: 0 }}>
+                    <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif", margin: 0 }}>
                       Address used on map: <span style={{ color: "#374151" }}>{fieldValue(addressForMap || null)}</span>
                     </p>
 
                     {activity?.lat != null && activity?.lng != null ? (
-                      <p style={{ fontSize: 12, color: "#64748b", fontFamily: "Arial, sans-serif", margin: "6px 0 0 0" }}>
+                      <p style={{ fontSize: 12, color: "#64748b", fontFamily: "Montserrat, sans-serif", margin: "6px 0 0 0" }}>
                         Lat/Lng:{" "}
                         <span style={{ color: "#374151" }}>
                           {activity?.lat}, {activity?.lng}
@@ -1073,7 +1076,7 @@ export default function ActivityDetailPage() {
                     </div>
                   </>
                 ) : (
-                  <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Arial, sans-serif", margin: 0 }}>
+                  <p style={{ fontSize: 13, color: "#6b7280", fontFamily: "Montserrat, sans-serif", margin: 0 }}>
                     Not enough address data to show the map. Fill in <b>address_text</b> (or city/state) for this activity.
                   </p>
                 )}
@@ -1097,9 +1100,9 @@ export default function ActivityDetailPage() {
                     }}
                   >
                     {chatLoading ? (
-                      <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Arial, sans-serif" }}>Loading messages...</p>
+                      <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Montserrat, sans-serif" }}>Loading messages...</p>
                     ) : chatMessages.length === 0 ? (
-                      <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Arial, sans-serif" }}>No messages yet. Be the first to say something.</p>
+                      <p style={{ margin: 0, fontSize: 12, color: "#64748b", fontFamily: "Montserrat, sans-serif" }}>No messages yet. Be the first to say something.</p>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {chatMessages.map((m) => {
@@ -1145,7 +1148,7 @@ export default function ActivityDetailPage() {
 
                   <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
                     <label style={{ flex: "1 1 360px" }}>
-                      <p style={{ margin: 0, fontSize: 12, color: "#1e3a8a" }}>Message</p>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 600, fontFamily: "Montserrat, sans-serif", color: "#1e3a8a" }}>Message</p>
                       <textarea
                         value={chatText}
                         onChange={(e) => setChatText(e.target.value)}
@@ -1227,6 +1230,8 @@ export default function ActivityDetailPage() {
     </>
   );
 }
+
+
 
 
 

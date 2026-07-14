@@ -264,7 +264,7 @@ export default function ActivitiesPage() {
                         <h2
                           style={{
                             margin: 0,
-                            fontSize: 15,
+                            fontSize: 17,
                             fontWeight: 700, fontFamily: "Montserrat, sans-serif",
                             whiteSpace: "nowrap", borderRadius: 6,
                             overflow: "hidden",
@@ -287,29 +287,19 @@ export default function ActivitiesPage() {
                           <span style={{ color: "#1e3a8a", fontWeight: 600 }}>{a.sport ?? "—"}</span> • {formatDateTime(a.start_date)}
                         </p>
 
-                        <p
-                          style={{
-                            margin: "6px 0 0 0",
-                            fontSize: 12,
-                            color: "#374151", fontFamily: "Montserrat, sans-serif",
-                            whiteSpace: "nowrap", borderRadius: 6,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {buildAddress(a)}
-                        </p>
-
                         {a.description ? (
                           <p
                             style={{
                               margin: "8px 0 0 0",
-                              fontSize: 12,
-                              color: "#374151", fontFamily: "Montserrat, sans-serif",
+                              fontSize: 13,
+                              color: "#374151",
+                              fontFamily: "Montserrat, sans-serif",
                               display: "-webkit-box",
                               WebkitLineClamp: 2,
                               WebkitBoxOrient: "vertical",
                               overflow: "hidden",
+                              lineHeight: 1.45,
+                              whiteSpace: "normal",
                               wordBreak: "break-word",
                             }}
                           >
@@ -370,3 +360,5 @@ export default function ActivitiesPage() {
     </>
   );
 }
+
+
