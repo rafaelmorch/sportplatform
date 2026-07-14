@@ -34,8 +34,6 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [regulationOpen, setRegulationOpen] = useState(false);
-  const [regulationZoom, setRegulationZoom] = useState(1);
   function setField<K extends keyof typeof form>(field: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -242,22 +240,18 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
                 Regulamento Oficial
               </h2>
 
-              <button
-                type="button"
-                onClick={() => { setRegulationZoom(1); setRegulationOpen(true); }}
+              <a
+                href="/images/soccer-regulamento.jpeg"
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  border: 0,
-                  background: "transparent",
                   color: "#2563eb",
                   fontWeight: 600,
-                  fontSize: 15,
-                  cursor: "pointer",
-                  padding: 0,
-                  fontFamily: "Calibri, Arial, sans-serif",
+                  textDecoration: "none",
                 }}
               >
                 Abrir em tela cheia
-              </button>
+              </a>
             </div>
 
             <img
@@ -531,166 +525,10 @@ Autorizo, de forma livre e irrevogável, o uso da minha imagem e voz em fotos, v
           </div>
         </form>
 
-        {regulationOpen && (
-          <div
-            onClick={() => setRegulationOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 9999,
-              background: "rgba(15, 23, 42, 0.92)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-            }}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "relative",
-                width: "100%",
-                maxWidth: 980,
-                maxHeight: "94vh",
-                overflow: "auto",
-                touchAction: "pan-x pan-y pinch-zoom",
-                WebkitOverflowScrolling: "touch",
-                borderRadius: 18,
-                background: "#ffffff",
-                padding: 12,
-                boxShadow: "0 28px 70px rgba(0, 0, 0, 0.45)",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setRegulationOpen(false)}
-                aria-label="Fechar regulamento"
-                style={{
-                  position: "sticky",
-                  top: 8,
-                  marginLeft: "auto",
-                  zIndex: 2,
-                  width: 42,
-                  height: 42,
-                  borderRadius: "999px",
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#0f172a",
-                  fontSize: 24,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 6px 18px rgba(15, 23, 42, 0.18)",
-                }}
-              >
-                ×
-              </button>
-
-              <div
-                style={{
-                  position: "sticky",
-                  top: 8,
-                  zIndex: 3,
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: 8,
-                  margin: "8px 0 12px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRegulationZoom((current) =>
-                      Math.max(0.75, Number((current - 0.25).toFixed(2)))
-                    )
-                  }
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    border: "1px solid #cbd5e1",
-                    background: "#ffffff",
-                    fontSize: 24,
-                    cursor: "pointer",
-                  }}
-                  aria-label="Diminuir imagem"
-                >
-                  −
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRegulationZoom(1)}
-                  style={{
-                    minWidth: 70,
-                    height: 44,
-                    borderRadius: 12,
-                    border: "1px solid #cbd5e1",
-                    background: "#ffffff",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  {Math.round(regulationZoom * 100)}%
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setRegulationZoom((current) =>
-                      Math.min(3, Number((current + 0.25).toFixed(2)))
-                    )
-                  }
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    border: "1px solid #cbd5e1",
-                    background: "#ffffff",
-                    fontSize: 24,
-                    cursor: "pointer",
-                  }}
-                  aria-label="Aumentar imagem"
-                >
-                  +
-                </button>
-              </div>
-
-              <div
-                style={{
-                  width: `${regulationZoom * 100}%`,
-                  minWidth: `${regulationZoom * 100}%`,
-                  margin: "0 auto",
-                  touchAction: "pan-x pan-y pinch-zoom",
-                }}
-              >
-                <img
-                  src="/images/soccer-regulamento.jpeg"
-                  alt="Regulamento do Campeonato de Futebol"
-                  draggable={false}
-                  style={{
-                    width: "100%",
-                    height: "auto",
-                    display: "block",
-                    borderRadius: 12,
-                    userSelect: "none",
-                    WebkitUserSelect: "none",
-                    touchAction: "pan-x pan-y pinch-zoom",
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 }
-
-
 
 
 
