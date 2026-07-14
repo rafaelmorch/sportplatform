@@ -250,7 +250,7 @@ export default function MembershipVideosPage() {
               }}
             >
               <Link
-                href={`/memberships/${communityId}/inside`}
+                href="/intro"
                 style={{
                   textDecoration: "none",
                   color: "#64748b",
@@ -265,7 +265,7 @@ export default function MembershipVideosPage() {
               </Link>
 
               <Link
-                href={`/memberships/${communityId}/inside/chat`}
+                href={`/groups/${communityId}/inside/chat`}
                 style={{
                   textDecoration: "none",
                   color: "#64748b",
@@ -280,7 +280,7 @@ export default function MembershipVideosPage() {
               </Link>
 
               <Link
-                href={`/memberships/${communityId}/inside/events`}
+                href={`/groups/${communityId}/inside/events`}
                 style={{
                   textDecoration: "none",
                   color: "#64748b",
@@ -295,7 +295,7 @@ export default function MembershipVideosPage() {
               </Link>
 
               <Link
-                href={`/memberships/${communityId}/inside/videos`}
+                href={`/groups/${communityId}/inside/videos`}
                 style={{
                   textDecoration: "none",
                   color: "#0f172a",
@@ -441,6 +441,9 @@ export default function MembershipVideosPage() {
     </>
   );
 }
+
+
+
 
 
 

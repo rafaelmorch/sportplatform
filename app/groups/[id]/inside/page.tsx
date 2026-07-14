@@ -1585,7 +1585,7 @@ overflow: "hidden",
               }}
             >
               <Link
-                href={`/groups/${communityId}/inside`}
+                href="/intro"
                 style={{
                   textDecoration: "none",
                   fontSize: 14,
@@ -3254,6 +3254,7 @@ overflow: "hidden",
     </>
   );
 }
+
 
 
 
