@@ -1,38 +1,46 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export default function Home() {
-  const router = useRouter();
-
   useEffect(() => {
-    const isApp = typeof window !== "undefined" && (window as any).Capacitor;
+    const capacitor = (window as any).Capacitor;
 
-    // 🔥 Se NÃO for app → pula intro
-    if (!isApp) {
-      router.replace("/activities");
-      return;
+    const isApp =
+      typeof capacitor?.isNativePlatform === "function"
+        ? capacitor.isNativePlatform()
+        : Boolean(capacitor);
+
+    let destination = "/activities";
+
+    if (isApp) {
+      const lastSeen = localStorage.getItem("intro_last_seen");
+      const lastSeenTimestamp = lastSeen ? Number(lastSeen) : 0;
+
+      const oneDay = 24 * 60 * 60 * 1000;
+      const introExpired =
+        !lastSeenTimestamp || Date.now() - lastSeenTimestamp > oneDay;
+
+      destination = introExpired ? "/intro" : "/activities";
     }
 
-    const lastSeen = localStorage.getItem("intro_last_seen");
+    window.location.replace(destination);
+  }, []);
 
-    if (!lastSeen) {
-      router.replace("/intro");
-      return;
-    }
-
-    const now = Date.now();
-    const diff = now - parseInt(lastSeen, 10);
-
-    const ONE_DAY = 24 * 60 * 60 * 1000;
-
-    if (diff > ONE_DAY) {
-      router.replace("/intro");
-    } else {
-      router.replace("/activities");
-    }
-  }, [router]);
-
-  return null;
+  return (
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#ffffff",
+        fontFamily: "Montserrat, Arial, sans-serif",
+        color: "#64748b",
+        fontSize: 14,
+      }}
+    >
+      Loading...
+    </main>
+  );
 }
