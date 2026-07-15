@@ -14,6 +14,7 @@ import UserAvatar from "@/components/UserAvatar";
 
 type Post = {
   id: string;
+  user_id: string;
   created_at: string;
   author_name: string | null;
   content: string;
@@ -93,6 +94,11 @@ export default function FeedPage() {
   const [loadingCommentsPostId, setLoadingCommentsPostId] = useState<
     string | null
   >(null);
+
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
+    null
+  );
 
   async function loadPosts() {
     setLoading(true);
@@ -358,6 +364,92 @@ export default function FeedPage() {
     setCommentLoadingPostId(null);
   }
 
+  async function handleDeletePost(postId: string) {
+    if (!userId) return;
+
+    const confirmed = window.confirm("Excluir esta postagem?");
+    if (!confirmed) return;
+
+    setDeletingPostId(postId);
+
+    const { error } = await supabaseBrowser
+      .from("feed_posts")
+      .delete()
+      .eq("id", postId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Erro ao excluir postagem:", error);
+      alert("Não foi possível excluir a postagem.");
+      setDeletingPostId(null);
+      return;
+    }
+
+    setPosts((current) => current.filter((post) => post.id !== postId));
+
+    setLikedPosts((previous) => {
+      const copy = new Set(previous);
+      copy.delete(postId);
+      return copy;
+    });
+
+    setOpenComments((previous) => {
+      const copy = new Set(previous);
+      copy.delete(postId);
+      return copy;
+    });
+
+    setPostComments((previous) => {
+      const copy = { ...previous };
+      delete copy[postId];
+      return copy;
+    });
+
+    setDeletingPostId(null);
+  }
+
+  async function handleDeleteComment(postId: string, commentId: string) {
+    if (!userId) return;
+
+    const confirmed = window.confirm("Excluir este comentário?");
+    if (!confirmed) return;
+
+    setDeletingCommentId(commentId);
+
+    const { error } = await supabaseBrowser
+      .from("feed_comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Erro ao excluir comentário:", error);
+      alert("Não foi possível excluir o comentário.");
+      setDeletingCommentId(null);
+      return;
+    }
+
+    setPostComments((previous) => ({
+      ...previous,
+      [postId]: (previous[postId] ?? []).filter(
+        (comment) => comment.id !== commentId
+      ),
+    }));
+
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              comments_count: Math.max(0, post.comments_count - 1),
+            }
+          : post
+      )
+    );
+
+    setDeletingCommentId(null);
+  }
+
   return (
     <>
       {/* ✅ FIX da margem branca no app (WebView): zera html/body/#__next e força fundo escuro */}
@@ -558,6 +650,31 @@ export default function FeedPage() {
                           {new Date(post.created_at).toLocaleString()}
                         </span>
                       </div>
+
+                      {userId === post.user_id && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePost(post.id)}
+                          disabled={deletingPostId === post.id}
+                          style={{
+                            marginLeft: "auto",
+                            border: "1px solid #fecaca",
+                            background: "#fff1f2",
+                            color: "#be123c",
+                            borderRadius: "999px",
+                            padding: "4px 9px",
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            opacity: deletingPostId === post.id ? 0.7 : 1,
+                          }}
+                        >
+                          {deletingPostId === post.id
+                            ? "Excluindo..."
+                            : "Excluir"}
+                        </button>
+                      )}
                     </div>
 
                     <p
@@ -802,6 +919,32 @@ export default function FeedPage() {
                                   <p style={{ margin: 0, color: "#d1d5db" }}>
                                     {c.content}
                                   </p>
+
+                                  {userId === c.user_id && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDeleteComment(post.id, c.id)
+                                      }
+                                      disabled={deletingCommentId === c.id}
+                                      style={{
+                                        marginTop: "4px",
+                                        border: "none",
+                                        background: "transparent",
+                                        color: "#be123c",
+                                        fontSize: "10px",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        padding: 0,
+                                        opacity:
+                                          deletingCommentId === c.id ? 0.7 : 1,
+                                      }}
+                                    >
+                                      {deletingCommentId === c.id
+                                        ? "Excluindo..."
+                                        : "Excluir"}
+                                    </button>
+                                  )}
                                 </div>
                               </li>
                             ))}
@@ -821,6 +964,8 @@ export default function FeedPage() {
     </>
   );
 }
+
+
 
 
 

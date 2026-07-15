@@ -137,6 +137,7 @@ export default function NewFeedPostPage() {
       if (imageFile) imageUrl = await uploadImageIfNeeded(user.id);
 
       const { error: insertError } = await supabase.from("feed_posts").insert({
+        user_id: user.id,
         content: content.trim() || null,
         author_name: authorName,
         image_url: imageUrl,
@@ -345,6 +346,3 @@ export default function NewFeedPostPage() {
     </>
   );
 }
-
-
-

@@ -1160,7 +1160,11 @@ const typedCommunity = community as CommunityRow;
 
     setDeletingPostId(postId);
 
-    const { error } = await supabase.from("app_membership_feed_posts").delete().eq("id", postId);
+    const { error } = await supabase
+  .from("app_membership_feed_posts")
+  .delete()
+  .eq("id", postId)
+  .eq("user_id", userId);
 
     if (error) {
       console.error("Error deleting post:", error);
@@ -1204,7 +1208,8 @@ const typedCommunity = community as CommunityRow;
     const { error } = await supabase
       .from("app_membership_feed_comments")
       .delete()
-      .eq("id", commentId);
+      .eq("id", commentId)
+      .eq("user_id", userId);
 
     if (error) {
       console.error("Error deleting comment:", error);
@@ -2350,8 +2355,7 @@ overflow: "hidden",
                               >
                                 {comments.map((c) => {
                                   const commentAuthor = getDisplayName(c.author_name);
-                                  const canDeleteComment =
-                                    userId === c.user_id || userId === post.user_id;
+                                  const canDeleteComment = userId === c.user_id;
 
                                   return (
                                     <li
@@ -3254,6 +3258,12 @@ overflow: "hidden",
     </>
   );
 }
+
+
+
+
+
+
 
 
 
