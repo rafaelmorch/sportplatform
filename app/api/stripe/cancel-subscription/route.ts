@@ -50,9 +50,13 @@ export async function POST(req: Request) {
       );
     }
 
-    if (membership.subscription_status !== "active") {
+    if (
+      !["active", "trialing"].includes(
+        membership.subscription_status ?? ""
+      )
+    ) {
       return NextResponse.json(
-        { error: "Subscription is not active." },
+        { error: "Subscription is not active or trialing." },
         { status: 400 }
       );
     }
@@ -73,4 +77,5 @@ export async function POST(req: Request) {
     );
   }
 }
+
 
