@@ -861,7 +861,7 @@ const typedCommunity = community as CommunityRow;
         const hasValidAccess =
           request &&
           request.status === "active" &&
-          request.subscription_status === "active";
+          ["active", "trialing"].includes(request.subscription_status ?? "");
 
         if (!hasValidAccess) {
           router.replace(`/groups/pending?community_id=${id}`);
@@ -3258,6 +3258,8 @@ overflow: "hidden",
     </>
   );
 }
+
+
 
 
 
