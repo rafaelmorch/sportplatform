@@ -21,6 +21,7 @@ function PendingMembershipContent() {
 
   const [message, setMessage] = useState<string | null>(null);
   const [creatingCheckout, setCreatingCheckout] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,7 +48,8 @@ function PendingMembershipContent() {
 
       if (
         data.status === "active" &&
-        data.subscription_status === "active"
+        (data.subscription_status === "active" ||
+          data.subscription_status === "trialing")
       ) {
         router.replace(`/groups/${communityId}/inside`);
       }
@@ -66,6 +68,13 @@ function PendingMembershipContent() {
   }, [communityId, router, supabase]);
 
   async function handleCreateStripeCheckout() {
+    if (!termsAccepted) {
+      setMessage(
+        "You must accept the Terms & Conditions before continuing. | Você precisa aceitar os Termos e Condições antes de continuar."
+      );
+      return;
+    }
+
     try {
       setCreatingCheckout(true);
       setMessage(null);
@@ -187,7 +196,7 @@ function PendingMembershipContent() {
             color: "#0f172a",
           }}
         >
-          Join Membership
+          Start Your Free Trial
         </h1>
 
         <div
@@ -200,10 +209,12 @@ function PendingMembershipContent() {
         >
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             Unlock your full Platform Sports experience.
+No charge today.
           </div>
 
           <div>
-            Assine e desbloqueie toda a experiência da Platform Sports.
+            Desbloqueie toda a experiência da Platform Sports.
+Nenhuma cobrança hoje.
           </div>
         </div>
 
@@ -311,7 +322,7 @@ function PendingMembershipContent() {
               color: "#0f172a",
             }}
           >
-            Monthly Membership
+            30-Day Free Trial
           </h2>
 
           <div
@@ -370,10 +381,84 @@ function PendingMembershipContent() {
             </div>
           </div>
 
+          <div
+            style={{
+              marginTop: 22,
+              padding: "16px",
+              borderRadius: 16,
+              border: "1px solid #cbd5e1",
+              background: "#ffffff",
+            }}
+          >
+            <label
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                cursor: "pointer",
+                fontSize: 13,
+                lineHeight: 1.6,
+                color: "#334155",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(event) => {
+                  setTermsAccepted(event.target.checked);
+
+                  if (event.target.checked) {
+                    setMessage(null);
+                  }
+                }}
+                style={{
+                  width: 18,
+                  height: 18,
+                  marginTop: 2,
+                  flexShrink: 0,
+                  cursor: "pointer",
+                }}
+              />
+
+              <span>
+                I have read and agree to the{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "#1d4ed8",
+                    fontWeight: 700,
+                    textDecoration: "underline",
+                  }}
+                >
+                  Terms & Conditions
+                </a>
+                .
+                <br />
+                Li e aceito os{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "#1d4ed8",
+                    fontWeight: 700,
+                    textDecoration: "underline",
+                  }}
+                >
+                  Termos e Condições
+                </a>
+                .
+              </span>
+            </label>
+          </div>
+
+
           <button
             type="button"
             onClick={handleCreateStripeCheckout}
-            disabled={creatingCheckout}
+            disabled={creatingCheckout || !termsAccepted}
             style={{
               width: "100%",
               border: "1px solid #cbd5e1",
@@ -386,11 +471,14 @@ function PendingMembershipContent() {
               color: "#f8fafc",
               boxShadow:
                 "0 14px 28px rgba(15,23,42,0.18), inset 1px 1px 0 rgba(255,255,255,0.1)",
-              cursor: creatingCheckout ? "not-allowed" : "pointer",
-              opacity: creatingCheckout ? 0.7 : 1,
+              cursor:
+                creatingCheckout || !termsAccepted
+                  ? "not-allowed"
+                  : "pointer",
+              opacity: creatingCheckout || !termsAccepted ? 0.55 : 1,
             }}
           >
-            {creatingCheckout ? "Opening checkout..." : "Subscribe Monthly"}
+            {creatingCheckout ? "Opening checkout..." : "Start Free Trial (30 Days)"}
           </button>
 
           <div
@@ -402,9 +490,9 @@ function PendingMembershipContent() {
               lineHeight: 1.8,
             }}
           >
-            🔒 Secure checkout powered by Stripe.
+            🔒 No charge today • Secure checkout powered by Stripe.
             <br />
-            🔒 Pagamento seguro processado pelo Stripe.
+            🔒 Nenhuma cobrança hoje • Pagamento seguro processado pelo Stripe.
           </div>
 
           {message && (
@@ -473,6 +561,35 @@ function PendingMembershipContent() {
             O cancelamento entra em vigor imediatamente, e o acesso é encerrado
             ao cancelar.
           </div>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            margin: "20px auto 0",
+            paddingTop: 18,
+            borderTop: "1px solid #e2e8f0",
+            fontSize: 12,
+            lineHeight: 1.7,
+            color: "#64748b",
+            textAlign: "left",
+          }}
+        >
+          <strong style={{ color: "#475569" }}>
+            Your health comes first.
+          </strong>{" "}
+          Physical activity involves inherent risks. If you have any questions
+          about your health or physical condition, consult a physician before
+          participating.
+          <br />
+          <br />
+          <strong style={{ color: "#475569" }}>
+            Sua saúde vem em primeiro lugar.
+          </strong>{" "}
+          A prática de atividades físicas envolve riscos inerentes. Em caso de
+          dúvida sobre sua saúde ou condição física, consulte um médico antes de
+          participar.
+        </div>
+
         </div>
       </div>
     </main>
@@ -504,4 +621,13 @@ export default function PendingMembershipPage() {
     </>
   );
 }
+
+
+
+
+
+
+
+
+
 
