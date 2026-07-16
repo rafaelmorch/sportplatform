@@ -306,7 +306,7 @@ export default function ActivityDetailPage() {
       if (cancelled) return;
 
       const isCommunityCreator = community?.created_by === user.id;
-      const isApprovedMember = request?.status === "approved";
+      const isApprovedMember = ["approved", "active"].includes(request?.status ?? "");
 
       if (isCommunityCreator || isApprovedMember) {
         setCanAccessProtectedContent(true);
