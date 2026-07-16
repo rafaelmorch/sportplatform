@@ -192,19 +192,6 @@ export default function MembershipCommunityPage() {
   return (
     <>
       <style jsx global>{`
-        .community-rich-description p {
-          margin: 0 0 12px;
-        }
-
-        .community-rich-description p:empty {
-          margin-bottom: 8px;
-        }
-
-        .community-rich-description p:last-child {
-          margin-bottom: 0;
-        }
-      `}</style>
-      <style jsx global>{`
         html,
         body {
           margin: 0 !important;
@@ -316,44 +303,12 @@ export default function MembershipCommunityPage() {
         >
           <h2 style={{ color: "#0f172a", marginTop: 0 }}>{community.name}</h2>
           <p style={{ fontWeight: 700, marginBottom: "18px" }}>{priceLabel}</p>
-          {community.full_description_rich?.html ? (
-            <div
-              className="community-rich-description"
-              style={{
-                fontSize: "15px",
-                lineHeight: 1.8,
-                color: "#334155",
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
-              }}
-              dangerouslySetInnerHTML={{
-                __html: community.full_description_rich.html,
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                whiteSpace: "pre-line",
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
-                fontSize: "15px",
-                lineHeight: 1.8,
-                color: "#334155",
-              }}
-            >
-              {(community.full_description || "No description available yet.")
-                .replace(/&nbsp;/g, " ")
-                .replace(/&amp;nbsp;/g, " ")
-                .replace(/—+/g, "\n\n")}
-            </div>
-          )}
+          <div style={{ whiteSpace: "pre-line", wordBreak: "break-word", overflowWrap: "break-word", fontSize: "15px", lineHeight: 1.8, color: "#334155" }}>{(community.full_description || "No description available yet.").replace(/&nbsp;/g, " ").replace(/&amp;nbsp;/g, " ").replace(/—+/g, "\n\n")}</div>
         </div>
       </main>
     </>
   );
 }
-
-
 
 
 

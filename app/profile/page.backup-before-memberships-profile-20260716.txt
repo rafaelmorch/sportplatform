@@ -10,27 +10,6 @@ type ProfileRow = {
   full_name: string | null;
 };
 
-type MembershipRow = {
-  id: string;
-  community_id: string;
-  status: string | null;
-  subscription_status: string | null;
-  stripe_subscription_id: string | null;
-  current_period_end: string | null;
-  app_membership_communities:
-    | {
-        name: string | null;
-        price_cents: number | null;
-        billing_interval: string | null;
-      }
-    | {
-        name: string | null;
-        price_cents: number | null;
-        billing_interval: string | null;
-      }[]
-    | null;
-};
-
 export default function ProfilePage() {
   const router = useRouter();
 
@@ -41,12 +20,6 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  const [userId, setUserId] = useState<string | null>(null);
-  const [memberships, setMemberships] = useState<MembershipRow[]>([]);
-  const [loadingMemberships, setLoadingMemberships] = useState(true);
-  const [cancelingMembershipId, setCancelingMembershipId] =
-    useState<string | null>(null);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -66,7 +39,6 @@ export default function ProfilePage() {
       }
 
       const user = session.user;
-      setUserId(user.id);
       setEmail(user.email ?? null);
 
       try {
@@ -86,28 +58,11 @@ export default function ProfilePage() {
           "";
 
         setName(profile?.full_name || fallbackName || "");
-
-        const { data: membershipData, error: membershipError } =
-          await supabaseBrowser
-            .from("app_membership_requests")
-            .select(
-              "id, community_id, status, subscription_status, stripe_subscription_id, current_period_end, app_membership_communities(name, price_cents, billing_interval)"
-            )
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false });
-
-        if (membershipError) {
-          console.error("Error fetching memberships:", membershipError);
-          setMemberships([]);
-        } else {
-          setMemberships((membershipData as MembershipRow[]) ?? []);
-        }
       } catch (err) {
         console.error("Unexpected error loading profile:", err);
         setErrorMsg("Unexpected error while loading profile.");
       } finally {
         setLoadingProfile(false);
-        setLoadingMemberships(false);
       }
     };
 
@@ -343,7 +298,6 @@ export default function ProfilePage() {
             </button>
           </header>
 
-
           <section
             className="card"
             style={{
@@ -463,149 +417,11 @@ export default function ProfilePage() {
               </form>
             )}
           </section>
-
-          <section
-            className="card"
-            style={{
-              borderRadius: 18,
-              padding: "16px 14px",
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              marginBottom: 20,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                fontFamily: "Montserrat, sans-serif",
-                margin: "0 0 12px",
-              }}
-            >
-              Memberships
-            </h2>
-
-            {loadingMemberships ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
-                Loading memberships...
-              </p>
-            ) : memberships.length === 0 ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
-                You do not have any memberships yet.
-              </p>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
-                {memberships.map((membership) => {
-                  const relation =
-                    membership.app_membership_communities;
-
-                  const community = Array.isArray(relation)
-                    ? relation[0]
-                    : relation;
-
-                  const price =
-                    typeof community?.price_cents === "number"
-                      ? `$${(community.price_cents / 100).toFixed(2)}`
-                      : null;
-
-                  return (
-                    <div
-                      key={membership.id}
-                      style={{
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 14,
-                        padding: 14,
-                        background: "#f8fafc",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          fontFamily: "Montserrat, sans-serif",
-                          marginBottom: 10,
-                        }}
-                      >
-                        {community?.name || "Community"}
-                      </div>
-
-                      <div
-                        style={{
-                          display: "grid",
-                          gap: 6,
-                          fontSize: 12,
-                          color: "#475569",
-                          fontFamily: "Montserrat, sans-serif",
-                        }}
-                      >
-                        <div>
-                          Status:{" "}
-                          <strong style={{ color: "#0f172a" }}>
-                            {membership.subscription_status ||
-                              membership.status ||
-                              "pending"}
-                          </strong>
-                        </div>
-
-                        {membership.current_period_end && (
-                          <div>
-                            Next renewal:{" "}
-                            <strong style={{ color: "#0f172a" }}>
-                              {new Date(
-                                membership.current_period_end
-                              ).toLocaleDateString()}
-                            </strong>
-                          </div>
-                        )}
-
-                        {price && (
-                          <div>
-                            Price:{" "}
-                            <strong style={{ color: "#0f172a" }}>
-                              {price}/
-                              {community?.billing_interval || "month"}
-                            </strong>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
         </div>
       </main>
     </>
   );
 }
-
-
-
-
-
-
 
 
 

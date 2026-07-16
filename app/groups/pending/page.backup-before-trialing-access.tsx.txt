@@ -1,0 +1,507 @@
+"use client";
+
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import BackArrow from "@/components/BackArrow";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
+export const dynamic = "force-dynamic";
+
+function PendingMembershipContent() {
+  const supabase = useMemo(() => supabaseBrowser, []);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const communityId = searchParams.get("community_id");
+
+  const [message, setMessage] = useState<string | null>(null);
+  const [creatingCheckout, setCreatingCheckout] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    async function checkMembershipStatus() {
+      if (!communityId) return;
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) return;
+
+      const { data, error } = await supabase
+        .from("app_membership_requests")
+        .select("status, subscription_status")
+        .eq("community_id", communityId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!isMounted || error || !data) return;
+
+      if (
+        data.status === "active" &&
+        data.subscription_status === "active"
+      ) {
+        router.replace(`/groups/${communityId}/inside`);
+      }
+    }
+
+    checkMembershipStatus();
+    intervalId = setInterval(checkMembershipStatus, 3000);
+
+    return () => {
+      isMounted = false;
+
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [communityId, router, supabase]);
+
+  async function handleCreateStripeCheckout() {
+    try {
+      setCreatingCheckout(true);
+      setMessage(null);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setMessage("You must be logged in. | Você precisa estar conectado.");
+        return;
+      }
+
+      if (!communityId) {
+        setMessage("Missing community id. | Comunidade não identificada.");
+        return;
+      }
+
+      const { error: requestError } = await supabase
+        .from("app_membership_requests")
+        .upsert(
+          [
+            {
+              community_id: communityId,
+              user_id: user.id,
+              status: "pending",
+            },
+          ],
+          { onConflict: "community_id,user_id" }
+        );
+
+      if (requestError) {
+        setMessage(
+          requestError.message ||
+            "Failed to create membership request. | Não foi possível iniciar a assinatura."
+        );
+        return;
+      }
+
+      const response = await fetch(
+        "/api/stripe/create-subscription-checkout",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            community_id: communityId,
+            user_id: user.id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.url) {
+        setMessage(
+          data?.error ||
+            "Failed to create Stripe checkout. | Não foi possível abrir o pagamento."
+        );
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch (err: any) {
+      setMessage(
+        err?.message ||
+          "Unexpected Stripe error. | Ocorreu um erro inesperado."
+      );
+    } finally {
+      setCreatingCheckout(false);
+    }
+  }
+
+  return (
+    <main
+      className="pending-page"
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        background:
+          "linear-gradient(180deg, #eef1f5 0%, #e5e7eb 45%, #dfe3e8 100%)",
+        padding: 16,
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 900,
+          margin: "0 auto 16px auto",
+          boxSizing: "border-box",
+        }}
+      >
+        <BackArrow />
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 900,
+          margin: "0 auto",
+          borderRadius: 28,
+          padding: "clamp(18px, 4vw, 28px)",
+          boxSizing: "border-box",
+          border: "1px solid #d6dbe4",
+          background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+          boxShadow:
+            "8px 8px 24px rgba(148,163,184,0.18), -6px -6px 20px rgba(255,255,255,0.9)",
+          textAlign: "center",
+        }}
+      >
+        <h1
+          style={{
+            fontSize: 26,
+            fontWeight: 800,
+            margin: "0 0 16px 0",
+            color: "#0f172a",
+          }}
+        >
+          Join Membership
+        </h1>
+
+        <div
+          style={{
+            fontSize: 16,
+            lineHeight: 1.7,
+            color: "#334155",
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            Unlock your full Platform Sports experience.
+          </div>
+
+          <div>
+            Assine e desbloqueie toda a experiência da Platform Sports.
+          </div>
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            margin: "0 auto 24px auto",
+            borderRadius: 20,
+            padding: "20px clamp(18px, 4vw, 28px)",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            boxSizing: "border-box",
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#0f172a",
+              marginBottom: 12,
+            }}
+          >
+            Your membership includes
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.9,
+              color: "#334155",
+            }}
+          >
+            ✓ Runner Journey progression
+            <br />
+            ✓ Exclusive training videos
+            <br />
+            ✓ Community feed
+            <br />
+            ✓ Challenges and rankings
+            <br />
+            ✓ Performance tracking
+          </div>
+
+          <div
+            style={{
+              height: 1,
+              background: "#e2e8f0",
+              margin: "20px 0",
+            }}
+          />
+
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#0f172a",
+              marginBottom: 12,
+            }}
+          >
+            Sua assinatura inclui
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.9,
+              color: "#334155",
+            }}
+          >
+            ✓ Progressão no Runner Journey
+            <br />
+            ✓ Vídeos exclusivos de treinamento
+            <br />
+            ✓ Feed da comunidade
+            <br />
+            ✓ Desafios e ranking
+            <br />
+            ✓ Acompanhamento de desempenho
+          </div>
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            margin: "0 auto 24px auto",
+            borderRadius: 24,
+            padding: "clamp(18px, 4vw, 24px)",
+            boxSizing: "border-box",
+            border: "1px solid #d6dbe4",
+            background: "linear-gradient(180deg, #f8fafc 0%, #edf1f5 100%)",
+            boxShadow:
+              "8px 8px 24px rgba(148,163,184,0.14), -6px -6px 20px rgba(255,255,255,0.9)",
+            textAlign: "left",
+            overflow: "hidden",
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              margin: "0 0 16px 0",
+              color: "#0f172a",
+            }}
+          >
+            Monthly Membership
+          </h2>
+
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.85,
+              color: "#475569",
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 700,
+                color: "#0f172a",
+                marginBottom: 8,
+              }}
+            >
+              English
+            </div>
+
+            <div>
+              ✓ Cancel anytime
+              <br />
+              ✓ No long-term commitment
+              <br />
+              ✓ Secure payment powered by Stripe
+              <br />
+              ✓ Automatic monthly renewal
+            </div>
+
+            <div
+              style={{
+                height: 1,
+                background: "#dbe2ea",
+                margin: "18px 0",
+              }}
+            />
+
+            <div
+              style={{
+                fontWeight: 700,
+                color: "#0f172a",
+                marginBottom: 8,
+              }}
+            >
+              Português
+            </div>
+
+            <div>
+              ✓ Cancele quando quiser
+              <br />
+              ✓ Sem fidelidade
+              <br />
+              ✓ Pagamento seguro via Stripe
+              <br />
+              ✓ Renovação automática mensal
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCreateStripeCheckout}
+            disabled={creatingCheckout}
+            style={{
+              width: "100%",
+              border: "1px solid #cbd5e1",
+              borderRadius: 999,
+              padding: "14px 18px",
+              marginTop: 20,
+              fontSize: 13,
+              fontWeight: 700,
+              background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
+              color: "#f8fafc",
+              boxShadow:
+                "0 14px 28px rgba(15,23,42,0.18), inset 1px 1px 0 rgba(255,255,255,0.1)",
+              cursor: creatingCheckout ? "not-allowed" : "pointer",
+              opacity: creatingCheckout ? 0.7 : 1,
+            }}
+          >
+            {creatingCheckout ? "Opening checkout..." : "Subscribe Monthly"}
+          </button>
+
+          <div
+            style={{
+              marginTop: 16,
+              textAlign: "center",
+              fontSize: 12,
+              color: "#64748b",
+              lineHeight: 1.8,
+            }}
+          >
+            🔒 Secure checkout powered by Stripe.
+            <br />
+            🔒 Pagamento seguro processado pelo Stripe.
+          </div>
+
+          {message && (
+            <div
+              style={{
+                marginTop: 16,
+                fontSize: 13,
+                lineHeight: 1.6,
+                color: "#9a3412",
+                background: "#fff7ed",
+                border: "1px solid #fdba74",
+                borderRadius: 14,
+                padding: "10px 12px",
+                textAlign: "center",
+              }}
+            >
+              {message}
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            margin: "0 auto",
+            borderTop: "1px solid #dbe2ea",
+            paddingTop: 20,
+            fontSize: 13,
+            color: "#64748b",
+            lineHeight: 1.7,
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 700,
+              color: "#334155",
+              marginBottom: 6,
+            }}
+          >
+            English
+          </div>
+
+          <div style={{ marginBottom: 18 }}>
+            Your subscription renews automatically every month until canceled.
+            <br />
+            Cancellation takes effect immediately, and access ends when you
+            cancel.
+          </div>
+
+          <div
+            style={{
+              fontWeight: 700,
+              color: "#334155",
+              marginBottom: 6,
+            }}
+          >
+            Português
+          </div>
+
+          <div>
+            Sua assinatura é renovada automaticamente todos os meses até o
+            cancelamento.
+            <br />
+            O cancelamento entra em vigor imediatamente, e o acesso é encerrado
+            ao cancelar.
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export default function PendingMembershipPage() {
+  return (
+    <>
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #000 !important;
+          width: 100%;
+          height: 100%;
+          overflow-x: hidden;
+        }
+
+        .pending-page * {
+          font-family: "Montserrat", Arial, sans-serif;
+        }
+      `}</style>
+
+      <Suspense fallback={null}>
+        <PendingMembershipContent />
+      </Suspense>
+    </>
+  );
+}
+

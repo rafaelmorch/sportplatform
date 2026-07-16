@@ -744,7 +744,7 @@ export default function ActivityDetailPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Evento de comunidade privada / Private community event
+                  Private community event
                 </span>
               </div>
 
@@ -760,13 +760,13 @@ export default function ActivityDetailPage() {
                   lineHeight: 1.6,
                 }}
               >
-                Este evento pertence a uma comunidade privada. Entre na comunidade para acessar todos os detalhes, participantes, mapa e chat. / This event belongs to a private community. Join the community to view the full details, attendees, map and chat.
+                This event belongs to a private community. Join the community to view the full details, attendance, map and chat.
               </div>
 
               {lockedCommunityId && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   <Link
-                    href={`/groups/${lockedCommunityId}`}
+                    href={`/memberships/${lockedCommunityId}`}
                     style={{
                       fontSize: 12,
                       padding: "10px 12px",
@@ -778,7 +778,7 @@ export default function ActivityDetailPage() {
                       fontWeight: 800,
                     }}
                   >
-                    Entrar na comunidade / Join Community
+                    View Community
                   </Link>
                 </div>
               )}
@@ -1230,8 +1230,6 @@ export default function ActivityDetailPage() {
     </>
   );
 }
-
-
 
 
 

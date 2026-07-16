@@ -166,7 +166,7 @@ export default function ChallengeProofsAdminPage() {
         challengesInLevel.every((challenge) => completedIds.has(challenge.id));
 
       if (completedAllLevelChallenges) {
-        await supabase.from("app_membership_runner_progress").upsert(
+        const { error: progressError } = await supabase.from("app_membership_runner_progress").upsert(
           {
             community_id: proof.community_id,
             user_id: proof.user_id,
@@ -177,6 +177,11 @@ export default function ChallengeProofsAdminPage() {
           },
           { onConflict: "community_id,user_id" }
         );
+
+        if (progressError) {
+          setErrorText(progressError.message);
+          return;
+        }
       }
     }
 
@@ -326,6 +331,7 @@ export default function ChallengeProofsAdminPage() {
     </main>
   );
 }
+
 
 
 

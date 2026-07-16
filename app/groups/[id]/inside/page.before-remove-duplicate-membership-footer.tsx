@@ -853,7 +853,6 @@ const typedCommunity = community as CommunityRow;
           .eq("user_id", user.id)
           .maybeSingle();
 
-
         setStripeSubscriptionId(request?.stripe_subscription_id ?? null);
         setSubscriptionStatus(request?.subscription_status ?? null);
         setCurrentPeriodEnd(request?.current_period_end ?? null);
@@ -861,7 +860,7 @@ const typedCommunity = community as CommunityRow;
         const hasValidAccess =
           request &&
           request.status === "active" &&
-          ["active", "trialing"].includes(request.subscription_status ?? "");
+          request.subscription_status === "active";
 
         if (!hasValidAccess) {
           router.replace(`/groups/pending?community_id=${id}`);
@@ -1160,11 +1159,7 @@ const typedCommunity = community as CommunityRow;
 
     setDeletingPostId(postId);
 
-    const { error } = await supabase
-  .from("app_membership_feed_posts")
-  .delete()
-  .eq("id", postId)
-  .eq("user_id", userId);
+    const { error } = await supabase.from("app_membership_feed_posts").delete().eq("id", postId);
 
     if (error) {
       console.error("Error deleting post:", error);
@@ -1208,8 +1203,7 @@ const typedCommunity = community as CommunityRow;
     const { error } = await supabase
       .from("app_membership_feed_comments")
       .delete()
-      .eq("id", commentId)
-      .eq("user_id", userId);
+      .eq("id", commentId);
 
     if (error) {
       console.error("Error deleting comment:", error);
@@ -1275,7 +1269,7 @@ const typedCommunity = community as CommunityRow;
 
   const orderedRanking = rankingRows;
 
-return (
+  return (
     <>
       <style jsx global>{`
         html,
@@ -1573,6 +1567,47 @@ overflow: "hidden",
             </div>
           </div>
 
+          {!canManageHighlights && stripeSubscriptionId && (
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fff7ed",
+                borderRadius: 18,
+                padding: 16,
+                marginBottom: 18,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
+                Membership
+              </div>
+
+              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
+                Status: <strong>{subscriptionStatus || "active"}</strong>
+                {currentPeriodEnd ? (
+                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancelingSubscription}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  borderRadius: 999,
+                  padding: "9px 14px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
+                  opacity: cancelingSubscription ? 0.7 : 1,
+                }}
+              >
+                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
+              </button>
+            </div>
+          )}
           {communityId && (
             <div
               style={{
@@ -1590,7 +1625,7 @@ overflow: "hidden",
               }}
             >
               <Link
-                href="/intro"
+                href={`/groups/${communityId}/inside`}
                 style={{
                   textDecoration: "none",
                   fontSize: 14,
@@ -1983,6 +2018,47 @@ overflow: "hidden",
                 </div>
               </div>
 
+              {!canManageHighlights && stripeSubscriptionId && (
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fff7ed",
+                borderRadius: 18,
+                padding: 16,
+                marginBottom: 18,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
+                Membership
+              </div>
+
+              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
+                Status: <strong>{subscriptionStatus || "active"}</strong>
+                {currentPeriodEnd ? (
+                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancelingSubscription}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  borderRadius: 999,
+                  padding: "9px 14px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
+                  opacity: cancelingSubscription ? 0.7 : 1,
+                }}
+              >
+                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
+              </button>
+            </div>
+          )}
           {communityId && (
                 <Link
                   href={`/groups/${communityId}/inside/feed/new`}
@@ -2355,7 +2431,8 @@ overflow: "hidden",
                               >
                                 {comments.map((c) => {
                                   const commentAuthor = getDisplayName(c.author_name);
-                                  const canDeleteComment = userId === c.user_id;
+                                  const canDeleteComment =
+                                    userId === c.user_id || userId === post.user_id;
 
                                   return (
                                     <li
@@ -2697,6 +2774,47 @@ overflow: "hidden",
                   flexWrap: "wrap",
                 }}
               >
+                {!canManageHighlights && stripeSubscriptionId && (
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fff7ed",
+                borderRadius: 18,
+                padding: 16,
+                marginBottom: 18,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
+                Membership
+              </div>
+
+              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
+                Status: <strong>{subscriptionStatus || "active"}</strong>
+                {currentPeriodEnd ? (
+                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancelingSubscription}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  borderRadius: 999,
+                  padding: "9px 14px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
+                  opacity: cancelingSubscription ? 0.7 : 1,
+                }}
+              >
+                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
+              </button>
+            </div>
+          )}
           {communityId && (
                   <Link
                     href={`/groups/${communityId}/inside/checkins`}
@@ -2715,6 +2833,47 @@ overflow: "hidden",
                   </Link>
                 )}
 
+                {!canManageHighlights && stripeSubscriptionId && (
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fff7ed",
+                borderRadius: 18,
+                padding: 16,
+                marginBottom: 18,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
+                Membership
+              </div>
+
+              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
+                Status: <strong>{subscriptionStatus || "active"}</strong>
+                {currentPeriodEnd ? (
+                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancelingSubscription}
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fee2e2",
+                  color: "#991b1b",
+                  borderRadius: 999,
+                  padding: "9px 14px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
+                  opacity: cancelingSubscription ? 0.7 : 1,
+                }}
+              >
+                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
+              </button>
+            </div>
+          )}
           {communityId && (
                   <Link
                     href={`/groups/${communityId}/inside/checkin/new`}
@@ -3212,58 +3371,11 @@ overflow: "hidden",
               </div>
             )}
           </div> */}
-          {!canManageHighlights && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                marginTop: 24,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => router.push("/profile")}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#334155",
-                  borderRadius: 999,
-                  padding: "10px 16px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  boxShadow: "0 6px 16px rgba(15,23,42,0.08)",
-                }}
-              >
-                Manage Subscription
-              </button>
-            </div>
-          )}
         </div>
       </main>
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

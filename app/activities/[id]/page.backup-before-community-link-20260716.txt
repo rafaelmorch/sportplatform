@@ -766,7 +766,7 @@ export default function ActivityDetailPage() {
               {lockedCommunityId && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   <Link
-                    href={`/groups/${lockedCommunityId}`}
+                    href={`/groups/pending?community_id=${lockedCommunityId}`}
                     style={{
                       fontSize: 12,
                       padding: "10px 12px",
@@ -1230,7 +1230,6 @@ export default function ActivityDetailPage() {
     </>
   );
 }
-
 
 
 

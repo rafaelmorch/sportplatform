@@ -744,7 +744,7 @@ export default function ActivityDetailPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Evento de comunidade privada / Private community event
+                  Private community event
                 </span>
               </div>
 
@@ -760,13 +760,13 @@ export default function ActivityDetailPage() {
                   lineHeight: 1.6,
                 }}
               >
-                Este evento pertence a uma comunidade privada. Entre na comunidade para acessar todos os detalhes, participantes, mapa e chat. / This event belongs to a private community. Join the community to view the full details, attendees, map and chat.
+                This event belongs to a private community. Join the community to view the full details, attendance, map and chat.
               </div>
 
               {lockedCommunityId && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                   <Link
-                    href={`/groups/${lockedCommunityId}`}
+                    href={`/memberships/${lockedCommunityId}`}
                     style={{
                       fontSize: 12,
                       padding: "10px 12px",
@@ -778,7 +778,7 @@ export default function ActivityDetailPage() {
                       fontWeight: 800,
                     }}
                   >
-                    Entrar na comunidade / Join Community
+                    View Community
                   </Link>
                 </div>
               )}
@@ -854,9 +854,8 @@ export default function ActivityDetailPage() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 <span
                   style={{
-                    fontSize: 13,
-                    fontWeight: 600,                     fontFamily: "Montserrat, sans-serif",
-                    padding: "6px 12px",
+                    fontSize: 11,
+                    padding: "4px 10px",
                     borderRadius: 6,
                     border: "1px solid rgba(56,189,248,0.5)",
                     background: "#1e3a8a",
@@ -869,9 +868,8 @@ export default function ActivityDetailPage() {
 
                 <span
                   style={{
-                    fontSize: 13,
-                    fontWeight: 600,                     fontFamily: "Montserrat, sans-serif",
-                    padding: "6px 12px",
+                    fontSize: 11,
+                    padding: "4px 10px",
                     borderRadius: 6,
                     border: "1px solid rgba(148,163,184,0.35)",
                     background: "#ffffff",
@@ -884,9 +882,8 @@ export default function ActivityDetailPage() {
 
                 <span
                   style={{
-                    fontSize: 13,
-                    fontWeight: 600,                     fontFamily: "Montserrat, sans-serif",
-                    padding: "6px 12px",
+                    fontSize: 11,
+                    padding: "4px 10px",
                     borderRadius: 6,
                     border: "1px solid rgba(148,163,184,0.35)",
                     background: "#ffffff",
@@ -1230,8 +1227,6 @@ export default function ActivityDetailPage() {
     </>
   );
 }
-
-
 
 
 

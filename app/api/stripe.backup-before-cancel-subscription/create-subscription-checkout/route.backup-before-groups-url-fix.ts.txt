@@ -73,14 +73,13 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `https://www.sportsplatform.app/groups/${community_id}/inside`,
-      cancel_url: `https://www.sportsplatform.app/groups/pending?community_id=${community_id}`,
+      success_url: `https://platformsports.app/memberships/${community_id}/inside`,
+      cancel_url: `https://platformsports.app/memberships/pending?community_id=${community_id}`,
       metadata: {
         community_id,
         user_id,
       },
       subscription_data: {
-        trial_period_days: 30,
         metadata: {
           community_id,
           user_id,
@@ -98,9 +97,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-
-
-
-

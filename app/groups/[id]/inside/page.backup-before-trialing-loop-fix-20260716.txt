@@ -861,7 +861,7 @@ const typedCommunity = community as CommunityRow;
         const hasValidAccess =
           request &&
           request.status === "active" &&
-          ["active", "trialing"].includes(request.subscription_status ?? "");
+          request.subscription_status === "active";
 
         if (!hasValidAccess) {
           router.replace(`/groups/pending?community_id=${id}`);
@@ -3215,27 +3215,41 @@ overflow: "hidden",
           {!canManageHighlights && (
             <div
               style={{
-                display: "flex",
-                justifyContent: "center",
+                border: "1px solid #fecaca",
+                background: "#fff7ed",
+                borderRadius: 18,
+                padding: 16,
                 marginTop: 24,
               }}
             >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#9a3412", marginBottom: 6 }}>
+                Membership
+              </div>
+
+              <div style={{ fontSize: 14, color: "#334155", marginBottom: 12 }}>
+                Status: <strong>{subscriptionStatus || "active"}</strong>
+                {currentPeriodEnd ? (
+                  <> · Renews on {new Date(currentPeriodEnd).toLocaleDateString()}</>
+                ) : null}
+              </div>
+
               <button
                 type="button"
-                onClick={() => router.push("/profile")}
+                onClick={handleCancelSubscription}
+                disabled={cancelingSubscription}
                 style={{
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#334155",
+                  border: "1px solid #fecaca",
+                  background: "#fee2e2",
+                  color: "#991b1b",
                   borderRadius: 999,
-                  padding: "10px 16px",
+                  padding: "9px 14px",
                   fontSize: 12,
                   fontWeight: 800,
-                  cursor: "pointer",
-                  boxShadow: "0 6px 16px rgba(15,23,42,0.08)",
+                  cursor: cancelingSubscription ? "not-allowed" : "pointer",
+                  opacity: cancelingSubscription ? 0.7 : 1,
                 }}
               >
-                Manage Subscription
+                {cancelingSubscription ? "Canceling..." : "Cancel Subscription"}
               </button>
             </div>
           )}
@@ -3244,9 +3258,6 @@ overflow: "hidden",
     </>
   );
 }
-
-
-
 
 
 
