@@ -253,7 +253,7 @@ export default function MembershipChatPage() {
         }}
       >
         <div style={{ width: "100%", maxWidth: 920, margin: "0 auto 10px auto" }}>
-          <BackArrow />
+          <BackArrow href={`/groups/${communityId}/inside`} />
         </div>
 
         <div
@@ -425,6 +425,7 @@ export default function MembershipChatPage() {
     </>
   );
 }
+
 
 
 

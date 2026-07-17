@@ -222,7 +222,7 @@ export default function MembershipEventsPage() {
         }}
       >
         <div style={{ maxWidth: 900, margin: "0 auto 16px auto" }}>
-          <BackArrow />
+          <BackArrow href={`/groups/${communityId}/inside`} />
         </div>
 
         <div
@@ -476,5 +476,6 @@ export default function MembershipEventsPage() {
     </>
   );
 }
+
 
 
