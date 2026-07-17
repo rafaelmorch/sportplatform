@@ -363,7 +363,8 @@ export default function MembershipChatPage() {
           setReactions((current) => {
             const existingIndex = current.findIndex(
               (reaction) =>
-                reaction.id === incomingReaction.id
+                reaction.message_id === incomingReaction.message_id &&
+                reaction.user_id === incomingReaction.user_id
             );
 
             if (existingIndex === -1) {
@@ -371,7 +372,8 @@ export default function MembershipChatPage() {
             }
 
             return current.map((reaction) =>
-              reaction.id === incomingReaction.id
+              reaction.message_id === incomingReaction.message_id &&
+              reaction.user_id === incomingReaction.user_id
                 ? incomingReaction
                 : reaction
             );
@@ -1394,6 +1396,7 @@ export default function MembershipChatPage() {
     </main>
   );
 }
+
 
 
 
