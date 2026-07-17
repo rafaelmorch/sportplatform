@@ -70,7 +70,9 @@ export default function MembershipHighlightDetailPage() {
     loadHighlight();
   }, [params, router, supabase]);
 
-  if (loading || !item) return null;
+  const communityId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+
+  if (loading || !item || !communityId) return null;
 
   const richHtml = item.content_rich?.html?.trim() || "";
   const plainText = item.content?.trim() || "";
@@ -149,7 +151,7 @@ export default function MembershipHighlightDetailPage() {
         }}
       >
         <div style={{ maxWidth: 900, margin: "0 auto 16px auto" }}>
-          <BackArrow />
+          <BackArrow href={`/groups/${communityId}/inside`} />
         </div>
 
         <div
@@ -293,3 +295,4 @@ background: "#f1f5f9",
     </>
   );
 }
+
