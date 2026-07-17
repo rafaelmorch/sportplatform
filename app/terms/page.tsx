@@ -69,10 +69,13 @@ export default function TermsPage() {
 
         <h3 style={sectionTitleStyle}>2. Membership and free trial</h3>
         <p style={paragraphStyle}>
-          Eligible memberships may include a 30-day free trial. No membership
-          charge is made when the trial begins. Unless canceled before the trial
-          ends, the membership automatically becomes a paid monthly
-          subscription at the price displayed before checkout.
+          Eligible memberships include a 30-day free trial. Your payment method
+          is collected securely by Stripe when you start the trial, but you
+          will not be charged during the 30-day trial period. Unless you cancel
+          before the trial ends, your membership will automatically convert
+          into a paid monthly subscription at the price displayed before
+          checkout. The first payment will be charged immediately after the
+          trial period ends.
         </p>
 
         <h3 style={sectionTitleStyle}>3. Billing and automatic renewal</h3>
@@ -85,9 +88,11 @@ export default function TermsPage() {
 
         <h3 style={sectionTitleStyle}>4. Cancellation</h3>
         <p style={paragraphStyle}>
-          You may cancel at any time through the membership area of the
-          Platform Sports app. Cancellation prevents future renewals. Any
-          access remaining after cancellation will follow the cancellation
+          You may cancel your membership at any time through the membership
+          area of the Platform Sports app. If you cancel during the free trial,
+          you will not be charged. If you cancel after the trial has converted
+          into a paid subscription, your cancellation will prevent future
+          renewals. Any remaining access will follow the cancellation
           information displayed inside the app.
         </p>
 
@@ -253,3 +258,4 @@ export default function TermsPage() {
     </main>
   );
 }
+

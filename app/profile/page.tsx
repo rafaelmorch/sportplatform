@@ -482,6 +482,75 @@ export default function ProfilePage() {
                 margin: "0 0 12px",
               }}
             >
+              Legal
+            </h2>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <a
+                href="/terms"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  borderRadius: 10,
+                  padding: "11px 12px",
+                  border: "1px solid #e5e7eb",
+                  color: "#1e3a8a",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                <span>Terms & Conditions</span>
+                <span aria-hidden="true">›</span>
+              </a>
+
+              <a
+                href="/privacy"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  borderRadius: 10,
+                  padding: "11px 12px",
+                  border: "1px solid #e5e7eb",
+                  color: "#1e3a8a",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                <span>Privacy Policy</span>
+                <span aria-hidden="true">›</span>
+              </a>
+            </div>
+          </section>
+          <section
+            className="card"
+            style={{
+              borderRadius: 18,
+              padding: "16px 14px",
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              marginBottom: 20,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                fontFamily: "Montserrat, sans-serif",
+                margin: "0 0 12px",
+              }}
+            >
               Memberships
             </h2>
 
@@ -600,6 +669,7 @@ export default function ProfilePage() {
     </>
   );
 }
+
 
 
 
