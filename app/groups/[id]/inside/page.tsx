@@ -335,7 +335,17 @@ function sortChallenges(rows: ChallengeRow[]): ChallengeRow[] {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getHighlightPreview(item: HighlightRow): string {
@@ -3244,6 +3254,8 @@ overflow: "hidden",
     </>
   );
 }
+
+
 
 
 
