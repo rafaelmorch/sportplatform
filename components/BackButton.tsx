@@ -2,12 +2,23 @@
 
 import { useRouter } from "next/navigation";
 
-export default function BackButton() {
+type BackButtonProps = {
+  href?: string;
+};
+
+export default function BackButton({ href }: BackButtonProps) {
   const router = useRouter();
 
   return (
     <button
-      onClick={() => router.back()}
+      onClick={() => {
+        if (href) {
+          router.push(href);
+          return;
+        }
+
+        router.back();
+      }}
       type="button"
       style={{
         height: 36,
@@ -33,3 +44,4 @@ export default function BackButton() {
     </button>
   );
 }
+

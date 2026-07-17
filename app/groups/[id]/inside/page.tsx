@@ -1493,7 +1493,7 @@ return (
     justifyContent: "space-between",
   }}
 >
-  <BackButton />
+  <BackButton href="/groups" />
 
   <a
     href="/integrations"
@@ -3254,6 +3254,8 @@ overflow: "hidden",
     </>
   );
 }
+
+
 
 
 
