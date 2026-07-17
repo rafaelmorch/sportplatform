@@ -27,7 +27,7 @@ export default function PrivacyPage() {
       }}
     >
       <div style={{ maxWidth: 820, margin: "0 auto 16px" }}>
-        <BackArrow />
+        <BackArrow href="/profile" />
       </div>
 
       <article
@@ -164,3 +164,4 @@ export default function PrivacyPage() {
     </main>
   );
 }
+
