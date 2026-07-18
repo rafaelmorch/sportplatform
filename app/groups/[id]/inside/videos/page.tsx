@@ -6,6 +6,7 @@ import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
 import Link from "next/link";
+
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
@@ -81,6 +82,7 @@ export default function MembershipVideosPage() {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [communityName, setCommunityName] = useState<string | null>(null);
+  const [canManageVideos, setCanManageVideos] = useState(false);
   const [videos, setVideos] = useState<VideoRow[]>([]);
 
   useEffect(() => {
@@ -119,6 +121,7 @@ export default function MembershipVideosPage() {
       const typedCommunity = community as CommunityRow;
       const isCreator = typedCommunity.created_by === user.id;
       const isAdmin = profile?.is_admin === true;
+      setCanManageVideos(isCreator || isAdmin);
 
       if (!isCreator && !isAdmin) {
         const { data: request } = await supabase
@@ -236,77 +239,28 @@ export default function MembershipVideosPage() {
             </h1>
           </div>
 
-          {communityId && (
+          {canManageVideos && communityId && (
             <div
               style={{
                 display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 36,
-                borderBottom: "1px solid #e2e8f0",
-                marginBottom: 22,
-                overflowX: "auto",
-                paddingBottom: 2,
+                justifyContent: "flex-end",
+                marginBottom: 16,
               }}
             >
               <Link
-                href="/intro"
+                href={`/groups/${communityId}/inside/videos/new`}
                 style={{
                   textDecoration: "none",
-                  color: "#64748b",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid transparent",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Home
-              </Link>
-
-              <Link
-                href={`/groups/${communityId}/inside/chat`}
-                style={{
-                  textDecoration: "none",
-                  color: "#64748b",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid transparent",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Chat
-              </Link>
-
-              <Link
-                href={`/groups/${communityId}/inside/events`}
-                style={{
-                  textDecoration: "none",
-                  color: "#64748b",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid transparent",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                Events
-              </Link>
-
-              <Link
-                href={`/groups/${communityId}/inside/videos`}
-                style={{
-                  textDecoration: "none",
-                  color: "#0f172a",
-                  fontSize: 14,
+                  borderRadius: 999,
+                  padding: "10px 16px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  fontSize: 13,
                   fontWeight: 700,
-                  padding: "10px 0 12px 0",
-                  borderBottom: "3px solid #facc15",
-                  whiteSpace: "nowrap",
+                  fontFamily: "Montserrat, sans-serif",
                 }}
               >
-                Videos
+                Add Video
               </Link>
             </div>
           )}
