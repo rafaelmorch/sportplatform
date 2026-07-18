@@ -1592,11 +1592,9 @@ overflow: "hidden",
                 gap: 8,
                 borderBottom: "1px solid #e2e8f0",
                 marginBottom: 22,
-                overflowX: "auto",
+                flexWrap: "wrap",
                 maxWidth: "100%",
-                WebkitOverflowScrolling: "touch",
                 padding: "6px 2px 8px 2px",
-                scrollbarWidth: "none",
               }}
             >
               <Link
