@@ -101,6 +101,23 @@ export async function GET(req: NextRequest) {
 
     const userId = userData.user.id;
 
+    // A Runner Journey começa na data de entrada do usuário na comunidade.
+    const { data: membershipRow, error: membershipError } = await supabaseAdmin
+      .from("app_membership_requests")
+      .select("created_at")
+      .eq("user_id", userId)
+      .in("status", ["active", "approved"])
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipError) {
+      console.error(
+        "Erro ao buscar data de entrada na comunidade:",
+        membershipError
+      );
+    }
+
     // 2) Busca tokens Strava do usuário
     const { data: tokenRow, error: tokenErr } = await supabaseAdmin
       .from("strava_tokens")
@@ -267,7 +284,7 @@ export async function GET(req: NextRequest) {
       userId,
       athleteId,
       activities: rows,
-      evaluationStartIso: tokenRow.created_at,
+      evaluationStartIso: membershipRow?.created_at ?? tokenRow.created_at,
     });
     console.log("=== Challenge Evaluation ===");
     console.log(challengeEvaluation);
@@ -290,11 +307,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
