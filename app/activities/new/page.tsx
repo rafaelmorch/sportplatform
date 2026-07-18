@@ -426,12 +426,30 @@ export default function NewActivityPage() {
 
           <label style={labelStyle}>
             Sport <span style={{ color: "#93c5fd", fontWeight: 700 }}>*</span>
-            <input
+
+            <select
               style={inputStyle}
-              placeholder="e.g., Running, Cycling, Functional..."
               value={sport}
               onChange={(e) => setSport(e.target.value)}
-            />
+              required
+            >
+              <option value="">Select a sport</option>
+              <option value="Running">Running</option>
+              <option value="Walking">Walking</option>
+              <option value="Cycling">Cycling</option>
+              <option value="Swimming">Swimming</option>
+              <option value="Triathlon">Triathlon</option>
+              <option value="Soccer">Soccer</option>
+              <option value="Basketball">Basketball</option>
+              <option value="Volleyball">Volleyball</option>
+              <option value="Tennis">Tennis</option>
+              <option value="Golf">Golf</option>
+              <option value="CrossFit">CrossFit</option>
+              <option value="Functional Training">Functional Training</option>
+              <option value="Martial Arts">Martial Arts</option>
+              <option value="Yoga">Yoga</option>
+              <option value="Other">Other</option>
+            </select>
           </label>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -658,6 +676,7 @@ export default function NewActivityPage() {
     </main>
   );
 }
+
 
 
 

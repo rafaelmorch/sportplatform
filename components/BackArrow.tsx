@@ -5,14 +5,24 @@ import { useRouter } from "next/navigation";
 type BackArrowProps = {
   href?: string;
   label?: string;
+  onClick?: () => void;
 };
 
-export default function BackArrow({ href, label }: BackArrowProps) {
+export default function BackArrow({
+  href,
+  label,
+  onClick,
+}: BackArrowProps) {
   const router = useRouter();
 
   return (
     <button
       onClick={() => {
+        if (onClick) {
+          onClick();
+          return;
+        }
+
         if (href) {
           router.push(href);
           return;
@@ -47,3 +57,4 @@ export default function BackArrow({ href, label }: BackArrowProps) {
     </button>
   );
 }
+

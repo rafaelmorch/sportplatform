@@ -4,7 +4,6 @@ import "@fontsource/montserrat/400.css";
 import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
-import BackArrow from "@/components/BackArrow";
 import UserAvatar from "@/components/UserAvatar";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -590,7 +589,27 @@ export default function ActivityDetailPage() {
           <header style={{ marginBottom: 20 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <BackArrow href="/activities" />
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  aria-label="Go back"
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 999,
+                    border: "1px solid #d6dbe4",
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontSize: 24,
+                    lineHeight: 1,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    boxShadow:
+                      "5px 5px 14px rgba(148,163,184,0.16), -4px -4px 12px rgba(255,255,255,0.9)",
+                  }}
+                >
+                  ←
+                </button>
               </div>
 
               <div style={{ minWidth: 0, flex: "1 1 260px" }}>
@@ -1230,6 +1249,8 @@ export default function ActivityDetailPage() {
     </>
   );
 }
+
+
 
 
 

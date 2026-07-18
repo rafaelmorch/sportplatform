@@ -239,6 +239,20 @@ export default function MembershipEventsPage() {
   const params = useParams();
 
   const communityId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const sportParam = Array.isArray(params?.sport)
+    ? params.sport[0]
+    : params?.sport;
+
+  const decodedSport =
+    typeof sportParam === "string"
+      ? decodeURIComponent(sportParam).replace(/-/g, " ")
+      : "";
+
+  const routeSport =
+    SPORT_NAMES.find(
+      (sportName) =>
+        sportName.toLowerCase() === decodedSport.toLowerCase()
+    ) ?? "Other";
 
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
@@ -247,7 +261,9 @@ export default function MembershipEventsPage() {
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [warning, setWarning] = useState<string | null>(null);
 
-  const [selectedSport, setSelectedSport] = useState<string | null>(null);
+  const [selectedSport, setSelectedSport] = useState<string | null>(
+    routeSport
+  );
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -433,10 +449,7 @@ export default function MembershipEventsPage() {
       return;
     }
 
-    if (selectedSport) {
-      setSelectedSport(null);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    router.push(`/groups/${communityId}/inside/events`);
   }
 
   function changeMonth(amount: number) {
@@ -498,6 +511,107 @@ export default function MembershipEventsPage() {
         }
       `}</style>
 
+      <style jsx>{`
+        .event-card-link {
+          display: block;
+          border-radius: 20px;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .event-card {
+          position: relative;
+          overflow: hidden;
+          transition:
+            transform 160ms ease,
+            box-shadow 160ms ease,
+            border-color 160ms ease;
+        }
+
+        .event-card-link:hover .event-card {
+          transform: translateY(-2px);
+          border-color: #b8c3d1;
+          box-shadow:
+            0 14px 30px rgba(15, 23, 42, 0.14),
+            0 3px 8px rgba(15, 23, 42, 0.06);
+        }
+
+        .event-card-link:active .event-card {
+          transform: scale(0.98);
+          box-shadow:
+            0 5px 14px rgba(15, 23, 42, 0.10),
+            0 1px 4px rgba(15, 23, 42, 0.05);
+        }
+
+        .event-card-link:focus-visible {
+          outline: 3px solid rgba(37, 99, 235, 0.35);
+          outline-offset: 4px;
+        }
+
+        .event-card-content {
+          display: grid;
+          grid-template-columns: 92px minmax(0, 1fr) 28px;
+          align-items: center;
+          gap: 18px;
+        }
+
+        .event-card-time {
+          min-height: 62px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 10px;
+          border-radius: 14px;
+          background: #0f172a;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 800;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .event-card-info {
+          min-width: 0;
+        }
+
+        .event-card-details {
+          display: inline-block;
+          margin-top: 9px;
+          color: #1d4ed8;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .event-card-arrow {
+          color: #64748b;
+          font-size: 30px;
+          font-weight: 300;
+          line-height: 1;
+          text-align: right;
+          transition: transform 160ms ease;
+        }
+
+        .event-card-link:hover .event-card-arrow {
+          transform: translateX(3px);
+        }
+
+        @media (max-width: 560px) {
+          .event-card-content {
+            grid-template-columns: 74px minmax(0, 1fr) 20px;
+            gap: 12px;
+          }
+
+          .event-card-time {
+            min-height: 56px;
+            padding: 8px;
+            font-size: 11px;
+          }
+
+          .event-card-arrow {
+            font-size: 25px;
+          }
+        }
+      `}</style>
       <main
         className="membership-events-page"
         style={{
@@ -512,30 +626,10 @@ export default function MembershipEventsPage() {
         }}
       >
         <div style={{ maxWidth: 900, margin: "0 auto 16px auto" }}>
-          {!selectedSport ? (
-            <BackArrow href={`/groups/${communityId}/inside`} />
+          {!selectedDate ? (
+            <BackArrow href={`/groups/${communityId}/inside/events`} />
           ) : (
-            <button
-              type="button"
-              onClick={goBackInsidePage}
-              aria-label="Go back"
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 999,
-                border: "1px solid #d6dbe4",
-                background: "#ffffff",
-                color: "#0f172a",
-                fontSize: 24,
-                lineHeight: 1,
-                fontWeight: 600,
-                cursor: "pointer",
-                boxShadow:
-                  "5px 5px 14px rgba(148,163,184,0.16), -4px -4px 12px rgba(255,255,255,0.9)",
-              }}
-            >
-              ←
-            </button>
+            <BackArrow onClick={goBackInsidePage} />
           )}
         </div>
 
@@ -543,7 +637,7 @@ export default function MembershipEventsPage() {
           style={{
             maxWidth: 900,
             margin: "0 auto",
-            borderRadius: 28,
+            borderRadius: 14,
             padding: "clamp(18px, 3vw, 24px)",
             border: "1px solid #d6dbe4",
             background: "#ffffff",
@@ -615,31 +709,13 @@ export default function MembershipEventsPage() {
                     : "Choose a sport to view its activity calendar."}
               </p>
             </div>
-
-            {isCreator && communityId && (
-              <Link
-                href={`/activities/new?community_id=${communityId}`}
-                style={{
-                  textDecoration: "none",
-                  borderRadius: 999,
-                  padding: "10px 16px",
-                  background: "#0f172a",
-                  color: "#ffffff",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                New Event
-              </Link>
-            )}
           </header>
 
           {!selectedSport && warning && (
             <div
               style={{
                 marginBottom: 16,
-                borderRadius: 16,
+                borderRadius: 12,
                 padding: "12px 14px",
                 background: "#f8fafc",
                 border: "1px solid #e2e8f0",
@@ -668,13 +744,7 @@ export default function MembershipEventsPage() {
                     key={sport.name}
                     type="button"
                     className="sport-card"
-                    onClick={() =>
-                      router.push(
-                        `/groups/${communityId}/inside/events/${encodeURIComponent(
-                          sport.name.toLowerCase()
-                        )}`
-                      )
-                    }
+                    onClick={() => openSport(sport.name)}
                     style={{
                       position: "relative",
                       minWidth: 0,
@@ -905,7 +975,7 @@ export default function MembershipEventsPage() {
                 <div
                   style={{
                     marginTop: 18,
-                    borderRadius: 16,
+                    borderRadius: 12,
                     padding: "14px",
                     background: "#f8fafc",
                     border: "1px solid #e2e8f0",
@@ -933,6 +1003,8 @@ export default function MembershipEventsPage() {
                 <Link
                   key={activity.id}
                   href={`/activities/${activity.id}`}
+                  className="event-card-link"
+                  aria-label={`View details for ${activity.title ?? "event"}`}
                   style={{
                     display: "block",
                     textDecoration: "none",
@@ -940,88 +1012,58 @@ export default function MembershipEventsPage() {
                   }}
                 >
                   <article
+                    className="event-card"
                     style={{
-                      borderRadius: 20,
-                      padding: 16,
-                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                      padding: 18,
+                      border: "1px solid #d7dee8",
                       background:
                         "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
                       boxShadow:
-                        "5px 5px 16px rgba(148,163,184,0.10), -4px -4px 12px rgba(255,255,255,0.9)",
+                        "0 8px 24px rgba(15,23,42,0.10), 0 2px 6px rgba(15,23,42,0.05)",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 12,
-                        marginBottom: 10,
-                      }}
-                    >
-                      <span
-                        style={{
-                          borderRadius: 999,
-                          padding: "6px 10px",
-                          background: "#0f172a",
-                          color: "#ffffff",
-                          fontSize: 11,
-                          fontWeight: 800,
-                        }}
-                      >
+                    <div className="event-card-content">
+                      <div className="event-card-time">
                         {formatEventTime(activity.start_date)}
-                      </span>
+                      </div>
+
+                      <div className="event-card-info">
+                        <h2
+                          style={{
+                            margin: 0,
+                            color: "#0f172a",
+                            fontSize: 17,
+                            fontWeight: 800,
+                            lineHeight: 1.3,
+                          }}
+                        >
+                          {activity.title ?? "Event"}
+                        </h2>
+
+                        <p
+                          style={{
+                            margin: "6px 0 0 0",
+                            color: "#64748b",
+                            fontSize: 12,
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {buildAddress(activity)}
+                        </p>
+
+                        <span className="event-card-details">
+                          View details
+                        </span>
+                      </div>
 
                       <span
-                        style={{
-                          color: "#94a3b8",
-                          fontSize: 20,
-                          lineHeight: 1,
-                        }}
+                        className="event-card-arrow"
+                        aria-hidden="true"
                       >
                         ›
                       </span>
                     </div>
-
-                    <h2
-                      style={{
-                        margin: "0 0 7px 0",
-                        color: "#0f172a",
-                        fontSize: 17,
-                        fontWeight: 800,
-                        lineHeight: 1.25,
-                      }}
-                    >
-                      {activity.title ?? "Event"}
-                    </h2>
-
-                    <p
-                      style={{
-                        margin: 0,
-                        color: "#64748b",
-                        fontSize: 12,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {buildAddress(activity)}
-                    </p>
-
-                    {activity.description && (
-                      <p
-                        style={{
-                          margin: "10px 0 0 0",
-                          color: "#475569",
-                          fontSize: 13,
-                          lineHeight: 1.5,
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {activity.description}
-                      </p>
-                    )}
                   </article>
                 </Link>
               ))}
@@ -1032,5 +1074,14 @@ export default function MembershipEventsPage() {
     </>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
