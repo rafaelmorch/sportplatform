@@ -877,6 +877,26 @@ const typedCommunity = community as CommunityRow;
           router.replace(`/groups/pending?community_id=${id}`);
           return;
         }
+
+        const { data: healthForm, error: healthFormError } = await supabase
+          .from("app_membership_health_forms")
+          .select("id")
+          .eq("community_id", id)
+          .eq("user_id", user.id)
+          .eq("answers_certified", true)
+          .eq("waiver_accepted", true)
+          .order("completed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (healthFormError) {
+          console.error("Error checking Health & Safety form:", healthFormError);
+        }
+
+        if (!healthForm) {
+          router.replace(`/groups/${id}/health`);
+          return;
+        }
       }
       const { data: runnerProgress } = await supabase
         .from("app_membership_runner_progress")

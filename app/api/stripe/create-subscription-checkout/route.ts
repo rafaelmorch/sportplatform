@@ -73,7 +73,7 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `https://www.sportsplatform.app/groups/${community_id}/inside`,
+      success_url: `https://www.sportsplatform.app/groups/${community_id}/health`,
       cancel_url: `https://www.sportsplatform.app/groups/pending?community_id=${community_id}`,
       metadata: {
         community_id,
@@ -98,6 +98,7 @@ export async function POST(req: Request) {
     );
   }
 }
+
 
 
 

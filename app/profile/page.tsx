@@ -31,6 +31,16 @@ type MembershipRow = {
     | null;
 };
 
+type HealthFormRow = {
+  id: string;
+  community_id: string;
+  form_version: string;
+  completed_at: string;
+  waiver_accepted: boolean;
+  answers_certified: boolean;
+  has_positive_answer: boolean;
+};
+
 export default function ProfilePage() {
   const router = useRouter();
 
@@ -45,6 +55,8 @@ export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
   const [loadingMemberships, setLoadingMemberships] = useState(true);
+  const [healthForms, setHealthForms] = useState<HealthFormRow[]>([]);
+  const [loadingHealthForms, setLoadingHealthForms] = useState(true);
   const [cancelingMembershipId, setCancelingMembershipId] =
     useState<string | null>(null);
 
@@ -102,12 +114,32 @@ export default function ProfilePage() {
         } else {
           setMemberships((membershipData as MembershipRow[]) ?? []);
         }
+
+        const { data: healthFormData, error: healthFormError } =
+          await supabaseBrowser
+            .from("app_membership_health_forms")
+            .select(
+              "id, community_id, form_version, completed_at, waiver_accepted, answers_certified, has_positive_answer"
+            )
+            .eq("user_id", user.id)
+            .order("completed_at", { ascending: false });
+
+        if (healthFormError) {
+          console.error(
+            "Error fetching Health & Safety forms:",
+            healthFormError
+          );
+          setHealthForms([]);
+        } else {
+          setHealthForms((healthFormData as HealthFormRow[]) ?? []);
+        }
       } catch (err) {
         console.error("Unexpected error loading profile:", err);
         setErrorMsg("Unexpected error while loading profile.");
       } finally {
         setLoadingProfile(false);
         setLoadingMemberships(false);
+        setLoadingHealthForms(false);
       }
     };
 
@@ -661,6 +693,162 @@ export default function ProfilePage() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </section>
+          <section
+            className="card"
+            style={{
+              borderRadius: 8,
+              padding: "16px 14px",
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              marginBottom: 20,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                fontFamily: "Montserrat, sans-serif",
+                margin: "0 0 12px",
+              }}
+            >
+              Health & Safety
+            </h2>
+
+            {loadingHealthForms ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  color: "#64748b",
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                Loading health information...
+              </p>
+            ) : healthForms.length === 0 ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  color: "#64748b",
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                No Health & Safety form completed yet.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {healthForms
+                  .filter(
+                    (form, index, forms) =>
+                      index ===
+                      forms.findIndex(
+                        (item) =>
+                          item.community_id === form.community_id
+                      )
+                  )
+                  .map((form) => {
+                    const membership = memberships.find(
+                      (item) =>
+                        item.community_id === form.community_id
+                    );
+
+                    const relation =
+                      membership?.app_membership_communities;
+
+                    const community = Array.isArray(relation)
+                      ? relation[0]
+                      : relation;
+
+                    return (
+                      <div
+                        key={form.id}
+                        style={{
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 8,
+                          padding: 14,
+                          background: "#f8fafc",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            color: "#0f172a",
+                            fontFamily: "Montserrat, sans-serif",
+                            marginBottom: 10,
+                          }}
+                        >
+                          {community?.name || "Community"}
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 6,
+                            fontSize: 12,
+                            color: "#475569",
+                            fontFamily: "Montserrat, sans-serif",
+                          }}
+                        >
+                          <div>
+                            Status:{" "}
+                            <strong style={{ color: "#166534" }}>
+                              Completed
+                            </strong>
+                          </div>
+
+                          <div>
+                            Completed on:{" "}
+                            <strong style={{ color: "#0f172a" }}>
+                              {new Date(
+                                form.completed_at
+                              ).toLocaleDateString()}
+                            </strong>
+                          </div>
+
+                          <div>
+                            Version:{" "}
+                            <strong style={{ color: "#0f172a" }}>
+                              {form.form_version}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              `/groups/${form.community_id}/health`
+                            )
+                          }
+                          style={{
+                            marginTop: 12,
+                            borderRadius: 6,
+                            padding: "9px 14px",
+                            border: "none",
+                            fontSize: 13,
+                            fontFamily: "Montserrat, sans-serif",
+                            fontWeight: 600,
+                            background: "#1e3a8a",
+                            color: "#ffffff",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Update Health Form
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             )}
           </section>
