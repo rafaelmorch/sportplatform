@@ -203,6 +203,78 @@ export default function ProfilePage() {
     }
   };
 
+  const handleCancelMembership = async (
+    membership: MembershipRow
+  ) => {
+    if (!userId) {
+      setErrorMsg("You must be logged in to cancel a membership.");
+      return;
+    }
+
+    const relation = membership.app_membership_communities;
+    const community = Array.isArray(relation)
+      ? relation[0]
+      : relation;
+
+    const confirmed = confirm(
+      `Are you sure you want to cancel your membership${
+        community?.name ? ` for ${community.name}` : ""
+      }? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCancelingMembershipId(membership.id);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const response = await fetch(
+        "/api/stripe/cancel-subscription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            community_id: membership.community_id,
+            user_id: userId,
+          }),
+        }
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error || "Failed to cancel membership."
+        );
+      }
+
+      setMemberships((currentMemberships) =>
+        currentMemberships.map((item) =>
+          item.id === membership.id
+            ? {
+                ...item,
+                subscription_status: "canceled",
+              }
+            : item
+        )
+      );
+
+      setSuccessMsg("Membership canceled successfully.");
+    } catch (error) {
+      console.error("Error canceling membership:", error);
+
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Unexpected error while canceling membership."
+      );
+    } finally {
+      setCancelingMembershipId(null);
+    }
+  };
   const handleSignOut = async () => {
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -690,6 +762,44 @@ export default function ProfilePage() {
                           </div>
                         )}
                       </div>
+
+                      {membership.stripe_subscription_id &&
+                        ["active", "trialing"].includes(
+                          membership.subscription_status ?? ""
+                        ) && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCancelMembership(membership)
+                            }
+                            disabled={
+                              cancelingMembershipId === membership.id
+                            }
+                            style={{
+                              marginTop: 12,
+                              padding: "4px 0",
+                              border: "none",
+                              background: "transparent",
+                              color: "#6b7280",
+                              fontSize: 12,
+                              fontWeight: 500,
+                              fontFamily: "Montserrat, sans-serif",
+                              textDecoration: "underline",
+                              cursor:
+                                cancelingMembershipId === membership.id
+                                  ? "not-allowed"
+                                  : "pointer",
+                              opacity:
+                                cancelingMembershipId === membership.id
+                                  ? 0.6
+                                  : 1,
+                            }}
+                          >
+                            {cancelingMembershipId === membership.id
+                              ? "Canceling..."
+                              : "Cancel Membership"}
+                          </button>
+                        )}
                     </div>
                   );
                 })}
@@ -857,6 +967,8 @@ export default function ProfilePage() {
     </>
   );
 }
+
+
 
 
 
