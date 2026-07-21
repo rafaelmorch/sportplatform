@@ -27,7 +27,7 @@ export default function LoginPage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        router.replace("/activities");
+        router.replace("/intro");
       }
     });
 

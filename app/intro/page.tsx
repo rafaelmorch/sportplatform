@@ -7,7 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600"] });
 
-type HomeCardTone = "yellow" | "green" | "purple" | "neutral";
+type HomeCardTone = "yellow" | "green" | "purple" | "blue" | "neutral";
 
 type HomeCardProps = {
   title: string;
@@ -45,6 +45,12 @@ const CARD_TONES: Record<
     glow: "rgba(168,85,247,0.24)",
     haze: "rgba(168,85,247,0.28)",
   },
+  blue: {
+    accent: "#60a5fa",
+    border: "rgba(96,165,250,0.56)",
+    glow: "rgba(59,130,246,0.24)",
+    haze: "rgba(59,130,246,0.28)",
+  },
   neutral: {
     accent: "#ffffff",
     border: "rgba(255,255,255,0.34)",
@@ -73,7 +79,7 @@ function HomeCard({
         overflow: "hidden",
         border: `1px solid ${colors.border}`,
         borderRadius: 12,
-        padding: tone === "neutral" ? 14 : "14px 14px",
+        padding: "14px 10px 14px 8px",
         background: `
           radial-gradient(circle at 12% 18%, ${colors.haze}, transparent 42%),
           linear-gradient(135deg, rgba(5,7,10,0.80), rgba(3,4,6,0.52))
@@ -106,12 +112,16 @@ function HomeCard({
           zIndex: 1,
           display: tone === "neutral" ? "block" : "grid",
           gridTemplateColumns:
-            tone === "neutral" ? undefined : "48px minmax(0,1fr) 64px",
+            tone === "neutral"
+              ? undefined
+              : icon
+                ? "48px minmax(0,1fr) 64px"
+                : "minmax(0,1fr) 64px",
           alignItems: tone === "neutral" ? undefined : "center",
           gap: tone === "neutral" ? undefined : 10,
         }}
       >
-        {tone !== "neutral" && (
+        {tone !== "neutral" && icon && (
           <div
             style={{
               color: colors.accent,
@@ -142,7 +152,7 @@ function HomeCard({
           {children}
         </div>
 
-        {tone !== "neutral" && (
+        {tone !== "neutral" && icon && (
           <div
             aria-hidden="true"
             style={{
@@ -270,27 +280,28 @@ export default function IntroPage() {
         fontFamily: montserrat.style.fontFamily,
       }}
     >
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        playsInline
-        loop
-        preload="auto"
-        onLoadedData={() => setVideoReady(true)}
+      <div
+        aria-hidden="true"
         style={{
           position: "absolute",
           inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          objectPosition: "center center",
-          opacity: videoReady ? 1 : 0,
-          transition: "opacity 250ms ease",
+          backgroundImage: `
+            linear-gradient(
+              to bottom,
+              rgba(0,0,0,0.05) 0%,
+              rgba(0,0,0,0.08) 28%,
+              rgba(0,0,0,0.42) 48%,
+              rgba(0,0,0,0.88) 66%,
+              #000000 82%
+            ),
+            url("/intro-hero.png")
+          `,
+          backgroundSize: "100% auto",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "top center",
+          backgroundColor: "#000000",
         }}
-      >
-        <source src="/intro.mp4" type="video/mp4" />
-      </video>
+      />
 
       <div
         style={{
@@ -381,7 +392,7 @@ export default function IntroPage() {
 
               <HomeCard
                 title="Runner Journey"
-                tone="yellow"
+                tone="blue"
                 onClick={() => navigate("/groups")}
                 icon={
                   <img
@@ -393,6 +404,7 @@ export default function IntroPage() {
                       width: 56,
                       height: 56,
                       objectFit: "contain",
+                    margin: "0 auto 32px",
                       borderRadius: 10,
                     }}
                   />
@@ -481,7 +493,7 @@ export default function IntroPage() {
 
               <HomeCard
                 title="Today's Activity"
-                tone="green"
+                tone="blue"
                 onClick={() => navigate("/activities")}
                 icon={
                   <img
@@ -491,6 +503,7 @@ export default function IntroPage() {
                       width: 56,
                       height: 56,
                       objectFit: "contain",
+                    margin: "0 auto 32px",
                       borderRadius: 10,
                     }}
                   />
@@ -537,7 +550,7 @@ export default function IntroPage() {
 
               <HomeCard
                 title="Performance"
-                tone="purple"
+                tone="blue"
                 onClick={() => navigate("/performance-ai")}
                 icon={
                   <img
@@ -547,6 +560,7 @@ export default function IntroPage() {
                       width: 56,
                       height: 56,
                       objectFit: "contain",
+                    margin: "0 auto 32px",
                       borderRadius: 10,
                     }}
                   />
@@ -673,34 +687,54 @@ export default function IntroPage() {
             >
               <div
                 style={{
-                  padding: "4px 2px 2px",
+                  padding: "6px 2px 8px",
                   color: "#ffffff",
                 }}
               >
-                <p
+                <img
+                  src="/logo-sports-platform.png"
+                  alt="Sports Platform"
                   style={{
-                    margin: 0,
-                    fontSize: 15,
-                    fontWeight: 500,
-                    opacity: 0.86,
+                    position: "absolute",
+                    top: 20,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 10,
+                    display: "block",
+                    width: "clamp(280px, 60vw, 420px)",
+                    height: "auto",
+                    objectFit: "contain",
                   }}
-                >
-                  Welcome to Platform Sports
-                </p>
+                />
 
                 <h1
                   style={{
-                    margin: "4px 0 0",
-                    fontSize: 29,
-                    lineHeight: 1.1,
-                    fontWeight: 600,
+                    margin: "12px 0 0",
+                    maxWidth: 520,
+                    fontSize: "clamp(27px, 7vw, 38px)",
+                    lineHeight: 1.08,
+                    fontWeight: 500,
+                    letterSpacing: "-0.025em",
                   }}
                 >
                   Transform your life through sports and challenges.
                 </h1>
+
+                <p
+                  style={{
+                    margin: "12px 0 0",
+                    maxWidth: 500,
+                    color: "rgba(255,255,255,0.72)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 400,
+                  }}
+                >
+                  Join a community, complete challenges and track your progress.
+                </p>
               </div>
 
-              <HomeCard title="How it works">
+              <HomeCard title="How it works" tone="blue">
                 <div
                   style={{
                     display: "grid",
@@ -756,6 +790,7 @@ export default function IntroPage() {
 
               <HomeCard
                 title="Public Activities"
+                tone="blue"
                 onClick={() => navigate("/activities")}
               >
                 <p
@@ -785,6 +820,7 @@ export default function IntroPage() {
 
               <HomeCard
                 title="Communities"
+                tone="blue"
                 onClick={() => navigate("/memberships")}
               >
                 <p
