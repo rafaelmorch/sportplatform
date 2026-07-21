@@ -75,6 +75,7 @@ function HomeCard({
       style={{
         position: "relative",
         width: "100%",
+        boxSizing: "border-box",
         minHeight: tone === "neutral" ? undefined : 92,
         overflow: "hidden",
         border: `1px solid ${colors.border}`,
