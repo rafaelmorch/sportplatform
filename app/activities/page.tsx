@@ -5,7 +5,7 @@ import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -39,6 +39,33 @@ function formatDateTime(dt: string | null): string {
   } catch {
     return dt;
   }
+}
+
+function getMonthYear(dt: string | null): string {
+  if (!dt) return "DATA A DEFINIR";
+
+  try {
+    return new Date(dt)
+      .toLocaleDateString("pt-BR", {
+        month: "long",
+        year: "numeric",
+      })
+      .toLocaleUpperCase("pt-BR");
+  } catch {
+    return "DATA A DEFINIR";
+  }
+}
+
+function getMonthKey(dt: string | null): string {
+  if (!dt) return "sem-data";
+
+  const date = new Date(dt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "sem-data";
+  }
+
+  return `${date.getFullYear()}-${date.getMonth()}`;
 }
 
 function buildAddress(a: ActivityRow): string {
@@ -145,7 +172,7 @@ export default function ActivitiesPage() {
                 boxSizing: "border-box",
               }}
             >
-              <h1 style={{ fontSize: 24, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>Activities</h1>
+              <h1 style={{ fontSize: 24, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>Atividades</h1>
 
               <Link
                 href="/activities/new"
@@ -154,8 +181,8 @@ export default function ActivitiesPage() {
   fontSize: 12,
   padding: "10px 14px",
   borderRadius: 6,
-  border: "1px solid #000000",
-  background: "#000000",
+  border: "1px solid #16A34A",
+  background: "#16A34A",
   color: "#ffffff",
   fontFamily: "Montserrat, sans-serif",
   textDecoration: "none",
@@ -163,12 +190,12 @@ export default function ActivitiesPage() {
   whiteSpace: "nowrap",
 }}
               >
-                + New activity
+                Criar uma atividade
               </Link>
             </div>
 
-            <p style={{ fontSize: 13, color: "#374151", fontFamily: "Montserrat, sans-serif", margin: "6px 0 0 0" }}>
-              Training sessions and community activities.
+            <p style={{ fontSize: 15, color: "#374151", fontFamily: "Montserrat, sans-serif", margin: "6px 0 0 0" }}>
+              Seu ponto de encontro para treinar com outras pessoas. Descubra atividades próximas, participe de treinos em grupo ou organize seu próprio evento esportivo.
             </p>
           </header>
 
@@ -188,11 +215,54 @@ export default function ActivitiesPage() {
                 boxSizing: "border-box",
               }}
             >
-              {activities.map((a) => {
+              {activities.map((a, index) => {
                 const img = getPublicImageUrl(a.image_path) || a.image_url || null;
+                const currentMonthKey = getMonthKey(a.start_date);
+                const previousMonthKey =
+                  index > 0
+                    ? getMonthKey(activities[index - 1].start_date)
+                    : null;
+                const showMonthDivider =
+                  currentMonthKey !== previousMonthKey;
 
                 return (
-                  <Link
+                  <Fragment key={a.id}>
+                    {showMonthDivider ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          width: "100%",
+                          marginTop: index === 0 ? 8 : 24,
+                          marginBottom: 4,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            letterSpacing: "0.08em",
+                            color: "#374151",
+                            fontFamily: "Montserrat, sans-serif",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {getMonthYear(a.start_date)}
+                        </span>
+
+                        <div
+                          style={{
+                            height: 1,
+                            flex: 1,
+                            background: "#d1d5db",
+                          }}
+                        />
+                      </div>
+                    ) : null}
+
+                    <Link
                     key={a.id}
                     href={`/activities/${a.id}`}
                     style={{
@@ -306,9 +376,9 @@ export default function ActivitiesPage() {
                             {a.description}
                           </p>
                         ) : null}
-                      </div>
-                    </article>
-                  </Link>
+                      </div>                    </article>
+                    </Link>
+                  </Fragment>
                 );
               })}
             </div>
@@ -360,5 +430,4 @@ export default function ActivitiesPage() {
     </>
   );
 }
-
 
