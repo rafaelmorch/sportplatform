@@ -330,6 +330,7 @@ export default function IntroPage() {
           style={{
             width: "100%",
             maxWidth: 560,
+            boxSizing: "border-box",
             margin: "0 auto",
             padding: "0 18px",
           }}
@@ -340,6 +341,23 @@ export default function IntroPage() {
               height: "28dvh",
               minHeight: 180,
               maxHeight: 300,
+            }}
+          />
+
+          <img
+            src="/logo-sports-platform.png"
+            alt="Sports Platform"
+            style={{
+              position: "absolute",
+              top: "calc(20px + env(safe-area-inset-top))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+              display: "block",
+              width: "clamp(280px, 60vw, 420px)",
+              maxWidth: "calc(100% - 36px)",
+              height: "auto",
+              objectFit: "contain",
             }}
           />
 
@@ -593,9 +611,9 @@ export default function IntroPage() {
                   }}
                 >
                   {[
-                    { value: "18.4", label: "km" },
-                    { value: "3", label: "activities" },
-                    { value: "6:08", label: "avg pace" },
+                    { value: "0", label: "km" },
+                    { value: "0", label: "activities" },
+                    { value: "--", label: "avg pace" },
                   ].map((item) => (
                     <div
                       key={item.label}
@@ -644,7 +662,7 @@ export default function IntroPage() {
                     fontWeight: 600,
                   }}
                 >
-                  Run Club
+                  No active community
                 </p>
 
                 <p
@@ -656,8 +674,8 @@ export default function IntroPage() {
                     fontWeight: 400,
                   }}
                 >
-                  View community updates, challenges, videos and upcoming
-                  events.
+                  Join a community to access updates, challenges, videos and
+                  upcoming events.
                 </p>
               </HomeCard>
 
@@ -692,21 +710,6 @@ export default function IntroPage() {
                   color: "#ffffff",
                 }}
               >
-                <img
-                  src="/logo-sports-platform.png"
-                  alt="Sports Platform"
-                  style={{
-                    position: "absolute",
-                    top: 20,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    zIndex: 10,
-                    display: "block",
-                    width: "clamp(280px, 60vw, 420px)",
-                    height: "auto",
-                    objectFit: "contain",
-                  }}
-                />
 
                 <h1
                   style={{
