@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import type React from "react";
+import { useState } from "react";
+
+import analyzeDocument from "@/lib/performance-ai/analyzeDocument";
+import type { BloodAnalysis } from "@/lib/performance-ai/blood";
 import DocumentUploader from "@/components/performance/DocumentUploader";
 import useDocumentUpload from "@/hooks/useDocumentUpload";
 
@@ -34,6 +38,11 @@ const INITIAL_MARKERS = [
 ];
 
 export default function PerformanceBloodPage() {
+  const [analyzingBloodDocument, setAnalyzingBloodDocument] =
+    useState(false);
+
+  const [analysis, setAnalysis] =
+    useState<BloodAnalysis | null>(null);
   const {
     file: bloodDocumentFile,
     error: bloodFileError,
@@ -45,12 +54,42 @@ export default function PerformanceBloodPage() {
     setDragging: setIsDraggingBloodFile,
   } = useDocumentUpload();
 
-  const analyzingBloodDocument = false;
 
-  function handleAnalyzeBloodDocument(): void {
-    setBloodFileError(
-      "A análise automática do exame será conectada na próxima etapa."
-    );
+  async function handleAnalyzeBloodDocument(): Promise<void> {
+    setBloodFileError(null);
+
+    if (!bloodDocumentFile) {
+      setBloodFileError(
+        "Selecione um PDF ou uma imagem para analisar."
+      );
+      return;
+    }
+
+    setAnalyzingBloodDocument(true);
+
+    try {
+      const result = await analyzeDocument({
+        type: "blood_test",
+        file: bloodDocumentFile,
+      });
+
+      if (!result.success) {
+        throw new Error(
+          result.error ??
+            "Não foi possível analisar o exame."
+        );
+      }
+
+      setAnalysis(result as BloodAnalysis);
+    } catch (error) {
+      setBloodFileError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao analisar o exame."
+      );
+    } finally {
+      setAnalyzingBloodDocument(false);
+    }
   }
 
   return (
