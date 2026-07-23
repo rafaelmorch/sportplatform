@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import MetricGrid from "./MetricGrid";
 
 export type AiReviewPanelStyles = {
   panel: React.CSSProperties;
@@ -69,19 +70,6 @@ export default function AiReviewPanel({
     return null;
   }
 
-  function renderMetric(label: string, value: string) {
-    return (
-      <div style={styles.metric}>
-        <span style={styles.metricLabel}>
-          {label}
-        </span>
-
-        <strong style={styles.metricValue}>
-          {value}
-        </strong>
-      </div>
-    );
-  }
 
   return (
     <section style={styles.panel}>
@@ -107,54 +95,51 @@ export default function AiReviewPanel({
         </div>
       </div>
 
-      <div style={styles.metrics}>
-        {renderMetric(
-          "Data",
-          assessmentDate
-            ? formatDate(assessmentDate)
-            : "Não encontrada"
-        )}
-
-        {renderMetric(
-          "Peso",
-          weightKg
-            ? `${weightKg} kg`
-            : "Não encontrado"
-        )}
-
-        {renderMetric(
-          "Gordura corporal",
-          bodyFat
-            ? `${bodyFat}%`
-            : "Não encontrada"
-        )}
-
-        {renderMetric(
-          "Massa muscular",
-          muscleMass
-            ? `${muscleMass} kg`
-            : "Não encontrada"
-        )}
-
-        {renderMetric(
-          "Água corporal",
-          waterPercent
-            ? `${waterPercent}%`
-            : "Não encontrada"
-        )}
-
-        {renderMetric(
-          "Gordura visceral",
-          visceralFat || "Não encontrada"
-        )}
-
-        {renderMetric(
-          "Metabolismo basal",
-          bmr
-            ? `${bmr} kcal`
-            : "Não encontrado"
-        )}
-      </div>
+      <MetricGrid
+        metrics={[
+          {
+            label: "Data",
+            value: assessmentDate
+              ? formatDate(assessmentDate)
+              : "Não encontrada",
+          },
+          {
+            label: "Peso",
+            value: weightKg
+              ? `${weightKg} kg`
+              : "Não encontrado",
+          },
+          {
+            label: "Gordura corporal",
+            value: bodyFat
+              ? `${bodyFat}%`
+              : "Não encontrada",
+          },
+          {
+            label: "Massa muscular",
+            value: muscleMass
+              ? `${muscleMass} kg`
+              : "Não encontrada",
+          },
+          {
+            label: "Água corporal",
+            value: waterPercent
+              ? `${waterPercent}%`
+              : "Não encontrada",
+          },
+          {
+            label: "Gordura visceral",
+            value: visceralFat || "Não encontrada",
+          },
+          {
+            label: "Metabolismo basal",
+            value: bmr
+              ? `${bmr} kcal`
+              : "Não encontrado",
+          },
+        ]}
+        styles={styles}
+      />
 
       {summary && (
         <div style={styles.textSection}>
