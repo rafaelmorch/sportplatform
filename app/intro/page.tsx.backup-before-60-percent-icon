@@ -1,0 +1,647 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Montserrat } from "next/font/google";
+
+const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600"] });
+
+type HomeCardTone = "yellow" | "green" | "purple" | "blue" | "neutral";
+
+type HomeCardProps = {
+  title: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  tone?: HomeCardTone;
+  icon?: React.ReactNode;
+  visual?: React.ReactNode;
+};
+
+const CARD_TONES: Record<
+  HomeCardTone,
+  {
+    accent: string;
+    border: string;
+    glow: string;
+    haze: string;
+  }
+> = {
+  yellow: {
+    accent: "#facc15",
+    border: "rgba(250,204,21,0.58)",
+    glow: "rgba(245,158,11,0.24)",
+    haze: "rgba(245,158,11,0.30)",
+  },
+  green: {
+    accent: "#4ade80",
+    border: "rgba(74,222,128,0.56)",
+    glow: "rgba(34,197,94,0.22)",
+    haze: "rgba(34,197,94,0.28)",
+  },
+  purple: {
+    accent: "#c084fc",
+    border: "rgba(192,132,252,0.58)",
+    glow: "rgba(168,85,247,0.24)",
+    haze: "rgba(168,85,247,0.28)",
+  },
+  blue: {
+    accent: "#60a5fa",
+    border: "rgba(96,165,250,0.56)",
+    glow: "rgba(59,130,246,0.24)",
+    haze: "rgba(59,130,246,0.28)",
+  },
+  neutral: {
+    accent: "#ffffff",
+    border: "rgba(255,255,255,0.34)",
+    glow: "rgba(255,255,255,0.10)",
+    haze: "rgba(255,255,255,0.10)",
+  },
+};
+
+function HomeCard({
+  title,
+  children,
+  onClick,
+  tone = "neutral",
+  icon,
+  visual,
+}: HomeCardProps) {
+  const colors = CARD_TONES[tone];
+
+  return (
+    <section
+      onClick={onClick}
+      style={{
+        position: "relative",
+        width: "100%",
+        boxSizing: "border-box",
+        minHeight: tone === "neutral" ? undefined : 92,
+        overflow: "hidden",
+        border: `1px solid ${colors.border}`,
+        borderRadius: 12,
+        padding: "14px 10px 14px 8px",
+        background: `
+          radial-gradient(circle at 12% 18%, ${colors.haze}, transparent 42%),
+          linear-gradient(135deg, rgba(5,7,10,0.80), rgba(3,4,6,0.52))
+        `,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        boxShadow: `
+          inset 0 1px 0 rgba(255,255,255,0.07),
+          0 14px 34px rgba(0,0,0,0.30),
+          0 0 24px ${colors.glow}
+        `,
+        cursor: onClick ? "pointer" : "default",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          background:
+            "linear-gradient(115deg, rgba(255,255,255,0.08), transparent 28%)",
+          opacity: 0.55,
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: tone === "neutral" ? "block" : "grid",
+          gridTemplateColumns:
+            tone === "neutral"
+              ? undefined
+              : icon
+                ? "48px minmax(0,1fr) 64px"
+                : "minmax(0,1fr) 64px",
+          alignItems: tone === "neutral" ? undefined : "center",
+          gap: tone === "neutral" ? undefined : 10,
+        }}
+      >
+        {tone !== "neutral" && icon && (
+          <div
+            style={{
+              color: colors.accent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {icon}
+          </div>
+        )}
+
+        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <h2
+            style={{
+              margin: 0,
+              marginBottom: 7,
+              color: tone === "neutral" ? "#ffffff" : colors.accent,
+              fontSize: tone === "neutral" ? 18 : 18,
+              lineHeight: 1.15,
+              fontWeight: 600,
+              letterSpacing: tone === "neutral" ? undefined : "-0.02em",
+            }}
+          >
+            {title}
+          </h2>
+
+          {children}
+        </div>
+
+        {tone !== "neutral" && visual && (
+          <div
+            aria-hidden="true"
+            style={{
+              color: colors.accent,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: 0.88,
+            }}
+          >
+            {visual}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function ActionButton({
+  label,
+  onClick,
+  primary = false,
+}: {
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: 46,
+        border: primary
+          ? "1px solid rgba(255,255,255,0.95)"
+          : "1px solid rgba(255,255,255,0.55)",
+        borderRadius: 12,
+        padding: "10px 16px",
+        background: primary ? "#ffffff" : "rgba(255,255,255,0.12)",
+        color: primary ? "#111827" : "#ffffff",
+        fontSize: 15,
+        fontWeight: 600,
+        cursor: "pointer",
+        touchAction: "manipulation",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function IntroPage() {
+  const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+
+  const [videoReady, setVideoReady] = useState(false);
+
+  useEffect(() => {
+    videoRef.current?.play().catch(() => {});
+  }, []);
+
+
+  const navigate = (href: string) => {
+    try {
+      localStorage.setItem("intro_last_seen", Date.now().toString());
+    } catch {}
+
+    router.push(href);
+  };
+
+  return (
+    <main
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        overflow: "hidden",
+        background: "#111827",
+        fontFamily: montserrat.style.fontFamily,
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `
+            linear-gradient(
+              to bottom,
+              rgba(0,0,0,0.05) 0%,
+              rgba(0,0,0,0.08) 28%,
+              rgba(0,0,0,0.42) 48%,
+              rgba(0,0,0,0.88) 66%,
+              #000000 82%
+            ),
+            url("/intro-hero.png")
+          `,
+          backgroundSize: "100% auto",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "top center",
+          backgroundColor: "#000000",
+        }}
+      />
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.42) 36%, rgba(0,0,0,0.78) 100%)",
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          boxSizing: "border-box",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          paddingTop: "calc(26px + env(safe-area-inset-top))",
+          paddingBottom: "calc(170px + env(safe-area-inset-bottom))",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 560,
+            boxSizing: "border-box",
+            margin: "0 auto",
+            padding: "0 18px",
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              height: "28dvh",
+              minHeight: 180,
+              maxHeight: 300,
+            }}
+          />
+
+          <img
+            src="/logo-sports-platform.png"
+            alt="Sports Platform"
+            style={{
+              position: "absolute",
+              top: "calc(20px + env(safe-area-inset-top))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+              display: "block",
+              width: "clamp(280px, 60vw, 420px)",
+              maxWidth: "calc(100% - 36px)",
+              height: "auto",
+              objectFit: "contain",
+            }}
+          />
+
+          <div
+              style={{
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  padding: "6px 2px 8px",
+                  color: "#ffffff",
+                }}
+              >
+
+                <h1
+                  style={{
+                    margin: "12px 0 0",
+                    maxWidth: 520,
+                    fontSize: "clamp(27px, 7vw, 38px)",
+                    lineHeight: 1.08,
+                    fontWeight: 500,
+                    letterSpacing: "-0.025em",
+                  }}
+                >
+                  Transforme sua vida através do esporte.
+                </h1>
+
+                <p
+                  style={{
+                    margin: "12px 0 0",
+                    maxWidth: 500,
+                    color: "rgba(255,255,255,0.72)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 400,
+                  }}
+                >
+                  Participe de comunidades, complete desafios, evolua pelas cores das camisetas e acompanhe sua jornada rumo a uma vida mais saudável.
+                </p>
+              </div>
+
+              
+
+              <HomeCard
+                title="Comunidades"
+                tone="blue"
+                onClick={() => navigate("/groups")}
+                visual={
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                    style={{
+                      display: "block",
+                      color: "#3B82F6",
+                      filter:
+                        "drop-shadow(0 0 5px rgba(59,130,246,0.65))",
+                    }}
+                  >
+                    <circle cx="12" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
+                    <circle cx="5" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.8"/>
+                    <circle cx="19" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.8"/>
+
+                    <path
+                      d="M7.5 19a4.5 4.5 0 0 1 9 0"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+
+                    <path
+                      d="M1.8 19a3.2 3.2 0 0 1 4.4-2.9"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+
+                    <path
+                      d="M22.2 19a3.2 3.2 0 0 0-4.4-2.9"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                }
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#ffffff",
+                    fontSize: 18,
+                    fontWeight: 600,
+                  }}
+                >
+                  Encontre sua comunidade
+                </p>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "rgba(255,255,255,0.76)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 400,
+                  }}
+                >
+                  Conecte-se com pessoas que têm os mesmos objetivos e comece sua jornada esportiva.
+                </p>
+              </HomeCard>
+
+              <HomeCard
+                title="Como funciona"
+                tone="blue"
+                visual={
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 5,
+                      color: "#3B82F6",
+                      filter:
+                        "drop-shadow(0 0 5px rgba(59,130,246,0.65))",
+                    }}
+                  >
+                    <svg
+                      width="44"
+                      height="44"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <circle
+                        cx="6"
+                        cy="18"
+                        r="2"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      />
+                      <circle
+                        cx="18"
+                        cy="6"
+                        r="2"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                      />
+                      <path
+                        d="M7.8 17.1c2.1-1 2.4-2.6 1.2-4.1-1.3-1.7-.5-3.5 1.6-4.1 1.8-.5 3.2.4 4.3-.4.8-.6 1.2-1.4 1.5-2.3"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeDasharray="2.5 2.5"
+                      />
+                    </svg>
+
+                    <div
+                      style={{
+                        width: 1,
+                        height: 12,
+                        background: "rgba(59,130,246,0.72)",
+                        boxShadow: "0 0 6px rgba(59,130,246,0.65)",
+                      }}
+                    />
+
+                    <svg
+                      width="42"
+                      height="42"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M8 4 4.5 6 2 10l3 2 1.5-2V21h11V10L19 12l3-2-2.5-4L16 4c-.7 1.4-2.1 2.2-4 2.2S8.7 5.4 8 4Z"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                }
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 11,
+                  }}
+                >
+                  {[
+                    "Entre para uma comunidade esportiva",
+                    "Complete desafios",
+                    "Evolua pelas cores das camisetas",
+                    "Acompanhe sua performance",
+                  ].map((item, index) => (
+                    <div
+                      key={item}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 30,
+                          height: 30,
+                          flexShrink: 0,
+                          borderRadius: 99,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "rgba(255,255,255,0.16)",
+                          color: "#ffffff",
+                          fontSize: 14,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+
+                      <p
+                        style={{
+                          margin: 0,
+                          color: "#ffffff",
+                          fontSize: 15,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </HomeCard>
+
+              <HomeCard
+                title="Atividades"
+                tone="blue"
+                onClick={() => navigate("/activities")}
+                visual={
+                  <svg
+                    width="44"
+                    height="44"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                    style={{
+                      display: "block",
+                      color: "#3B82F6",
+                      filter:
+                        "drop-shadow(0 0 5px rgba(59,130,246,0.65))",
+                    }}
+                  >
+                    <circle
+                      cx="6"
+                      cy="18"
+                      r="2"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <circle
+                      cx="18"
+                      cy="6"
+                      r="2"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                    />
+                    <path
+                      d="M7.8 17.1c2.1-1 2.4-2.6 1.2-4.1-1.3-1.7-.5-3.5 1.6-4.1 1.8-.5 3.2.4 4.3-.4.8-.6 1.2-1.4 1.5-2.3"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeDasharray="2.5 2.5"
+                    />
+                  </svg>
+                }
+              >
+                    <p
+                  style={{
+                    margin: 0,
+                    color: "#ffffff",
+                    fontSize: 18,
+                    fontWeight: 600,
+                  }}
+                >
+                  Encontre atividades perto de você
+                </p>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "rgba(255,255,255,0.76)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 400,
+                  }}
+                >
+                  Explore corridas, pedaladas, eventos esportivos e atividades da comunidade.
+                </p>
+              </HomeCard>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10,
+                }}
+              >
+                <ActionButton
+                  label="Entrar"
+                  onClick={() => navigate("/login")}
+                />
+
+                <ActionButton
+                  label="Criar conta"
+                  onClick={() => navigate("/signup")}
+                  primary
+                />
+              </div>
+            </div>
+        </div>
+      </div>
+    </main>
+  );
+}

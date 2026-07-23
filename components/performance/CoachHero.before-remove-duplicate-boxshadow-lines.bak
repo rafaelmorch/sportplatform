@@ -1,0 +1,432 @@
+"use client";
+
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+type CoachHeroProps = {
+  performanceScore: number;
+  performanceStatus: string;
+  statusDescription: string;
+};
+
+export default function CoachHero({
+  performanceScore,
+  performanceStatus,
+  statusDescription,
+}: CoachHeroProps) {
+  return (
+    <section
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: 24,
+        padding: "clamp(22px, 4vw, 34px)",
+        color: "#f8fafc",
+        background:
+          "linear-gradient(145deg, #09090b 0%, #18181b 52%, #27272a 100%)",
+        border: "1px solid rgba(212, 175, 55, 0.24)",
+        boxShadow:
+          "0 24px 60px rgba(9, 9, 11, 0.22), inset 0 1px 0 rgba(255,255,255,0.05)",
+        display: "grid",
+        gap: 24,
+      }}
+    >
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          width: 260,
+          height: 260,
+          borderRadius: "50%",
+          top: -150,
+          right: -90,
+          background:
+            "radial-gradient(circle, rgba(212,175,55,0.18) 0%, rgba(212,175,55,0) 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          width: 180,
+          height: 180,
+          borderRadius: "50%",
+          bottom: -125,
+          left: -80,
+          background:
+            "radial-gradient(circle, rgba(212,175,55,0.1) 0%, rgba(212,175,55,0) 72%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <span
+            style={{
+              width: 24,
+              height: 1,
+              background: "#d4af37",
+            }}
+          />
+
+          <span
+            style={{
+              fontSize: 13,
+              marginTop: -12,
+              marginBottom: 18,
+              fontWeight: 500,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "#fff1a8",
+            }}
+          >
+            Sports Platform
+          </span>
+        </div>
+
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "clamp(42px, 8vw, 67px)",
+            lineHeight: 1,
+            fontWeight: 500,
+            letterSpacing: "-0.035em",
+            color: "#fafafa",
+          }}
+        >
+          Coach{" "}
+          <span style={{ color: "#fff1a8" }}>IA</span>
+        </h1>
+
+        <div
+          style={{
+            marginTop: 13,
+            fontSize: 15,
+            lineHeight: 1.7,
+            color: "#d4d4d8",
+            maxWidth: 720,
+          }}
+        >
+          Uma visão integrada do seu treinamento, alimentação, peso, saúde e
+          objetivo.
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 16,
+          alignItems: "stretch",
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 20,
+            padding: 22,
+            minHeight: 190,
+            background:
+              "linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025))",
+            border: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+            display: "grid",
+            alignContent: "center",
+            justifyItems: "center",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 13,
+              marginTop: -12,
+              marginBottom: 18,
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: "0.14em",
+              color: "#bcbcc5",
+            }}
+          >
+            Score de Performance
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              width: "clamp(170px, 70vw, 220px)",
+              height: "clamp(170px, 70vw, 220px)",
+              marginTop: 14,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background:
+                "conic-gradient(" +
+                "#ff2d2d 0deg, " +
+                "#ff7a00 72deg, " +
+                "#ffd400 144deg, " +
+                "#00d26a 216deg, " +
+                "#1e7bff " +
+                performanceScore * 3.6 +
+                "deg, rgba(255,255,255,0.1) " +
+                performanceScore * 3.6 +
+                "deg, rgba(255,255,255,0.1) 360deg)",
+              filter: "saturate(1.28) contrast(1.1) brightness(1.08)",
+              outline: "2px solid #fff1a8",
+              outlineOffset: "8px",
+              boxShadow:
+                "0 18px 34px rgba(0,0,0,0.42), " +
+                "0 6px 10px rgba(0,0,0,0.28), " +
+                "0 0 0 8px rgba(255,241,168,0.08), " +
+                "0 0 10px rgba(255,241,168,1), " +
+                "0 0 22px rgba(255,241,168,0.80), " +
+                "0 0 42px rgba(255,241,168,0.55), " +
+                "0 0 68px rgba(255,241,168,0.28), " +
+                "inset 0 5px 7px rgba(255,255,255,0.72), " +
+                "inset 0 2px 2px rgba(255,255,255,0.38), " +
+                "inset 0 -5px 8px rgba(0,0,0,0.30), " +
+                "inset 0 -2px 2px rgba(0,0,0,0.22), " +
+                "inset 0 0 14px rgba(255,255,255,0.18), " +
+                "inset 1px 0 2px rgba(255,255,255,0.18), " +
+                "inset -1px 0 2px rgba(0,0,0,0.15)",
+              boxShadow:
+                "0 18px 34px rgba(0,0,0,0.42), " +
+                "0 6px 10px rgba(0,0,0,0.28), " +
+                "0 0 0 3px rgba(255,255,255,0.04), " +
+                "inset 0 5px 8px rgba(255,255,255,0.28), " +
+                "inset 0 -7px 10px rgba(0,0,0,0.42)",
+            }}
+          >
+            <div
+              style={{
+                width: "clamp(136px, 56vw, 176px)",
+                height: "clamp(136px, 56vw, 176px)",
+                borderRadius: "50%",
+                background: "#18181b",
+                display: "grid",
+                placeItems: "center",
+                border: "1px solid rgba(255,255,255,0.12)",
+                boxShadow:
+                  "inset 0 5px 10px rgba(255,255,255,0.06), " +
+                  "inset 0 -8px 14px rgba(0,0,0,0.42), " +
+                  "0 3px 8px rgba(0,0,0,0.38)",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "flex-start",
+                    lineHeight: 1,
+                    color: "#f4d06f",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "clamp(54px, 9vw, 82px)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {performanceScore}
+                  </span>
+
+                  <span
+                    style={{
+                      marginLeft: 3,
+                      fontSize: "clamp(18px, 3vw, 28px)",
+                      fontWeight: 500,
+                      color: "#ffffff",
+                    }}
+                  >
+                    /100
+                  </span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 22,
+            padding: "20px 22px",
+            minHeight: 200,
+            background:
+              "linear-gradient(145deg, #fffdf8 0%, #f5eee4 100%)",
+            color: "#18181b",
+            border: "2.8px solid #c79637",
+            boxShadow:
+              "0 18px 34px rgba(0,0,0,0.28), inset 0 2px 0 rgba(255,255,255,0.95), inset 0 -2px 0 rgba(120,85,20,0.28), 0 0 0 1px rgba(255,230,170,0.45)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
+          }}
+        >
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              width: 170,
+              height: 170,
+              borderRadius: "50%",
+              top: -95,
+              right: -65,
+              background:
+                "radial-gradient(circle, rgba(212,175,55,0.10) 0%, rgba(212,175,55,0) 72%)",
+              pointerEvents: "none",
+            }}
+          />
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 22,
+            }}
+          >
+            <span
+              style={{
+                width: 34,
+                height: 34,
+                flexShrink: 0,
+                borderRadius: "50%",
+                display: "grid",
+                placeItems: "center",
+                color: "#ffffff",
+                background:
+                  "linear-gradient(145deg, #e5c06b 0%, #bd8731 100%)",
+                boxShadow:
+                  "0 6px 14px rgba(166,111,29,0.25), inset 0 1px 0 rgba(255,255,255,0.45)",
+              }}
+            >
+              <svg
+                width="19"
+                height="19"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="12"
+                  cy="8"
+                  r="3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                />
+                <path
+                  d="M5.5 20c.35-4.2 2.5-6.3 6.5-6.3s6.15 2.1 6.5 6.3"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#3f3f46",
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+              }}
+            >
+              Status do atleta
+            </span>
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              fontSize: "clamp(30px, 5vw, 40px)",
+              lineHeight: 1.1,
+              fontWeight: 600,
+              letterSpacing: "-0.035em",
+              color: "#18181b",
+            }}
+          >
+            {performanceStatus}
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              maxWidth: 470,
+              marginTop: 14,
+              fontSize: "clamp(14px, 2vw, 16px)",
+              color: "#5f5f66",
+              lineHeight: 1.65,
+            }}
+          >
+            {statusDescription}
+          </div>
+
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1,
+              width: 126,
+              height: 4,
+              marginTop: 24,
+              borderRadius: 999,
+              background:
+                "linear-gradient(90deg, #bd8731 0%, #e6c46e 68%, rgba(230,196,110,0.08) 100%)",
+              boxShadow: "0 2px 8px rgba(189,135,49,0.18)",
+            }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

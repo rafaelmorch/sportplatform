@@ -1460,8 +1460,98 @@ export default function BodyPage() {
             metricLabel: previousMetricLabelStyle,
             metricValue: previousMetricValueStyle,
           }}
-        />
+        />                    </div>
 
+                    <div style={previousBioValuesStyle}>
+                      <div style={previousMetricStyle}>
+                        <span
+                          style={
+                            previousMetricLabelStyle
+                          }
+                        >
+                          Peso
+                        </span>
+
+                        <strong
+                          style={
+                            previousMetricValueStyle
+                          }
+                        >
+                          {formatValue(
+                            item.weight_kg,
+                            " kg"
+                          )}
+                        </strong>
+                      </div>
+
+                      <div style={previousMetricStyle}>
+                        <span
+                          style={
+                            previousMetricLabelStyle
+                          }
+                        >
+                          Gordura
+                        </span>
+
+                        <strong
+                          style={
+                            previousMetricValueStyle
+                          }
+                        >
+                          {formatValue(
+                            item.body_fat_percent,
+                            "%"
+                          )}
+                        </strong>
+                      </div>
+
+                      <div style={previousMetricStyle}>
+                        <span
+                          style={
+                            previousMetricLabelStyle
+                          }
+                        >
+                          Músculo
+                        </span>
+
+                        <strong
+                          style={
+                            previousMetricValueStyle
+                          }
+                        >
+                          {formatValue(
+                            item.muscle_mass_kg,
+                            " kg"
+                          )}
+                        </strong>
+                      </div>
+
+                      <div style={previousMetricStyle}>
+                        <span
+                          style={
+                            previousMetricLabelStyle
+                          }
+                        >
+                          Água
+                        </span>
+
+                        <strong
+                          style={
+                            previousMetricValueStyle
+                          }
+                        >
+                          {formatValue(
+                            item.body_water_percent,
+                            "%"
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+            </div>
+          </section>
+        )}
       </section>
     </main>
   );

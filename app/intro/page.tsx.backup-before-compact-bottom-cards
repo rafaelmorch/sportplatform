@@ -1,0 +1,651 @@
+"use client";
+
+import { Geist } from "next/font/google";
+
+const geist = Geist({
+  subsets: ["latin"],
+  display: "swap",
+});
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
+type HomeCardProps = {
+  title: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+};
+
+function HomeCard({ title, children, onClick }: HomeCardProps) {
+  return (
+    <section
+      onClick={onClick}
+      style={{
+        width: "100%",
+        border: "1px solid rgba(255,255,255,0.78)",
+        borderRadius: 8,
+        padding: 18,
+        background: "rgba(20, 20, 20, 0.48)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        boxShadow: "0 12px 34px rgba(0,0,0,0.26)",
+        cursor: onClick ? "pointer" : "default",
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          marginBottom: 12,
+          color: "#ffffff",
+          fontSize: 20,
+          lineHeight: 1.15,
+          fontWeight: 900,
+        }}
+      >
+        {title}
+      </h2>
+
+      {children}
+    </section>
+  );
+}
+
+function ActionButton({
+  label,
+  onClick,
+  primary = false,
+}: {
+  label: string;
+  onClick: () => void;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        minHeight: 46,
+        border: primary
+          ? "1px solid rgba(255,255,255,0.95)"
+          : "1px solid rgba(255,255,255,0.55)",
+        borderRadius: 8,
+        padding: "10px 16px",
+        background: primary ? "#ffffff" : "rgba(255,255,255,0.12)",
+        color: primary ? "#111827" : "#ffffff",
+        fontSize: 15,
+        fontWeight: 900,
+        cursor: "pointer",
+        touchAction: "manipulation",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function IntroPage() {
+  const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+
+  useEffect(() => {
+    videoRef.current?.play().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabaseBrowser.auth.getSession();
+
+        if (active) {
+          setIsLoggedIn(Boolean(session?.user));
+        }
+      } catch (error) {
+        console.error("Could not check the Supabase session:", error);
+
+        if (active) {
+          setIsLoggedIn(false);
+        }
+      } finally {
+        if (active) {
+          setSessionChecked(true);
+        }
+      }
+    };
+
+    void checkSession();
+
+    const {
+      data: { subscription },
+    } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+      if (!active) {
+        return;
+      }
+
+      setIsLoggedIn(Boolean(session?.user));
+      setSessionChecked(true);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const navigate = (href: string) => {
+    try {
+      localStorage.setItem("intro_last_seen", Date.now().toString());
+    } catch {}
+
+    router.push(href);
+  };
+
+  return (
+    <main
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        overflow: "hidden",
+        background: "#111827",
+        fontFamily: geist.style.fontFamily,
+      }}
+    >
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        loop
+        preload="auto"
+        onLoadedData={() => setVideoReady(true)}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          opacity: videoReady ? 1 : 0,
+          transition: "opacity 250ms ease",
+        }}
+      >
+        <source src="/intro.mp4" type="video/mp4" />
+      </video>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.42) 36%, rgba(0,0,0,0.78) 100%)",
+        }}
+      />
+
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          overflowY: "auto",
+          WebkitOverflowScrolling: "touch",
+          paddingTop: "calc(26px + env(safe-area-inset-top))",
+          paddingBottom: "calc(110px + env(safe-area-inset-bottom))",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 560,
+            margin: "0 auto",
+            padding: "0 18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 22,
+            }}
+          >
+            <img
+              src="/logo-sports-platform.png"
+              alt="Platform Sports"
+              style={{
+                width: "88%",
+                maxWidth: 430,
+                height: "auto",
+                objectFit: "contain",
+              }}
+            />
+          </div>
+
+          {!sessionChecked ? (
+            <div
+              style={{
+                padding: 24,
+                textAlign: "center",
+                color: "#ffffff",
+                fontSize: 15,
+                fontWeight: 700,
+              }}
+            >
+              Loading...
+            </div>
+          ) : isLoggedIn ? (
+            <div
+              style={{
+                display: "grid",
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  padding: "4px 2px 2px",
+                  color: "#ffffff",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    opacity: 0.86,
+                  }}
+                >
+                  Welcome back
+                </p>
+
+                <h1
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: 28,
+                    lineHeight: 1.1,
+                    fontWeight: 950,
+                  }}
+                >
+                  Ready for your next challenge?
+                </h1>
+              </div>
+
+              <HomeCard
+                title="Runner Journey"
+                onClick={() => navigate("/groups")}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 58,
+                      height: 58,
+                      borderRadius: 16,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#facc15",
+                      color: "#111827",
+                      fontSize: 26,
+                      fontWeight: 950,
+                    }}
+                  >
+                    Y
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "#ffffff",
+                        fontSize: 17,
+                        fontWeight: 900,
+                      }}
+                    >
+                      Yellow Level
+                    </p>
+
+                    <p
+                      style={{
+                        margin: "4px 0 10px",
+                        color: "rgba(255,255,255,0.76)",
+                        fontSize: 14,
+                        fontWeight: 650,
+                      }}
+                    >
+                      3 of 5 challenges completed
+                    </p>
+
+                    <div
+                      style={{
+                        width: "100%",
+                        height: 9,
+                        borderRadius: 99,
+                        overflow: "hidden",
+                        background: "rgba(255,255,255,0.18)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "60%",
+                          height: "100%",
+                          borderRadius: 99,
+                          background: "#facc15",
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </HomeCard>
+
+              <HomeCard
+                title="Today's Activity"
+                onClick={() => navigate("/activities")}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#ffffff",
+                    fontSize: 18,
+                    fontWeight: 900,
+                  }}
+                >
+                  Group Run
+                </p>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "rgba(255,255,255,0.78)",
+                    fontSize: 15,
+                    lineHeight: 1.5,
+                    fontWeight: 650,
+                  }}
+                >
+                  6:00 AM
+                  <br />
+                  The Grove · Windermere
+                </p>
+              </HomeCard>
+
+              <HomeCard
+                title="Weekly Performance"
+                onClick={() => navigate("/performance-ai")}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 10,
+                  }}
+                >
+                  {[
+                    { value: "18.4", label: "km" },
+                    { value: "3", label: "activities" },
+                    { value: "6:08", label: "avg pace" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        padding: "13px 8px",
+                        borderRadius: 8,
+                        textAlign: "center",
+                        background: "rgba(255,255,255,0.10)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color: "#ffffff",
+                          fontSize: 20,
+                          fontWeight: 950,
+                        }}
+                      >
+                        {item.value}
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 3,
+                          color: "rgba(255,255,255,0.70)",
+                          fontSize: 12,
+                          fontWeight: 750,
+                        }}
+                      >
+                        {item.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </HomeCard>
+
+              <HomeCard
+                title="My Community"
+                onClick={() => navigate("/memberships")}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#ffffff",
+                    fontSize: 18,
+                    fontWeight: 900,
+                  }}
+                >
+                  Run Club
+                </p>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "rgba(255,255,255,0.76)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 650,
+                  }}
+                >
+                  View community updates, challenges, videos and upcoming
+                  events.
+                </p>
+              </HomeCard>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10,
+                }}
+              >
+                <ActionButton
+                  label="Activities"
+                  onClick={() => navigate("/activities")}
+                />
+
+                <ActionButton
+                  label="Profile"
+                  onClick={() => navigate("/profile")}
+                />
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  padding: "4px 2px 2px",
+                  color: "#ffffff",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    opacity: 0.86,
+                  }}
+                >
+                  Welcome to Platform Sports
+                </p>
+
+                <h1
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: 29,
+                    lineHeight: 1.1,
+                    fontWeight: 950,
+                  }}
+                >
+                  Transform your life through sports and challenges.
+                </h1>
+              </div>
+
+              <HomeCard title="How it works">
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 11,
+                  }}
+                >
+                  {[
+                    "Join a sports community",
+                    "Complete challenges",
+                    "Progress through shirt colors",
+                    "Track your performance",
+                  ].map((item, index) => (
+                    <div
+                      key={item}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 30,
+                          height: 30,
+                          flexShrink: 0,
+                          borderRadius: 99,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "rgba(255,255,255,0.16)",
+                          color: "#ffffff",
+                          fontSize: 14,
+                          fontWeight: 950,
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+
+                      <p
+                        style={{
+                          margin: 0,
+                          color: "#ffffff",
+                          fontSize: 15,
+                          fontWeight: 750,
+                        }}
+                      >
+                        {item}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </HomeCard>
+
+              <HomeCard
+                title="Public Activities"
+                onClick={() => navigate("/activities")}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#ffffff",
+                    fontSize: 18,
+                    fontWeight: 900,
+                  }}
+                >
+                  Find activities near you
+                </p>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "rgba(255,255,255,0.76)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 650,
+                  }}
+                >
+                  Explore runs, cycling sessions, sports events and community
+                  activities.
+                </p>
+              </HomeCard>
+
+              <HomeCard
+                title="Communities"
+                onClick={() => navigate("/memberships")}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#ffffff",
+                    fontSize: 18,
+                    fontWeight: 900,
+                  }}
+                >
+                  Find your community
+                </p>
+
+                <p
+                  style={{
+                    margin: "7px 0 0",
+                    color: "rgba(255,255,255,0.76)",
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    fontWeight: 650,
+                  }}
+                >
+                  Join people with similar goals and start your sports journey.
+                </p>
+              </HomeCard>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 10,
+                }}
+              >
+                <ActionButton
+                  label="Sign In"
+                  onClick={() => navigate("/login")}
+                />
+
+                <ActionButton
+                  label="Create Account"
+                  onClick={() => navigate("/signup")}
+                  primary
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}

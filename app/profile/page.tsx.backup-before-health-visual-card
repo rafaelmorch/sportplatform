@@ -1,0 +1,725 @@
+// app/profile/page.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+import UserAvatar from "@/components/UserAvatar";
+
+type ProfileRow = {
+  full_name: string | null;
+};
+
+type MembershipRow = {
+  id: string;
+  community_id: string;
+  status: string | null;
+  subscription_status: string | null;
+  stripe_subscription_id: string | null;
+  current_period_end: string | null;
+  app_membership_communities:
+    | {
+        name: string | null;
+        price_cents: number | null;
+        billing_interval: string | null;
+      }
+    | {
+        name: string | null;
+        price_cents: number | null;
+        billing_interval: string | null;
+      }[]
+    | null;
+};
+
+type HealthFormRow = {
+  id: string;
+  community_id: string;
+  form_version: string;
+  completed_at: string;
+  waiver_accepted: boolean;
+  answers_certified: boolean;
+  has_positive_answer: boolean;
+};
+
+export default function ProfilePage() {
+  const router = useRouter();
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState<string | null>(null);
+
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [memberships, setMemberships] = useState<MembershipRow[]>([]);
+  const [loadingMemberships, setLoadingMemberships] = useState(true);
+  const [healthForms, setHealthForms] = useState<HealthFormRow[]>([]);
+  const [loadingHealthForms, setLoadingHealthForms] = useState(true);
+  const [cancelingMembershipId, setCancelingMembershipId] =
+    useState<string | null>(null);
+
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const run = async () => {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const {
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      const user = session.user;
+      setUserId(user.id);
+      setEmail(user.email ?? null);
+
+      try {
+        const { data: profile, error: profileError } = await supabaseBrowser
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle<ProfileRow>();
+
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+        }
+
+        const fallbackName =
+          (user.user_metadata as any)?.full_name ||
+          (user.user_metadata as any)?.name ||
+          "";
+
+        setName(profile?.full_name || fallbackName || "");
+
+        const { data: membershipData, error: membershipError } =
+          await supabaseBrowser
+            .from("app_membership_requests")
+            .select(
+              "id, community_id, status, subscription_status, stripe_subscription_id, current_period_end, app_membership_communities(name, price_cents, billing_interval)"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
+
+        if (membershipError) {
+          console.error("Error fetching memberships:", membershipError);
+          setMemberships([]);
+        } else {
+          setMemberships((membershipData as MembershipRow[]) ?? []);
+        }
+
+        const { data: healthFormData, error: healthFormError } =
+          await supabaseBrowser
+            .from("app_membership_health_forms")
+            .select(
+              "id, community_id, form_version, completed_at, waiver_accepted, answers_certified, has_positive_answer"
+            )
+            .eq("user_id", user.id)
+            .order("completed_at", { ascending: false });
+
+        if (healthFormError) {
+          console.error(
+            "Error fetching Health & Safety forms:",
+            healthFormError
+          );
+          setHealthForms([]);
+        } else {
+          setHealthForms((healthFormData as HealthFormRow[]) ?? []);
+        }
+      } catch (err) {
+        console.error("Unexpected error loading profile:", err);
+        setErrorMsg("Unexpected error while loading profile.");
+      } finally {
+        setLoadingProfile(false);
+        setLoadingMemberships(false);
+        setLoadingHealthForms(false);
+      }
+    };
+
+    run();
+  }, [router]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const trimmed = name.trim();
+
+    if (!trimmed) {
+      setErrorMsg("Please enter your name.");
+      return;
+    }
+
+    if (trimmed.includes("@")) {
+      setErrorMsg("Please enter your name (not an email).");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const {
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        setErrorMsg("You must be logged in to save your profile.");
+        router.replace("/login");
+        return;
+      }
+
+      const user = session.user;
+
+      const { error: upsertError } = await supabaseBrowser
+        .from("profiles")
+        .upsert(
+          {
+            id: user.id,
+            full_name: trimmed,
+          },
+          { onConflict: "id" }
+        );
+
+      if (upsertError) {
+        console.error("Error saving profile:", upsertError);
+        setErrorMsg(upsertError.message || "Error saving profile data.");
+        return;
+      }
+
+      setSuccessMsg("Profile updated successfully!");
+    } catch (err) {
+      console.error("Unexpected error saving profile:", err);
+      setErrorMsg("Unexpected error while saving profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      setSigningOut(true);
+      const { error } = await supabaseBrowser.auth.signOut();
+
+      if (error) {
+        console.error("Error signing out:", error);
+        setErrorMsg("Error signing out. Please try again.");
+        return;
+      }
+
+      router.replace("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Unexpected error signing out:", err);
+      setErrorMsg("Unexpected error while signing out.");
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmDelete = confirm(
+      "Are you sure you want to delete your account? This action is permanent and cannot be undone."
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setDeleting(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const {
+        data: { session },
+      } = await supabaseBrowser.auth.getSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      const user = session.user;
+
+      const res = await fetch("/api/delete-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Error deleting account.");
+      }
+
+      await supabaseBrowser.auth.signOut();
+      router.replace("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Delete account error:", err);
+      setErrorMsg("Error deleting account. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
+          width: 100%;
+          height: 100%;
+          overflow-x: hidden;
+        }
+      `}</style>
+
+      <style jsx>{`
+        .wrap {
+          max-width: 560px;
+          margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+          .wrap {
+            max-width: 640px;
+          }
+          .title {
+            font-size: 22px !important;
+          }
+          .subtitle {
+            font-size: 13px !important;
+          }
+          .card {
+            padding: 18px 16px !important;
+          }
+          .input {
+            padding: 10px 12px !important;
+            font-size: 14px !important;
+          }
+          .btn {
+            padding: 10px 18px !important;
+            font-size: 14px !important;
+          }
+        }
+      `}</style>
+
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "#ffffff",
+          color: "#374151",
+          padding: 16,
+          paddingBottom: "calc(110px + env(safe-area-inset-bottom))",
+          boxSizing: "border-box",
+          overflowX: "hidden",
+        }}
+      >
+        <div className="wrap">
+          <header
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              marginBottom: 20,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <UserAvatar name={name} size={48} />
+
+              <div>
+                <h1 className="title" style={{ fontSize: 20, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>
+                  My Profile
+                </h1>
+                <p className="subtitle" style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0 }}>
+                  Manage the name shown in SportPlatform.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              style={{
+                borderRadius: 999,
+                padding: "9px 14px",
+                border: "1px solid #e5e7eb",
+                background: "#ffffff",
+                color: "#374151",
+                fontSize: 13, fontFamily: "Montserrat, sans-serif",
+                fontWeight: 600,
+                cursor: signingOut ? "not-allowed" : "pointer",
+                opacity: signingOut ? 0.7 : 1,
+                whiteSpace: "nowrap",
+              }}
+              title="Sign out"
+            >
+              {signingOut ? "Signing out..." : "Sign out"}
+            </button>
+          </header>
+
+
+          <section
+            className="card"
+            style={{
+              borderRadius: 18,
+              padding: "16px 14px",
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              marginBottom: 20,
+            }}
+          >
+            <h2 style={{ fontSize: 15, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0, marginBottom: 10 }}>
+              Basic info
+            </h2>
+
+            {loadingProfile ? (
+              <p style={{ fontSize: 13, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0 }}>Loading profile...</p>
+            ) : (
+              <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <label htmlFor="name" style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151" }}>
+                    Name
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your name"
+                    className="input"
+                    style={{
+                      borderRadius: 10,
+                      padding: "8px 10px",
+                      border: "1px solid #e5e7eb",
+                      backgroundColor: "#ffffff",
+                      color: "#374151",
+                      fontSize: 13, fontFamily: "Montserrat, sans-serif",
+                      width: "100%",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  <p style={{ fontSize: 11, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0, marginTop: 2 }}>
+                    This is the name that will appear in the feed, dashboard, and other areas of the app.
+                  </p>
+                </div>
+
+                {email && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <span style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151" }}>Email (read-only)</span>
+                    <div
+                      style={{
+                        borderRadius: 10,
+                        padding: "8px 10px",
+                        border: "1px solid rgba(31,41,55,0.9)",
+                        backgroundColor: "#ffffff",
+                        fontSize: 13, fontFamily: "Montserrat, sans-serif",
+                        color: "#374151",
+                        width: "100%",
+                        boxSizing: "border-box",
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {email}
+                    </div>
+                  </div>
+                )}
+
+                {errorMsg && (
+                  <p style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#fca5a5", margin: 0, marginTop: 4 }}>{errorMsg}</p>
+                )}
+
+                {successMsg && (
+                  <p style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#bbf7d0", margin: 0, marginTop: 4 }}>{successMsg}</p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="btn"
+                  style={{
+                    marginTop: 8,
+                    alignSelf: "flex-start",
+                    borderRadius: 999,
+                    padding: "8px 16px",
+                    border: "none",
+                    fontSize: 13, fontFamily: "Montserrat, sans-serif",
+                    fontWeight: 600,
+                    background: "#1e3a8a",
+                    color: "#ffffff",
+                    cursor: saving ? "not-allowed" : "pointer",
+                    opacity: saving ? 0.7 : 1,
+                    transition: "opacity 0.15s ease-out",
+                  }}
+                >
+                  {saving ? "Saving..." : "Save changes"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={deleting}
+                  style={{
+                    marginTop: 16,
+                    alignSelf: "flex-start",
+                    borderRadius: 999,
+                    padding: "8px 16px",
+                    border: "1px solid rgba(239,68,68,0.5)",
+                    fontSize: 13, fontFamily: "Montserrat, sans-serif",
+                    fontWeight: 600,
+                    background: "transparent",
+                    color: "#f87171",
+                    cursor: deleting ? "not-allowed" : "pointer",
+                    opacity: deleting ? 0.7 : 1,
+                  }}
+                >
+                  {deleting ? "Processing..." : "Delete Account"}
+                </button>
+              </form>
+            )}
+          </section>
+
+          <section
+            className="card"
+            style={{
+              borderRadius: 18,
+              padding: "16px 14px",
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              marginBottom: 20,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                fontFamily: "Montserrat, sans-serif",
+                margin: "0 0 12px",
+              }}
+            >
+              Legal
+            </h2>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <a
+                href="/terms"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  borderRadius: 10,
+                  padding: "11px 12px",
+                  border: "1px solid #e5e7eb",
+                  color: "#1e3a8a",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                <span>Terms & Conditions</span>
+                <span aria-hidden="true">›</span>
+              </a>
+
+              <a
+                href="/privacy"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  borderRadius: 10,
+                  padding: "11px 12px",
+                  border: "1px solid #e5e7eb",
+                  color: "#1e3a8a",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                <span>Privacy Policy</span>
+                <span aria-hidden="true">›</span>
+              </a>
+            </div>
+          </section>
+          <section
+            className="card"
+            style={{
+              borderRadius: 18,
+              padding: "16px 14px",
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              marginBottom: 20,
+            }}
+          >
+            <h2
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                fontFamily: "Montserrat, sans-serif",
+                margin: "0 0 12px",
+              }}
+            >
+              Memberships
+            </h2>
+
+            {loadingMemberships ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  color: "#64748b",
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                Loading memberships...
+              </p>
+            ) : memberships.length === 0 ? (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  color: "#64748b",
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                You do not have any memberships yet.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {memberships.map((membership) => {
+                  const relation =
+                    membership.app_membership_communities;
+
+                  const community = Array.isArray(relation)
+                    ? relation[0]
+                    : relation;
+
+                  const price =
+                    typeof community?.price_cents === "number"
+                      ? `$${(community.price_cents / 100).toFixed(2)}`
+                      : null;
+
+                  return (
+                    <div
+                      key={membership.id}
+                      style={{
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 14,
+                        padding: 14,
+                        background: "#f8fafc",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: "#0f172a",
+                          fontFamily: "Montserrat, sans-serif",
+                          marginBottom: 10,
+                        }}
+                      >
+                        {community?.name || "Community"}
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gap: 6,
+                          fontSize: 12,
+                          color: "#475569",
+                          fontFamily: "Montserrat, sans-serif",
+                        }}
+                      >
+                        <div>
+                          Status:{" "}
+                          <strong style={{ color: "#0f172a" }}>
+                            {membership.subscription_status ||
+                              membership.status ||
+                              "pending"}
+                          </strong>
+                        </div>
+
+                        {membership.current_period_end && (
+                          <div>
+                            Next renewal:{" "}
+                            <strong style={{ color: "#0f172a" }}>
+                              {new Date(
+                                membership.current_period_end
+                              ).toLocaleDateString()}
+                            </strong>
+                          </div>
+                        )}
+
+                        {price && (
+                          <div>
+                            Price:{" "}
+                            <strong style={{ color: "#0f172a" }}>
+                              {price}/
+                              {community?.billing_interval || "month"}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
+      </main>
+    </>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

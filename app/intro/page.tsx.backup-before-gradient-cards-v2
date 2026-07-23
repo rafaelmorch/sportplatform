@@ -1,0 +1,1383 @@
+"use client";
+
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { Geist } from "next/font/google";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
+const geist = Geist({
+  subsets: ["latin"],
+  display: "swap",
+});
+
+type Accent = "yellow" | "green" | "purple";
+
+type IntroCardProps = {
+  accent: Accent;
+  eyebrow: string;
+  title: string;
+  icon: ReactNode;
+  children: ReactNode;
+  onClick: () => void;
+};
+
+const COLORS = {
+  yellow: {
+    main: "#ffc400",
+    border: "rgba(255,196,0,0.72)",
+    glow: "rgba(255,196,0,0.16)",
+    soft: "rgba(255,196,0,0.11)",
+  },
+  green: {
+    main: "#c8ff38",
+    border: "rgba(200,255,56,0.42)",
+    glow: "rgba(200,255,56,0.12)",
+    soft: "rgba(200,255,56,0.08)",
+  },
+  purple: {
+    main: "#9957ff",
+    border: "rgba(153,87,255,0.48)",
+    glow: "rgba(153,87,255,0.15)",
+    soft: "rgba(153,87,255,0.09)",
+  },
+};
+
+function ChevronIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M9 5L16 12L9 19"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <path
+        d="M8 3V7M16 3V7M3 10H21"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function LocationIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M20 10C20 15.5 12 21 12 21C12 21 4 15.5 4 10C4 5.58 7.58 2 12 2C16.42 2 20 5.58 20 10Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <circle
+        cx="12"
+        cy="10"
+        r="2.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function ShoeIcon() {
+  return (
+    <svg
+      width="44"
+      height="44"
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M8 30C13 29 17 25 19 17L25 21C29 25 34 27 40 28C43 29 44 31 43 35C42 38 39 40 35 40H13C9 40 6 37 6 34C6 32 7 31 8 30Z"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M19 22L23 25M24 24L28 27M29 27L33 29M10 34H41"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg
+      width="42"
+      height="42"
+      viewBox="0 0 48 48"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="7"
+        y="27"
+        width="7"
+        height="13"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <rect
+        x="20"
+        y="18"
+        width="7"
+        height="22"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+      <rect
+        x="33"
+        y="8"
+        width="7"
+        height="32"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="3"
+      />
+    </svg>
+  );
+}
+
+function IntroCard({
+  accent,
+  eyebrow,
+  title,
+  icon,
+  children,
+  onClick,
+}: IntroCardProps) {
+  const palette = COLORS[accent];
+
+  return (
+    <button
+      type="button"
+      className="intro-card"
+      onClick={onClick}
+      style={
+        {
+          "--accent": palette.main,
+          "--accent-border": palette.border,
+          "--accent-glow": palette.glow,
+          "--accent-soft": palette.soft,
+        } as React.CSSProperties
+      }
+    >
+      <div className="card-pattern" />
+
+      <div className="card-icon">
+        {icon}
+      </div>
+
+      <div className="card-content">
+        <div className="card-eyebrow">
+          {eyebrow}
+        </div>
+
+        <h2>
+          {title}
+        </h2>
+
+        {children}
+      </div>
+
+      <div className="card-chevron">
+        <ChevronIcon />
+      </div>
+    </button>
+  );
+}
+
+export default function IntroPage() {
+  const router = useRouter();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  const [videoReady, setVideoReady] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    videoRef.current?.play().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSession = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabaseBrowser.auth.getSession();
+
+        if (mounted) {
+          setIsLoggedIn(Boolean(session?.user));
+        }
+      } catch (error) {
+        console.error("Could not load session:", error);
+
+        if (mounted) {
+          setIsLoggedIn(false);
+        }
+      } finally {
+        if (mounted) {
+          setSessionChecked(true);
+        }
+      }
+    };
+
+    void loadSession();
+
+    const {
+      data: { subscription },
+    } = supabaseBrowser.auth.onAuthStateChange(
+      (_event, session) => {
+        if (!mounted) {
+          return;
+        }
+
+        setIsLoggedIn(Boolean(session?.user));
+        setSessionChecked(true);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const navigate = (href: string) => {
+    router.push(href);
+  };
+
+  return (
+    <main className={`${geist.className} intro-page`}>
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        className={`hero-video ${videoReady ? "ready" : ""}`}
+        onLoadedData={() => setVideoReady(true)}
+      >
+        <source
+          src="/intro.mp4"
+          type="video/mp4"
+        />
+      </video>
+
+      <div className="background-layer" />
+
+      <div className="scroll-area">
+        <section className="hero-section">
+          <img
+            src="/logo-sports-platform.png"
+            alt="Platform Sports"
+            className="platform-logo"
+          />
+
+          <div className="hero-text">
+            <p>
+              {isLoggedIn
+                ? "Welcome back"
+                : "Welcome to Platform Sports"}
+            </p>
+
+            <h1>
+              {isLoggedIn
+                ? "Ready for your next challenge?"
+                : "Transform your life through sports."}
+            </h1>
+          </div>
+        </section>
+
+        <section className="cards-section">
+          {!sessionChecked ? (
+            <div className="loading-card">
+              Loading...
+            </div>
+          ) : isLoggedIn ? (
+            <>
+              <IntroCard
+                accent="yellow"
+                eyebrow="Runner Journey"
+                title="Yellow Level"
+                onClick={() => navigate("/groups")}
+                icon={
+                  <div className="level-badge">
+                    <strong>Y</strong>
+                    <span>Yellow</span>
+                  </div>
+                }
+              >
+                <p className="description">
+                  3 of 5 challenges completed
+                </p>
+
+                <div className="progress-row">
+                  <div className="progress-track">
+                    <div className="progress-fill" />
+                  </div>
+
+                  <strong className="progress-percent">
+                    60%
+                  </strong>
+                </div>
+              </IntroCard>
+
+              <IntroCard
+                accent="green"
+                eyebrow="Today's Activity"
+                title="Group Run"
+                onClick={() => navigate("/activities")}
+                icon={<ShoeIcon />}
+              >
+                <div className="activity-details">
+                  <div>
+                    <CalendarIcon />
+                    <span>Today, 6:00 AM</span>
+                  </div>
+
+                  <div>
+                    <LocationIcon />
+                    <span>The Grove · Windermere</span>
+                  </div>
+                </div>
+              </IntroCard>
+
+              <IntroCard
+                accent="purple"
+                eyebrow="Your Performance"
+                title="Level Evolution"
+                onClick={() => navigate("/performance-ai")}
+                icon={<ChartIcon />}
+              >
+                <div className="performance-content">
+                  <div className="performance-grid">
+                    <div>
+                      <strong>3</strong>
+                      <span>Activities</span>
+                    </div>
+
+                    <div>
+                      <strong>18.4 km</strong>
+                      <span>Distance</span>
+                    </div>
+
+                    <div>
+                      <strong>1h 53m</strong>
+                      <span>Time</span>
+                    </div>
+                  </div>
+
+                  <div className="performance-chart">
+                    <svg
+                      viewBox="0 0 180 55"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      <defs>
+                        <linearGradient
+                          id="performanceArea"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#9957ff"
+                            stopOpacity="0.40"
+                          />
+
+                          <stop
+                            offset="100%"
+                            stopColor="#9957ff"
+                            stopOpacity="0"
+                          />
+                        </linearGradient>
+                      </defs>
+
+                      <path
+                        d="M2 46 L22 43 L38 35 L53 38 L70 25 L87 28 L105 16 L121 20 L140 8 L158 14 L178 4 L178 55 L2 55 Z"
+                        fill="url(#performanceArea)"
+                      />
+
+                      <path
+                        d="M2 46 L22 43 L38 35 L53 38 L70 25 L87 28 L105 16 L121 20 L140 8 L158 14 L178 4"
+                        fill="none"
+                        stroke="#9957ff"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              </IntroCard>
+            </>
+          ) : (
+            <>
+              <IntroCard
+                accent="yellow"
+                eyebrow="Runner Journey"
+                title="Start your journey"
+                onClick={() => navigate("/login")}
+                icon={
+                  <div className="level-badge">
+                    <strong>Y</strong>
+                    <span>Start</span>
+                  </div>
+                }
+              >
+                <p className="description">
+                  Complete challenges and unlock new levels.
+                </p>
+              </IntroCard>
+
+              <IntroCard
+                accent="green"
+                eyebrow="Activities"
+                title="Find your next activity"
+                onClick={() => navigate("/activities")}
+                icon={<ShoeIcon />}
+              >
+                <p className="description">
+                  Explore running, cycling and community activities.
+                </p>
+              </IntroCard>
+
+              <IntroCard
+                accent="purple"
+                eyebrow="Platform Sports"
+                title="Join the movement"
+                onClick={() => navigate("/login")}
+                icon={<ChartIcon />}
+              >
+                <p className="description">
+                  Sign in or create your account to begin.
+                </p>
+              </IntroCard>
+            </>
+          )}
+        </section>
+      </div>
+
+      <style jsx>{`
+        .intro-page {
+          position: fixed;
+          inset: 0;
+          width: 100vw;
+          height: 100dvh;
+          overflow: hidden;
+          background: #050708;
+          color: #ffffff;
+        }
+
+        .hero-video {
+          position: absolute;
+          top: -7%;
+          left: 0;
+          width: 100%;
+          height: 74%;
+          object-fit: cover;
+          object-position: center 26%;
+          opacity: 0;
+          transform: scale(1.08);
+          transition: opacity 300ms ease;
+        }
+
+        .hero-video.ready {
+          opacity: 1;
+        }
+
+        .background-layer {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            linear-gradient(
+              to bottom,
+              rgba(2, 5, 7, 0.04) 0%,
+              rgba(2, 5, 7, 0.05) 30%,
+              rgba(2, 5, 7, 0.36) 47%,
+              rgba(4, 6, 8, 0.90) 61%,
+              #050708 77%
+            ),
+            radial-gradient(
+              circle at 76% 18%,
+              rgba(255, 176, 33, 0.13),
+              transparent 32%
+            );
+        }
+
+        .scroll-area {
+          position: relative;
+          z-index: 2;
+          width: 100%;
+          height: 100%;
+          overflow-y: auto;
+          overscroll-behavior-y: contain;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom:
+            calc(88px + env(safe-area-inset-bottom));
+        }
+
+        .hero-section {
+          width: min(100%, 760px);
+          min-height: clamp(500px, 67dvh, 690px);
+          margin: 0 auto;
+          padding:
+            calc(18px + env(safe-area-inset-top))
+            clamp(20px, 5vw, 40px)
+            30px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .platform-logo {
+          display: block;
+          width: min(78vw, 430px);
+          max-height: 165px;
+          margin: 0 auto;
+          object-fit: contain;
+          filter:
+            drop-shadow(0 6px 18px rgba(0, 0, 0, 0.52));
+        }
+
+        .hero-text {
+          max-width: 620px;
+        }
+
+        .hero-text p {
+          margin: 0 0 9px;
+          color: #ffc400;
+          font-size: clamp(17px, 4vw, 23px);
+          line-height: 1.2;
+          font-weight: 550;
+          letter-spacing: -0.025em;
+          text-shadow:
+            0 3px 14px rgba(0, 0, 0, 0.72);
+        }
+
+        .hero-text h1 {
+          max-width: 620px;
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(39px, 9vw, 64px);
+          line-height: 0.98;
+          font-weight: 860;
+          letter-spacing: -0.06em;
+          text-shadow:
+            0 6px 26px rgba(0, 0, 0, 0.82);
+        }
+
+        .cards-section {
+          width: min(100%, 760px);
+          margin: 0 auto;
+          padding:
+            0
+            clamp(14px, 4vw, 32px)
+            24px;
+          display: grid;
+          gap: clamp(16px, 2.4vh, 21px);
+        }
+
+        .intro-card {
+          position: relative;
+          width: 100%;
+          min-height: 190px;
+          overflow: hidden;
+          display: grid;
+          grid-template-columns:
+            126px
+            minmax(0, 1fr)
+            44px;
+          align-items: center;
+          gap: 22px;
+          padding: 25px;
+          border: 1px solid var(--accent-border);
+          border-radius: 24px;
+          background:
+            radial-gradient(
+              circle at 4% 22%,
+              var(--accent-soft),
+              transparent 35%
+            ),
+            linear-gradient(
+              135deg,
+              rgba(21, 23, 23, 0.97),
+              rgba(7, 8, 9, 0.97)
+            );
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.07),
+            0 16px 36px rgba(0, 0, 0, 0.35),
+            0 0 26px var(--accent-glow);
+          color: #ffffff;
+          text-align: left;
+          font: inherit;
+          appearance: none;
+          cursor: pointer;
+          transition:
+            transform 150ms ease,
+            border-color 150ms ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .intro-card:active {
+          transform: scale(0.985);
+        }
+
+        .card-pattern {
+          position: absolute;
+          inset: 0;
+          opacity: 0.65;
+          background:
+            linear-gradient(
+              115deg,
+              rgba(255,255,255,0.06),
+              transparent 28%
+            ),
+            repeating-linear-gradient(
+              135deg,
+              transparent 0,
+              transparent 28px,
+              rgba(255,255,255,0.012) 29px
+            );
+          pointer-events: none;
+        }
+
+        .card-icon {
+          position: relative;
+          z-index: 1;
+          width: 120px;
+          height: 120px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid var(--accent-border);
+          border-radius: 22px;
+          background:
+            radial-gradient(
+              circle at 50% 28%,
+              var(--accent-soft),
+              transparent 68%
+            ),
+            rgba(3, 5, 6, 0.90);
+          color: var(--accent);
+          box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.08),
+            0 0 24px var(--accent-glow);
+        }
+
+        .level-badge {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 11px;
+        }
+
+        .level-badge strong {
+          color: var(--accent);
+          font-size: 64px;
+          line-height: 0.82;
+          font-weight: 900;
+          font-style: italic;
+        }
+
+        .level-badge span {
+          color: var(--accent);
+          font-size: 11px;
+          line-height: 1;
+          font-weight: 850;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+        }
+
+        .card-content {
+          position: relative;
+          z-index: 1;
+          min-width: 0;
+        }
+
+        .card-eyebrow {
+          margin-bottom: 8px;
+          color: var(--accent);
+          font-size: 14px;
+          line-height: 1.2;
+          font-weight: 780;
+          letter-spacing: 0.045em;
+          text-transform: uppercase;
+        }
+
+        .card-content h2 {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(28px, 5.5vw, 38px);
+          line-height: 1.03;
+          font-weight: 760;
+          letter-spacing: -0.045em;
+        }
+
+        .description {
+          margin: 11px 0 0;
+          color: rgba(255,255,255,0.68);
+          font-size: 16px;
+          line-height: 1.42;
+          font-weight: 420;
+        }
+
+        .card-chevron {
+          position: relative;
+          z-index: 1;
+          width: 42px;
+          height: 42px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(255,255,255,0.09);
+          border-radius: 50%;
+          background: rgba(255,255,255,0.09);
+          color: #ffffff;
+        }
+
+        .progress-row {
+          margin-top: 17px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+        }
+
+        .progress-track {
+          height: 11px;
+          flex: 1;
+          overflow: hidden;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.16);
+        }
+
+        .progress-fill {
+          width: 60%;
+          height: 100%;
+          border-radius: inherit;
+          background:
+            linear-gradient(
+              90deg,
+              #ffb800,
+              #ffd73b
+            );
+          box-shadow:
+            0 0 15px rgba(255,196,0,0.40);
+        }
+
+        .progress-percent {
+          color: #ffc400;
+          font-size: 17px;
+          font-weight: 820;
+        }
+
+        .activity-details {
+          margin-top: 12px;
+          display: grid;
+          gap: 7px;
+          color: rgba(255,255,255,0.64);
+          font-size: 16px;
+        }
+
+        .activity-details > div {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+        }
+
+        .performance-content {
+          margin-top: 15px;
+        }
+
+        .performance-grid {
+          display: grid;
+          grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .performance-grid strong {
+          display: block;
+          color: #ffffff;
+          font-size: 18px;
+          line-height: 1.2;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+
+        .performance-grid span {
+          display: block;
+          margin-top: 4px;
+          color: rgba(255,255,255,0.52);
+          font-size: 11px;
+          line-height: 1.2;
+        }
+
+        .performance-chart {
+          width: 100%;
+          height: 47px;
+          margin-top: 10px;
+        }
+
+        .performance-chart svg {
+          width: 100%;
+          height: 100%;
+        }
+
+        .loading-card {
+          padding: 28px;
+          border: 1px solid rgba(255,255,255,0.16);
+          border-radius: 20px;
+          background: rgba(7,9,11,0.88);
+          color: rgba(255,255,255,0.72);
+          text-align: center;
+        }
+
+        @media (max-width: 600px) {
+          .hero-section {
+            min-height: clamp(465px, 65dvh, 580px);
+          }
+
+          .intro-card {
+            min-height: 150px;
+            grid-template-columns:
+              84px
+              minmax(0, 1fr)
+              34px;
+            gap: 14px;
+            padding: 17px 15px;
+            border-radius: 18px;
+          }
+
+          .card-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+          }
+
+          .level-badge {
+            gap: 6px;
+          }
+
+          .level-badge strong {
+            font-size: 44px;
+          }
+
+          .level-badge span {
+            font-size: 8px;
+          }
+
+          .card-eyebrow {
+            margin-bottom: 5px;
+            font-size: 10px;
+          }
+
+          .card-content h2 {
+            font-size: clamp(22px, 6vw, 30px);
+          }
+
+          .description {
+            margin-top: 7px;
+            font-size: 13px;
+          }
+
+          .card-chevron {
+            width: 32px;
+            height: 32px;
+          }
+
+          .progress-row {
+            margin-top: 10px;
+            gap: 8px;
+          }
+
+          .progress-track {
+            height: 8px;
+          }
+
+          .progress-percent {
+            font-size: 13px;
+          }
+
+          .activity-details {
+            margin-top: 8px;
+            gap: 5px;
+            font-size: 12px;
+          }
+
+          .activity-details svg {
+            width: 15px;
+            height: 15px;
+          }
+
+          .performance-content {
+            margin-top: 10px;
+          }
+
+          .performance-grid {
+            gap: 7px;
+          }
+
+          .performance-grid strong {
+            font-size: 13px;
+          }
+
+          .performance-grid span {
+            font-size: 9px;
+          }
+
+          .performance-chart {
+            height: 31px;
+            margin-top: 6px;
+          }
+        }
+
+        @media (max-height: 740px) {
+          .hero-section {
+            min-height: 430px;
+          }
+
+          .hero-video {
+            height: 71%;
+          }
+        }
+
+        @media (min-width: 900px) {
+          .hero-section {
+            min-height: 680px;
+          }
+
+          .hero-video {
+            height: 780px;
+          }
+        }
+
+        /* GRADIENT CARDS TEST - START */
+
+        .cards-section {
+          gap: 16px;
+        }
+
+        .intro-card {
+          position: relative;
+          isolation: isolate;
+          min-height: 158px;
+          grid-template-columns:
+            82px
+            minmax(0, 1fr)
+            34px;
+          align-items: center;
+          gap: 16px;
+          padding: 20px 17px;
+          overflow: hidden;
+
+          border:
+            1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 22px;
+
+          background:
+            linear-gradient(
+              115deg,
+              rgba(255, 255, 255, 0.10) 0%,
+              rgba(255, 255, 255, 0.035) 46%,
+              rgba(255, 255, 255, 0.012) 100%
+            ),
+            rgba(5, 8, 11, 0.54);
+
+          backdrop-filter: blur(18px) saturate(125%);
+          -webkit-backdrop-filter:
+            blur(18px) saturate(125%);
+
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            inset 0 -1px 0 rgba(255, 255, 255, 0.035),
+            0 18px 38px rgba(0, 0, 0, 0.30);
+
+          transition:
+            transform 160ms ease,
+            border-color 160ms ease,
+            box-shadow 160ms ease;
+        }
+
+        .intro-card::before {
+          content: "";
+          position: absolute;
+          z-index: -2;
+          inset: 0;
+          pointer-events: none;
+          opacity: 1;
+        }
+
+        .intro-card::after {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          top: -60%;
+          right: -15%;
+          width: 58%;
+          height: 190%;
+          pointer-events: none;
+
+          background:
+            linear-gradient(
+              105deg,
+              transparent 0%,
+              rgba(255, 255, 255, 0.07) 48%,
+              transparent 72%
+            );
+
+          transform: rotate(11deg);
+          opacity: 0.7;
+        }
+
+        .intro-card:nth-of-type(1)::before {
+          background:
+            radial-gradient(
+              circle at 5% 40%,
+              rgba(255, 196, 0, 0.46) 0%,
+              rgba(255, 157, 0, 0.23) 27%,
+              rgba(255, 157, 0, 0.07) 52%,
+              transparent 72%
+            ),
+            linear-gradient(
+              100deg,
+              rgba(255, 187, 0, 0.12),
+              transparent 58%
+            );
+        }
+
+        .intro-card:nth-of-type(2)::before {
+          background:
+            radial-gradient(
+              circle at 7% 46%,
+              rgba(174, 255, 46, 0.40) 0%,
+              rgba(47, 212, 122, 0.22) 29%,
+              rgba(47, 212, 122, 0.06) 53%,
+              transparent 73%
+            ),
+            linear-gradient(
+              100deg,
+              rgba(112, 255, 70, 0.11),
+              transparent 58%
+            );
+        }
+
+        .intro-card:nth-of-type(3)::before {
+          background:
+            radial-gradient(
+              circle at 8% 44%,
+              rgba(165, 88, 255, 0.48) 0%,
+              rgba(116, 58, 255, 0.23) 29%,
+              rgba(116, 58, 255, 0.07) 53%,
+              transparent 73%
+            ),
+            linear-gradient(
+              100deg,
+              rgba(142, 74, 255, 0.13),
+              transparent 58%
+            );
+        }
+
+        .intro-card:nth-of-type(1) {
+          border-color: rgba(255, 198, 48, 0.34);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 18px 38px rgba(0, 0, 0, 0.30),
+            0 0 30px rgba(255, 174, 0, 0.08);
+        }
+
+        .intro-card:nth-of-type(2) {
+          border-color: rgba(161, 255, 72, 0.27);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 18px 38px rgba(0, 0, 0, 0.30),
+            0 0 30px rgba(83, 255, 126, 0.07);
+        }
+
+        .intro-card:nth-of-type(3) {
+          border-color: rgba(165, 101, 255, 0.31);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.13),
+            0 18px 38px rgba(0, 0, 0, 0.30),
+            0 0 30px rgba(138, 74, 255, 0.09);
+        }
+
+        .intro-card:active {
+          transform: scale(0.982);
+        }
+
+        .card-pattern {
+          display: none;
+        }
+
+        .card-icon {
+          width: 78px;
+          height: 96px;
+          border: 0;
+          border-radius: 0;
+          background: transparent;
+          box-shadow: none;
+          color: var(--accent);
+          opacity: 0.98;
+
+          filter:
+            drop-shadow(
+              0 0 12px var(--accent-glow)
+            );
+        }
+
+        .card-icon svg {
+          width: 54px;
+          height: 54px;
+          stroke-width: 1.7;
+        }
+
+        .level-badge {
+          gap: 8px;
+        }
+
+        .level-badge strong {
+          font-size: 58px;
+          line-height: 0.78;
+          text-shadow:
+            0 0 22px var(--accent-glow);
+        }
+
+        .level-badge span {
+          padding: 5px 8px;
+          border:
+            1px solid color-mix(
+              in srgb,
+              var(--accent) 45%,
+              transparent
+            );
+          border-radius: 999px;
+          background:
+            color-mix(
+              in srgb,
+              var(--accent) 13%,
+              transparent
+            );
+          font-size: 8px;
+          letter-spacing: 0.10em;
+        }
+
+        .card-content {
+          align-self: center;
+        }
+
+        .card-eyebrow {
+          margin-bottom: 5px;
+          font-size: 10px;
+          line-height: 1.2;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          opacity: 0.92;
+        }
+
+        .card-content h2 {
+          font-size: clamp(23px, 5.7vw, 31px);
+          line-height: 1.02;
+          font-weight: 760;
+          letter-spacing: -0.045em;
+        }
+
+        .description {
+          margin-top: 7px;
+          color: rgba(255, 255, 255, 0.67);
+          font-size: 13px;
+          line-height: 1.35;
+        }
+
+        .card-chevron {
+          width: 31px;
+          height: 31px;
+          border:
+            1px solid rgba(255, 255, 255, 0.13);
+          background:
+            rgba(255, 255, 255, 0.075);
+          color: rgba(255, 255, 255, 0.88);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .card-chevron svg {
+          width: 16px;
+          height: 16px;
+        }
+
+        .progress-row {
+          margin-top: 12px;
+          gap: 9px;
+        }
+
+        .progress-track {
+          height: 7px;
+          border:
+            1px solid rgba(255, 255, 255, 0.10);
+          background:
+            rgba(255, 255, 255, 0.12);
+          box-shadow:
+            inset 0 2px 5px rgba(0, 0, 0, 0.24);
+        }
+
+        .progress-fill {
+          background:
+            linear-gradient(
+              90deg,
+              #ff9d00 0%,
+              #ffc400 58%,
+              #ffe275 100%
+            );
+          box-shadow:
+            0 0 12px rgba(255, 196, 0, 0.62);
+        }
+
+        .progress-percent {
+          font-size: 12px;
+          font-weight: 800;
+        }
+
+        .activity-details {
+          margin-top: 9px;
+          gap: 6px;
+          color: rgba(255, 255, 255, 0.67);
+          font-size: 12px;
+        }
+
+        .activity-details > div {
+          gap: 7px;
+        }
+
+        .activity-details svg {
+          width: 14px;
+          height: 14px;
+          color: var(--accent);
+          filter:
+            drop-shadow(
+              0 0 5px var(--accent-glow)
+            );
+        }
+
+        .performance-content {
+          margin-top: 10px;
+        }
+
+        .performance-grid {
+          gap: 9px;
+        }
+
+        .performance-grid strong {
+          font-size: 13px;
+          font-weight: 720;
+        }
+
+        .performance-grid span {
+          margin-top: 2px;
+          font-size: 8px;
+          color: rgba(255, 255, 255, 0.48);
+        }
+
+        .performance-chart {
+          height: 34px;
+          margin-top: 6px;
+          opacity: 0.92;
+          filter:
+            drop-shadow(
+              0 0 8px rgba(153, 87, 255, 0.30)
+            );
+        }
+
+        @media (min-width: 601px) {
+          .intro-card {
+            min-height: 176px;
+            grid-template-columns:
+              102px
+              minmax(0, 1fr)
+              38px;
+            gap: 22px;
+            padding: 24px 22px;
+          }
+
+          .card-icon {
+            width: 96px;
+            height: 112px;
+          }
+
+          .card-icon svg {
+            width: 64px;
+            height: 64px;
+          }
+
+          .level-badge strong {
+            font-size: 68px;
+          }
+
+          .card-eyebrow {
+            font-size: 12px;
+          }
+
+          .description,
+          .activity-details {
+            font-size: 14px;
+          }
+
+          .performance-grid strong {
+            font-size: 15px;
+          }
+        }
+
+        /* GRADIENT CARDS TEST - END */
+      `}</style>
+    </main>
+  );
+}

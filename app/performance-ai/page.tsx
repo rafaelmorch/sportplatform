@@ -14,6 +14,14 @@ const activeModules = [
     action: "Ver evolução corporal",
   },
   {
+    title: "Blood",
+    icon: "🩸",
+    description:
+      "Envie seus exames de sangue, acompanhe marcadores importantes e gere análises com inteligência artificial.",
+    href: "/performance-ai/blood",
+    action: "Analisar exames",
+  },
+  {
     title: "Coach IA",
     icon: "🤖",
     description:
@@ -386,3 +394,4 @@ export default function PerformanceAIPage() {
     </>
   );
 }
+

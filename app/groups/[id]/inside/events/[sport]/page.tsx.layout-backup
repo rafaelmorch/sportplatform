@@ -1,0 +1,1027 @@
+// app/groups/[id]/inside/events/page.tsx
+"use client";
+
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import BackArrow from "@/components/BackArrow";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+
+export const dynamic = "force-dynamic";
+
+type CommunityRow = {
+  id: string;
+  name: string | null;
+  created_by: string | null;
+};
+
+type ActivityRow = {
+  id: string;
+  title: string | null;
+  sport: string | null;
+  activity_type: string | null;
+  description: string | null;
+  start_date: string | null;
+  address_text: string | null;
+  city: string | null;
+  state: string | null;
+  capacity: number | null;
+  image_path: string | null;
+  image_url: string | null;
+  published: boolean | null;
+  community_id: string | null;
+};
+
+type SportConfig = {
+  name: string;
+  watermark: string;
+  background: string;
+  textColor: string;
+};
+
+const SPORTS: SportConfig[] = [
+  {
+    name: "Running",
+    watermark: "RUN",
+    background: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Walking",
+    watermark: "WALK",
+    background: "linear-gradient(135deg, #475569 0%, #64748b 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Cycling",
+    watermark: "RIDE",
+    background: "linear-gradient(135deg, #047857 0%, #10b981 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Swimming",
+    watermark: "SWIM",
+    background: "linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Triathlon",
+    watermark: "TRI",
+    background: "linear-gradient(135deg, #4338ca 0%, #6366f1 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Soccer",
+    watermark: "GOAL",
+    background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Basketball",
+    watermark: "HOOP",
+    background: "linear-gradient(135deg, #c2410c 0%, #f97316 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Volleyball",
+    watermark: "VOLLEY",
+    background: "linear-gradient(135deg, #7e22ce 0%, #a855f7 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Tennis",
+    watermark: "ACE",
+    background: "linear-gradient(135deg, #a16207 0%, #eab308 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Golf",
+    watermark: "GOLF",
+    background: "linear-gradient(135deg, #166534 0%, #22c55e 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "CrossFit",
+    watermark: "WOD",
+    background: "linear-gradient(135deg, #111827 0%, #374151 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Functional Training",
+    watermark: "MOVE",
+    background: "linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Martial Arts",
+    watermark: "FIGHT",
+    background: "linear-gradient(135deg, #991b1b 0%, #b91c1c 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Yoga",
+    watermark: "FLOW",
+    background: "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)",
+    textColor: "#ffffff",
+  },
+  {
+    name: "Other",
+    watermark: "SPORT",
+    background: "linear-gradient(135deg, #334155 0%, #64748b 100%)",
+    textColor: "#ffffff",
+  },
+];
+
+const SPORT_NAMES = SPORTS.map((sport) => sport.name);
+
+function normalizeSport(activity: ActivityRow): string {
+  const raw = (activity.sport ?? activity.activity_type ?? "").trim();
+
+  if (!raw) return "Other";
+
+  const match = SPORT_NAMES.find(
+    (sportName) => sportName.toLowerCase() === raw.toLowerCase()
+  );
+
+  return match ?? "Other";
+}
+
+function dateKey(value: string | Date): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatMonth(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatSelectedDate(key: string): string {
+  const [year, month, day] = key.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function formatEventTime(value: string | null): string {
+  if (!value) return "Time TBD";
+
+  return new Date(value).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function buildAddress(activity: ActivityRow): string {
+  const address = (activity.address_text ?? "").trim();
+  const city = (activity.city ?? "").trim();
+  const state = (activity.state ?? "").trim();
+
+  const parts: string[] = [];
+
+  if (address) parts.push(address);
+
+  if (city && state) {
+    parts.push(`${city}, ${state}`);
+  } else if (city) {
+    parts.push(city);
+  } else if (state) {
+    parts.push(state);
+  }
+
+  return parts.join(" • ") || "Location TBD";
+}
+
+function getCalendarCells(month: Date): Array<Date | null> {
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+
+  const firstDay = new Date(year, monthIndex, 1);
+  const lastDay = new Date(year, monthIndex + 1, 0);
+
+  const cells: Array<Date | null> = [];
+
+  for (let index = 0; index < firstDay.getDay(); index += 1) {
+    cells.push(null);
+  }
+
+  for (let day = 1; day <= lastDay.getDate(); day += 1) {
+    cells.push(new Date(year, monthIndex, day));
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
+export default function MembershipEventsPage() {
+  const supabase = useMemo(() => supabaseBrowser, []);
+  const router = useRouter();
+  const params = useParams();
+
+  const communityId = Array.isArray(params?.id) ? params.id[0] : params?.id;
+  const sportParam = Array.isArray(params?.sport)
+    ? params.sport[0]
+    : params?.sport;
+
+  const decodedSport =
+    typeof sportParam === "string"
+      ? decodeURIComponent(sportParam).replace(/-/g, " ")
+      : "";
+
+  const routeSport =
+    SPORT_NAMES.find(
+      (sportName) =>
+        sportName.toLowerCase() === decodedSport.toLowerCase()
+    ) ?? "Other";
+
+  const [loading, setLoading] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
+  const [communityName, setCommunityName] = useState<string | null>(null);
+  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [warning, setWarning] = useState<string | null>(null);
+
+  const [selectedSport, setSelectedSport] = useState<string | null>(
+    routeSport
+  );
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPage() {
+      if (!communityId || typeof communityId !== "string") {
+        router.replace("/groups");
+        return;
+      }
+
+      setLoading(true);
+      setWarning(null);
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data: community, error: communityError } = await supabase
+          .from("app_membership_communities")
+          .select("id,name,created_by")
+          .eq("id", communityId)
+          .single();
+
+        if (communityError || !community) {
+          router.replace("/groups");
+          return;
+        }
+
+        const typedCommunity = community as CommunityRow;
+        const creator = typedCommunity.created_by === user.id;
+
+        if (!creator) {
+          const { data: membershipRequest } = await supabase
+            .from("app_membership_requests")
+            .select("status")
+            .eq("community_id", communityId)
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          if (
+            !membershipRequest ||
+            !["approved", "active"].includes(membershipRequest.status)
+          ) {
+            router.replace(`/groups/${communityId}`);
+            return;
+          }
+        }
+
+        const nowIso = new Date().toISOString();
+
+        const { data: eventRows, error: eventsError } = await supabase
+          .from("app_activities")
+          .select(
+            "id,title,sport,activity_type,description,start_date,address_text,city,state,capacity,image_path,image_url,published,community_id"
+          )
+          .eq("published", true)
+          .eq("community_id", communityId)
+          .gte("start_date", nowIso)
+          .order("start_date", { ascending: true });
+
+        if (cancelled) return;
+
+        if (eventsError) {
+          console.error("Error loading community events:", eventsError);
+          setActivities([]);
+          setWarning("I couldn't load the events right now.");
+        } else {
+          const typedRows = (eventRows ?? []) as ActivityRow[];
+          setActivities(typedRows);
+
+          if (typedRows.length === 0) {
+            setWarning("No upcoming events for this community.");
+          }
+        }
+
+        setCommunityName(typedCommunity.name ?? null);
+        setIsCreator(creator);
+        setAllowed(true);
+      } catch (error) {
+        console.error("Unexpected error loading community events:", error);
+
+        if (!cancelled) {
+          setActivities([]);
+          setWarning("Failed to connect to Supabase.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadPage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId, router, supabase]);
+
+  const activitiesBySport = useMemo(() => {
+    const grouped = new Map<string, ActivityRow[]>();
+
+    for (const activity of activities) {
+      const sportName = normalizeSport(activity);
+      const existing = grouped.get(sportName) ?? [];
+      existing.push(activity);
+      grouped.set(sportName, existing);
+    }
+
+    return grouped;
+  }, [activities]);
+
+  const visibleSports = useMemo(
+    () =>
+      SPORTS.filter(
+        (sport) => (activitiesBySport.get(sport.name)?.length ?? 0) > 0
+      ),
+    [activitiesBySport]
+  );
+
+  const selectedSportActivities = useMemo(() => {
+    if (!selectedSport) return [];
+    return activitiesBySport.get(selectedSport) ?? [];
+  }, [activitiesBySport, selectedSport]);
+
+  const eventDateKeys = useMemo(
+    () =>
+      new Set(
+        selectedSportActivities
+          .filter((activity) => activity.start_date)
+          .map((activity) => dateKey(activity.start_date as string))
+      ),
+    [selectedSportActivities]
+  );
+
+  const selectedDateActivities = useMemo(() => {
+    if (!selectedDate) return [];
+
+    return selectedSportActivities.filter(
+      (activity) =>
+        activity.start_date && dateKey(activity.start_date) === selectedDate
+    );
+  }, [selectedDate, selectedSportActivities]);
+
+  const calendarCells = useMemo(
+    () => getCalendarCells(calendarMonth),
+    [calendarMonth]
+  );
+
+  function openSport(sportName: string) {
+    const sportActivities = activitiesBySport.get(sportName) ?? [];
+    const firstActivity = sportActivities.find((activity) => activity.start_date);
+
+    if (firstActivity?.start_date) {
+      const firstDate = new Date(firstActivity.start_date);
+      setCalendarMonth(
+        new Date(firstDate.getFullYear(), firstDate.getMonth(), 1)
+      );
+    } else {
+      const today = new Date();
+      setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+    }
+
+    setSelectedSport(sportName);
+    setSelectedDate(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goBackInsidePage() {
+    if (selectedDate) {
+      setSelectedDate(null);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    router.push(`/groups/${communityId}/inside/events`);
+  }
+
+  function changeMonth(amount: number) {
+    setCalendarMonth(
+      (current) =>
+        new Date(current.getFullYear(), current.getMonth() + amount, 1)
+    );
+    setSelectedDate(null);
+  }
+
+  if (loading || !allowed) return null;
+
+  return (
+    <>
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100%;
+          min-height: 100%;
+          overflow-x: hidden !important;
+          background: #000 !important;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        * {
+          box-sizing: border-box;
+        }
+
+        button,
+        input,
+        select,
+        textarea {
+          font-family: "Montserrat", Arial, sans-serif;
+        }
+
+        .membership-events-page * {
+          font-family: "Montserrat", Arial, sans-serif;
+        }
+
+        .sport-card {
+          transition:
+            transform 160ms ease,
+            box-shadow 160ms ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .sport-card:active {
+          transform: scale(0.98);
+        }
+
+        .calendar-day {
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .calendar-day:active {
+          transform: scale(0.96);
+        }
+      `}</style>
+
+      <main
+        className="membership-events-page"
+        style={{
+          minHeight: "100vh",
+          background:
+            "linear-gradient(180deg, #eef1f5 0%, #e5e7eb 45%, #dfe3e8 100%)",
+          paddingTop: "max(16px, env(safe-area-inset-top))",
+          paddingRight: "max(16px, env(safe-area-inset-right))",
+          paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+          paddingLeft: "max(16px, env(safe-area-inset-left))",
+          overflowX: "hidden",
+        }}
+      >
+        <div style={{ maxWidth: 900, margin: "0 auto 16px auto" }}>
+          {!selectedDate ? (
+            <BackArrow href={`/groups/${communityId}/inside/events`} />
+          ) : (
+            <button
+              type="button"
+              onClick={goBackInsidePage}
+              aria-label="Back to calendar"
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 999,
+                border: "1px solid #d6dbe4",
+                background: "#ffffff",
+                color: "#0f172a",
+                fontSize: 24,
+                lineHeight: 1,
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow:
+                  "5px 5px 14px rgba(148,163,184,0.16), -4px -4px 12px rgba(255,255,255,0.9)",
+              }}
+            >
+              ←
+            </button>
+          )}
+        </div>
+
+        <div
+          style={{
+            maxWidth: 900,
+            margin: "0 auto",
+            borderRadius: 28,
+            padding: "clamp(18px, 3vw, 24px)",
+            border: "1px solid #d6dbe4",
+            background: "#ffffff",
+            boxShadow:
+              "8px 8px 24px rgba(148,163,184,0.18), -6px -6px 20px rgba(255,255,255,0.9)",
+            overflow: "hidden",
+          }}
+        >
+          <header
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              marginBottom: 20,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "#64748b",
+                  marginBottom: 6,
+                  fontWeight: 700,
+                }}
+              >
+                {selectedDate
+                  ? selectedSport
+                  : selectedSport
+                    ? "Activity Calendar"
+                    : "Community Activities"}
+              </div>
+
+              <h1
+                style={{
+                  fontSize: "clamp(22px, 4vw, 26px)",
+                  fontWeight: 800,
+                  margin: 0,
+                  color: "#0f172a",
+                  lineHeight: 1.15,
+                }}
+              >
+                {selectedDate
+                  ? formatSelectedDate(selectedDate)
+                  : selectedSport
+                    ? selectedSport
+                    : communityName
+                      ? `${communityName} Activities`
+                      : "Group Activities"}
+              </h1>
+
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#64748b",
+                  margin: "8px 0 0 0",
+                  lineHeight: 1.5,
+                }}
+              >
+                {selectedDate
+                  ? `${selectedDateActivities.length} ${
+                      selectedDateActivities.length === 1 ? "event" : "events"
+                    } scheduled.`
+                  : selectedSport
+                    ? "Select a day to view the scheduled activities."
+                    : "Choose a sport to view its activity calendar."}
+              </p>
+            </div>
+          </header>
+
+          {!selectedSport && warning && (
+            <div
+              style={{
+                marginBottom: 16,
+                borderRadius: 16,
+                padding: "12px 14px",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                color: "#475569",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              {warning}
+            </div>
+          )}
+
+          {!selectedSport && visibleSports.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 12,
+              }}
+            >
+              {visibleSports.map((sport) => {
+                const count = activitiesBySport.get(sport.name)?.length ?? 0;
+
+                return (
+                  <button
+                    key={sport.name}
+                    type="button"
+                    className="sport-card"
+                    onClick={() => openSport(sport.name)}
+                    style={{
+                      position: "relative",
+                      minWidth: 0,
+                      minHeight: 148,
+                      overflow: "hidden",
+                      border: "none",
+                      borderRadius: 22,
+                      padding: "18px 16px",
+                      background: sport.background,
+                      color: sport.textColor,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      boxShadow: "0 10px 24px rgba(15,23,42,0.14)",
+                    }}
+                  >
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        right: -8,
+                        bottom: -4,
+                        maxWidth: "90%",
+                        fontSize: "clamp(34px, 9vw, 62px)",
+                        fontWeight: 800,
+                        letterSpacing: "-0.06em",
+                        color: "rgba(255,255,255,0.11)",
+                        lineHeight: 0.85,
+                        whiteSpace: "nowrap",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {sport.watermark}
+                    </div>
+
+                    <div
+                      style={{
+                        position: "relative",
+                        zIndex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        minHeight: 112,
+                      }}
+                    >
+                      <h2
+                        style={{
+                          margin: 0,
+                          maxWidth: "100%",
+                          fontSize: "clamp(15px, 3.7vw, 19px)",
+                          fontWeight: 800,
+                          lineHeight: 1.15,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        {sport.name}
+                      </h2>
+
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "rgba(255,255,255,0.86)",
+                        }}
+                      >
+                        {count} upcoming {count === 1 ? "event" : "events"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {selectedSport && !selectedDate && (
+            <section>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  marginBottom: 18,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => changeMonth(-1)}
+                  aria-label="Previous month"
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 999,
+                    border: "1px solid #dbe2ea",
+                    background: "#f8fafc",
+                    color: "#0f172a",
+                    fontSize: 22,
+                    cursor: "pointer",
+                  }}
+                >
+                  ‹
+                </button>
+
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: "clamp(17px, 4vw, 21px)",
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    textAlign: "center",
+                  }}
+                >
+                  {formatMonth(calendarMonth)}
+                </h2>
+
+                <button
+                  type="button"
+                  onClick={() => changeMonth(1)}
+                  aria-label="Next month"
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 999,
+                    border: "1px solid #dbe2ea",
+                    background: "#f8fafc",
+                    color: "#0f172a",
+                    fontSize: 22,
+                    cursor: "pointer",
+                  }}
+                >
+                  ›
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                  gap: 5,
+                  marginBottom: 7,
+                }}
+              >
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (day) => (
+                    <div
+                      key={day}
+                      style={{
+                        padding: "6px 0",
+                        textAlign: "center",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#64748b",
+                      }}
+                    >
+                      {day}
+                    </div>
+                  )
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+                  gap: 5,
+                }}
+              >
+                {calendarCells.map((day, index) => {
+                  if (!day) {
+                    return <div key={`empty-${index}`} style={{ aspectRatio: "1 / 1" }} />;
+                  }
+
+                  const key = dateKey(day);
+                  const hasEvents = eventDateKeys.has(key);
+                  const isToday = key === dateKey(new Date());
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className="calendar-day"
+                      disabled={!hasEvents}
+                      onClick={() => {
+                        if (hasEvents) {
+                          setSelectedDate(key);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
+                      }}
+                      style={{
+                        position: "relative",
+                        aspectRatio: "1 / 1",
+                        minWidth: 0,
+                        borderRadius: 13,
+                        border: isToday
+                          ? "1px solid #0f172a"
+                          : "1px solid #e2e8f0",
+                        background: hasEvents ? "#0f172a" : "#f8fafc",
+                        color: hasEvents ? "#ffffff" : "#94a3b8",
+                        fontSize: "clamp(12px, 3vw, 14px)",
+                        fontWeight: hasEvents ? 800 : 600,
+                        cursor: hasEvents ? "pointer" : "default",
+                        opacity: hasEvents ? 1 : 0.72,
+                      }}
+                    >
+                      {day.getDate()}
+
+                      {hasEvents && (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            bottom: 6,
+                            left: "50%",
+                            width: 4,
+                            height: 4,
+                            borderRadius: 999,
+                            background: "#ffffff",
+                            transform: "translateX(-50%)",
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {eventDateKeys.size === 0 && (
+                <div
+                  style={{
+                    marginTop: 18,
+                    borderRadius: 16,
+                    padding: "14px",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    color: "#64748b",
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    textAlign: "center",
+                  }}
+                >
+                  No upcoming {selectedSport.toLowerCase()} events.
+                </div>
+              )}
+            </section>
+          )}
+
+          {selectedSport && selectedDate && (
+            <section
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {selectedDateActivities.map((activity) => (
+                <Link
+                  key={activity.id}
+                  href={`/activities/${activity.id}`}
+                  style={{
+                    display: "block",
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
+                >
+                  <article
+                    style={{
+                      borderRadius: 20,
+                      padding: 16,
+                      border: "1px solid #e2e8f0",
+                      background:
+                        "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+                      boxShadow:
+                        "5px 5px 16px rgba(148,163,184,0.10), -4px -4px 12px rgba(255,255,255,0.9)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <span
+                        style={{
+                          borderRadius: 999,
+                          padding: "6px 10px",
+                          background: "#0f172a",
+                          color: "#ffffff",
+                          fontSize: 11,
+                          fontWeight: 800,
+                        }}
+                      >
+                        {formatEventTime(activity.start_date)}
+                      </span>
+
+                      <span
+                        style={{
+                          color: "#94a3b8",
+                          fontSize: 20,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ›
+                      </span>
+                    </div>
+
+                    <h2
+                      style={{
+                        margin: "0 0 7px 0",
+                        color: "#0f172a",
+                        fontSize: 17,
+                        fontWeight: 800,
+                        lineHeight: 1.25,
+                      }}
+                    >
+                      {activity.title ?? "Event"}
+                    </h2>
+
+                    <p
+                      style={{
+                        margin: 0,
+                        color: "#64748b",
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {buildAddress(activity)}
+                    </p>
+
+                    {activity.description && (
+                      <p
+                        style={{
+                          margin: "10px 0 0 0",
+                          color: "#475569",
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {activity.description}
+                      </p>
+                    )}
+                  </article>
+                </Link>
+              ))}
+            </section>
+          )}
+        </div>
+      </main>
+    </>
+  );
+}
+
+
+
+
