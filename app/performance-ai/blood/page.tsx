@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import type React from "react";
 import DocumentUploader from "@/components/performance/DocumentUploader";
+import useDocumentUpload from "@/hooks/useDocumentUpload";
 
 const INITIAL_MARKERS = [
   {
@@ -34,94 +34,18 @@ const INITIAL_MARKERS = [
 ];
 
 export default function PerformanceBloodPage() {
-  const [bloodDocumentFile, setBloodDocumentFile] =
-    useState<File | null>(null);
-  const [bloodFileError, setBloodFileError] =
-    useState<string | null>(null);
-  const [isDraggingBloodFile, setIsDraggingBloodFile] =
-    useState(false);
+  const {
+    file: bloodDocumentFile,
+    error: bloodFileError,
+    dragging: isDraggingBloodFile,
+    setError: setBloodFileError,
+    handleChange: handleBloodFileChange,
+    handleDrop: handleBloodFileDrop,
+    removeFile: handleRemoveBloodFile,
+    setDragging: setIsDraggingBloodFile,
+  } = useDocumentUpload();
 
   const analyzingBloodDocument = false;
-
-  function validateBloodFile(file: File): string | null {
-    const allowedTypes = [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ];
-
-    const extension = file.name
-      .toLowerCase()
-      .split(".")
-      .pop();
-
-    const allowedExtensions = [
-      "pdf",
-      "jpg",
-      "jpeg",
-      "png",
-      "webp",
-    ];
-
-    if (
-      !allowedTypes.includes(file.type) &&
-      !allowedExtensions.includes(extension ?? "")
-    ) {
-      return "Selecione um arquivo PDF, JPG, PNG ou WEBP.";
-    }
-
-    if (file.size > 10 * 1024 * 1024) {
-      return "O arquivo deve ter no máximo 10 MB.";
-    }
-
-    return null;
-  }
-
-  function selectBloodFile(file: File): void {
-    const validationError = validateBloodFile(file);
-
-    if (validationError) {
-      setBloodDocumentFile(null);
-      setBloodFileError(validationError);
-      return;
-    }
-
-    setBloodDocumentFile(file);
-    setBloodFileError(null);
-  }
-
-  function handleBloodFileChange(
-    event: React.ChangeEvent<HTMLInputElement>
-  ): void {
-    const file = event.target.files?.[0];
-
-    if (file) {
-      selectBloodFile(file);
-    }
-
-    event.target.value = "";
-  }
-
-  function handleBloodFileDrop(
-    event: React.DragEvent<HTMLDivElement>
-  ): void {
-    event.preventDefault();
-    event.stopPropagation();
-
-    setIsDraggingBloodFile(false);
-
-    const file = event.dataTransfer.files?.[0];
-
-    if (file) {
-      selectBloodFile(file);
-    }
-  }
-
-  function handleRemoveBloodFile(): void {
-    setBloodDocumentFile(null);
-    setBloodFileError(null);
-  }
 
   function handleAnalyzeBloodDocument(): void {
     setBloodFileError(
@@ -795,4 +719,6 @@ const disclaimerTextStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
+
 
