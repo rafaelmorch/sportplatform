@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 
+type DocumentType = "blood_test" | "bioimpedance";
+
+type AnalyzeDocumentBody = {
+  type?: DocumentType;
+  fileData?: string;
+  fileName?: string;
+  mimeType?: string;
+  notes?: string;
+};
+
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -11,121 +21,236 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = await req.json();
-    const { type, fileUrl, notes } = body;
+    const body = (await req.json()) as AnalyzeDocumentBody;
 
-    if (!type || !fileUrl) {
+    const {
+      type,
+      fileData,
+      fileName,
+      mimeType,
+      notes,
+    } = body;
+
+    if (
+      type !== "blood_test" &&
+      type !== "bioimpedance"
+    ) {
       return NextResponse.json(
-        { error: "type e fileUrl são obrigatórios." },
+        { error: "Tipo de documento inválido." },
         { status: 400 }
       );
     }
 
-    const isPdf = false;
+    if (!fileData || !fileName || !mimeType) {
+      return NextResponse.json(
+        {
+          error:
+            "Arquivo, nome do arquivo e tipo do arquivo são obrigatórios.",
+        },
+        { status: 400 }
+      );
+    }
 
-    const prompt = `
+    const isPdf =
+      mimeType === "application/pdf" ||
+      fileName.toLowerCase().endsWith(".pdf");
+
+    const isImage = mimeType.startsWith("image/");
+
+    if (!isPdf && !isImage) {
+      return NextResponse.json(
+        {
+          error:
+            "Formato não aceito. Envie PDF, JPG, PNG ou WEBP.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const prompt =
+      type === "bioimpedance"
+        ? `
 Você é um assistente de performance esportiva.
 
-Analise este documento enviado pelo usuário.
-Tipo do documento: ${type === "bioimpedance" ? "Bioimpedância" : "Exame de sangue"}
-Observações do usuário: ${notes || "Nenhuma"}
+Analise o documento de bioimpedância enviado pelo usuário.
 
-Responda SOMENTE em JSON válido.
+Observações do usuário:
+${notes?.trim() || "Nenhuma observação."}
 
-Se for bioimpedância, tente extrair:
-- peso
-- percentual de gordura
-- massa muscular
-- gordura visceral
-- água corporal
-- BMR / metabolismo basal
-- data da avaliação
-- pontos de atenção para performance esportiva
+Extraia somente informações que estejam visíveis no documento.
 
-Se for exame de sangue, tente extrair:
-- hemoglobina
-- ferritina
-- vitamina D
-- glicose
-- colesterol total
-- HDL
-- LDL
-- triglicerídeos
-- TSH
-- creatinina
-- pontos de atenção para treino, recuperação e alimentação
+Responda SOMENTE em JSON válido, sem markdown e sem texto adicional.
 
-Não dê diagnóstico médico.
-Use linguagem simples.
-Sempre recomende acompanhamento profissional quando houver alteração relevante.
+Use exatamente este formato:
 
-Formato:
 {
   "summary": "",
-  "documentType": "",
-  "extractedData": {},
+  "documentType": "bioimpedance",
+  "extractedData": {
+    "assessment_date": null,
+    "weight_kg": null,
+    "body_fat_percent": null,
+    "muscle_mass_kg": null,
+    "visceral_fat": null,
+    "body_water_percent": null,
+    "bmr": null
+  },
   "performanceInsights": [],
   "nutritionInsights": [],
   "attentionPoints": [],
   "disclaimer": ""
 }
+
+Regras:
+
+- Use números sem unidades dentro dos campos numéricos.
+- Use assessment_date no formato YYYY-MM-DD quando a data estiver disponível.
+- Não invente valores.
+- Quando não encontrar um valor, use null.
+- Não dê diagnóstico médico.
+- Use linguagem simples nos textos.
+- Recomende acompanhamento profissional quando houver alteração relevante.
+`
+        : `
+Você é um assistente de performance esportiva.
+
+Analise o exame de sangue enviado pelo usuário.
+
+Observações do usuário:
+${notes?.trim() || "Nenhuma observação."}
+
+Extraia somente informações que estejam visíveis no documento.
+
+Responda SOMENTE em JSON válido, sem markdown e sem texto adicional.
+
+Use exatamente este formato:
+
+{
+  "summary": "",
+  "documentType": "blood_test",
+  "extractedData": {
+    "exam_date": null,
+    "hemoglobin": null,
+    "ferritin": null,
+    "vitamin_d": null,
+    "glucose": null,
+    "total_cholesterol": null,
+    "hdl": null,
+    "ldl": null,
+    "triglycerides": null,
+    "tsh": null,
+    "creatinine": null
+  },
+  "performanceInsights": [],
+  "nutritionInsights": [],
+  "attentionPoints": [],
+  "disclaimer": ""
+}
+
+Regras:
+
+- Use números sem unidades dentro dos campos numéricos.
+- Use exam_date no formato YYYY-MM-DD quando a data estiver disponível.
+- Não invente valores.
+- Quando não encontrar um valor, use null.
+- Não dê diagnóstico médico.
+- Use linguagem simples nos textos.
+- Recomende acompanhamento profissional quando houver alteração relevante.
 `;
 
-    const content = isPdf
-      ? [
-          { type: "input_file", file_url: fileUrl },
-          { type: "input_text", text: prompt },
-        ]
-      : [
-          
-          { type: "input_text", text: prompt },
-        ];
+    const documentContent = isPdf
+      ? {
+          type: "input_file",
+          filename: fileName,
+          file_data: fileData,
+        }
+      : {
+          type: "input_image",
+          image_url: fileData,
+          detail: "high",
+        };
 
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        input: [
-          {
-            role: "user",
-            content,
-          },
-        ],
-        temperature: 0.2,
-        text: {
-          format: {
-            type: "json_object",
-          },
+    const response = await fetch(
+      "https://api.openai.com/v1/responses",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-      }),
-    });
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          input: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: prompt,
+                },
+                documentContent,
+              ],
+            },
+          ],
+          temperature: 0.1,
+          text: {
+            format: {
+              type: "json_object",
+            },
+          },
+        }),
+      }
+    );
 
     const data = await response.json();
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: data?.error?.message ?? "Erro na OpenAI." },
+        {
+          error:
+            data?.error?.message ??
+            "Não foi possível analisar o documento.",
+        },
         { status: response.status }
       );
     }
 
-    const text =
+    const outputText =
       data?.output_text ??
       data?.output?.[0]?.content?.[0]?.text ??
       "";
 
-    const parsed = JSON.parse(text);
+    if (!outputText) {
+      return NextResponse.json(
+        { error: "A IA não retornou dados do documento." },
+        { status: 502 }
+      );
+    }
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(outputText);
+    } catch {
+      return NextResponse.json(
+        {
+          error:
+            "A resposta da IA não estava no formato esperado.",
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json(parsed);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Erro ao analisar documento.";
+
     return NextResponse.json(
-      { error: error?.message ?? "Erro ao analisar documento." },
+      { error: message },
       { status: 500 }
     );
   }
 }
-
