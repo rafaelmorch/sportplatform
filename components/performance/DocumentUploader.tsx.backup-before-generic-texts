@@ -42,17 +42,6 @@ export type DocumentUploaderProps = {
   onRemove: () => void;
   onAnalyze: () => void;
   styles: UploaderStyles;
-
-  uploadLabel?: string;
-  uploadTitle?: string;
-  uploadDescription?: string;
-  selectButtonText?: string;
-  uploadFormatsText?: string;
-  readyMessage?: string;
-  analyzeButtonText?: string;
-  analyzingButtonText?: string;
-  nextStepMessage?: string;
-  analyzingMessage?: string;
 };
 
 function formatFileSize(sizeInBytes: number): string {
@@ -82,20 +71,6 @@ const DocumentUploader = forwardRef<
     onRemove,
     onAnalyze,
     styles,
-    uploadLabel = "Leitura automática",
-    uploadTitle = "Envie o laudo da bioimpedância",
-    uploadDescription =
-      "Selecione um PDF ou uma imagem do laudo. No computador, você também pode arrastar o arquivo para esta área.",
-    selectButtonText = "Selecionar PDF ou imagem",
-    uploadFormatsText =
-      "PDF, JPG, PNG ou WEBP · máximo de 10 MB",
-    readyMessage = "Arquivo pronto para análise",
-    analyzeButtonText = "Analisar com IA",
-    analyzingButtonText = "Analisando documento...",
-    nextStepMessage =
-      "Os campos abaixo serão preenchidos automaticamente.",
-    analyzingMessage =
-      "A leitura pode levar alguns segundos.",
   },
   forwardedRef
 ) {
@@ -163,15 +138,17 @@ const DocumentUploader = forwardRef<
         {!file ? (
           <>
             <div style={styles.uploadLabel}>
-              {uploadLabel}
+              Leitura automática
             </div>
 
             <div style={styles.uploadTitle}>
-              {uploadTitle}
+              Envie o laudo da bioimpedância
             </div>
 
             <p style={styles.uploadDescription}>
-              {uploadDescription}
+              Selecione um PDF ou uma imagem do laudo. No
+              computador, você também pode arrastar o arquivo
+              para esta área.
             </p>
 
             <button
@@ -180,11 +157,11 @@ const DocumentUploader = forwardRef<
               disabled={analyzing}
               style={styles.selectButton}
             >
-              {selectButtonText}
+              Selecionar PDF ou imagem
             </button>
 
             <div style={styles.uploadFormats}>
-              {uploadFormatsText}
+              PDF, JPG, PNG ou WEBP · máximo de 10 MB
             </div>
           </>
         ) : (
@@ -226,7 +203,7 @@ const DocumentUploader = forwardRef<
             </div>
 
             <div style={styles.fileReady}>
-              {readyMessage}
+              Arquivo pronto para análise
             </div>
 
             <button
@@ -242,14 +219,14 @@ const DocumentUploader = forwardRef<
               }}
             >
               {analyzing
-                ? analyzingButtonText
-                : analyzeButtonText}
+                ? "Analisando documento..."
+                : "Analisar com IA"}
             </button>
 
             <div style={styles.nextStepText}>
               {analyzing
-                ? analyzingMessage
-                : nextStepMessage}
+                ? "A leitura pode levar alguns segundos."
+                : "Os campos abaixo serão preenchidos automaticamente."}
             </div>
           </div>
         )}
@@ -261,5 +238,3 @@ const DocumentUploader = forwardRef<
 });
 
 export default DocumentUploader;
-
-

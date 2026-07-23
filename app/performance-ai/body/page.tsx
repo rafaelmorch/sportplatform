@@ -17,6 +17,8 @@ import TimelineCard from "@/components/performance/TimelineCard";
 import LatestBioCard from "@/components/performance/LatestBioCard";
 import PreviousBioHistory from "@/components/performance/PreviousBioHistory";
 import usePerformanceData from "@/hooks/usePerformanceData";
+import useDocumentUpload from "@/hooks/useDocumentUpload";
+import analyzeDocument from "@/lib/performance-ai/analyzeDocument";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 function formatValue(
@@ -154,20 +156,33 @@ export default function BodyPage() {
   const [bioNotes, setBioNotes] =
     useState("");
 
-  const bioFileInputRef =
-    useRef<HTMLInputElement | null>(null);
-
   const bioFormRef =
     useRef<HTMLFormElement | null>(null);
 
-  const [bioDocumentFile, setBioDocumentFile] =
-    useState<File | null>(null);
-
-  const [isDraggingBioFile, setIsDraggingBioFile] =
-    useState(false);
-
-  const [bioFileError, setBioFileError] =
-    useState<string | null>(null);
+  const {
+    inputRef: bioFileInputRef,
+    file: bioDocumentFile,
+    error: bioFileError,
+    dragging: isDraggingBioFile,
+    setFile: setBioDocumentFile,
+    setError: setBioFileError,
+    setDragging: setIsDraggingBioFile,
+    validateFile: validateBioDocumentFile,
+    handleChange: handleBioFileChange,
+    handleDrop: handleBioFileDrop,
+    removeFile: handleRemoveBioFile,
+  } = useDocumentUpload({
+    onBeforeSelect: () => {
+      setBioMessage(null);
+      setBioError(null);
+      clearBioAnalysisResult();
+    },
+    onRemove: () => {
+      setBioMessage(null);
+      setBioError(null);
+      clearBioAnalysisResult();
+    },
+  });
 
   const [analyzingBioDocument, setAnalyzingBioDocument] =
     useState(false);
@@ -282,116 +297,6 @@ export default function BodyPage() {
     );
   }
 
-  function validateBioDocumentFile(
-    file: File
-  ): string | null {
-    const acceptedMimeTypes = [
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ];
-
-    const acceptedExtensions = [
-      ".pdf",
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".webp",
-    ];
-
-    const lowerFileName = file.name.toLowerCase();
-
-    const hasAcceptedMimeType =
-      acceptedMimeTypes.includes(file.type);
-
-    const hasAcceptedExtension =
-      acceptedExtensions.some((extension) =>
-        lowerFileName.endsWith(extension)
-      );
-
-    if (
-      !hasAcceptedMimeType &&
-      !hasAcceptedExtension
-    ) {
-      return "Envie um arquivo PDF, JPG, PNG ou WEBP.";
-    }
-
-    const maximumFileSize = 10 * 1024 * 1024;
-
-    if (file.size > maximumFileSize) {
-      return "O arquivo deve ter no máximo 10 MB.";
-    }
-
-    return null;
-  }
-
-  function selectBioDocumentFile(
-    file: File
-  ) {
-    setBioFileError(null);
-    setBioMessage(null);
-    setBioError(null);
-    clearBioAnalysisResult();
-
-    const validationError =
-      validateBioDocumentFile(file);
-
-    if (validationError) {
-      setBioDocumentFile(null);
-      setBioFileError(validationError);
-
-      if (bioFileInputRef.current) {
-        bioFileInputRef.current.value = "";
-      }
-
-      return;
-    }
-
-    setBioDocumentFile(file);
-  }
-
-  function handleBioFileChange(
-    event: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file = event.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    selectBioDocumentFile(file);
-  }
-
-  function handleBioFileDrop(
-    event: React.DragEvent<HTMLDivElement>
-  ) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    setIsDraggingBioFile(false);
-
-    const file = event.dataTransfer.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    selectBioDocumentFile(file);
-  }
-
-  function handleRemoveBioFile() {
-    setBioDocumentFile(null);
-    setBioFileError(null);
-    setBioMessage(null);
-    setBioError(null);
-    clearBioAnalysisResult();
-
-    if (bioFileInputRef.current) {
-      bioFileInputRef.current.value = "";
-    }
-  }
-
   function formatBioFileSize(
     sizeInBytes: number
   ): string {
@@ -409,36 +314,6 @@ export default function BodyPage() {
     ).toFixed(1)} MB`;
   }
 
-  function readFileAsDataUrl(
-    file: File
-  ): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        if (typeof reader.result !== "string") {
-          reject(
-            new Error(
-              "Não foi possível ler o arquivo selecionado."
-            )
-          );
-          return;
-        }
-
-        resolve(reader.result);
-      };
-
-      reader.onerror = () => {
-        reject(
-          new Error(
-            "Não foi possível ler o arquivo selecionado."
-          )
-        );
-      };
-
-      reader.readAsDataURL(file);
-    });
-  }
 
   function formatExtractedValue(
     value: unknown
@@ -483,38 +358,16 @@ export default function BodyPage() {
     setAnalyzingBioDocument(true);
 
     try {
-      const fileData = await readFileAsDataUrl(
-        bioDocumentFile
-      );
+      const result =
+        await analyzeDocument({
+          type: "bioimpedance",
+          file: bioDocumentFile,
+          notes: bioNotes,
+        });
 
-      const response = await fetch(
-        "/api/performance-ai/analyze-document",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: "bioimpedance",
-            fileData,
-            fileName: bioDocumentFile.name,
-            mimeType:
-              bioDocumentFile.type ||
-              (bioDocumentFile.name
-                .toLowerCase()
-                .endsWith(".pdf")
-                ? "application/pdf"
-                : "image/jpeg"),
-            notes: bioNotes.trim() || undefined,
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(
-          result?.error ||
+          result.error ??
             "Não foi possível analisar o documento."
         );
       }

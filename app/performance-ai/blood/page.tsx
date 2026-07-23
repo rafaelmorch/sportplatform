@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type React from "react";
+import DocumentUploader from "@/components/performance/DocumentUploader";
 
 const INITIAL_MARKERS = [
   {
@@ -32,6 +34,101 @@ const INITIAL_MARKERS = [
 ];
 
 export default function PerformanceBloodPage() {
+  const [bloodDocumentFile, setBloodDocumentFile] =
+    useState<File | null>(null);
+  const [bloodFileError, setBloodFileError] =
+    useState<string | null>(null);
+  const [isDraggingBloodFile, setIsDraggingBloodFile] =
+    useState(false);
+
+  const analyzingBloodDocument = false;
+
+  function validateBloodFile(file: File): string | null {
+    const allowedTypes = [
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ];
+
+    const extension = file.name
+      .toLowerCase()
+      .split(".")
+      .pop();
+
+    const allowedExtensions = [
+      "pdf",
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+    ];
+
+    if (
+      !allowedTypes.includes(file.type) &&
+      !allowedExtensions.includes(extension ?? "")
+    ) {
+      return "Selecione um arquivo PDF, JPG, PNG ou WEBP.";
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return "O arquivo deve ter no máximo 10 MB.";
+    }
+
+    return null;
+  }
+
+  function selectBloodFile(file: File): void {
+    const validationError = validateBloodFile(file);
+
+    if (validationError) {
+      setBloodDocumentFile(null);
+      setBloodFileError(validationError);
+      return;
+    }
+
+    setBloodDocumentFile(file);
+    setBloodFileError(null);
+  }
+
+  function handleBloodFileChange(
+    event: React.ChangeEvent<HTMLInputElement>
+  ): void {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      selectBloodFile(file);
+    }
+
+    event.target.value = "";
+  }
+
+  function handleBloodFileDrop(
+    event: React.DragEvent<HTMLDivElement>
+  ): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    setIsDraggingBloodFile(false);
+
+    const file = event.dataTransfer.files?.[0];
+
+    if (file) {
+      selectBloodFile(file);
+    }
+  }
+
+  function handleRemoveBloodFile(): void {
+    setBloodDocumentFile(null);
+    setBloodFileError(null);
+  }
+
+  function handleAnalyzeBloodDocument(): void {
+    setBloodFileError(
+      "A análise automática do exame será conectada na próxima etapa."
+    );
+  }
+
   return (
     <main style={pageStyle}>
       <div style={pageGlowStyle} />
@@ -110,27 +207,48 @@ export default function PerformanceBloodPage() {
             </div>
           </div>
 
-          <div style={dropZoneStyle}>
-            <div style={uploadCircleStyle}>
-              ↑
-            </div>
-
-            <div style={dropZoneTitleStyle}>
-              Upload de documentos
-            </div>
-
-            <div style={dropZoneDescriptionStyle}>
-              PDF, JPG ou PNG
-            </div>
-
-            <button
-              type="button"
-              disabled
-              style={disabledButtonStyle}
-            >
-              Disponível na próxima etapa
-            </button>
-          </div>
+          <DocumentUploader
+            file={bloodDocumentFile}
+            error={bloodFileError}
+            dragging={isDraggingBloodFile}
+            analyzing={analyzingBloodDocument}
+            onChange={handleBloodFileChange}
+            onDrop={handleBloodFileDrop}
+            onDragStateChange={setIsDraggingBloodFile}
+            onRemove={handleRemoveBloodFile}
+            onAnalyze={handleAnalyzeBloodDocument}
+            uploadLabel="Leitura automática"
+            uploadTitle="Envie seu exame de sangue"
+            uploadDescription="Selecione um PDF ou uma imagem do exame laboratorial. No computador, você também pode arrastar o arquivo para esta área."
+            selectButtonText="Selecionar exame"
+            uploadFormatsText="PDF, JPG, PNG ou WEBP · máximo de 10 MB"
+            readyMessage="Exame pronto para análise"
+            analyzeButtonText="Analisar exame com IA"
+            analyzingButtonText="Analisando exame..."
+            nextStepMessage="Os marcadores sanguíneos serão identificados automaticamente."
+            analyzingMessage="A leitura pode levar alguns segundos."
+            styles={{
+              area: bloodUploadAreaStyle,
+              input: bloodHiddenInputStyle,
+              selectButton: bloodSelectButtonStyle,
+              uploadLabel: bloodUploadLabelStyle,
+              uploadTitle: bloodUploadTitleStyle,
+              uploadDescription: bloodUploadDescriptionStyle,
+              uploadFormats: bloodUploadFormatsStyle,
+              selectedFile: bloodSelectedFileStyle,
+              selectedFileHeader: bloodSelectedFileHeaderStyle,
+              selectedFileInfo: bloodSelectedFileInfoStyle,
+              fileTypeBadge: bloodFileTypeBadgeStyle,
+              fileTextArea: bloodFileTextAreaStyle,
+              fileName: bloodFileNameStyle,
+              fileMetadata: bloodFileMetadataStyle,
+              removeFileButton: bloodRemoveFileButtonStyle,
+              fileReady: bloodFileReadyStyle,
+              analyzeButton: bloodAnalyzeButtonStyle,
+              nextStepText: bloodNextStepTextStyle,
+              error: bloodUploadErrorStyle,
+            }}
+          />
         </section>
 
         <section style={markersSectionStyle}>
@@ -426,6 +544,167 @@ const disabledButtonStyle: React.CSSProperties = {
   cursor: "not-allowed",
 };
 
+const bloodUploadAreaStyle: React.CSSProperties = {
+  display: "flex",
+  minHeight: 300,
+  marginTop: 34,
+  padding: "clamp(22px, 5vw, 34px)",
+  border: "1px dashed rgba(255,255,255,0.17)",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  textAlign: "center",
+  boxSizing: "border-box",
+  transition:
+    "border-color 160ms ease, background 160ms ease",
+};
+
+const bloodHiddenInputStyle: React.CSSProperties = {
+  display: "none",
+};
+
+const bloodSelectButtonStyle: React.CSSProperties = {
+  minHeight: 46,
+  marginTop: 23,
+  padding: "12px 20px",
+  border: "1px solid rgba(255,241,168,0.42)",
+  background: "#fff1a8",
+  color: "#111111",
+  fontFamily: "inherit",
+  fontSize: 12,
+  fontWeight: 750,
+  cursor: "pointer",
+};
+
+const bloodUploadLabelStyle: React.CSSProperties = {
+  color: "#fff1a8",
+  fontSize: 10,
+  fontWeight: 750,
+  letterSpacing: 1.4,
+  textTransform: "uppercase",
+};
+
+const bloodUploadTitleStyle: React.CSSProperties = {
+  marginTop: 14,
+  color: "#f4f4f5",
+  fontSize: "clamp(20px, 4vw, 27px)",
+  lineHeight: 1.2,
+  fontWeight: 750,
+  letterSpacing: "-0.025em",
+};
+
+const bloodUploadDescriptionStyle: React.CSSProperties = {
+  maxWidth: 590,
+  margin: "13px auto 0",
+  color: "#85858e",
+  fontSize: 13,
+  lineHeight: 1.65,
+};
+
+const bloodUploadFormatsStyle: React.CSSProperties = {
+  marginTop: 13,
+  color: "#66666f",
+  fontSize: 11,
+};
+
+const bloodSelectedFileStyle: React.CSSProperties = {
+  width: "min(100%, 650px)",
+  textAlign: "left",
+};
+
+const bloodSelectedFileHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 18,
+};
+
+const bloodSelectedFileInfoStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 14,
+  minWidth: 0,
+};
+
+const bloodFileTypeBadgeStyle: React.CSSProperties = {
+  display: "flex",
+  width: 48,
+  height: 48,
+  alignItems: "center",
+  justifyContent: "center",
+  border: "1px solid rgba(255,241,168,0.35)",
+  color: "#fff1a8",
+  fontSize: 11,
+  fontWeight: 800,
+  flexShrink: 0,
+};
+
+const bloodFileTextAreaStyle: React.CSSProperties = {
+  minWidth: 0,
+};
+
+const bloodFileNameStyle: React.CSSProperties = {
+  overflow: "hidden",
+  color: "#f4f4f5",
+  fontSize: 14,
+  fontWeight: 700,
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const bloodFileMetadataStyle: React.CSSProperties = {
+  marginTop: 6,
+  color: "#707079",
+  fontSize: 11,
+};
+
+const bloodRemoveFileButtonStyle: React.CSSProperties = {
+  padding: 0,
+  border: 0,
+  background: "transparent",
+  color: "#a1a1aa",
+  fontFamily: "inherit",
+  fontSize: 11,
+  fontWeight: 700,
+};
+
+const bloodFileReadyStyle: React.CSSProperties = {
+  marginTop: 28,
+  color: "#fff1a8",
+  fontSize: 11,
+  fontWeight: 700,
+};
+
+const bloodAnalyzeButtonStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: 50,
+  marginTop: 14,
+  padding: "13px 20px",
+  border: "1px solid #fff1a8",
+  background: "#fff1a8",
+  color: "#111111",
+  fontFamily: "inherit",
+  fontSize: 13,
+  fontWeight: 800,
+};
+
+const bloodNextStepTextStyle: React.CSSProperties = {
+  marginTop: 11,
+  color: "#707079",
+  fontSize: 11,
+  lineHeight: 1.5,
+  textAlign: "center",
+};
+
+const bloodUploadErrorStyle: React.CSSProperties = {
+  marginTop: 12,
+  padding: "11px 13px",
+  border: "1px solid rgba(248,113,113,0.22)",
+  background: "rgba(127,29,29,0.16)",
+  color: "#fca5a5",
+  fontSize: 12,
+  lineHeight: 1.5,
+};
 const markersSectionStyle: React.CSSProperties = {
   marginBottom: "clamp(24px, 5vw, 42px)",
   padding: "clamp(23px, 5vw, 40px)",
@@ -516,3 +795,4 @@ const disclaimerTextStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
