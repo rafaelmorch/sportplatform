@@ -1461,7 +1461,7 @@ const containerStyle: CSSProperties = {
   width: "min(100%, 1120px)",
   margin: "0 auto",
   padding:
-    "max(20px, env(safe-area-inset-top)) clamp(18px, 5vw, 52px) max(120px, env(safe-area-inset-bottom))",
+    "max(20px, env(safe-area-inset-top)) clamp(18px, 5vw, 52px) max(110px, env(safe-area-inset-bottom))",
   boxSizing: "border-box",
 };
 
@@ -2012,6 +2012,7 @@ const disclaimerTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
 
 
 

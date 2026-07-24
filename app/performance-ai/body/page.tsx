@@ -1335,7 +1335,7 @@ const pageContainerStyle: React.CSSProperties = {
   width: "min(100%, 1120px)",
   margin: "0 auto",
   padding:
-    "clamp(44px, 7vw, 76px) clamp(16px, 5vw, 64px) clamp(100px, 12vw, 140px)",
+    "clamp(44px, 7vw, 76px) clamp(16px, 5vw, 64px) max(110px, env(safe-area-inset-bottom))",
   boxSizing: "border-box",
 };
 
@@ -2437,6 +2437,7 @@ const previousMetricValueStyle: React.CSSProperties = {
   fontWeight: 700,
   overflowWrap: "anywhere",
 };
+
 
 
 

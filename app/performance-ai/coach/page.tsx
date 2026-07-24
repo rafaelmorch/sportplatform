@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import BackButton from "@/components/BackButton";
+import Link from "next/link";
 import CoachHero from "@/components/performance/CoachHero";
 import CoachCards from "@/components/performance/CoachCards";
 import CoachRecommendation from "@/components/performance/CoachRecommendation";
@@ -934,7 +934,7 @@ function CoachConversation({
           width: "min(100%, 1120px)",
           margin: "0 auto",
           padding:
-            "clamp(58px, 9vw, 104px) clamp(20px, 5vw, 64px) clamp(90px, 12vw, 140px)",
+            "clamp(58px, 9vw, 104px) clamp(20px, 5vw, 64px) max(110px, env(safe-area-inset-bottom))",
         }}
       >
         <div style={{ maxWidth: 790 }}>
@@ -2080,7 +2080,13 @@ export default function PerformanceAIPage() {
   return (
     <main style={pageStyle}>
       <div style={{ marginBottom: 18 }}>
-        <BackButton />
+        <Link
+          href="/performance-ai"
+          style={backLinkStyle}
+        >
+          <span aria-hidden="true">←</span>
+          Performance AI
+        </Link>
       </div>
 
       {message ? <div style={globalMessageStyle}>{message}</div> : null}
@@ -2186,7 +2192,7 @@ export default function PerformanceAIPage() {
               type="button"
               role="menuitem"
               onClick={() =>
-                openQuickPage("/performance-ai/profile")
+                openQuickPage("/performance-ai/body")
               }
               style={quickMenuItemStyle}
             >
@@ -2257,6 +2263,16 @@ export default function PerformanceAIPage() {
   );
 }
 
+const backLinkStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 9,
+  color: "#d4d4d8",
+  fontSize: 13,
+  fontWeight: 650,
+  textDecoration: "none",
+};
+
 const quickMenuItemStyle: React.CSSProperties = {
   minWidth: 112,
   minHeight: 44,
@@ -2302,6 +2318,8 @@ const globalMessageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 700,
 };
+
+
 
 
 
