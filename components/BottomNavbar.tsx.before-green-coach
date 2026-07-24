@@ -36,13 +36,13 @@ export default function BottomNavbar() {
         left: 0,
         right: 0,
         bottom: 0,
-        height: 56,
-        paddingLeft: 5,
-        paddingRight: 5,
+        height: 64,
+        paddingLeft: 6,
+        paddingRight: 6,
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         background: "#ffffff",
         borderTop: "1px solid #e5e7eb",
-        boxShadow: "0 -4px 14px rgba(0,0,0,0.07)",
+        boxShadow: "0 -6px 20px rgba(0,0,0,0.08)",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-around",
@@ -60,7 +60,7 @@ export default function BottomNavbar() {
             href={tab.href}
             style={{
               flex: isCoach ? "0 0 auto" : "1 1 0",
-              maxWidth: isCoach ? 88 : 90,
+              maxWidth: isCoach ? 82 : 90,
               minWidth: 0,
               textDecoration: "none",
 
@@ -77,28 +77,22 @@ export default function BottomNavbar() {
                   : "transparent",
 
               fontFamily: "Montserrat, Arial, sans-serif",
-              fontSize: isCoach ? 11 : 10,
+              fontSize: isCoach ? 10 : 11,
               fontWeight: isCoach ? 800 : active ? 700 : 500,
-
-              padding: isCoach ? "9px 14px" : "5px 3px",
-              borderRadius: isCoach ? 999 : 11,
+              padding: isCoach ? "8px 11px" : "6px 4px",
+              borderRadius: isCoach ? 999 : 12,
 
               border: isCoach
                 ? "1px solid #FFF1A8"
                 : "1px solid transparent",
 
               boxShadow: isCoach
-                ? "0 4px 12px rgba(0,0,0,0.22)"
+                ? "0 5px 14px rgba(0,0,0,0.22)"
                 : "none",
 
               textAlign: "center",
               whiteSpace: "pre-line",
-              lineHeight: isCoach ? "13px" : "12px",
-
-              transform: isCoach
-                ? "translateY(-2px)"
-                : "none",
-
+              lineHeight: "13px",
               transition:
                 "background 180ms ease, color 180ms ease, transform 180ms ease",
             }}
@@ -110,4 +104,3 @@ export default function BottomNavbar() {
     </nav>
   );
 }
-

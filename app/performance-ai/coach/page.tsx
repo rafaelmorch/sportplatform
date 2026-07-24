@@ -634,7 +634,7 @@ function CoachDataSources({
                 style={{
                   width: `${dataQuality}%`,
                   height: "100%",
-                  background: "#fff1a8",
+                  background: "#16a34a",
                   transition: "width 300ms ease",
                 }}
               />
@@ -2232,12 +2232,12 @@ export default function PerformanceAIPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            border: "1px solid rgba(255,241,168,0.82)",
+            border: "1px solid #15803d",
             borderRadius: "50%",
-            background: "#fff1a8",
+            background: "#16a34a",
             boxShadow:
-              "0 16px 42px rgba(0,0,0,0.52), 0 0 24px rgba(255,241,168,0.14)",
-            color: "#111111",
+              "0 16px 42px rgba(0,0,0,0.52), 0 0 24px rgba(22,163,74,0.25)",
+            color: "#ffffff",
             fontFamily: "inherit",
             fontSize: 34,
             fontWeight: 400,
@@ -2302,6 +2302,7 @@ const globalMessageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 700,
 };
+
 
 
 
