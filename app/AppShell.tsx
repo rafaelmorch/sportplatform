@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import BottomNavbar from "@/components/BottomNavbar";
 import Header from "@/components/Header";
@@ -12,6 +13,19 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+
+  const isPerformanceAI =
+    pathname === "/performance-ai" ||
+    pathname.startsWith("/performance-ai/");
+
+  useEffect(() => {
+    const background = isPerformanceAI
+      ? "#050506"
+      : "#ffffff";
+
+    document.documentElement.style.background = background;
+    document.body.style.background = background;
+  }, [isPerformanceAI]);
 
   const showHeader =
     pathname === "/" ||
