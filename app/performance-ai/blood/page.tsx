@@ -7,7 +7,10 @@ import { useState } from "react";
 import analyzeDocument from "@/lib/performance-ai/analyzeDocument";
 import type { BloodAnalysis } from "@/lib/performance-ai/blood";
 import DocumentUploader from "@/components/performance/DocumentUploader";
+import BloodReviewPanel from "@/components/performance/BloodReviewPanel";
+import { reviewPanelStyles } from "@/components/performance/reviewPanelStyles";
 import useDocumentUpload from "@/hooks/useDocumentUpload";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 const INITIAL_MARKERS = [
   {
@@ -43,6 +46,16 @@ export default function PerformanceBloodPage() {
 
   const [analysis, setAnalysis] =
     useState<BloodAnalysis | null>(null);
+
+  const [savingBlood, setSavingBlood] =
+    useState(false);
+
+  const [bloodMessage, setBloodMessage] =
+    useState<string | null>(null);
+
+  const [bloodSaveError, setBloodSaveError] =
+    useState<string | null>(null);
+
   const {
     file: bloodDocumentFile,
     error: bloodFileError,
@@ -57,6 +70,8 @@ export default function PerformanceBloodPage() {
 
   async function handleAnalyzeBloodDocument(): Promise<void> {
     setBloodFileError(null);
+    setBloodMessage(null);
+    setBloodSaveError(null);
 
     if (!bloodDocumentFile) {
       setBloodFileError(
@@ -92,6 +107,86 @@ export default function PerformanceBloodPage() {
     }
   }
 
+  async function handleSaveBloodTest(): Promise<void> {
+    setBloodMessage(null);
+    setBloodSaveError(null);
+
+    if (!analysis) {
+      setBloodSaveError(
+        "Analise um exame antes de salvar."
+      );
+      return;
+    }
+
+    setSavingBlood(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabaseBrowser.auth.getUser();
+
+      if (userError) {
+        throw userError;
+      }
+
+      if (!user) {
+        throw new Error(
+          "Você precisa estar conectado para salvar o exame."
+        );
+      }
+
+      const extracted = analysis.extractedData ?? {};
+
+      const { error } = await supabaseBrowser
+        .from("performance_ai_blood_tests")
+        .insert({
+          user_id: user.id,
+          exam_date: extracted.exam_date || null,
+          hemoglobin: extracted.hemoglobin ?? null,
+          ferritin: extracted.ferritin ?? null,
+          vitamin_d: extracted.vitamin_d ?? null,
+          glucose: extracted.glucose ?? null,
+          total_cholesterol:
+            extracted.total_cholesterol ?? null,
+          hdl: extracted.hdl ?? null,
+          ldl: extracted.ldl ?? null,
+          triglycerides:
+            extracted.triglycerides ?? null,
+          tsh: extracted.tsh ?? null,
+          creatinine: extracted.creatinine ?? null,
+          notes: null,
+          summary: analysis.summary || null,
+          performance_insights:
+            analysis.performanceInsights ?? [],
+          nutrition_insights:
+            analysis.nutritionInsights ?? [],
+          attention_points:
+            analysis.attentionPoints ?? [],
+          disclaimer: analysis.disclaimer || null,
+          raw_ai_response: analysis,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setBloodMessage(
+        "Exame de sangue salvo com sucesso."
+      );
+
+      setAnalysis(null);
+      handleRemoveBloodFile();
+    } catch (error) {
+      setBloodSaveError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar o exame."
+      );
+    } finally {
+      setSavingBlood(false);
+    }
+  }
   return (
     <main style={pageStyle}>
       <div style={pageGlowStyle} />
@@ -213,6 +308,56 @@ export default function PerformanceBloodPage() {
             }}
           />
         </section>
+
+        {analysis && (
+          <BloodReviewPanel
+            visible={true}
+            analysis={analysis}
+            saving={savingBlood}
+            onConfirm={handleSaveBloodTest}
+            styles={reviewPanelStyles}
+          />
+        )}
+
+        {bloodMessage && (
+          <div
+            role="status"
+            style={{
+              marginTop: 18,
+              padding: "14px 16px",
+              borderRadius: 14,
+              border:
+                "1px solid rgba(134,239,172,0.28)",
+              background:
+                "rgba(34,197,94,0.09)",
+              color: "#bbf7d0",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            {bloodMessage}
+          </div>
+        )}
+
+        {bloodSaveError && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 18,
+              padding: "14px 16px",
+              borderRadius: 14,
+              border:
+                "1px solid rgba(252,165,165,0.28)",
+              background:
+                "rgba(239,68,68,0.09)",
+              color: "#fecaca",
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            {bloodSaveError}
+          </div>
+        )}
 
         <section style={markersSectionStyle}>
           <div style={sectionHeadingRowStyle}>

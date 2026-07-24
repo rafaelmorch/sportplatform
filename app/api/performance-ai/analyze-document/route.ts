@@ -241,7 +241,10 @@ Regras:
       );
     }
 
-    return NextResponse.json(parsed);
+    return NextResponse.json({
+      success: true,
+      ...parsed,
+    });
   } catch (error: unknown) {
     const message =
       error instanceof Error
