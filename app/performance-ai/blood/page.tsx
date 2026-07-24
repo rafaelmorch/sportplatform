@@ -45,8 +45,302 @@ type BloodHistoryRow = {
   exam_date: string | null;
   created_at: string;
   summary: string | null;
+  hemoglobin: number | null;
+  ferritin: number | null;
+  vitamin_d: number | null;
+  glucose: number | null;
+  total_cholesterol: number | null;
+  hdl: number | null;
+  ldl: number | null;
+  triglycerides: number | null;
+  tsh: number | null;
+  creatinine: number | null;
   raw_ai_response: BloodAnalysis | null;
 };
+
+type BloodMetricKey =
+  | "hemoglobin"
+  | "ferritin"
+  | "vitamin_d"
+  | "glucose"
+  | "hdl"
+  | "ldl";
+
+type BloodMetricConfig = {
+  key: BloodMetricKey;
+  label: string;
+  unit: string;
+};
+
+const BLOOD_METRICS: BloodMetricConfig[] = [
+  {
+    key: "hemoglobin",
+    label: "Hemoglobina",
+    unit: "g/dL",
+  },
+  {
+    key: "ferritin",
+    label: "Ferritina",
+    unit: "ng/mL",
+  },
+  {
+    key: "vitamin_d",
+    label: "Vitamina D",
+    unit: "ng/mL",
+  },
+  {
+    key: "glucose",
+    label: "Glicose",
+    unit: "mg/dL",
+  },
+  {
+    key: "hdl",
+    label: "HDL",
+    unit: "mg/dL",
+  },
+  {
+    key: "ldl",
+    label: "LDL",
+    unit: "mg/dL",
+  },
+];
+
+function getHistoryTimestamp(
+  examDate: string | null,
+  createdAt: string
+): number {
+  const timestamp = new Date(
+    examDate || createdAt
+  ).getTime();
+
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
+}
+
+function formatChartDate(
+  examDate: string | null,
+  createdAt: string
+): string {
+  const date = new Date(examDate || createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    month: "short",
+    year: "2-digit",
+  }).format(date);
+}
+
+function BloodEvolutionChart({
+  history,
+  metric,
+}: {
+  history: BloodHistoryRow[];
+  metric: BloodMetricConfig;
+}) {
+  const points = history
+    .filter(
+      (
+        item
+      ): item is BloodHistoryRow &
+        Record<BloodMetricKey, number> =>
+        typeof item[metric.key] === "number"
+    )
+    .map((item) => ({
+      value: item[metric.key],
+      timestamp: getHistoryTimestamp(
+        item.exam_date,
+        item.created_at
+      ),
+      label: formatChartDate(
+        item.exam_date,
+        item.created_at
+      ),
+    }))
+    .filter((item) => item.timestamp > 0)
+    .sort(
+      (first, second) =>
+        first.timestamp - second.timestamp
+    );
+
+  if (points.length === 0) {
+    return null;
+  }
+
+  const width = 600;
+  const height = 210;
+  const paddingLeft = 44;
+  const paddingRight = 24;
+  const paddingTop = 24;
+  const paddingBottom = 42;
+
+  const chartWidth =
+    width - paddingLeft - paddingRight;
+  const chartHeight =
+    height - paddingTop - paddingBottom;
+
+  const values = points.map((point) => point.value);
+  const minimumValue = Math.min(...values);
+  const maximumValue = Math.max(...values);
+
+  const valuePadding =
+    minimumValue === maximumValue
+      ? Math.max(Math.abs(minimumValue) * 0.15, 1)
+      : Math.max(
+          (maximumValue - minimumValue) * 0.18,
+          1
+        );
+
+  const chartMinimum = minimumValue - valuePadding;
+  const chartMaximum = maximumValue + valuePadding;
+  const chartRange = chartMaximum - chartMinimum;
+
+  const getX = (index: number): number => {
+    if (points.length === 1) {
+      return paddingLeft + chartWidth / 2;
+    }
+
+    return (
+      paddingLeft +
+      (index / (points.length - 1)) * chartWidth
+    );
+  };
+
+  const getY = (value: number): number =>
+    paddingTop +
+    ((chartMaximum - value) / chartRange) *
+      chartHeight;
+
+  const pathData = points
+    .map((point, index) => {
+      const prefix = index === 0 ? "M" : "L";
+
+      return `${prefix} ${getX(index)} ${getY(
+        point.value
+      )}`;
+    })
+    .join(" ");
+
+  const firstValue = points[0]?.value ?? 0;
+  const latestValue =
+    points[points.length - 1]?.value ?? 0;
+  const difference = latestValue - firstValue;
+
+  return (
+    <article style={evolutionCardStyle}>
+      <div style={evolutionCardHeaderStyle}>
+        <div>
+          <div style={evolutionMetricLabelStyle}>
+            {metric.label}
+          </div>
+
+          <div style={evolutionLatestValueStyle}>
+            {latestValue}{" "}
+            <span style={evolutionUnitStyle}>
+              {metric.unit}
+            </span>
+          </div>
+        </div>
+
+        {points.length > 1 && (
+          <div
+            style={{
+              ...evolutionDifferenceStyle,
+              color:
+                difference === 0
+                  ? "#a1a1aa"
+                  : "#fff1a8",
+            }}
+          >
+            {difference > 0 ? "+" : ""}
+            {Number(difference.toFixed(2))}{" "}
+            {metric.unit}
+          </div>
+        )}
+      </div>
+
+      <div style={evolutionChartWrapperStyle}>
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={`Evolução de ${metric.label}`}
+          style={evolutionSvgStyle}
+        >
+          {[0, 0.5, 1].map((position) => {
+            const y =
+              paddingTop + position * chartHeight;
+
+            return (
+              <line
+                key={`grid-${position}`}
+                x1={paddingLeft}
+                x2={width - paddingRight}
+                y1={y}
+                y2={y}
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="1"
+              />
+            );
+          })}
+
+          {points.length > 1 && (
+            <path
+              d={pathData}
+              fill="none"
+              stroke="#fff1a8"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
+
+          {points.map((point, index) => (
+            <g key={`${metric.key}-${point.timestamp}`}>
+              <circle
+                cx={getX(index)}
+                cy={getY(point.value)}
+                r="5"
+                fill="#080808"
+                stroke="#fff1a8"
+                strokeWidth="3"
+              />
+
+              <text
+                x={getX(index)}
+                y={getY(point.value) - 13}
+                textAnchor="middle"
+                fill="#f4f4f5"
+                fontSize="12"
+                fontWeight="700"
+              >
+                {point.value}
+              </text>
+
+              <text
+                x={getX(index)}
+                y={height - 14}
+                textAnchor="middle"
+                fill="#777780"
+                fontSize="10"
+              >
+                {point.label}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      <div style={evolutionFooterStyle}>
+        {points.length === 1
+          ? "Adicione outro exame para visualizar a tendência."
+          : `${points.length} resultados comparados`}
+      </div>
+    </article>
+  );
+}
 
 function formatHistoryDate(
   examDate: string | null,
@@ -119,7 +413,7 @@ export default function PerformanceBloodPage() {
     const { data, error } = await supabaseBrowser
       .from("performance_ai_blood_tests")
       .select(
-        "id, exam_date, created_at, summary, raw_ai_response"
+        "id, exam_date, created_at, summary, hemoglobin, ferritin, vitamin_d, glucose, total_cholesterol, hdl, ldl, triglycerides, tsh, creatinine, raw_ai_response"
       )
       .eq("user_id", user.id)
       .order("exam_date", {
@@ -435,6 +729,50 @@ export default function PerformanceBloodPage() {
           >
             {bloodSaveError}
           </div>
+        )}
+
+        {history.some((item) =>
+          BLOOD_METRICS.some(
+            (metric) =>
+              typeof item[metric.key] === "number"
+          )
+        ) && (
+          <section style={evolutionSectionStyle}>
+            <div style={evolutionHeaderStyle}>
+              <div>
+                <div style={panelEyebrowStyle}>
+                  Tendências
+                </div>
+
+                <h2 style={panelTitleStyle}>
+                  Evolução dos marcadores
+                </h2>
+
+                <p style={historyDescriptionStyle}>
+                  Compare os resultados dos seus exames ao longo
+                  do tempo. Estes gráficos são informativos e
+                  não substituem avaliação médica.
+                </p>
+              </div>
+
+              <div style={historyCountStyle}>
+                {history.length}{" "}
+                {history.length === 1
+                  ? "exame analisado"
+                  : "exames analisados"}
+              </div>
+            </div>
+
+            <div style={evolutionGridStyle}>
+              {BLOOD_METRICS.map((metric) => (
+                <BloodEvolutionChart
+                  key={metric.key}
+                  history={history}
+                  metric={metric}
+                />
+              ))}
+            </div>
+          </section>
         )}
 
         <section style={historySectionStyle}>
@@ -992,6 +1330,97 @@ const bloodUploadErrorStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
 };
+const evolutionSectionStyle: React.CSSProperties = {
+  marginBottom: "clamp(24px, 5vw, 42px)",
+  padding: "clamp(23px, 5vw, 40px)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  background:
+    "linear-gradient(145deg, rgba(24,24,27,0.92), rgba(12,12,13,0.98))",
+  boxShadow: "0 20px 48px rgba(0,0,0,0.32)",
+};
+
+const evolutionHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  gap: 20,
+  marginBottom: 28,
+};
+
+const evolutionGridStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(min(100%, 390px), 1fr))",
+  gap: 16,
+};
+
+const evolutionCardStyle: React.CSSProperties = {
+  minWidth: 0,
+  padding: "20px",
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(255,255,255,0.025)",
+};
+
+const evolutionCardHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 16,
+  marginBottom: 8,
+};
+
+const evolutionMetricLabelStyle: React.CSSProperties = {
+  color: "#a1a1aa",
+  fontSize: 11,
+  fontWeight: 750,
+  letterSpacing: 1,
+  textTransform: "uppercase",
+};
+
+const evolutionLatestValueStyle: React.CSSProperties = {
+  marginTop: 7,
+  color: "#fafafa",
+  fontSize: 26,
+  fontWeight: 800,
+  letterSpacing: "-0.035em",
+};
+
+const evolutionUnitStyle: React.CSSProperties = {
+  color: "#7b7b84",
+  fontSize: 11,
+  fontWeight: 650,
+  letterSpacing: 0,
+};
+
+const evolutionDifferenceStyle: React.CSSProperties = {
+  padding: "7px 9px",
+  border: "1px solid rgba(255,241,168,0.15)",
+  background: "rgba(255,241,168,0.04)",
+  fontSize: 10,
+  fontWeight: 750,
+  whiteSpace: "nowrap",
+};
+
+const evolutionChartWrapperStyle: React.CSSProperties = {
+  width: "100%",
+  overflowX: "auto",
+};
+
+const evolutionSvgStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  minWidth: 360,
+  height: "auto",
+};
+
+const evolutionFooterStyle: React.CSSProperties = {
+  marginTop: 4,
+  color: "#6f6f78",
+  fontSize: 10,
+  lineHeight: 1.5,
+};
+
 const historySectionStyle: React.CSSProperties = {
   marginBottom: "clamp(24px, 5vw, 42px)",
   padding: "clamp(23px, 5vw, 40px)",
@@ -1198,6 +1627,7 @@ const disclaimerTextStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
 
 
 
