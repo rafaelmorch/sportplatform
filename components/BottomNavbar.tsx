@@ -60,7 +60,7 @@ export default function BottomNavbar() {
             href={tab.href}
             style={{
               flex: isCoach ? "0 0 auto" : "1 1 0",
-              maxWidth: isCoach ? 88 : 90,
+              maxWidth: isCoach ? 90 : 90,
               minWidth: 0,
               textDecoration: "none",
 
@@ -80,8 +80,8 @@ export default function BottomNavbar() {
               fontSize: isCoach ? 11 : 10,
               fontWeight: isCoach ? 800 : active ? 700 : 500,
 
-              padding: isCoach ? "9px 14px" : "5px 3px",
-              borderRadius: isCoach ? 999 : 11,
+              padding: isCoach ? "10px 14px" : "5px 3px",
+              borderRadius: isCoach ? 12 : 11,
 
               border: isCoach
                 ? "1px solid #FFF1A8"
@@ -110,4 +110,5 @@ export default function BottomNavbar() {
     </nav>
   );
 }
+
 
