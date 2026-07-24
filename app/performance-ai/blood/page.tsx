@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import analyzeDocument from "@/lib/performance-ai/analyzeDocument";
 import type { BloodAnalysis } from "@/lib/performance-ai/blood";
@@ -40,12 +40,44 @@ const INITIAL_MARKERS = [
   },
 ];
 
+type BloodHistoryRow = {
+  id: string;
+  exam_date: string | null;
+  created_at: string;
+  summary: string | null;
+  raw_ai_response: BloodAnalysis | null;
+};
+
+function formatHistoryDate(
+  examDate: string | null,
+  createdAt: string
+): string {
+  const value = examDate || createdAt;
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Data não informada";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 export default function PerformanceBloodPage() {
   const [analyzingBloodDocument, setAnalyzingBloodDocument] =
     useState(false);
 
   const [analysis, setAnalysis] =
     useState<BloodAnalysis | null>(null);
+
+  const [history, setHistory] =
+    useState<BloodHistoryRow[]>([]);
+
+  const [selectedHistory, setSelectedHistory] =
+    useState<BloodHistoryRow | null>(null);
 
   const [savingBlood, setSavingBlood] =
     useState(false);
@@ -68,10 +100,55 @@ export default function PerformanceBloodPage() {
   } = useDocumentUpload();
 
 
+  async function loadHistory(): Promise<void> {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseBrowser.auth.getUser();
+
+    if (userError) {
+      setBloodSaveError(userError.message);
+      return;
+    }
+
+    if (!user) {
+      setHistory([]);
+      return;
+    }
+
+    const { data, error } = await supabaseBrowser
+      .from("performance_ai_blood_tests")
+      .select(
+        "id, exam_date, created_at, summary, raw_ai_response"
+      )
+      .eq("user_id", user.id)
+      .order("exam_date", {
+        ascending: false,
+        nullsFirst: false,
+      })
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (error) {
+      setBloodSaveError(
+        "Não foi possível carregar o histórico de exames."
+      );
+      return;
+    }
+
+    setHistory((data ?? []) as BloodHistoryRow[]);
+  }
+
+  useEffect(() => {
+    void loadHistory();
+  }, []);
+
   async function handleAnalyzeBloodDocument(): Promise<void> {
     setBloodFileError(null);
     setBloodMessage(null);
     setBloodSaveError(null);
+    setSelectedHistory(null);
 
     if (!bloodDocumentFile) {
       setBloodFileError(
@@ -177,6 +254,7 @@ export default function PerformanceBloodPage() {
 
       setAnalysis(null);
       handleRemoveBloodFile();
+      await loadHistory();
     } catch (error) {
       setBloodSaveError(
         error instanceof Error
@@ -357,6 +435,107 @@ export default function PerformanceBloodPage() {
           >
             {bloodSaveError}
           </div>
+        )}
+
+        <section style={historySectionStyle}>
+          <div style={historyHeaderStyle}>
+            <div>
+              <div style={panelEyebrowStyle}>
+                Acompanhamento
+              </div>
+
+              <h2 style={panelTitleStyle}>
+                Histórico de exames
+              </h2>
+
+              <p style={historyDescriptionStyle}>
+                Consulte seus exames anteriores e acompanhe a
+                evolução dos principais marcadores.
+              </p>
+            </div>
+
+            <div style={historyCountStyle}>
+              {history.length}{" "}
+              {history.length === 1
+                ? "exame"
+                : "exames"}
+            </div>
+          </div>
+
+          {history.length === 0 ? (
+            <div style={emptyHistoryStyle}>
+              <div style={emptyHistoryIconStyle}>
+                🩸
+              </div>
+
+              <div>
+                <div style={emptyHistoryTitleStyle}>
+                  Nenhum exame salvo
+                </div>
+
+                <p style={emptyHistoryTextStyle}>
+                  Depois de analisar e confirmar um exame, ele
+                  aparecerá aqui automaticamente.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div style={historyListStyle}>
+              {history.map((item) => (
+                <article
+                  key={item.id}
+                  style={historyCardStyle}
+                >
+                  <div style={historyCardContentStyle}>
+                    <div style={historyDateStyle}>
+                      {formatHistoryDate(
+                        item.exam_date,
+                        item.created_at
+                      )}
+                    </div>
+
+                    <p style={historySummaryStyle}>
+                      {item.summary ||
+                        "Exame salvo sem resumo disponível."}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!item.raw_ai_response}
+                    onClick={() => {
+                      if (!item.raw_ai_response) {
+                        return;
+                      }
+
+                      setSelectedHistory(item);
+                    }}
+                    style={{
+                      ...historyButtonStyle,
+                      opacity: item.raw_ai_response
+                        ? 1
+                        : 0.45,
+                      cursor: item.raw_ai_response
+                        ? "pointer"
+                        : "not-allowed",
+                    }}
+                  >
+                    Ver detalhes
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {selectedHistory?.raw_ai_response && (
+          <BloodReviewPanel
+            visible={true}
+            analysis={selectedHistory.raw_ai_response}
+            readOnly={true}
+            onClose={() => setSelectedHistory(null)}
+            styles={reviewPanelStyles}
+          />
         )}
 
         <section style={markersSectionStyle}>
@@ -813,6 +992,122 @@ const bloodUploadErrorStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
 };
+const historySectionStyle: React.CSSProperties = {
+  marginBottom: "clamp(24px, 5vw, 42px)",
+  padding: "clamp(23px, 5vw, 40px)",
+  border: "1px solid rgba(255,255,255,0.1)",
+  background:
+    "linear-gradient(145deg, rgba(24,24,27,0.92), rgba(12,12,13,0.98))",
+  boxShadow: "0 20px 48px rgba(0,0,0,0.32)",
+};
+
+const historyHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  flexWrap: "wrap",
+  gap: 20,
+  marginBottom: 24,
+};
+
+const historyDescriptionStyle: React.CSSProperties = {
+  maxWidth: 620,
+  margin: "12px 0 0",
+  color: "#9898a1",
+  fontSize: 14,
+  lineHeight: 1.65,
+};
+
+const historyCountStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  border: "1px solid rgba(255,241,168,0.2)",
+  background: "rgba(255,241,168,0.04)",
+  color: "#d8cf98",
+  fontSize: 11,
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+};
+
+const historyListStyle: React.CSSProperties = {
+  display: "grid",
+  gap: 12,
+};
+
+const historyCardStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 20,
+  flexWrap: "wrap",
+  padding: "18px 20px",
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "rgba(255,255,255,0.025)",
+};
+
+const historyCardContentStyle: React.CSSProperties = {
+  flex: "1 1 420px",
+  minWidth: 0,
+};
+
+const historyDateStyle: React.CSSProperties = {
+  color: "#fff1a8",
+  fontSize: 12,
+  fontWeight: 750,
+  letterSpacing: 0.4,
+  textTransform: "capitalize",
+};
+
+const historySummaryStyle: React.CSSProperties = {
+  margin: "9px 0 0",
+  color: "#b4b4bc",
+  fontSize: 13,
+  lineHeight: 1.65,
+};
+
+const historyButtonStyle: React.CSSProperties = {
+  minHeight: 42,
+  padding: "0 17px",
+  border: "1px solid rgba(255,241,168,0.25)",
+  background: "rgba(255,241,168,0.07)",
+  color: "#fff1a8",
+  fontSize: 12,
+  fontWeight: 750,
+  fontFamily: "inherit",
+};
+
+const emptyHistoryStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 16,
+  padding: "22px",
+  border: "1px dashed rgba(255,255,255,0.12)",
+  background: "rgba(255,255,255,0.02)",
+};
+
+const emptyHistoryIconStyle: React.CSSProperties = {
+  display: "grid",
+  placeItems: "center",
+  width: 46,
+  height: 46,
+  flex: "0 0 46px",
+  borderRadius: "50%",
+  background: "rgba(255,241,168,0.07)",
+  fontSize: 20,
+};
+
+const emptyHistoryTitleStyle: React.CSSProperties = {
+  color: "#f4f4f5",
+  fontSize: 14,
+  fontWeight: 750,
+};
+
+const emptyHistoryTextStyle: React.CSSProperties = {
+  margin: "6px 0 0",
+  color: "#85858e",
+  fontSize: 12,
+  lineHeight: 1.6,
+};
+
 const markersSectionStyle: React.CSSProperties = {
   marginBottom: "clamp(24px, 5vw, 42px)",
   padding: "clamp(23px, 5vw, 40px)",
@@ -903,6 +1198,9 @@ const disclaimerTextStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
+
+
 
 
 
