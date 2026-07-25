@@ -507,10 +507,10 @@ function CoachDataSources({
     >
       <div
         style={{
-          width: "min(100%, 1120px)",
-          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
           padding:
-            "clamp(52px, 8vw, 88px) clamp(20px, 5vw, 64px)",
+            "clamp(52px, 8vw, 88px) 16px",
         }}
       >
         <div
@@ -931,10 +931,10 @@ function CoachConversation({
     >
       <div
         style={{
-          width: "min(100%, 1120px)",
-          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
           padding:
-            "clamp(58px, 9vw, 104px) clamp(20px, 5vw, 64px) max(110px, env(safe-area-inset-bottom))",
+            "clamp(58px, 9vw, 104px) 16px max(110px, env(safe-area-inset-bottom))",
         }}
       >
         <div style={{ maxWidth: 790 }}>
@@ -2093,8 +2093,8 @@ export default function PerformanceAIPage() {
 
       <section
         style={{
-          maxWidth: 1080,
-          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
           display: "grid",
           gap: 0,
         }}
@@ -2298,14 +2298,17 @@ const pageStyle: React.CSSProperties = {
   minHeight: "100vh",
   background:
     "radial-gradient(circle at 50% -120px, rgba(212,175,55,0.13) 0%, rgba(212,175,55,0.035) 24%, rgba(9,9,11,0) 48%), linear-gradient(180deg, #09090b 0%, #050506 55%, #000000 100%)",
-  padding: "20px 16px 110px",
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "20px 0 110px",
   fontFamily: "Montserrat, sans-serif",
   color: "#f4f4f5",
 };
 
 const globalMessageStyle: React.CSSProperties = {
-  maxWidth: 1080,
-  margin: "0 auto 16px",
+  width: "calc(100% - 32px)",
+  boxSizing: "border-box",
+  margin: "0 16px 16px",
   padding: "12px 14px",
   borderRadius: 14,
   border: "1px solid rgba(212,175,55,0.42)",
@@ -2318,6 +2321,7 @@ const globalMessageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 700,
 };
+
 
 
 
