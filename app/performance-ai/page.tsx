@@ -1,393 +1,1066 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BackButton from "@/components/BackButton";
 import BottomNavbar from "@/components/BottomNavbar";
+import CoachHero from "@/components/performance/CoachHero";
+import CoachRecommendation from "@/components/performance/CoachRecommendation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+import { formatDuration } from "@/lib/performance/formatters";
+import { isInRange } from "@/lib/performance/ranges";
 
-const activeModules = [
-  {
-    title: "Body",
-    icon: "💪",
-    description:
-      "Acompanhe peso, IMC, bioimpedância e toda a sua evolução corporal.",
-    href: "/performance-ai/body",
-    action: "Ver evolução corporal",
-  },
-  {
-    title: "Blood",
-    icon: "🩸",
-    description:
-      "Envie seus exames de sangue, acompanhe marcadores importantes e gere análises com inteligência artificial.",
-    href: "/performance-ai/blood",
-    action: "Analisar exames",
-  },
-  {
-    title: "Coach IA",
-    icon: "🤖",
-    description:
-      "Receba orientações personalizadas com base nos seus treinos, alimentação, saúde e objetivos.",
-    href: "/performance-ai/coach",
-    action: "Entrar no Coach IA",
-  },
-];
+type ProfileRow = {
+  id: string;
+  user_id: string;
+  weight_kg: number | null;
+  height_cm: number | null;
+  age: number | null;
+  gender: string | null;
+  goal: string | null;
+  health_notes: string | null;
+  goal_date: string | null;
+  goal_type: string | null;
+  goal_priority: string | null;
+};
 
-const upcomingModules = [
-  {
-    title: "Training",
-    icon: "🏃",
-    description:
-      "Treinos, atividades, volume, frequência, desempenho e recuperação.",
-  },
-  {
-    title: "Nutrition",
-    icon: "🥗",
-    description:
-      "Refeições, qualidade alimentar, proteínas e orientações nutricionais.",
-  },
-  {
-    title: "Health",
-    icon: "❤️",
-    description:
-      "Exames, histórico clínico e indicadores importantes para sua saúde.",
-  },
-];
+type MealRow = {
+  id: string;
+  meal_text: string;
+  eaten_at: string;
+  meal_type: string | null;
+  protein_level: string | null;
+  quality_level: string | null;
+  ai_notes: string | null;
+};
 
-export default function PerformanceAIPage() {
+type BloodTestRow = {
+  id: string;
+  exam_date: string | null;
+  hemoglobin: number | null;
+  ferritin: number | null;
+  vitamin_d: number | null;
+  glucose: number | null;
+  total_cholesterol: number | null;
+  hdl: number | null;
+  ldl: number | null;
+  triglycerides: number | null;
+  tsh: number | null;
+  creatinine: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+type BioimpedanceRow = {
+  id: string;
+  assessment_date: string | null;
+  weight_kg: number | null;
+  body_fat_percent: number | null;
+  muscle_mass_kg: number | null;
+  visceral_fat: number | null;
+  body_water_percent: number | null;
+  bmr: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+type WeightLogRow = {
+  id: string;
+  weight_kg: number;
+  created_at: string;
+};
+
+type StravaActivityRow = {
+  id: string;
+  athlete_id: number;
+  name: string | null;
+  type: string | null;
+  sport_type: string | null;
+  start_date: string | null;
+  distance: number | null;
+  moving_time: number | null;
+  average_heartrate: number | null;
+  max_heartrate: number | null;
+};
+
+type RangeKey = "7d" | "30d" | "6m" | "all";
+
+type PerformanceArea = {
+  title: string;
+  score: number;
+  status: string;
+  description: string;
+  detail: string;
+  href: string;
+  action: string;
+  available: boolean;
+};
+
+function getCoachInsight(params: {
+  meals: MealRow[];
+  weeklyActivitiesCount: number;
+  weeklyDistanceKm: number;
+  weeklyMovingTime: number;
+  avgHeartRate: number | null;
+  weightLogs: WeightLogRow[];
+}) {
+  const {
+    meals,
+    weeklyActivitiesCount,
+    weeklyDistanceKm,
+    weeklyMovingTime,
+    avgHeartRate,
+    weightLogs,
+  } = params;
+
+  const lowQualityMeals = meals.filter(
+    (meal) => meal.quality_level === "baixa"
+  ).length;
+  const highProteinMeals = meals.filter(
+    (meal) => meal.protein_level === "alta"
+  ).length;
+  const totalTrainingHours = weeklyMovingTime / 3600;
+  const currentWeight = weightLogs[0]?.weight_kg ?? null;
+  const previousWeight = weightLogs[1]?.weight_kg ?? null;
+  const weightDiff =
+    currentWeight != null && previousWeight != null
+      ? Number((currentWeight - previousWeight).toFixed(1))
+      : null;
+
+  if (weightDiff != null && weightDiff <= -1 && totalTrainingHours >= 3) {
+    return "Seu peso caiu junto com um volume razoável de treino. Vale reforçar recuperação, hidratação e ingestão de proteína para evitar queda excessiva.";
+  }
+
+  if (weightDiff != null && weightDiff >= 1 && lowQualityMeals >= 2) {
+    return "Seu peso subiu e sua alimentação recente teve baixa qualidade. Tente reduzir ultraprocessados e voltar para refeições mais equilibradas.";
+  }
+
+  if (weightLogs.length === 0) {
+    return "Você ainda não registrou seu peso. Isso limita a precisão das orientações. Tente atualizar o peso algumas vezes por semana.";
+  }
+
+  if (weeklyActivitiesCount >= 4 && highProteinMeals <= 1) {
+    return "Você treinou bem nos últimos dias, mas sua ingestão de proteína parece baixa. Priorize proteína nas próximas refeições para ajudar na recuperação.";
+  }
+
+  if (weeklyDistanceKm >= 25 && meals.length <= 2) {
+    return "Seu volume de treino está alto para poucas refeições registradas. Vale reforçar alimentação e hidratação ao longo do dia.";
+  }
+
+  if (avgHeartRate && avgHeartRate >= 155 && lowQualityMeals >= 1) {
+    return "Seu treino mostra esforço elevado e sua alimentação pode melhorar. Hoje vale focar em comida de verdade, hidratação e recuperação.";
+  }
+
+  if (lowQualityMeals >= 2) {
+    return "Hoje sua alimentação teve qualidade baixa. Tente reduzir ultraprocessados e incluir uma refeição mais completa com proteína e carboidrato de melhor qualidade.";
+  }
+
+  if (weeklyActivitiesCount === 0 && meals.length > 0) {
+    return "Você registrou alimentação, mas não há treinos recentes no Strava. Se hoje for dia de descanso, foque em recuperação e consistência.";
+  }
+
+  if (totalTrainingHours >= 3 && highProteinMeals >= 2) {
+    return "Bom equilíbrio entre treino e alimentação. Você está sustentando bem a recuperação nesta fase.";
+  }
+
+  if (
+    weightDiff != null &&
+    Math.abs(weightDiff) < 0.3 &&
+    weeklyActivitiesCount >= 3
+  ) {
+    return "Seu peso está estável e sua rotina de treino segue ativa. Isso sugere boa consistência nesta fase.";
+  }
+
+  return "Seu quadro está relativamente equilibrado. Continue registrando refeições, peso e treinos para receber orientações mais precisas.";
+}
+
+function scoreLabel(score: number) {
+  if (score >= 85) return "Excelente";
+  if (score >= 70) return "Muito bom";
+  if (score >= 55) return "Em evolução";
+  return "Precisa de atenção";
+}
+
+function PerformanceCenter({
+  areas,
+  dataQuality,
+}: {
+  areas: PerformanceArea[];
+  dataQuality: number;
+}) {
+  const dataQualityLabel =
+    dataQuality >= 85
+      ? "Excelente"
+      : dataQuality >= 65
+        ? "Muito boa"
+        : dataQuality >= 40
+          ? "Em desenvolvimento"
+          : "Precisa de mais dados";
+
   return (
-    <>
-      <main
+    <section
+      style={{
+        width: "100%",
+        background: "#101010",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <div
         style={{
-          minHeight: "100vh",
-          background:
-            "radial-gradient(circle at top, #1f2937 0%, #09090b 42%, #000000 100%)",
-          color: "#ffffff",
-          padding: "24px 18px 120px",
+          width: "100%",
+          boxSizing: "border-box",
+          padding: "clamp(52px, 8vw, 88px) 16px",
         }}
       >
         <div
           style={{
-            width: "100%",
-            maxWidth: 1120,
-            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(min(100%, 310px), 1fr))",
+            gap: "clamp(32px, 7vw, 80px)",
+            alignItems: "end",
           }}
         >
-          <BackButton />
+          <div style={{ maxWidth: 700 }}>
+            <div style={eyebrowStyle}>Centro de performance</div>
 
-          <section
+            <h2 style={sectionTitleStyle}>Suas áreas de performance</h2>
+
+            <p style={sectionTextStyle}>
+              Notas, dados e atalhos reunidos em um único lugar para você
+              entender rapidamente onde está bem e onde precisa evoluir.
+            </p>
+          </div>
+
+          <div
             style={{
-              textAlign: "center",
-              padding: "72px 10px 56px",
+              padding: "22px 0 4px",
+              borderTop: "1px solid rgba(255,255,255,0.14)",
             }}
           >
             <div
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 68,
-                height: 68,
-                borderRadius: 22,
-                background:
-                  "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
-                boxShadow: "0 18px 45px rgba(37, 99, 235, 0.28)",
-                fontSize: 32,
-                marginBottom: 24,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "space-between",
+                gap: 20,
               }}
             >
-              🧠
-            </div>
-
-            <p
-              style={{
-                margin: "0 0 10px",
-                color: "#60a5fa",
-                fontWeight: 800,
-                fontSize: 13,
-                letterSpacing: 2,
-                textTransform: "uppercase",
-              }}
-            >
-              Sports Platform
-            </p>
-
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "clamp(38px, 7vw, 72px)",
-                lineHeight: 1,
-                letterSpacing: -2,
-              }}
-            >
-              Performance AI
-            </h1>
-
-            <p
-              style={{
-                maxWidth: 720,
-                margin: "24px auto 0",
-                color: "#a1a1aa",
-                fontSize: "clamp(17px, 3vw, 21px)",
-                lineHeight: 1.65,
-              }}
-            >
-              Seu treinador inteligente para acompanhar sua evolução, entender
-              seus dados e orientar suas próximas decisões.
-            </p>
-
-            <Link
-              href="/performance-ai/coach"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginTop: 34,
-                minHeight: 54,
-                padding: "0 28px",
-                borderRadius: 16,
-                background:
-                  "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
-                color: "#ffffff",
-                textDecoration: "none",
-                fontWeight: 900,
-                fontSize: 16,
-                boxShadow: "0 16px 40px rgba(37, 99, 235, 0.25)",
-              }}
-            >
-              Entrar no Coach IA →
-            </Link>
-          </section>
-
-          <section>
-            <div
-              style={{
-                marginBottom: 24,
-              }}
-            >
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: 28,
-                  letterSpacing: -0.5,
-                }}
-              >
-                Seus módulos
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: "#71717a",
-                  lineHeight: 1.6,
-                }}
-              >
-                Cada área organiza uma parte importante da sua jornada.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
-                gap: 18,
-              }}
-            >
-              {activeModules.map((module) => (
-                <Link
-                  key={module.title}
-                  href={module.href}
+              <div>
+                <div style={smallLabelStyle}>Qualidade dos dados</div>
+                <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    minHeight: 260,
-                    padding: 28,
-                    borderRadius: 24,
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    background:
-                      "linear-gradient(145deg, rgba(24,24,27,0.96), rgba(9,9,11,0.96))",
+                    marginTop: 8,
                     color: "#ffffff",
-                    textDecoration: "none",
-                    boxShadow: "0 18px 50px rgba(0,0,0,0.24)",
+                    fontSize: "clamp(22px, 4vw, 32px)",
+                    fontWeight: 780,
+                    letterSpacing: "-0.035em",
                   }}
                 >
-                  <div
-                    style={{
-                      width: 58,
-                      height: 58,
-                      borderRadius: 18,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "rgba(59,130,246,0.12)",
-                      fontSize: 29,
-                    }}
-                  >
-                    {module.icon}
-                  </div>
+                  {dataQualityLabel}
+                </div>
+              </div>
 
-                  <h3
-                    style={{
-                      margin: "24px 0 10px",
-                      fontSize: 25,
-                    }}
-                  >
-                    {module.title}
-                  </h3>
-
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#a1a1aa",
-                      lineHeight: 1.65,
-                      flex: 1,
-                    }}
-                  >
-                    {module.description}
-                  </p>
-
-                  <span
-                    style={{
-                      marginTop: 24,
-                      color: "#60a5fa",
-                      fontWeight: 800,
-                    }}
-                  >
-                    {module.action} →
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section
-            style={{
-              marginTop: 58,
-            }}
-          >
-            <div
-              style={{
-                marginBottom: 22,
-              }}
-            >
-              <h2
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: 25,
+                  color: "#fff1a8",
+                  fontSize: "clamp(32px, 6vw, 54px)",
+                  fontWeight: 760,
+                  lineHeight: 0.95,
+                  letterSpacing: "-0.055em",
                 }}
               >
-                Próximos módulos
-              </h2>
-
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: "#71717a",
-                }}
-              >
-                Novas áreas serão adicionadas gradualmente.
-              </p>
+                {dataQuality}%
+              </div>
             </div>
 
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(min(100%, 250px), 1fr))",
-                gap: 16,
+                marginTop: 18,
+                height: 4,
+                overflow: "hidden",
+                background: "rgba(255,255,255,0.1)",
               }}
             >
-              {upcomingModules.map((module) => (
-                <article
-                  key={module.title}
-                  style={{
-                    padding: 24,
-                    borderRadius: 22,
-                    border: "1px solid rgba(255,255,255,0.07)",
-                    background: "rgba(24,24,27,0.68)",
-                  }}
-                >
+              <div
+                style={{
+                  width: `${dataQuality}%`,
+                  height: "100%",
+                  background: "#16a34a",
+                  transition: "width 300ms ease",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: "clamp(38px, 6vw, 58px)",
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          {areas.map((area, index) => (
+            <article
+              key={area.title}
+              style={{
+                padding: "clamp(25px, 4vw, 36px) 0",
+                borderBottom:
+                  index === areas.length - 1
+                    ? "none"
+                    : "1px solid rgba(255,255,255,0.09)",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "minmax(0, 1fr) minmax(88px, auto)",
+                  gap: "clamp(22px, 5vw, 56px)",
+                  alignItems: "start",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
                   <div
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 16,
+                      gap: 11,
+                      flexWrap: "wrap",
                     }}
                   >
-                    <span style={{ fontSize: 28 }}>{module.icon}</span>
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: area.available ? "#fff1a8" : "#5f5f67",
+                        boxShadow: area.available
+                          ? "0 0 14px rgba(255,241,168,0.35)"
+                          : "none",
+                      }}
+                    />
+
+                    <h3
+                      style={{
+                        margin: 0,
+                        color: "#f4f4f5",
+                        fontSize: "clamp(18px, 2.5vw, 22px)",
+                        fontWeight: 760,
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {area.title}
+                    </h3>
 
                     <span
                       style={{
-                        padding: "6px 10px",
-                        borderRadius: 999,
-                        background: "rgba(255,255,255,0.06)",
-                        color: "#71717a",
-                        fontSize: 11,
+                        color: area.available ? "#fff1a8" : "#8f8f98",
+                        fontSize: 10,
                         fontWeight: 800,
-                        letterSpacing: 0.8,
+                        lineHeight: 1.4,
+                        letterSpacing: "0.08em",
                         textTransform: "uppercase",
                       }}
                     >
-                      Em breve
+                      {area.status}
                     </span>
                   </div>
 
-                  <h3
+                  <p
                     style={{
-                      margin: "20px 0 9px",
-                      fontSize: 21,
+                      margin: "10px 0 0",
+                      maxWidth: 760,
+                      color: "#a1a1aa",
+                      fontSize: 14,
+                      lineHeight: 1.7,
                     }}
                   >
-                    {module.title}
-                  </h3>
+                    {area.description}
+                  </p>
 
                   <p
                     style={{
-                      margin: 0,
-                      color: "#8b8b94",
+                      margin: "8px 0 0",
+                      color: "#73737c",
+                      fontSize: 12,
                       lineHeight: 1.6,
                     }}
                   >
-                    {module.description}
+                    {area.detail}
                   </p>
-                </article>
-              ))}
-            </div>
-          </section>
 
-          <section
+                  <Link
+                    href={area.href}
+                    style={{
+                      display: "inline-flex",
+                      marginTop: 15,
+                      color: "#fff1a8",
+                      fontSize: 13,
+                      fontWeight: 780,
+                      lineHeight: 1.4,
+                      textDecoration: "none",
+                    }}
+                  >
+                    {area.action} →
+                  </Link>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    style={{
+                      color: "#ffffff",
+                      fontSize: "clamp(28px, 5vw, 44px)",
+                      fontWeight: 780,
+                      lineHeight: 1,
+                      letterSpacing: "-0.05em",
+                    }}
+                  >
+                    {area.score}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 4,
+                      color: "#696970",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: "0.08em",
+                    }}
+                  >
+                    / 100
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 10,
+                      color: "#8f8f98",
+                      fontSize: 11,
+                      fontWeight: 700,
+                    }}
+                  >
+                    {scoreLabel(area.score)}
+                  </div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CoachAccess() {
+  return (
+    <section
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "0 16px 48px",
+        background: "#000000",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 1120,
+          margin: "0 auto",
+          boxSizing: "border-box",
+          padding: "clamp(22px, 5vw, 34px)",
+          borderRadius: 24,
+          border: "2px solid #d8aa45",
+          background: "#f8f3e8",
+          boxShadow:
+            "0 0 0 2px rgba(255,255,255,0.18), 0 18px 40px rgba(0,0,0,0.22)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 12,
+          }}
+        >
+          <div
             style={{
-              marginTop: 58,
-              padding: "32px 24px",
-              borderRadius: 24,
-              textAlign: "center",
-              border: "1px solid rgba(96,165,250,0.18)",
-              background: "rgba(37,99,235,0.08)",
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              background: "#d9a83e",
+              color: "#ffffff",
+              fontSize: 17,
+              boxShadow: "0 8px 18px rgba(168,117,23,0.28)",
+            }}
+          >
+            📈
+          </div>
+
+          <div
+            style={{
+              paddingTop: 6,
+              color: "#312b22",
+              fontSize: 12,
+              fontWeight: 850,
+              letterSpacing: "0.15em",
+              lineHeight: 1.4,
+              textTransform: "uppercase",
+            }}
+          >
+            Coach IA
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              flex: "1 1 520px",
+              minWidth: 0,
             }}
           >
             <h2
               style={{
                 margin: 0,
-                fontSize: 24,
+                color: "#111111",
+                fontSize: "clamp(28px, 5vw, 40px)",
+                fontWeight: 800,
+                lineHeight: 1.08,
+                letterSpacing: "-0.04em",
               }}
             >
-              Quanto mais dados, mais inteligente o seu Coach
+              Seu plano de evolução
             </h2>
 
             <p
               style={{
+                margin: "14px 0 0",
                 maxWidth: 680,
-                margin: "12px auto 0",
-                color: "#a1a1aa",
-                lineHeight: 1.65,
+                color: "#57534e",
+                fontSize: "clamp(15px, 2vw, 17px)",
+                lineHeight: 1.7,
               }}
             >
-              Registre sua evolução corporal, seus treinos, sua alimentação e
-              seus indicadores de saúde para receber orientações cada vez mais
-              personalizadas.
+              Gere seu plano personalizado e converse com o Coach sobre treinos,
+              recuperação, alimentação e objetivos.
             </p>
-          </section>
+
+            <div
+              style={{
+                width: 112,
+                height: 3,
+                marginTop: 24,
+                borderRadius: 999,
+                background:
+                  "linear-gradient(90deg, #c98d27 0%, #e2bb61 58%, rgba(226,187,97,0) 100%)",
+              }}
+            />
+          </div>
+
+          <Link
+            href="/performance-ai/coach"
+            style={{
+              minHeight: 50,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              flexShrink: 0,
+              border: "1px solid #17130b",
+              borderRadius: 12,
+              background: "#17130b",
+              color: "#ffffff",
+              padding: "0 22px",
+              fontSize: 14,
+              fontWeight: 850,
+              textDecoration: "none",
+              boxShadow: "0 12px 24px rgba(0,0,0,0.15)",
+            }}
+          >
+            Abrir Coach IA <span aria-hidden="true">→</span>
+          </Link>
         </div>
+      </div>
+    </section>
+  );
+}
+function PerformanceAIPage() {
+  const router = useRouter();
+  const supabase = useMemo(() => supabaseBrowser, []);
+
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [weightKg, setWeightKg] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [age, setAge] = useState("");
+  const [gender, setGender] = useState("");
+  const [goal, setGoal] = useState("");
+  const [healthNotes, setHealthNotes] = useState("");
+  const [goalDate, setGoalDate] = useState("");
+  const [goalType, setGoalType] = useState("");
+  const [goalPriority, setGoalPriority] = useState("");
+  const [meals, setMeals] = useState<MealRow[]>([]);
+  const [weightLogs, setWeightLogs] = useState<WeightLogRow[]>([]);
+  const [bioimpedanceLogs, setBioimpedanceLogs] = useState<BioimpedanceRow[]>([]);
+  const [bloodTestLogs, setBloodTestLogs] = useState<BloodTestRow[]>([]);
+  const [stravaActivities, setStravaActivities] = useState<StravaActivityRow[]>([]);
+  const [stravaConnected, setStravaConnected] = useState(false);
+  const [range] = useState<RangeKey>("7d");
+
+  useEffect(() => {
+    const loadPage = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user ?? null;
+
+        if (!user) {
+          router.replace("/login");
+          return;
+        }
+
+        const [
+          profileResult,
+          mealsResult,
+          weightResult,
+          bioResult,
+          bloodResult,
+          tokenResult,
+        ] = await Promise.all([
+          supabase
+            .from("performance_ai_profiles")
+            .select("*")
+            .eq("user_id", user.id)
+            .maybeSingle<ProfileRow>(),
+          supabase
+            .from("performance_ai_meals")
+            .select(
+              "id, meal_text, eaten_at, meal_type, protein_level, quality_level, ai_notes"
+            )
+            .eq("user_id", user.id)
+            .order("eaten_at", { ascending: false })
+            .limit(10),
+          supabase
+            .from("performance_ai_weight_logs")
+            .select("id, weight_kg, created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(10),
+          supabase
+            .from("performance_ai_bioimpedance")
+            .select(
+              "id, assessment_date, weight_kg, body_fat_percent, muscle_mass_kg, visceral_fat, body_water_percent, bmr, notes, created_at"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(5),
+          supabase
+            .from("performance_ai_blood_tests")
+            .select(
+              "id, exam_date, hemoglobin, ferritin, vitamin_d, glucose, total_cholesterol, hdl, ldl, triglycerides, tsh, creatinine, notes, created_at"
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(5),
+          supabase
+            .from("strava_tokens")
+            .select("athlete_id")
+            .eq("user_id", user.id)
+            .order("updated_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+        const profile = profileResult.data;
+
+        if (profile) {
+          setProfileId(profile.id);
+          setWeightKg(profile.weight_kg?.toString() ?? "");
+          setHeightCm(profile.height_cm?.toString() ?? "");
+          setAge(profile.age?.toString() ?? "");
+          setGender(profile.gender ?? "");
+          setGoal(
+            profile.goal &&
+              [
+                "performance",
+                "weight_loss",
+                "conditioning",
+                "maintenance",
+              ].includes(profile.goal)
+              ? ""
+              : profile.goal ?? ""
+          );
+          setHealthNotes(profile.health_notes ?? "");
+          setGoalDate(profile.goal_date ?? "");
+          setGoalType(profile.goal_type ?? "");
+          setGoalPriority(profile.goal_priority ?? "");
+        }
+
+        setMeals((mealsResult.data ?? []) as MealRow[]);
+        setWeightLogs((weightResult.data ?? []) as WeightLogRow[]);
+        setBioimpedanceLogs((bioResult.data ?? []) as BioimpedanceRow[]);
+        setBloodTestLogs((bloodResult.data ?? []) as BloodTestRow[]);
+
+        const athleteId = tokenResult.data?.athlete_id;
+
+        if (athleteId) {
+          setStravaConnected(true);
+
+          const { data: activitiesData } = await supabase
+            .from("strava_activities")
+            .select(
+              "id, athlete_id, name, type, sport_type, start_date, distance, moving_time, average_heartrate, max_heartrate"
+            )
+            .eq("athlete_id", athleteId)
+            .order("start_date", { ascending: false })
+            .limit(20);
+
+          setStravaActivities(
+            (activitiesData ?? []) as StravaActivityRow[]
+          );
+        }
+      } catch (error) {
+        console.error("Erro ao carregar Performance AI:", error);
+        setMessage("Não foi possível carregar todos os dados do Performance AI.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadPage();
+  }, [router, supabase]);
+
+  const now = new Date();
+  const filteredActivities = stravaActivities.filter((item) =>
+    isInRange(item.start_date, range, now)
+  );
+
+  const weeklyActivitiesCount = filteredActivities.length;
+  const weeklyDistanceKm = filteredActivities.reduce(
+    (sum, item) => sum + (item.distance ?? 0) / 1000,
+    0
+  );
+  const weeklyMovingTime = filteredActivities.reduce(
+    (sum, item) => sum + (item.moving_time ?? 0),
+    0
+  );
+
+  const activitiesWithHr = filteredActivities.filter(
+    (item) =>
+      item.average_heartrate != null || item.max_heartrate != null
+  );
+
+  const avgHeartRate =
+    activitiesWithHr.length > 0
+      ? Math.round(
+          activitiesWithHr.reduce(
+            (sum, item) => sum + (item.average_heartrate ?? 0),
+            0
+          ) / activitiesWithHr.length
+        )
+      : null;
+
+  const currentCoachWeight = weightLogs[0]?.weight_kg ?? null;
+  const previousCoachWeight = weightLogs[1]?.weight_kg ?? null;
+  const coachWeightDifference =
+    currentCoachWeight != null && previousCoachWeight != null
+      ? Number((currentCoachWeight - previousCoachWeight).toFixed(1))
+      : null;
+
+  const trainingScore = Math.max(
+    0,
+    Math.min(
+      100,
+      (stravaConnected ? 40 : 20) +
+        Math.min(weeklyActivitiesCount * 10, 30) +
+        Math.min(weeklyDistanceKm, 25) +
+        (avgHeartRate && avgHeartRate >= 165 ? -5 : 5)
+    )
+  );
+
+  const lowQualityMealCount = meals.filter(
+    (meal) => meal.quality_level === "baixa"
+  ).length;
+  const highProteinMealCount = meals.filter(
+    (meal) => meal.protein_level === "alta"
+  ).length;
+
+  const nutritionScore = Math.max(
+    0,
+    Math.min(
+      100,
+      35 +
+        Math.min(meals.length * 7, 35) +
+        Math.min(highProteinMealCount * 8, 24) -
+        lowQualityMealCount * 10
+    )
+  );
+
+  const weightScore =
+    currentCoachWeight == null
+      ? 45
+      : coachWeightDifference == null
+        ? 70
+        : Math.abs(coachWeightDifference) < 0.3
+          ? 90
+          : Math.abs(coachWeightDifference) <= 0.7
+            ? 80
+            : Math.abs(coachWeightDifference) <= 1
+              ? 65
+              : 50;
+
+  const healthScore = Math.min(
+    100,
+    40 +
+      (bloodTestLogs.length > 0 ? 20 : 0) +
+      (bioimpedanceLogs.length > 0 ? 20 : 0) +
+      (healthNotes.trim() ? 10 : 0) +
+      (age.trim() && heightCm.trim() ? 10 : 0)
+  );
+
+  const goalScore = Math.min(
+    100,
+    40 +
+      (goal.trim() ? 20 : 0) +
+      (goalType.trim() ? 15 : 0) +
+      (goalDate.trim() ? 15 : 0) +
+      (goalPriority.trim() ? 10 : 0)
+  );
+
+  const performanceScore = Math.round(
+    trainingScore * 0.32 +
+      nutritionScore * 0.23 +
+      weightScore * 0.15 +
+      healthScore * 0.15 +
+      goalScore * 0.15
+  );
+
+  const performanceStatus = scoreLabel(performanceScore);
+
+  const statusDescription =
+    performanceScore >= 85
+      ? "Seus registros mostram uma rotina muito consistente."
+      : performanceScore >= 70
+        ? "Você está construindo uma boa base de desempenho."
+        : performanceScore >= 55
+          ? "Existem bons sinais, mas ainda há espaço para maior consistência."
+          : "Complete seus dados e retome a regularidade para receber orientações melhores.";
+
+  const coachInsight = getCoachInsight({
+    meals,
+    weeklyActivitiesCount,
+    weeklyDistanceKm,
+    weeklyMovingTime,
+    avgHeartRate,
+    weightLogs,
+  });
+
+  const profileFields = [weightKg, heightCm, age, gender, goal];
+  const completedProfileFields = profileFields.filter(
+    (value) => value.trim().length > 0
+  ).length;
+
+  const profileDataScore = profileId
+    ? Math.round((completedProfileFields / profileFields.length) * 20)
+    : 0;
+  const trainingDataScore = stravaActivities.length > 0 ? 30 : 0;
+  const bodyDataScore =
+    (currentCoachWeight != null || weightKg.trim() ? 10 : 0) +
+    (bioimpedanceLogs.length > 0 ? 5 : 0);
+  const healthDataScore =
+    (bloodTestLogs.length > 0 ? 12 : 0) +
+    (bioimpedanceLogs.length > 0 ? 8 : 0);
+  const nutritionDataScore =
+    meals.length >= 7 ? 15 : meals.length > 0 ? 8 : 0;
+  const dataQuality = Math.min(
+    100,
+    profileDataScore +
+      trainingDataScore +
+      bodyDataScore +
+      healthDataScore +
+      nutritionDataScore
+  );
+
+  const latestActivity = stravaActivities[0] ?? null;
+  const latestActivityTitle =
+    latestActivity?.name?.trim() ||
+    latestActivity?.sport_type?.trim() ||
+    latestActivity?.type?.trim() ||
+    "Nenhum treino recente";
+  const latestActivityDetail = latestActivity
+    ? [
+        latestActivity.distance
+          ? `${(latestActivity.distance / 1000).toFixed(1)} km`
+          : null,
+        latestActivity.moving_time
+          ? `${Math.round(latestActivity.moving_time / 60)} min`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "Conecte ou sincronize seus aplicativos esportivos.";
+
+  const latestWeight =
+    currentCoachWeight != null
+      ? `${currentCoachWeight.toFixed(1)} kg`
+      : weightKg.trim()
+        ? `${weightKg.trim()} kg`
+        : "Peso ainda não registrado";
+
+  const performanceAreas: PerformanceArea[] = [
+    {
+      title: "Perfil do atleta",
+      score: Math.round(goalScore),
+      status:
+        completedProfileFields >= 4
+          ? "Completo"
+          : `${completedProfileFields} de ${profileFields.length}`,
+      description:
+        goal.trim() || goalType.trim()
+          ? goal.trim() || goalType.trim()
+          : "Defina seus objetivos e informações físicas para personalizar as análises.",
+      detail: goalDate
+        ? `Meta para ${new Date(`${goalDate}T12:00:00`).toLocaleDateString("pt-BR")}`
+        : `${latestWeight} · ${heightCm.trim() ? `${heightCm} cm` : "altura não informada"}`,
+      href: "/performance-ai/profile",
+      action: profileId ? "Abrir perfil" : "Completar perfil",
+      available: completedProfileFields >= 4,
+    },
+    {
+      title: "Treinamentos",
+      score: Math.round(trainingScore),
+      status:
+        stravaActivities.length > 0
+          ? `${stravaActivities.length} atividades`
+          : "Não sincronizado",
+      description: latestActivityTitle,
+      detail: `${latestActivityDetail} · ${formatDuration(weeklyMovingTime)} no período`,
+      href: "/performance-ai/training",
+      action:
+        stravaActivities.length > 0
+          ? "Ver treinamentos"
+          : "Conectar ou sincronizar",
+      available: stravaActivities.length > 0,
+    },
+    {
+      title: "Corpo",
+      score: Math.round(weightScore),
+      status:
+        currentCoachWeight != null || weightKg.trim()
+          ? "Dados disponíveis"
+          : "Sem peso",
+      description: latestWeight,
+      detail:
+        bioimpedanceLogs.length > 0
+          ? `${bioimpedanceLogs.length} avaliação${bioimpedanceLogs.length === 1 ? "" : "ões"} corporal${bioimpedanceLogs.length === 1 ? "" : "es"}`
+          : "Nenhuma bioimpedância registrada.",
+      href: "/performance-ai/body",
+      action:
+        currentCoachWeight != null || weightKg.trim()
+          ? "Ver evolução corporal"
+          : "Registrar peso",
+      available: currentCoachWeight != null || Boolean(weightKg.trim()),
+    },
+    {
+      title: "Saúde",
+      score: Math.round(healthScore),
+      status:
+        bloodTestLogs.length + bioimpedanceLogs.length > 0
+          ? `${bloodTestLogs.length + bioimpedanceLogs.length} registros`
+          : "Sem registros",
+      description:
+        bloodTestLogs.length > 0 || bioimpedanceLogs.length > 0
+          ? "Seus dados de saúde estão disponíveis para contextualizar as recomendações."
+          : "Adicione exames e avaliações corporais para ampliar a análise.",
+      detail: `${bloodTestLogs.length} exames de sangue · ${bioimpedanceLogs.length} avaliações corporais`,
+      href: "/performance-ai/blood",
+      action:
+        bloodTestLogs.length > 0
+          ? "Ver exames"
+          : "Adicionar dados de saúde",
+      available:
+        bloodTestLogs.length > 0 || bioimpedanceLogs.length > 0,
+    },
+    {
+      title: "Nutrição",
+      score: Math.round(nutritionScore),
+      status:
+        meals.length > 0
+          ? `${meals.length} registros`
+          : "Sem registros",
+      description:
+        meals.length > 0
+          ? highProteinMealCount >= 2
+            ? "Boa ingestão de proteína nas refeições recentes."
+            : "Sua alimentação já está sendo considerada nas análises."
+          : "Registre refeições para relacionar alimentação, energia, treino e recuperação.",
+      detail: `${meals.length} refeições · ${highProteinMealCount} com proteína alta · ${lowQualityMealCount} de baixa qualidade`,
+      href: "/performance-ai/nutrition",
+      action: meals.length > 0 ? "Abrir nutrição" : "Registrar refeição",
+      available: meals.length > 0,
+    },
+  ];
+
+  if (loading) {
+    return (
+      <>
+        <main style={pageStyle}>Carregando...</main>
+        <BottomNavbar />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <main style={pageStyle}>
+        <div style={{ margin: "0 16px 18px" }}>
+          <Link
+  href="/performance-ai"
+  style={backLinkStyle}
+>
+  <span aria-hidden="true">←</span>
+  Performance AI
+</Link>
+        </div>
+
+        {message ? <div style={globalMessageStyle}>{message}</div> : null}
+
+        <section
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            display: "grid",
+            gap: 0,
+          }}
+        >
+          <CoachHero
+            performanceScore={performanceScore}
+            performanceStatus={performanceStatus}
+            statusDescription={statusDescription}
+          />
+
+          <CoachRecommendation insight={coachInsight} />
+
+          <PerformanceCenter
+            areas={performanceAreas}
+            dataQuality={dataQuality}
+          />
+
+          <CoachAccess />
+        </section>
       </main>
 
       <BottomNavbar />
@@ -395,3 +1068,82 @@ export default function PerformanceAIPage() {
   );
 }
 
+const eyebrowStyle: React.CSSProperties = {
+  color: "#fff1a8",
+  fontSize: 11,
+  fontWeight: 850,
+  letterSpacing: "0.14em",
+  lineHeight: 1.4,
+  textTransform: "uppercase",
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+  margin: "12px 0 0",
+  color: "#ffffff",
+  fontSize: "clamp(30px, 5vw, 48px)",
+  fontWeight: 780,
+  lineHeight: 1.05,
+  letterSpacing: "-0.035em",
+};
+
+const sectionTextStyle: React.CSSProperties = {
+  margin: "18px 0 0",
+  maxWidth: 680,
+  color: "#a1a1aa",
+  fontSize: "clamp(15px, 2vw, 17px)",
+  lineHeight: 1.75,
+};
+
+const smallLabelStyle: React.CSSProperties = {
+  color: "#8f8f98",
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: "0.12em",
+  lineHeight: 1.4,
+  textTransform: "uppercase",
+};
+
+const pageStyle: React.CSSProperties = {
+  minHeight: "100vh",
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "20px 0 110px",
+  background:
+    "radial-gradient(circle at 50% -120px, rgba(212,175,55,0.13) 0%, rgba(212,175,55,0.035) 24%, rgba(9,9,11,0) 48%), linear-gradient(180deg, #09090b 0%, #050506 55%, #000000 100%)",
+  color: "#f4f4f5",
+  fontFamily: "Montserrat, sans-serif",
+};
+
+const globalMessageStyle: React.CSSProperties = {
+  width: "calc(100% - 32px)",
+  boxSizing: "border-box",
+  margin: "0 16px 16px",
+  padding: "12px 14px",
+  borderRadius: 14,
+  border: "1px solid rgba(212,175,55,0.42)",
+  background:
+    "linear-gradient(145deg, rgba(39,39,42,0.96) 0%, rgba(15,15,17,0.98) 100%)",
+  boxShadow:
+    "0 14px 30px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.06)",
+  color: "#f5e6b3",
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+};
+
+
+
+export default PerformanceAIPage;
+
+
+
+
+const backLinkStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 9,
+  color: "#d4d4d8",
+  fontSize: 13,
+  fontWeight: 650,
+  textDecoration: "none",
+};

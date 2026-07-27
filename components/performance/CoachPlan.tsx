@@ -272,7 +272,64 @@ export default function CoachPlan({
             ) : null}
 
             {days.length > 0 ? (
-              <ReportSection eyebrow="Plano dos próximos 7 dias">
+              <ReportSection eyebrow="">
+                <div
+                  style={{
+                    marginBottom: "44px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "Montserrat, sans-serif",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      letterSpacing: "0.28em",
+                      textTransform: "uppercase",
+                      color: "#fff1a8",
+                      marginBottom: 12,
+                    }}
+                  >
+                    Plano Personalizado
+                  </div>
+
+                  <div
+                    style={{
+                      width: 72,
+                      height: 2,
+                      background: "#fff1a8",
+                      opacity: 0.9,
+                      marginBottom: 22,
+                    }}
+                  />
+
+                  <h2
+                    style={{
+                      margin: 0,
+                      color: "#ffffff",
+                      fontFamily: "Montserrat, sans-serif",
+                      fontSize: "clamp(34px,5vw,46px)",
+                      fontWeight: 300,
+                      lineHeight: 1.1,
+                      letterSpacing: "-0.03em",
+                    }}
+                  >
+                    Plano dos próximos 7 dias
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: "18px 0 0",
+                      maxWidth: 520,
+                      color: "rgba(255,255,255,0.72)",
+                      fontFamily: "Montserrat, sans-serif",
+                      fontSize: 16,
+                      fontWeight: 300,
+                      lineHeight: 1.7,
+                    }}
+                  >
+                    Baseado no seu histórico de treinos, alimentação e recuperação.
+                  </p>
+                </div>
                 <div>
                   {days.map((day: any, index: number) => {
                     const title =
@@ -355,38 +412,64 @@ export default function CoachPlan({
                               : "1px solid rgba(255,255,255,0.10)",
                         }}
                       >
-                        <div style={{ minWidth: 0 }}>
-                          <div
+                        <details
+                          open={index === 0}
+                          style={{
+                            minWidth: 0,
+                          }}
+                        >
+                          <summary
                             style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 12,
-                              flexWrap: "wrap",
+                              padding: "8px 0",
+                              color: "#fff1a8",
+                              cursor: "pointer",
+                              userSelect: "none",
+                              WebkitTapHighlightColor: "transparent",
                             }}
                           >
                             <div
                               style={{
-                                color: "#fff1a8",
-                                fontSize: 12,
-                                fontWeight: 850,
-                                lineHeight: 1,
-                                letterSpacing: "0.14em",
-                                textTransform: "uppercase",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 14,
+                                width: "100%",
                               }}
                             >
-                              Dia {index + 1}
+                            <div
+                              aria-hidden="true"
+                              style={{
+                                flex: 1,
+                                height: 1,
+                                background: "rgba(255,241,168,0.32)",
+                              }}
+                            />
+
+                            <div
+                              style={{
+                                color: "#fff1a8",
+                                fontFamily: "Montserrat, sans-serif",
+                                fontSize: 30,
+                                fontWeight: 300,
+                                textTransform: "uppercase",
+                                lineHeight: 1,
+                                letterSpacing: "0.08em",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {`DIA ${index + 1}`}
                             </div>
 
                             <div
                               aria-hidden="true"
                               style={{
-                                width: 28,
+                                flex: 1,
                                 height: 1,
-                                background:
-                                  "rgba(255,241,168,0.48)",
+                                background: "rgba(255,241,168,0.32)",
                               }}
                             />
-                          </div>
+                            </div>
+                          </summary>
 
                           <div
                             style={{
@@ -499,7 +582,7 @@ export default function CoachPlan({
                                   style={{
                                     color: "#fff1a8",
                                     fontSize: 10,
-                                    fontWeight: 850,
+                                    fontWeight: 300,
                                     textTransform: "uppercase",
                                     letterSpacing: "0.14em",
                                   }}
@@ -520,7 +603,7 @@ export default function CoachPlan({
                               </div>
                             ) : null}
                           </div>
-                        </div>
+                        </details>
                       </article>
                     );
                   })}
@@ -602,7 +685,7 @@ export default function CoachPlan({
             style={{
               color: "#fff1a8",
               fontSize: 11,
-              fontWeight: 850,
+              fontWeight: 300,
               textTransform: "uppercase",
               letterSpacing: "0.15em",
             }}
@@ -645,7 +728,7 @@ export default function CoachPlan({
               color: aiLoading ? "#a1a1aa" : "#09090b",
               fontFamily: "Montserrat, sans-serif",
               fontSize: 13,
-              fontWeight: 850,
+              fontWeight: 300,
               letterSpacing: "0.025em",
               cursor: aiLoading ? "not-allowed" : "pointer",
             }}
@@ -680,8 +763,8 @@ function DaySection({
       <div
         style={{
           color: "#fff1a8",
-          fontSize: 10,
-          fontWeight: 850,
+          fontSize: 20,
+          fontWeight: 300,
           textTransform: "uppercase",
           letterSpacing: "0.15em",
         }}
@@ -776,7 +859,7 @@ function SectionHeading({
           marginTop: 18,
           color: "#fff1a8",
           fontSize: 12,
-          fontWeight: 850,
+          fontWeight: 300,
           textTransform: "uppercase",
           letterSpacing: "0.16em",
         }}
@@ -792,7 +875,7 @@ function SectionHeading({
           fontSize: "clamp(26px, 5vw, 40px)",
           lineHeight: 1.12,
           letterSpacing: "-0.04em",
-          fontWeight: 850,
+          fontWeight: 300,
         }}
       >
         {title}
@@ -892,7 +975,18 @@ function ReportList({
 const reportLabelStyle: React.CSSProperties = {
   color: "#fff1a8",
   fontSize: 11,
-  fontWeight: 850,
+  fontWeight: 300,
   textTransform: "uppercase",
   letterSpacing: "0.15em",
 };
+
+
+
+
+
+
+
+
+
+
+

@@ -16,6 +16,7 @@ import MealReviewModal, {
   type MealAnalysisResult,
 } from "./components/MealReviewModal";
 
+import PerformanceAiBackButton from "@/components/performance-ai/PerformanceAiBackButton";
 type MealRow = {
   id: string;
   meal_text: string;
@@ -2012,6 +2013,9 @@ const disclaimerTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
+
+
 
 
 

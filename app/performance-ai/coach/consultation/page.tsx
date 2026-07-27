@@ -2,66 +2,91 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { CSSProperties, ReactNode } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 import PerformanceAiBackButton from "@/components/performance-ai/PerformanceAiBackButton";
 type PerformanceAiProfile = {
   id: string;
   user_id: string;
+  weight_kg: number | null;
+  height_cm: number | null;
   age: number | null;
   gender: string | null;
-  height_cm: number | null;
-  weight_kg: number | null;
   goal: string | null;
+  health_notes: string | null;
   goal_text: string | null;
   goal_date: string | null;
   level: string | null;
   days_per_week: number | null;
   minutes_per_session: number | null;
   sports: string[] | string | null;
-  health_notes: string | null;
 };
 
-function showValue(value: string | null, fallback = "Não informado") {
-  return value?.trim() || fallback;
+function hasValue(
+  value: string | number | string[] | null | undefined
+): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return value !== null && value !== undefined;
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "Não informada";
-
-  const parts = value.slice(0, 10).split("-");
-
-  if (parts.length !== 3) return value;
-
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
-
-function formatGender(value: string | null) {
+function formatGender(value: string | null): string {
   if (!value) return "Não informado";
 
   const normalized = value.trim().toLowerCase();
 
-  const options: Record<string, string> = {
+  const labels: Record<string, string> = {
     male: "Masculino",
     masculino: "Masculino",
+    man: "Masculino",
     homem: "Masculino",
     female: "Feminino",
     feminino: "Feminino",
+    woman: "Feminino",
     mulher: "Feminino",
     other: "Outro",
     outro: "Outro",
+    "prefer_not_to_say": "Prefiro não informar",
   };
 
-  return options[normalized] ?? value;
+  return labels[normalized] ?? value;
 }
 
-function formatLevel(value: string | null) {
+function formatGoal(value: string | null): string {
   if (!value) return "Não informado";
 
   const normalized = value.trim().toLowerCase();
 
-  const options: Record<string, string> = {
+  const labels: Record<string, string> = {
+    performance: "Melhorar minha performance",
+    weight_loss: "Perder peso",
+    "weight loss": "Perder peso",
+    emagrecimento: "Perder peso",
+    conditioning: "Melhorar meu condicionamento",
+    condicionamento: "Melhorar meu condicionamento",
+    health: "Melhorar minha saúde",
+    saude: "Melhorar minha saúde",
+    maintenance: "Manter minha saúde e desempenho",
+    race: "Preparação para uma prova",
+    competition: "Preparação para uma competição",
+    other: "Outro objetivo",
+  };
+
+  return labels[normalized] ?? value;
+}
+
+function formatLevel(value: string | null): string {
+  if (!value) return "Não informado";
+
+  const normalized = value.trim().toLowerCase();
+
+  const labels: Record<string, string> = {
     beginner: "Iniciante",
     iniciante: "Iniciante",
     intermediate: "Intermediário",
@@ -72,42 +97,43 @@ function formatLevel(value: string | null) {
     avançado: "Avançado",
   };
 
-  return options[normalized] ?? value;
+  return labels[normalized] ?? value;
 }
 
-function formatGoal(value: string | null) {
-  if (!value) return "Não informado";
+function formatDate(value: string | null): string {
+  if (!value) return "Não informada";
 
-  const normalized = value.trim().toLowerCase();
+  const dateOnly = value.slice(0, 10);
+  const parts = dateOnly.split("-");
 
-  const options: Record<string, string> = {
-    performance: "Melhorar a performance",
-    weight_loss: "Perder peso",
-    emagrecimento: "Perder peso",
-    conditioning: "Melhorar o condicionamento",
-    condicionamento: "Melhorar o condicionamento",
-    maintenance: "Manutenção da saúde e do desempenho",
-    race: "Preparação para uma prova",
-    competition: "Preparação para uma competição",
-    health: "Melhorar a saúde",
-  };
+  if (parts.length !== 3) {
+    return value;
+  }
 
-  return options[normalized] ?? value;
+  const [year, month, day] = parts;
+
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
 }
 
-function formatSports(value: string[] | string | null) {
+function formatSports(value: string[] | string | null): string {
   if (!value) return "Não informadas";
 
   if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "Não informadas";
+    return value.length > 0 ? value.join(", ") : "Não informadas";
   }
 
   const trimmed = value.trim();
 
-  if (!trimmed) return "Não informadas";
+  if (!trimmed) {
+    return "Não informadas";
+  }
 
   try {
-    const parsed: unknown = JSON.parse(trimmed);
+    const parsed = JSON.parse(trimmed);
 
     if (Array.isArray(parsed)) {
       return parsed.join(", ");
@@ -125,7 +151,6 @@ export default function PerformanceAiProfilePage() {
 
   const [profile, setProfile] =
     useState<PerformanceAiProfile | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -133,6 +158,9 @@ export default function PerformanceAiProfilePage() {
     let active = true;
 
     async function loadProfile() {
+      setLoading(true);
+      setErrorMessage("");
+
       const {
         data: { user },
         error: userError,
@@ -148,7 +176,22 @@ export default function PerformanceAiProfilePage() {
       const { data, error } = await supabase
         .from("performance_ai_profiles")
         .select(
-          "id,user_id,age,gender,height_cm,weight_kg,goal,goal_text,goal_date,level,days_per_week,minutes_per_session,sports,health_notes"
+          [
+            "id",
+            "user_id",
+            "weight_kg",
+            "height_cm",
+            "age",
+            "gender",
+            "goal",
+            "health_notes",
+            "goal_text",
+            "goal_date",
+            "level",
+            "days_per_week",
+            "minutes_per_session",
+            "sports",
+          ].join(",")
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -156,16 +199,15 @@ export default function PerformanceAiProfilePage() {
       if (!active) return;
 
       if (error) {
-        console.error(error);
+        console.error("Error loading Performance AI profile:", error);
         setErrorMessage(
           "Não foi possível carregar seu perfil neste momento."
         );
-      } else {
-        setProfile(
-          (data as PerformanceAiProfile | null) ?? null
-        );
+        setLoading(false);
+        return;
       }
 
+      setProfile((data as PerformanceAiProfile | null) ?? null);
       setLoading(false);
     }
 
@@ -176,34 +218,73 @@ export default function PerformanceAiProfilePage() {
     };
   }, [router, supabase]);
 
+  const completedFields = useMemo(() => {
+    if (!profile) return 0;
+
+    const values = [
+      profile.age,
+      profile.gender,
+      profile.height_cm,
+      profile.weight_kg,
+      profile.goal,
+      profile.goal_text,
+      profile.goal_date,
+      profile.level,
+      profile.days_per_week,
+      profile.minutes_per_session,
+      profile.sports,
+      profile.health_notes,
+    ];
+
+    return values.filter(hasValue).length;
+  }, [profile]);
+
+  const profilePercentage = Math.round(
+    (completedFields / 12) * 100
+  );
+
   return (
     <main style={styles.page}>
       <header style={styles.header}>
-        <PerformanceAiBackButton />
+        <div style={styles.headerContent}>
+          <PerformanceAiBackButton />
 
-        <div style={{ marginTop: 20 }}>
-          <div style={styles.eyebrow}>PERFORMANCE AI</div>
+          <div style={{ marginTop: 20 }}>
+            <div style={styles.eyebrow}>PERFORMANCE AI</div>
 
-          <h1 style={styles.title}>Meu perfil</h1>
+            <h1 style={styles.title}>Meu perfil</h1>
 
-          <p style={styles.subtitle}>
-            Informações e objetivos utilizados pelo Coach IA para
-            personalizar suas orientações.
-          </p>
+            <p style={styles.subtitle}>
+              Os dados que o Coach IA utiliza para compreender seu momento,
+              seus objetivos e personalizar suas orientações.
+            </p>
+          </div>
         </div>
       </header>
 
       {loading ? (
-        <section style={styles.messageSection}>
-          <strong>Carregando seu perfil...</strong>
+        <section style={styles.loadingSection}>
+          <div style={styles.loadingIndicator} />
+
+          <div>
+            <div style={styles.loadingTitle}>
+              Carregando seu perfil
+            </div>
+
+            <div style={styles.loadingText}>
+              Organizando as informações conhecidas pelo Coach IA.
+            </div>
+          </div>
         </section>
       ) : errorMessage ? (
-        <section style={styles.messageSection}>
-          <h2 style={styles.messageTitle}>
+        <section style={styles.emptySection}>
+          <div style={styles.statusIcon}>!</div>
+
+          <h2 style={styles.emptyTitle}>
             Não foi possível carregar seu perfil
           </h2>
 
-          <p style={styles.messageText}>{errorMessage}</p>
+          <p style={styles.emptyText}>{errorMessage}</p>
 
           <button
             type="button"
@@ -214,16 +295,18 @@ export default function PerformanceAiProfilePage() {
           </button>
         </section>
       ) : !profile ? (
-        <section style={styles.messageSection}>
-          <div style={styles.aiIcon}>AI</div>
+        <section style={styles.emptySection}>
+          <div style={styles.statusIcon}>AI</div>
 
-          <h2 style={styles.messageTitle}>
-            Seu perfil ainda não foi criado
+          <div style={styles.emptyEyebrow}>PRIMEIRA CONSULTA</div>
+
+          <h2 style={styles.emptyTitle}>
+            O Coach IA ainda não conhece você
           </h2>
 
-          <p style={styles.messageText}>
-            Faça a consulta inicial para contar ao Coach IA seus
-            objetivos, experiência, disponibilidade e limitações.
+          <p style={styles.emptyText}>
+            Faça sua consulta inicial para informar seus dados, objetivos,
+            experiência, disponibilidade e limitações.
           </p>
 
           <button
@@ -238,6 +321,38 @@ export default function PerformanceAiProfilePage() {
         </section>
       ) : (
         <>
+          <section style={styles.completionSection}>
+            <div style={styles.completionTop}>
+              <div>
+                <div style={styles.sectionEyebrow}>
+                  PERFIL DO COACH IA
+                </div>
+
+                <div style={styles.completionTitle}>
+                  Informações disponíveis
+                </div>
+              </div>
+
+              <div style={styles.percentage}>
+                {profilePercentage}%
+              </div>
+            </div>
+
+            <div style={styles.progressTrack}>
+              <div
+                style={{
+                  ...styles.progressBar,
+                  width: `${profilePercentage}%`,
+                }}
+              />
+            </div>
+
+            <p style={styles.completionText}>
+              Quanto mais completo estiver seu perfil, mais personalizadas
+              poderão ser as orientações do Coach IA.
+            </p>
+          </section>
+
           <ProfileSection
             eyebrow="DADOS PESSOAIS"
             title="Sobre você"
@@ -293,10 +408,7 @@ export default function PerformanceAiProfilePage() {
 
             <ProfileItem
               label="Meta"
-              value={showValue(
-                profile.goal_text,
-                "Não informada"
-              )}
+              value={profile.goal_text || "Não informada"}
               multiline
             />
 
@@ -323,7 +435,7 @@ export default function PerformanceAiProfilePage() {
             />
 
             <ProfileItem
-              label="Disponibilidade"
+              label="Dias disponíveis"
               value={
                 profile.days_per_week !== null
                   ? `${profile.days_per_week} ${
@@ -331,12 +443,12 @@ export default function PerformanceAiProfilePage() {
                         ? "dia por semana"
                         : "dias por semana"
                     }`
-                  : "Não informada"
+                  : "Não informado"
               }
             />
 
             <ProfileItem
-              label="Tempo por treino"
+              label="Tempo por sessão"
               value={
                 profile.minutes_per_session !== null
                   ? `${profile.minutes_per_session} minutos`
@@ -352,21 +464,21 @@ export default function PerformanceAiProfilePage() {
           >
             <ProfileItem
               label="Informações importantes"
-              value={showValue(
-                profile.health_notes,
+              value={
+                profile.health_notes ||
                 "Nenhuma informação registrada"
-              )}
+              }
               multiline
               last
             />
           </ProfileSection>
 
           <section style={styles.actionSection}>
-            <div style={styles.aiIcon}>AI</div>
+            <div style={styles.actionIcon}>AI</div>
 
             <div style={styles.actionContent}>
-              <div style={styles.eyebrow}>
-                ATUALIZAÇÃO DO PERFIL
+              <div style={styles.actionEyebrow}>
+                PRECISA ATUALIZAR ALGO?
               </div>
 
               <h2 style={styles.actionTitle}>
@@ -374,8 +486,8 @@ export default function PerformanceAiProfilePage() {
               </h2>
 
               <p style={styles.actionText}>
-                Para corrigir ou atualizar uma informação, conte ao
-                Coach o que mudou.
+                Seus dados não são alterados diretamente nesta página.
+                Conte ao Coach o que mudou e ele atualizará seu perfil.
               </p>
             </div>
 
@@ -402,16 +514,16 @@ function ProfileSection({
 }: {
   eyebrow: string;
   title: string;
-  children: ReactNode;
+  children: React.ReactNode;
 }) {
   return (
     <section style={styles.section}>
       <div style={styles.sectionHeader}>
-        <div style={styles.eyebrow}>{eyebrow}</div>
+        <div style={styles.sectionEyebrow}>{eyebrow}</div>
         <h2 style={styles.sectionTitle}>{title}</h2>
       </div>
 
-      {children}
+      <div style={styles.items}>{children}</div>
     </section>
   );
 }
@@ -431,8 +543,8 @@ function ProfileItem({
     <div
       style={{
         ...styles.item,
-        ...(multiline ? styles.multilineItem : {}),
-        ...(last ? styles.lastItem : {}),
+        ...(multiline ? styles.itemMultiline : {}),
+        ...(last ? styles.itemLast : {}),
       }}
     >
       <div style={styles.itemLabel}>{label}</div>
@@ -440,7 +552,7 @@ function ProfileItem({
       <div
         style={{
           ...styles.itemValue,
-          ...(multiline ? styles.multilineValue : {}),
+          ...(multiline ? styles.itemValueMultiline : {}),
         }}
       >
         {value}
@@ -449,34 +561,33 @@ function ProfileItem({
   );
 }
 
-const styles: Record<string, CSSProperties> = {
+const styles: Record<string, React.CSSProperties> = {
   page: {
     width: "100%",
     minHeight: "100dvh",
     boxSizing: "border-box",
     paddingBottom: "max(110px, env(safe-area-inset-bottom))",
     background:
-      "radial-gradient(circle at 50% -160px, rgba(212,175,55,0.16) 0%, rgba(212,175,55,0.04) 28%, rgba(8,8,10,0) 52%), linear-gradient(180deg, #09090b 0%, #050506 58%, #000 100%)",
+      "radial-gradient(circle at 50% -160px, rgba(212,175,55,0.17) 0%, rgba(212,175,55,0.04) 27%, rgba(8,8,10,0) 53%), linear-gradient(180deg, #09090b 0%, #050506 55%, #000000 100%)",
     color: "#f4f4f5",
     fontFamily: "Montserrat, sans-serif",
   },
 
   header: {
     width: "100%",
-    boxSizing: "border-box",
-    padding: "22px 16px 34px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
   },
 
   eyebrow: {
+    marginBottom: 10,
     color: "#d4af37",
     fontSize: 10,
     fontWeight: 850,
-    letterSpacing: "0.16em",
+    letterSpacing: "0.17em",
   },
 
   title: {
-    margin: "9px 0 0",
+    margin: 0,
     fontSize: "clamp(31px, 8vw, 48px)",
     fontWeight: 850,
     lineHeight: 1.03,
@@ -491,6 +602,134 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.65,
   },
 
+  loadingSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: 15,
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "40px 16px",
+  },
+
+  loadingIndicator: {
+    width: 22,
+    height: 22,
+    flexShrink: 0,
+    borderRadius: "50%",
+    border: "2px solid rgba(212,175,55,0.2)",
+    borderTopColor: "#d4af37",
+  },
+
+  loadingTitle: {
+    color: "#f4f4f5",
+    fontSize: 14,
+    fontWeight: 750,
+  },
+
+  loadingText: {
+    marginTop: 5,
+    color: "#777780",
+    fontSize: 12,
+    lineHeight: 1.5,
+  },
+
+  emptySection: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "42px 16px",
+  },
+
+  statusIcon: {
+    display: "grid",
+    placeItems: "center",
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    border: "1px solid rgba(212,175,55,0.45)",
+    background: "rgba(212,175,55,0.1)",
+    color: "#f0d47a",
+    fontSize: 15,
+    fontWeight: 900,
+  },
+
+  emptyEyebrow: {
+    marginTop: 26,
+    color: "#d4af37",
+    fontSize: 10,
+    fontWeight: 850,
+    letterSpacing: "0.15em",
+  },
+
+  emptyTitle: {
+    maxWidth: 720,
+    margin: "10px 0 12px",
+    color: "#f4f4f5",
+    fontSize: "clamp(25px, 7vw, 36px)",
+    lineHeight: 1.12,
+    letterSpacing: "-0.035em",
+  },
+
+  emptyText: {
+    maxWidth: 720,
+    margin: "0 0 28px",
+    color: "#a1a1aa",
+    fontSize: 14,
+    lineHeight: 1.65,
+  },
+
+  completionSection: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "30px 16px 34px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+  },
+
+  completionTop: {
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: 18,
+  },
+
+  completionTitle: {
+    marginTop: 7,
+    color: "#f4f4f5",
+    fontSize: 18,
+    fontWeight: 800,
+  },
+
+  percentage: {
+    color: "#f0d47a",
+    fontSize: 24,
+    fontWeight: 850,
+    letterSpacing: "-0.03em",
+  },
+
+  progressTrack: {
+    width: "100%",
+    height: 5,
+    marginTop: 18,
+    overflow: "hidden",
+    borderRadius: 999,
+    background: "rgba(255,255,255,0.09)",
+  },
+
+  progressBar: {
+    height: "100%",
+    borderRadius: 999,
+    background:
+      "linear-gradient(90deg, #9b7719 0%, #d4af37 55%, #f0d47a 100%)",
+    transition: "width 300ms ease",
+  },
+
+  completionText: {
+    maxWidth: 720,
+    margin: "13px 0 0",
+    color: "#777780",
+    fontSize: 12,
+    lineHeight: 1.55,
+  },
+
   section: {
     width: "100%",
     boxSizing: "border-box",
@@ -498,16 +737,28 @@ const styles: Record<string, CSSProperties> = {
   },
 
   sectionHeader: {
-    paddingBottom: 15,
+    paddingBottom: 16,
     borderBottom: "1px solid rgba(255,255,255,0.12)",
+  },
+
+  sectionEyebrow: {
+    color: "#d4af37",
+    fontSize: 9,
+    fontWeight: 850,
+    letterSpacing: "0.16em",
   },
 
   sectionTitle: {
     margin: "7px 0 0",
+    color: "#f4f4f5",
     fontSize: 20,
     fontWeight: 800,
     lineHeight: 1.2,
     letterSpacing: "-0.025em",
+  },
+
+  items: {
+    width: "100%",
   },
 
   item: {
@@ -522,11 +773,11 @@ const styles: Record<string, CSSProperties> = {
     borderBottom: "1px solid rgba(255,255,255,0.075)",
   },
 
-  multilineItem: {
+  itemMultiline: {
     display: "block",
   },
 
-  lastItem: {
+  itemLast: {
     borderBottom: "none",
   },
 
@@ -535,6 +786,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#777780",
     fontSize: 11,
     fontWeight: 700,
+    letterSpacing: "0.015em",
   },
 
   itemValue: {
@@ -547,46 +799,14 @@ const styles: Record<string, CSSProperties> = {
     overflowWrap: "anywhere",
   },
 
-  multilineValue: {
+  itemValueMultiline: {
     maxWidth: 780,
     marginTop: 9,
     color: "#d4d4d8",
-    fontWeight: 500,
-    textAlign: "left",
-  },
-
-  messageSection: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "42px 16px",
-  },
-
-  messageTitle: {
-    maxWidth: 720,
-    margin: "22px 0 12px",
-    fontSize: 26,
-    lineHeight: 1.15,
-  },
-
-  messageText: {
-    maxWidth: 720,
-    margin: "0 0 26px",
-    color: "#a1a1aa",
-    fontSize: 14,
-    lineHeight: 1.65,
-  },
-
-  aiIcon: {
-    display: "grid",
-    placeItems: "center",
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    border: "1px solid rgba(212,175,55,0.42)",
-    background: "rgba(212,175,55,0.09)",
-    color: "#f0d47a",
     fontSize: 13,
-    fontWeight: 900,
+    fontWeight: 500,
+    lineHeight: 1.65,
+    textAlign: "left",
   },
 
   actionSection: {
@@ -596,22 +816,45 @@ const styles: Record<string, CSSProperties> = {
     padding: "34px 16px 16px",
     borderTop: "1px solid rgba(212,175,55,0.23)",
     background:
-      "linear-gradient(180deg, rgba(212,175,55,0.055), rgba(212,175,55,0.01))",
+      "linear-gradient(180deg, rgba(212,175,55,0.055) 0%, rgba(212,175,55,0.015) 100%)",
+  },
+
+  actionIcon: {
+    display: "grid",
+    placeItems: "center",
+    width: 48,
+    height: 48,
+    borderRadius: 15,
+    border: "1px solid rgba(212,175,55,0.4)",
+    background: "rgba(212,175,55,0.09)",
+    color: "#f0d47a",
+    fontSize: 13,
+    fontWeight: 900,
   },
 
   actionContent: {
     maxWidth: 760,
-    marginTop: 19,
+    marginTop: 20,
+  },
+
+  actionEyebrow: {
+    color: "#d4af37",
+    fontSize: 9,
+    fontWeight: 850,
+    letterSpacing: "0.16em",
   },
 
   actionTitle: {
     margin: "8px 0 10px",
+    color: "#f4f4f5",
     fontSize: 23,
+    fontWeight: 820,
     lineHeight: 1.18,
+    letterSpacing: "-0.03em",
   },
 
   actionText: {
-    margin: "0 0 22px",
+    margin: "0 0 23px",
     color: "#92929b",
     fontSize: 13,
     lineHeight: 1.65,
@@ -646,5 +889,6 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
 };
+
 
 

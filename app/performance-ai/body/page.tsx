@@ -7,7 +7,6 @@ import "@fontsource/montserrat/700.css";
 import "@fontsource/montserrat/800.css";
 
 import { useRef, useState } from "react";
-import BackButton from "@/components/BackButton";
 import DocumentUploader from "@/components/performance/DocumentUploader";
 import AiReviewPanel from "@/components/performance/AiReviewPanel";
 import BodyMetricsForm from "@/components/performance/BodyMetricsForm";
@@ -21,6 +20,7 @@ import useDocumentUpload from "@/hooks/useDocumentUpload";
 import analyzeDocument from "@/lib/performance-ai/analyzeDocument";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
+import PerformanceAiBackButton from "@/components/performance-ai/PerformanceAiBackButton";
 function formatValue(
   value: number | null | undefined,
   suffix = "",
@@ -898,7 +898,7 @@ export default function BodyPage() {
 
   return (
     <main style={pageStyle}>
-      <BackButton />
+      <PerformanceAiBackButton />
 
       <section style={pageContainerStyle}>
         <header style={headerStyle}>
@@ -2437,6 +2437,7 @@ const previousMetricValueStyle: React.CSSProperties = {
   fontWeight: 700,
   overflowWrap: "anywhere",
 };
+
 
 
 

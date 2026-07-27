@@ -3,45 +3,66 @@
 import { useRouter } from "next/navigation";
 
 type BackButtonProps = {
-  href?: string;
+  label?: string;
+  fallbackHref?: string;
 };
 
-export default function BackButton({ href }: BackButtonProps) {
+export default function BackButton({
+  label = "Back",
+  fallbackHref = "/",
+}: BackButtonProps) {
   const router = useRouter();
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(fallbackHref);
+  };
 
   return (
     <button
-      onClick={() => {
-        if (href) {
-          router.push(href);
-          return;
-        }
-
-        router.back();
-      }}
       type="button"
+      onClick={handleBack}
+      aria-label={label}
       style={{
-        height: 36,
-        padding: "0 12px",
-        borderRadius: 999,
-        border: "1px solid #cbd5e1",
-        background: "#ffffff",
-        color: "#0f172a",
-        cursor: "pointer",
+        minHeight: 42,
+        padding: "0 17px",
         display: "inline-flex",
         alignItems: "center",
-        gap: 8,
-        fontSize: 12,
-        fontWeight: 900,
-        letterSpacing: "0.02em",
-        boxShadow: "0 4px 10px rgba(15,23,42,0.12)",
-        whiteSpace: "nowrap",
+        justifyContent: "center",
+        gap: 9,
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.72)",
+        background: "rgba(15,15,17,0.72)",
+        color: "#ffffff",
         fontFamily: "Montserrat, sans-serif",
+        fontSize: 13,
+        fontWeight: 800,
+        lineHeight: 1,
+        letterSpacing: "0.01em",
+        cursor: "pointer",
+        WebkitTapHighlightColor: "transparent",
+        boxShadow:
+          "0 8px 22px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.08)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
       }}
     >
-      <span style={{ fontSize: 16, lineHeight: 1, marginTop: -1 }}>←</span>
-      <span>Back</span>
+      <span
+        aria-hidden="true"
+        style={{
+          fontSize: 19,
+          lineHeight: 1,
+          transform: "translateY(-1px)",
+        }}
+      >
+        ‹
+      </span>
+
+      <span>{label}</span>
     </button>
   );
 }
-

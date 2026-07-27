@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import BackButton from "@/components/BackButton";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-
+
+import PerformanceAiBackButton from "@/components/performance-ai/PerformanceAiBackButton";
 type ProfileRow = {
   id: string;
   user_id: string;
@@ -922,7 +922,7 @@ export default function PerformanceAIPage() {
   return (
     <main style={pageStyle}>
       <div style={{ marginBottom: 16 }}>
-        <BackButton />
+        <PerformanceAiBackButton />
       </div>
 
       {/* ===== PAGINA 1 ===== */}
@@ -1988,6 +1988,7 @@ const filterButtonActiveStyle: React.CSSProperties = {
   cursor: "pointer",
   fontFamily: "Montserrat, sans-serif",
 };
+
 
 
 

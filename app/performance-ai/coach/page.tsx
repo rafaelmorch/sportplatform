@@ -3,9 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import CoachHero from "@/components/performance/CoachHero";
-import CoachCards from "@/components/performance/CoachCards";
-import CoachRecommendation from "@/components/performance/CoachRecommendation";
 import CoachPlan from "@/components/performance/CoachPlan";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import {
@@ -19,6 +16,7 @@ import {
   classifyMeal,
 } from "@/lib/performance/nutrition";
 
+import PerformanceAiBackButton from "@/components/performance-ai/PerformanceAiBackButton";
 type ProfileRow = {
   id: string;
   user_id: string;
@@ -2079,7 +2077,14 @@ export default function PerformanceAIPage() {
 
   return (
     <main style={pageStyle}>
-      <div style={{ marginBottom: 18 }}>
+      <div
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          padding: "0 16px",
+          marginBottom: 18,
+        }}
+      >
         <Link
           href="/performance-ai"
           style={backLinkStyle}
@@ -2089,7 +2094,11 @@ export default function PerformanceAIPage() {
         </Link>
       </div>
 
-      {message ? <div style={globalMessageStyle}>{message}</div> : null}
+      {message ? (
+        <div style={globalMessageStyle}>
+          {message}
+        </div>
+      ) : null}
 
       <section
         style={{
@@ -2099,29 +2108,51 @@ export default function PerformanceAIPage() {
           gap: 0,
         }}
       >
-        <CoachHero
-          performanceScore={performanceScore}
-          performanceStatus={performanceStatus}
-          statusDescription={statusDescription}
-        />
+        <section
+          style={{
+            width: "100%",
+            boxSizing: "border-box",
+            padding: "clamp(34px, 6vw, 64px) 16px clamp(38px, 7vw, 72px)",
+          }}
+        >
+          <div
+            style={{
+              color: "#fff1a8",
+              fontSize: 11,
+              fontWeight: 850,
+              letterSpacing: "0.14em",
+              lineHeight: 1.4,
+              textTransform: "uppercase",
+            }}
+          >
+            Sports Platform
+          </div>
 
-        <CoachRecommendation insight={coachInsight} />
+          <h1
+            style={{
+              margin: "14px 0 0",
+              color: "#ffffff",
+              fontSize: "clamp(42px, 8vw, 72px)",
+              fontWeight: 760,
+              lineHeight: 1,
+              letterSpacing: "-0.045em",
+            }}
+          >
+            Coach <span style={{ color: "#fff1a8" }}>IA</span>
+          </h1>
 
-        <CoachCards cards={coachCards} />
-
-        <CoachDataSources
-          profileId={profileId}
-          weightKg={weightKg}
-          heightCm={heightCm}
-          age={age}
-          gender={gender}
-          goal={goal}
-          weightLogs={weightLogs}
-          bioimpedanceLogs={bioimpedanceLogs}
-          bloodTestLogs={bloodTestLogs}
-          stravaActivities={stravaActivities}
-          meals={meals}
-        />
+          <p
+            style={{
+              margin: "18px 0 0",
+              maxWidth: 720,
+              color: "#d4d4d8",
+              fontSize: "clamp(14px, 2vw, 17px)",
+              lineHeight: 1.7,
+            }}
+          >
+            Seu plano de evolução e uma conversa personalizada com o Coach.
+          </p>
+        </section>
 
         <CoachPlan
           aiResult={aiResult}
@@ -2153,7 +2184,6 @@ export default function PerformanceAIPage() {
         />
       </section>
 
-
       <div
         style={{
           position: "fixed",
@@ -2169,7 +2199,6 @@ export default function PerformanceAIPage() {
         {quickMenuOpen && (
           <div
             role="menu"
-            aria-label="Ações rápidas"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -2177,88 +2206,38 @@ export default function PerformanceAIPage() {
               gap: 10,
             }}
           >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() =>
-                openQuickPage("/performance-ai/profile")
-              }
-              style={quickMenuItemStyle}
-            >
+            <button type="button" onClick={() => openQuickPage("/performance-ai/profile")} style={quickMenuItemStyle}>
               Objetivos
             </button>
 
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() =>
-                openQuickPage("/performance-ai/body")
-              }
-              style={quickMenuItemStyle}
-            >
+            <button type="button" onClick={() => openQuickPage("/performance-ai/body")} style={quickMenuItemStyle}>
               Body
             </button>
 
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() =>
-                openQuickPage("/performance-ai/nutrition")
-              }
-              style={quickMenuItemStyle}
-            >
+            <button type="button" onClick={() => openQuickPage("/performance-ai/nutrition")} style={quickMenuItemStyle}>
               Nutrição
-            </button>
-
-            <button
-              type="button"
-              role="menuitem"
-              onClick={openCoachConversation}
-              style={quickMenuItemStyle}
-            >
-              Coach IA
             </button>
           </div>
         )}
 
         <button
           type="button"
-          aria-label={
-            quickMenuOpen
-              ? "Fechar ações rápidas"
-              : "Abrir ações rápidas"
-          }
-          aria-expanded={quickMenuOpen}
-          onClick={() =>
-            setQuickMenuOpen((current) => !current)
-          }
+          onClick={() => setQuickMenuOpen(v => !v)}
           style={{
-            width: 58,
-            height: 58,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1px solid #15803d",
-            borderRadius: "50%",
-            background: "#16a34a",
-            boxShadow:
-              "0 16px 42px rgba(0,0,0,0.52), 0 0 24px rgba(22,163,74,0.25)",
-            color: "#ffffff",
-            fontFamily: "inherit",
-            fontSize: 34,
-            fontWeight: 400,
-            lineHeight: 1,
-            cursor: "pointer",
-            transform: quickMenuOpen
-              ? "rotate(45deg)"
-              : "rotate(0deg)",
-            transition:
-              "transform 180ms ease, box-shadow 180ms ease",
+            width:58,
+            height:58,
+            borderRadius:"50%",
+            border:"1px solid #15803d",
+            background:"#16a34a",
+            color:"#fff",
+            fontSize:34,
+            cursor:"pointer"
           }}
         >
           +
         </button>
       </div>
+
     </main>
   );
 }
@@ -2321,6 +2300,13 @@ const globalMessageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 700,
 };
+
+
+
+
+
+
+
 
 
 
