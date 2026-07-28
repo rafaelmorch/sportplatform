@@ -4,6 +4,11 @@ import { useRouter } from "next/navigation";
 
 const performanceItems = [
   {
+    title: "Meu Plano",
+    href: "/performance-ai/coach",
+    icon: "",
+  },
+  {
     title: "Perfil do Atleta",
     href: "/performance-ai/profile",
     icon: "",
@@ -203,6 +208,7 @@ export default function PerformancePage() {
     </main>
   );
 }
+
 
 
 

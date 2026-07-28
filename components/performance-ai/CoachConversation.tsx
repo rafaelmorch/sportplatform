@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 type MealRow = {
   id: string;
   meal_text: string;
@@ -98,6 +100,9 @@ export default function CoachConversation({
   bloodTestLogs: BloodTestRow[];
   latestAnalysis: any | null;
 }) {
+  const router = useRouter();
+  const supabase = useMemo(() => supabaseBrowser, []);
+
   const suggestions = [
     "Analise meu último treino",
     "Estou pronto para correr 21 km?",
@@ -114,6 +119,65 @@ export default function CoachConversation({
   const [sending, setSending] = useState(false);
   const [conversationError, setConversationError] =
     useState<string | null>(null);
+
+  const toggleRecording = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+
+    try {
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+
+      audioChunksRef.current = [];
+
+      const recorder = new MediaRecorder(stream);
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+
+        const audioBlob = new Blob(
+          audioChunksRef.current,
+          {
+            type: "audio/webm",
+          }
+        );
+
+        console.log("Audio gravado:", audioBlob);
+
+        setRecording(false);
+      };
+
+      mediaRecorderRef.current = recorder;
+
+      recorder.start();
+
+      setRecording(true);
+    } catch (error) {
+      console.error(error);
+
+      setConversationError(
+        "Não foi possível acessar o microfone."
+      );
+    }
+  };
+
+  const [recording, setRecording] = useState(false);
+
+  const mediaRecorderRef =
+    useRef<MediaRecorder | null>(null);
+
+  const audioChunksRef =
+    useRef<Blob[]>([]);
 
   const submitQuestion = async (questionText?: string) => {
     const finalQuestion = (questionText ?? question).trim();
@@ -182,6 +246,170 @@ export default function CoachConversation({
 
       if (!answer) {
         throw new Error("O Coach retornou uma resposta vazia.");
+      }
+
+      if (
+        json?.action === "update_plan" ||
+        json?.action === "update_profile_and_plan"
+      ) {
+        const updatedPlan = json?.updatedPlan ?? null;
+
+        if (!updatedPlan) {
+          throw new Error(
+            "O Coach tentou atualizar o plano, mas não retornou um plano válido."
+          );
+        }
+
+        const { data: authData, error: authError } =
+          await supabase.auth.getUser();
+
+        if (authError || !authData?.user) {
+          throw new Error(
+            "Sua sessão expirou. Faça login novamente para salvar as alterações."
+          );
+        }
+
+        const userId = authData.user.id;
+
+        if (json?.action === "update_profile_and_plan") {
+          const receivedUpdates =
+            json?.profileUpdates &&
+            typeof json.profileUpdates === "object"
+              ? json.profileUpdates
+              : null;
+
+          if (!receivedUpdates) {
+            throw new Error(
+              "O Coach tentou atualizar o perfil, mas não informou o que deveria ser alterado."
+            );
+          }
+
+          const allowedFields = [
+            "weight_kg",
+            "height_cm",
+            "age",
+            "gender",
+            "goal",
+            "goal_text",
+            "goal_date",
+            "goal_type",
+            "goal_priority",
+            "level",
+            "days_per_week",
+            "minutes_per_session",
+            "sports",
+            "health_notes",
+          ] as const;
+
+          const safeProfileUpdates: Record<
+            string,
+            unknown
+          > = {};
+
+          for (const field of allowedFields) {
+            if (
+              Object.prototype.hasOwnProperty.call(
+                receivedUpdates,
+                field
+              )
+            ) {
+              safeProfileUpdates[field] =
+                receivedUpdates[field];
+            }
+          }
+
+          if (
+            Object.keys(safeProfileUpdates).length === 0
+          ) {
+            throw new Error(
+              "O Coach não retornou nenhuma alteração válida para o perfil."
+            );
+          }
+
+          safeProfileUpdates.updated_at =
+            new Date().toISOString();
+
+          const { data: existingProfile, error: profileReadError } =
+            await supabase
+              .from("performance_ai_profiles")
+              .select("id")
+              .eq("user_id", userId)
+              .maybeSingle();
+
+          if (profileReadError) {
+            throw new Error(
+              `Não foi possível localizar o perfil: ${profileReadError.message}`
+            );
+          }
+
+          if (existingProfile?.id) {
+            const { error: profileUpdateError } =
+              await supabase
+                .from("performance_ai_profiles")
+                .update(safeProfileUpdates)
+                .eq("id", existingProfile.id)
+                .eq("user_id", userId);
+
+            if (profileUpdateError) {
+              throw new Error(
+                `O Coach não conseguiu atualizar o perfil: ${profileUpdateError.message}`
+              );
+            }
+          } else {
+            const { error: profileInsertError } =
+              await supabase
+                .from("performance_ai_profiles")
+                .insert({
+                  user_id: userId,
+                  ...safeProfileUpdates,
+                });
+
+            if (profileInsertError) {
+              throw new Error(
+                `O Coach não conseguiu criar o perfil: ${profileInsertError.message}`
+              );
+            }
+          }
+
+          if (
+            typeof safeProfileUpdates.weight_kg ===
+              "number" &&
+            Number.isFinite(
+              safeProfileUpdates.weight_kg
+            )
+          ) {
+            const { error: weightLogError } =
+              await supabase
+                .from("performance_ai_weight_logs")
+                .insert({
+                  user_id: userId,
+                  weight_kg:
+                    safeProfileUpdates.weight_kg,
+                });
+
+            if (weightLogError) {
+              console.error(
+                "O perfil foi atualizado, mas o histórico de peso não foi salvo:",
+                weightLogError
+              );
+            }
+          }
+        }
+
+        const { error: saveError } = await supabase
+          .from("performance_ai_ai_results")
+          .insert({
+            user_id: userId,
+            analysis: updatedPlan,
+          });
+
+        if (saveError) {
+          throw new Error(
+            `O Coach realizou as alterações, mas não conseguiu salvar o novo plano: ${saveError.message}`
+          );
+        }
+
+        router.refresh();
       }
 
       const coachMessage: CoachConversationMessage = {
@@ -409,6 +637,32 @@ export default function CoachConversation({
 
             <button
               type="button"
+              onClick={() => void toggleRecording()}
+              disabled={sending}
+              style={{
+                width: 58,
+                minWidth: 58,
+                alignSelf: "stretch",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: 0,
+                background:
+                  recording
+                    ? "#dc2626"
+                    : "#1a1a1a",
+                color: "#ffffff",
+                fontSize: 22,
+                fontFamily: "inherit",
+                cursor:
+                  sending
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+            >
+              {recording ? "◼" : "🎤"}
+            </button>
+
+            <button
+              type="button"
               onClick={() => void submitQuestion()}
               disabled={!question.trim() || sending}
               style={{
@@ -543,3 +797,15 @@ export default function CoachConversation({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

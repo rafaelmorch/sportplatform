@@ -313,7 +313,7 @@ export default function PerformanceAiProfilePage() {
             type="button"
             style={styles.primaryButton}
             onClick={() =>
-              router.push("/performance-ai/coach/consultation")
+              router.push("/performance-ai/chat")
             }
           >
             Iniciar consulta
@@ -495,7 +495,7 @@ export default function PerformanceAiProfilePage() {
               type="button"
               style={styles.primaryButton}
               onClick={() =>
-                router.push("/performance-ai/coach/consultation")
+                router.push("/performance-ai/chat")
               }
             >
               Atualizar meu perfil
@@ -889,6 +889,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 };
+
 
 
 
