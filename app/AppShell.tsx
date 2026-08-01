@@ -6,6 +6,7 @@ import BottomNavbar from "@/components/BottomNavbar";
 import Header from "@/components/Header";
 import RouteLoading from "@/components/RouteLoading";
 import CapacitorAndroidFix from "./CapacitorAndroidFix";
+import CapacitorDeepLinkHandler from "./CapacitorDeepLinkHandler";
 
 export default function AppShell({
   children,
@@ -50,6 +51,7 @@ export default function AppShell({
     <>
       <RouteLoading />
       <CapacitorAndroidFix />
+      <CapacitorDeepLinkHandler />
 
       {showHeader && <Header />}
 
@@ -59,3 +61,4 @@ export default function AppShell({
     </>
   );
 }
+
