@@ -4,8 +4,10 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.platformsports.app",
-      "sha256_cert_fingerprints":
-        ["13:48:B4:60:24:84:71:5D:B2:96:76:67:4A:A0:A0:A3:91:63:A2:83:61:0B:63:63:CD:02:1A:E4:01:6E:95:4B"]
+      "sha256_cert_fingerprints": [
+        "13:48:B4:60:24:84:71:5D:B2:96:76:67:4A:A0:A0:A3:91:63:A2:83:61:0B:63:63:CD:02:1A:E4:01:6E:95:4B",
+        "E5:31:53:EA:A5:9D:70:8D:3A:31:82:C4:59:30:57:00:4E:8C:AB:ED:ED:87:C3:D1:59:09:3A:56:9E:2E:85:5B"
+      ]
     }
   }
 ]
