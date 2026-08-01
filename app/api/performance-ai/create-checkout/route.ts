@@ -135,7 +135,7 @@ export async function POST(req: Request) {
         ],
 
         success_url:
-          `${appUrl}/performance-ai` +
+          `${appUrl}/performance-ai/health` +
           "?payment=success&session_id={CHECKOUT_SESSION_ID}",
 
         cancel_url:
@@ -201,3 +201,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

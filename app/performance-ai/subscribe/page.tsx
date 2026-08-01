@@ -14,6 +14,8 @@ export default function PerformanceAiSubscribePage() {
   const supabase = useMemo(() => supabaseBrowser, []);
 
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] =
+    useState(false);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
@@ -234,6 +236,57 @@ export default function PerformanceAiSubscribePage() {
           gratuito. Cancele quando desejar.
         </div>
 
+
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 12,
+            marginTop: 24,
+            color: "#d4d4d8",
+            fontSize: 13,
+            lineHeight: 1.7,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(event) =>
+              setAcceptedTerms(event.target.checked)
+            }
+            style={{
+              width: 20,
+              height: 20,
+              marginTop: 2,
+              flexShrink: 0,
+            }}
+          />
+
+          <span>
+            Li e concordo com os{" "}
+            <a
+              href="/terms"
+              target="_blank"
+              style={{
+                color: "#FFF1A8",
+              }}
+            >
+              Termos de Uso
+            </a>{" "}
+            e com a{" "}
+            <a
+              href="/privacy"
+              target="_blank"
+              style={{
+                color: "#FFF1A8",
+              }}
+            >
+              Política de Privacidade
+            </a>
+            .
+          </span>
+        </label>
         {errorMessage ? (
           <div
             role="alert"
@@ -255,7 +308,7 @@ export default function PerformanceAiSubscribePage() {
 
         <button
           type="button"
-          disabled={loading}
+          disabled={loading || !acceptedTerms}
           onClick={() => void beginCheckout()}
           style={{
             width: "100%",
@@ -263,17 +316,17 @@ export default function PerformanceAiSubscribePage() {
             marginTop: 28,
             border: "1px solid #fff1a8",
             borderRadius: 10,
-            background: loading
+            background: loading || !acceptedTerms
               ? "rgba(255,241,168,0.16)"
               : "#fff1a8",
-            color: loading
+            color: loading || !acceptedTerms
               ? "#77776f"
               : "#111111",
             padding: "0 22px",
             fontFamily: "Montserrat, sans-serif",
             fontSize: 16,
             fontWeight: 600,
-            cursor: loading
+            cursor: loading || !acceptedTerms
               ? "not-allowed"
               : "pointer",
           }}
@@ -321,3 +374,4 @@ const noticeStyle: React.CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
 };
+

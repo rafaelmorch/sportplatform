@@ -43,6 +43,12 @@ export default function PerformanceAiSubscriptionGate({
   const isSubscriptionPage =
     pathname === "/performance-ai/subscribe";
 
+  const isHealthPage =
+    pathname === "/performance-ai/health";
+
+  const isPublicPerformanceAiPage =
+    isSubscriptionPage || isHealthPage;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -96,7 +102,9 @@ export default function PerformanceAiSubscriptionGate({
             error: subscriptionError,
           } = await supabase
             .from("performance_ai_subscriptions")
-            .select("status, current_period_end")
+            .select(
+              "status,current_period_end,answers_certified,waiver_accepted,health_form_completed_at"
+            )
             .eq("user_id", user.id)
             .in("status", ACTIVE_STATUSES)
             .order("created_at", {
@@ -110,11 +118,32 @@ export default function PerformanceAiSubscriptionGate({
           }
 
           if (subscription?.status === "active") {
-            if (!cancelled) {
-              setAllowed(true);
-              setChecking(false);
+            const healthCompleted =
+              subscription.answers_certified === true &&
+              subscription.waiver_accepted === true &&
+              Boolean(
+                subscription.health_form_completed_at
+              );
+
+            if (
+              !healthCompleted &&
+              !isHealthPage
+            ) {
+              if (!cancelled) {
+                router.replace(
+                  "/performance-ai/health"
+                );
+              }
+
+              return;
             }
 
+            if (cancelled) {
+              return;
+            }
+
+            setAllowed(true);
+            setChecking(false);
             return;
           }
 
@@ -149,6 +178,7 @@ export default function PerformanceAiSubscriptionGate({
       cancelled = true;
     };
   }, [
+    isHealthPage,
     isSubscriptionPage,
     pathname,
     router,
@@ -252,10 +282,11 @@ export default function PerformanceAiSubscriptionGate({
     <>
       {children}
 
-      {!isSubscriptionPage ? (
+      {!isPublicPerformanceAiPage ? (
         <PerformanceAiFloatingMenu />
       ) : null}
     </>
   );
 }
+
 
