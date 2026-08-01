@@ -173,7 +173,7 @@ export async function GET(req: NextRequest) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
-    const redirectUrl = new URL("/mobile/strava/success", baseUrl);
+    const redirectUrl = new URL("/integrations", baseUrl);
     redirectUrl.searchParams.set("provider", "strava");
     redirectUrl.searchParams.set("status", "success");
     redirectUrl.searchParams.set("athlete_id", String(athleteId));
@@ -187,4 +187,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
