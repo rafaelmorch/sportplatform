@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         </h1>
 
         <div style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>
-          Política de Privacidade · Last updated / Última atualização: July 16, 2026
+          Política de Privacidade · Last updated / Última atualização: August 1, 2026
         </div>
 
         <p style={paragraphStyle}>
@@ -68,7 +68,11 @@ export default function PrivacyPage() {
         <p style={paragraphStyle}>
           We may collect personal information such as your name, email address,
           profile information, membership information, payment status and
-          activity data when you use our platform.
+          activity data when you use our platform. If you use Performance AI,
+          we may also collect training history, heart-rate information,
+          nutrition records, body measurements, weight history, laboratory
+          information, health notes, PAR-Q responses, initial consultation
+          responses and messages exchanged with the Coach AI.
         </p>
 
         <h2 style={sectionTitleStyle}>How We Use Your Information</h2>
@@ -124,6 +128,78 @@ export default function PrivacyPage() {
           deletion of your Strava-related data by contacting us.
         </p>
 
+        <h2 style={sectionTitleStyle}>
+          Performance AI and AI Processing
+        </h2>
+
+        <p style={paragraphStyle}>
+          When you use Performance AI, relevant account, training, nutrition,
+          body, health and conversation data may be processed to generate
+          personalized plans, summaries, insights and responses. Only
+          information reasonably necessary to provide the requested feature
+          should be sent for AI processing.
+        </p>
+
+        <p style={paragraphStyle}>
+          Platform Sports may use artificial intelligence service providers,
+          including OpenAI, to process prompts and generate responses. These
+          providers process information according to their applicable terms,
+          privacy policies and data-processing commitments.
+        </p>
+
+        <p style={paragraphStyle}>
+          AI-generated responses may be stored with your Performance AI records
+          so that your plan can be displayed, updated and used in later
+          conversations. You should not submit information about another person
+          unless you are authorized to do so.
+        </p>
+
+        <h2 style={sectionTitleStyle}>
+          Health, Fitness and PAR-Q Information
+        </h2>
+
+        <p style={paragraphStyle}>
+          Information relating to health, physical readiness, laboratory
+          results, nutrition, body composition and exercise may be sensitive.
+          We use this information to personalize Performance AI, evaluate data
+          context, display your records and support safety-related workflows
+          such as the PAR-Q and assumption-of-risk acknowledgment.
+        </p>
+
+        <p style={paragraphStyle}>
+          Performance AI is not an emergency or medical service. The collection
+          or processing of health-related information does not create a
+          physician-patient, dietitian-client or other licensed professional
+          relationship.
+        </p>
+
+        <h2 style={sectionTitleStyle}>
+          Performance AI / Coach IA — Português
+        </h2>
+
+        <p style={paragraphStyle}>
+          Ao utilizar o Performance AI, dados relevantes da conta, perfil,
+          treinamentos, alimentação, corpo, saúde, PAR-Q e conversas poderão ser
+          processados para gerar planos, análises, resumos e respostas
+          personalizadas.
+        </p>
+
+        <p style={paragraphStyle}>
+          A Platform Sports poderá utilizar fornecedores de inteligência
+          artificial, incluindo a OpenAI, para processar solicitações e gerar
+          respostas. Esses fornecedores tratam os dados de acordo com seus
+          próprios termos, políticas de privacidade e compromissos de
+          processamento de dados.
+        </p>
+
+        <p style={paragraphStyle}>
+          Informações de saúde, exames, composição corporal, alimentação e
+          prontidão física podem ser sensíveis. Elas são utilizadas para
+          personalizar o serviço, apresentar o histórico do usuário e apoiar
+          fluxos de segurança, incluindo o PAR-Q e o termo de responsabilidade.
+          O Performance AI não é um serviço médico nem de emergência.
+        </p>
+
         <h2 style={sectionTitleStyle}>Data Retention and Deletion</h2>
         <p style={paragraphStyle}>
           We retain personal information only for as long as necessary to
@@ -141,7 +217,7 @@ export default function PrivacyPage() {
 
         <h2 style={sectionTitleStyle}>Third-Party Services</h2>
         <p style={paragraphStyle}>
-          Platform Sports may use services such as Stripe, Strava, Supabase,
+          Platform Sports may use services such as Stripe, Strava, Supabase, OpenAI,
           Google and other service providers. Their handling of information may
           also be governed by their own privacy policies.
         </p>
@@ -164,4 +240,5 @@ export default function PrivacyPage() {
     </main>
   );
 }
+
 

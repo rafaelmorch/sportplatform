@@ -55,7 +55,7 @@ export default function TermsPage() {
         </h1>
 
         <div style={{ color: "#64748b", fontSize: 13 }}>
-          Termos e Condições · Last updated / Última atualização: July 16, 2026
+          Termos e Condições · Last updated / Última atualização: August 1, 2026
         </div>
 
         <h2 style={sectionTitleStyle}>English</h2>
@@ -143,7 +143,57 @@ export default function TermsPage() {
           by their own terms and privacy policies.
         </p>
 
-        <h3 style={sectionTitleStyle}>10. Changes and contact</h3>
+        <h3 style={sectionTitleStyle}>
+          10. Performance AI and artificial intelligence
+        </h3>
+
+        <p style={paragraphStyle}>
+          Performance AI, including the Coach AI, provides automated
+          information, suggestions and personalized plans based on the
+          information available in your account. This may include profile
+          information, training history, connected activity data, nutrition
+          records, body measurements, laboratory information, PAR-Q responses
+          and information provided during conversations with the Coach AI.
+        </p>
+
+        <p style={paragraphStyle}>
+          Performance AI is an informational and wellness-support tool. It does
+          not provide medical diagnosis, treatment, emergency assistance or
+          professional medical, nutritional, physical therapy or psychological
+          services. It does not replace consultation with a physician,
+          registered dietitian, physical therapist, licensed coach or other
+          qualified professional.
+        </p>
+
+        <p style={paragraphStyle}>
+          Artificial intelligence may produce incomplete, inaccurate,
+          inappropriate or outdated information. You must review recommendations
+          carefully, respect your physical limits and seek professional advice
+          whenever appropriate. Do not rely on Performance AI in an emergency
+          or when experiencing pain, chest discomfort, fainting, severe
+          shortness of breath or other concerning symptoms.
+        </p>
+
+        <h3 style={sectionTitleStyle}>
+          11. Performance AI subscription
+        </h3>
+
+        <p style={paragraphStyle}>
+          Performance AI is offered as a separate paid subscription. Unless
+          otherwise displayed before checkout, the Performance AI subscription
+          has no free trial, is billed monthly through Stripe and renews
+          automatically until canceled. The price and billing frequency are
+          displayed before payment.
+        </p>
+
+        <p style={paragraphStyle}>
+          Canceling prevents future renewals but does not ordinarily create a
+          refund for amounts already charged, except where required by law or
+          expressly stated by Platform Sports. Access after cancellation will
+          follow the subscription status and period displayed in the app.
+        </p>
+
+        <h3 style={sectionTitleStyle}>12. Changes and contact</h3>
         <p style={paragraphStyle}>
           We may update these Terms when the platform, memberships or legal
           requirements change. Questions may be sent to
@@ -247,7 +297,60 @@ export default function TermsPage() {
         </p>
 
         <h3 style={sectionTitleStyle}>
-          10. Alterações e contato
+          10. Performance AI e inteligência artificial
+        </h3>
+
+        <p style={paragraphStyle}>
+          O Performance AI, incluindo o Coach IA, fornece informações,
+          sugestões e planos personalizados gerados automaticamente com base
+          nos dados disponíveis na conta do usuário. Esses dados podem incluir
+          perfil, histórico de treinamentos, atividades conectadas, registros
+          de alimentação, medidas corporais, exames laboratoriais, respostas
+          do PAR-Q e informações fornecidas nas conversas com o Coach IA.
+        </p>
+
+        <p style={paragraphStyle}>
+          O Performance AI é uma ferramenta informativa e de apoio ao
+          bem-estar. Ele não fornece diagnóstico, tratamento, atendimento de
+          emergência nem serviços profissionais médicos, nutricionais,
+          fisioterapêuticos ou psicológicos. Ele não substitui consulta com
+          médico, nutricionista, fisioterapeuta, treinador habilitado ou outro
+          profissional qualificado.
+        </p>
+
+        <p style={paragraphStyle}>
+          Sistemas de inteligência artificial podem gerar informações
+          incompletas, imprecisas, inadequadas ou desatualizadas. O usuário deve
+          avaliar cuidadosamente as recomendações, respeitar seus limites
+          físicos e procurar orientação profissional sempre que necessário.
+          Não utilize o Performance AI em emergências ou diante de dor, pressão
+          no peito, desmaio, falta de ar intensa ou outros sintomas
+          preocupantes.
+        </p>
+
+        <h3 style={sectionTitleStyle}>
+          11. Assinatura do Performance AI
+        </h3>
+
+        <p style={paragraphStyle}>
+          O Performance AI é oferecido como uma assinatura paga independente.
+          Salvo quando informado de forma diferente antes do checkout, a
+          assinatura do Performance AI não possui período gratuito, é cobrada
+          mensalmente pelo Stripe e renovada automaticamente até o
+          cancelamento. O preço e a frequência da cobrança são apresentados
+          antes do pagamento.
+        </p>
+
+        <p style={paragraphStyle}>
+          O cancelamento impede cobranças futuras, mas normalmente não gera
+          reembolso de valores já cobrados, exceto quando exigido por lei ou
+          expressamente informado pela Platform Sports. O acesso após o
+          cancelamento seguirá o status e o período da assinatura apresentados
+          no aplicativo.
+        </p>
+
+        <h3 style={sectionTitleStyle}>
+          12. Alterações e contato
         </h3>
         <p style={{ ...paragraphStyle, marginBottom: 0 }}>
           Estes Termos poderão ser atualizados quando houver mudanças na
@@ -258,5 +361,6 @@ export default function TermsPage() {
     </main>
   );
 }
+
 
 
