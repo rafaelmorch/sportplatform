@@ -269,20 +269,14 @@ export default function HealthAndSafetyPage() {
         (answer) => answer === "yes"
       );
 
-      const { error } = await supabase
-        .from("performance_ai_subscriptions")
-        .update({
-          par_q_answers: answers,
-          has_positive_answer: hasPositiveAnswer,
-          answers_certified: true,
-          waiver_accepted: true,
-          health_form_version: "1.0",
-          health_form_completed_at:
-            new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", subscriptionId)
-        .eq("user_id", user.id);
+      const { error } = await supabase.rpc(
+        "complete_performance_ai_health",
+        {
+          p_answers: answers,
+          p_has_positive_answer:
+            hasPositiveAnswer,
+        }
+      );
 
       if (error) {
         setMessage(error.message);
@@ -738,6 +732,7 @@ export default function HealthAndSafetyPage() {
     </main>
   );
 }
+
 
 
 
