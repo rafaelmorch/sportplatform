@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.platformsports.app",
+      "sha256_cert_fingerprints":
+        ["13:48:B4:60:24:84:71:5D:B2:96:76:67:4A:A0:A0:A3:91:63:A2:83:61:0B:63:63:CD:02:1A:E4:01:6E:95:4B"]
+    }
+  }
+]
