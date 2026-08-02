@@ -34,6 +34,49 @@ export default function LoginPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
+  // ================= GOOGLE LOGIN =================
+  async function handleGoogleLogin() {
+    try {
+      setErrorMsg(null);
+      setLoading(true);
+
+      const redirectTo =
+        "https://www.sportsplatform.app/mobile/auth/callback";
+
+      const { data, error } =
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+            skipBrowserRedirect: true,
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.url) {
+        throw new Error(
+          "O Google não retornou a página de login."
+        );
+      }
+
+      const { Browser } =
+        await import("@capacitor/browser");
+
+      await Browser.open({
+        url: data.url,
+      });
+    } catch (error: unknown) {
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível entrar com o Google."
+      );
+      setLoading(false);
+    }
+  }
   // ================= EMAIL LOGIN =================
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -201,10 +244,32 @@ export default function LoginPage() {
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
-
-            {/* BOTAO GOOGLE (DESATIVADO TEMPORARIAMENTE)
-              Para voltar, mova a lógica de auth e o botão para cá.
-            */}
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void handleGoogleLogin()}
+              style={{
+                height: 44,
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "#ffffff",
+                color: "#111827",
+                fontWeight: 700,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.7 : 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+              }}
+            >
+              <img
+                src="/google_logo.png"
+                alt=""
+                style={{ width: 20, height: 20 }}
+              />
+              Continue with Google
+            </button>
 
             <div style={{ marginTop: 12, textAlign: "center", fontSize: 13 }}>
               <span style={{ color: "#9ca3af" }}>
@@ -224,6 +289,9 @@ export default function LoginPage() {
     </>
   );
 }
+
+
+
 
 
 
