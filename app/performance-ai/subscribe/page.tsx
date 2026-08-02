@@ -73,7 +73,8 @@ export default function PerformanceAiSubscribePage() {
         );
       }
 
-      window.location.assign(json.url);
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url: json.url });
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error
@@ -374,4 +375,5 @@ const noticeStyle: React.CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
 };
+
 
