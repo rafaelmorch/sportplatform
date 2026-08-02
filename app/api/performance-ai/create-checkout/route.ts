@@ -135,12 +135,12 @@ export async function POST(req: Request) {
         ],
 
         success_url:
-          `${appUrl}/performance-ai/health` +
-          "?payment=success&session_id={CHECKOUT_SESSION_ID}",
+          `${appUrl}/mobile/stripe/success` +
+          "?destination=%2Fperformance-ai%2Fhealth&payment=success&session_id={CHECKOUT_SESSION_ID}",
 
         cancel_url:
-          `${appUrl}/performance-ai/subscribe` +
-          "?payment=cancelled",
+          `${appUrl}/mobile/stripe/cancel` +
+          "?destination=%2Fperformance-ai%2Fsubscribe&payment=cancelled",
 
         client_reference_id: user.id,
 
@@ -201,4 +201,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
+
 
