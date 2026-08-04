@@ -16,16 +16,49 @@ export default function MobileAuthCallbackPage() {
     async function finishLogin() {
       try {
         const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
+
+        const queryParams = url.searchParams;
+        const hashParams = new URLSearchParams(
+          url.hash.startsWith("#")
+            ? url.hash.substring(1)
+            : url.hash
+        );
+
+        const oauthError =
+          queryParams.get("error_description") ||
+          hashParams.get("error_description") ||
+          queryParams.get("error") ||
+          hashParams.get("error");
+
+        if (oauthError) {
+          throw new Error(oauthError);
+        }
+
+        const code = queryParams.get("code");
+
+        const accessToken =
+          queryParams.get("access_token") ||
+          hashParams.get("access_token");
+
+        const refreshToken =
+          queryParams.get("refresh_token") ||
+          hashParams.get("refresh_token");
 
         if (code) {
           const { error } =
             await supabase.auth.exchangeCodeForSession(code);
 
           if (error) {
-            console.error("Erro ao trocar código por sessão:", error);
-            setMsg("Erro ao finalizar login. Tente novamente.");
-            return;
+            throw error;
+          }
+        } else if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            throw error;
           }
         }
 
@@ -33,20 +66,38 @@ export default function MobileAuthCallbackPage() {
           await supabase.auth.getSession();
 
         if (error) {
-          console.error("Erro ao carregar sessão:", error);
-          setMsg("Erro ao carregar sua sessão.");
+          throw error;
+        }
+
+        if (!data.session) {
+          setMsg("Sessão não encontrada. Volte e tente novamente.");
           return;
         }
 
-        if (data.session) {
-          router.replace("/intro");
-          return;
+        try {
+          const { Browser } =
+            await import("@capacitor/browser");
+
+          await Browser.close();
+        } catch {
+          // O navegador pode já estar fechado.
         }
 
-        setMsg("Sessão não encontrada. Volte e tente novamente.");
-      } catch (error) {
-        console.error("Erro inesperado no login móvel:", error);
-        setMsg("Erro inesperado ao finalizar login.");
+        window.history.replaceState(
+          null,
+          "",
+          "/mobile/auth/callback"
+        );
+
+        router.replace("/intro");
+      } catch (error: unknown) {
+        console.error("Erro no login móvel:", error);
+
+        setMsg(
+          error instanceof Error
+            ? error.message
+            : "Erro inesperado ao finalizar login."
+        );
       }
     }
 
