@@ -98,7 +98,12 @@ export default function SignUpPage() {
   return (
     <main
       style={{
-        minHeight: "100vh",
+        position: "fixed",
+        inset: 0,
+        width: "100%",
+        height: "100dvh",
+        overflowY: "auto",
+        boxSizing: "border-box",
         background: "#000000",
         color: "#e5e7eb",
         display: "flex",
@@ -335,4 +340,5 @@ export default function SignUpPage() {
     </main>
   );
 }
+
 

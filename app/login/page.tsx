@@ -107,8 +107,11 @@ export default function LoginPage() {
 
       <main
         style={{
-          height: "100vh",
+          position: "fixed",
+          inset: 0,
           width: "100%",
+          height: "100dvh",
+          overflowY: "auto",
           background: "#000000",
           display: "flex",
           flexDirection: "column",
@@ -307,6 +310,8 @@ export default function LoginPage() {
     </>
   );
 }
+
+
 
 
 
