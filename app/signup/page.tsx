@@ -99,8 +99,7 @@ export default function SignUpPage() {
     <main
       style={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
+        background: "#000000",
         color: "#e5e7eb",
         display: "flex",
         alignItems: "center",
@@ -112,12 +111,12 @@ export default function SignUpPage() {
         style={{
           width: "100%",
           maxWidth: "420px",
-          borderRadius: "24px",
-          border: "1px solid #111827",
-          overflow: "hidden", // ✅ garante que nada “escape” do card
-          background:
-            "linear-gradient(145deg, rgba(15,23,42,0.96), rgba(15,23,42,0.94))",
-          boxShadow: "0 24px 70px rgba(0,0,0,0.85)",
+          borderRadius: 0,
+          border: "none",
+          outline: "none",
+          overflow: "visible",
+          background: "transparent",
+          boxShadow: "none",
           padding: "24px 20px 22px",
           boxSizing: "border-box", // ✅ consistência no container
         }}
@@ -336,3 +335,4 @@ export default function SignUpPage() {
     </main>
   );
 }
+

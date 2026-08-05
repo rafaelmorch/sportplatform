@@ -109,8 +109,7 @@ export default function LoginPage() {
         style={{
           height: "100vh",
           width: "100%",
-          background:
-            "radial-gradient(circle at top, #020617 0%, #020617 45%, #000 100%)",
+          background: "#000000",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -131,11 +130,12 @@ export default function LoginPage() {
           style={{
             width: "100%",
             maxWidth: 420,
-            borderRadius: 28,
+            borderRadius: 0,
             padding: 26,
-            background:
-              "linear-gradient(145deg, rgba(15,23,42,0.95), rgba(15,23,42,0.9))",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.85)",
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            boxShadow: "none",
           }}
         >
           <h1
@@ -307,6 +307,7 @@ export default function LoginPage() {
     </>
   );
 }
+
 
 
 
