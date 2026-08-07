@@ -717,7 +717,7 @@ export default function BodyPage() {
         ? "#86efac"
         : weightVariation > 0.1
           ? "#fde68a"
-          : "#fff1a8";
+          : "#D4AF37";
 
   const summaryCards = [
     {
@@ -882,7 +882,7 @@ export default function BodyPage() {
             border-radius: 50%;
             border: 3px solid
               rgba(255, 255, 255, 0.1);
-            border-top-color: #fff1a8;
+            border-top-color: #D4AF37;
             animation: body-spin 0.8s linear infinite;
           }
 
@@ -1362,7 +1362,7 @@ const headerTextStyle: React.CSSProperties = {
 };
 
 const eyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 700,
   letterSpacing: 1.8,
@@ -1398,9 +1398,9 @@ const headerActionsStyle: React.CSSProperties = {
 const registerWeightButtonStyle: React.CSSProperties = {
   width: "100%",
   minHeight: 50,
-  border: "1px solid rgba(255,241,168,0.78)",
+  border: "1px solid rgba(212,175,55,0.78)",
   borderRadius: 0,
-  background: "#fff1a8",
+  background: "#D4AF37",
   color: "#111111",
   padding: "14px 18px",
   fontFamily: "inherit",
@@ -1892,7 +1892,7 @@ const weightFormPanelStyle: React.CSSProperties = {
   minWidth: 0,
   marginBottom: "clamp(22px, 4vw, 36px)",
   padding: "clamp(22px, 4vw, 34px)",
-  border: "1px solid rgba(255,241,168,0.28)",
+  border: "1px solid rgba(212,175,55,0.28)",
   background:
     "linear-gradient(145deg, rgba(28,27,22,0.96) 0%, rgba(15,15,17,0.98) 100%)",
   boxShadow:
@@ -1976,9 +1976,9 @@ const weightUnitStyle: React.CSSProperties = {
 const saveWeightButtonStyle: React.CSSProperties = {
   width: "100%",
   minHeight: 52,
-  border: "1px solid rgba(255,241,168,0.78)",
+  border: "1px solid rgba(212,175,55,0.78)",
   borderRadius: 0,
-  background: "#fff1a8",
+  background: "#D4AF37",
   color: "#111111",
   padding: "14px 18px",
   fontFamily: "inherit",
@@ -2028,53 +2028,56 @@ const statusLabelStyle: React.CSSProperties = {
 };
 
 const statusValueStyle: React.CSSProperties = {
-  marginTop: 10,
-  fontSize: "clamp(16px, 3vw, 21px)",
-  fontWeight: 700,
+  marginTop: 8,
+  color: "#D4AF37",
+  fontSize: "clamp(17px, 3vw, 21px)",
+  fontWeight: 500,
   lineHeight: 1.35,
 };
 
 const summaryGridStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns:
-    "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
-  gap: 1,
+    "repeat(auto-fit, minmax(min(100%, 190px), 1fr))",
   width: "100%",
   minWidth: 0,
-  overflow: "hidden",
-  border: "1px solid rgba(255,255,255,0.09)",
-  background: "rgba(255,255,255,0.09)",
-  marginBottom: "clamp(22px, 4vw, 36px)",
+  marginBottom: "clamp(30px, 5vw, 44px)",
+  borderTop:
+    "1px solid rgba(255,255,255,0.08)",
+  borderBottom:
+    "1px solid rgba(255,255,255,0.08)",
   boxSizing: "border-box",
 };
 
 const summaryCardStyle: React.CSSProperties = {
   minWidth: 0,
-  minHeight: 156,
-  padding: "clamp(20px, 3vw, 28px)",
-  background: "#101010",
+  minHeight: 132,
+  padding: "22px 18px",
+  borderRight:
+    "1px solid rgba(255,255,255,0.07)",
+  background: "transparent",
   boxSizing: "border-box",
 };
 
 const cardLabelStyle: React.CSSProperties = {
-  color: "#85858e",
-  fontSize: 12,
-  fontWeight: 600,
+  color: "rgba(255,255,255,0.42)",
+  fontSize: 11,
+  fontWeight: 500,
 };
 
 const cardValueStyle: React.CSSProperties = {
-  marginTop: 20,
-  fontSize: "clamp(25px, 5vw, 34px)",
+  marginTop: 14,
+  fontSize: "clamp(26px, 5vw, 34px)",
   lineHeight: 1,
-  fontWeight: 800,
-  letterSpacing: "-0.035em",
+  fontWeight: 400,
+  letterSpacing: "-0.04em",
   overflowWrap: "anywhere",
 };
 
 const cardDetailStyle: React.CSSProperties = {
-  marginTop: 14,
-  color: "#6f6f78",
-  fontSize: 12,
+  marginTop: 10,
+  color: "rgba(255,255,255,0.34)",
+  fontSize: 11,
   lineHeight: 1.55,
   overflowWrap: "anywhere",
 };
@@ -2082,15 +2085,15 @@ const cardDetailStyle: React.CSSProperties = {
 const sectionPanelStyle: React.CSSProperties = {
   width: "100%",
   minWidth: 0,
-  padding: "clamp(22px, 4vw, 34px)",
-  border: "1px solid rgba(255,255,255,0.09)",
-  background:
-    "linear-gradient(145deg, rgba(24,24,27,0.88) 0%, rgba(15,15,17,0.96) 100%)",
-  boxShadow:
-    "0 14px 30px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.04)",
+  padding: "30px 0 0",
+  border: 0,
+  borderTop:
+    "1px solid rgba(255,255,255,0.09)",
+  background: "transparent",
+  boxShadow: "none",
   boxSizing: "border-box",
   overflow: "hidden",
-  marginBottom: "clamp(22px, 4vw, 36px)",
+  marginBottom: "clamp(34px, 6vw, 52px)",
 };
 
 const sectionHeaderStyle: React.CSSProperties = {
@@ -2103,7 +2106,7 @@ const sectionHeaderStyle: React.CSSProperties = {
 };
 
 const sectionEyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 700,
   letterSpacing: 1.6,
@@ -2111,36 +2114,37 @@ const sectionEyebrowStyle: React.CSSProperties = {
 };
 
 const sectionTitleStyle: React.CSSProperties = {
-  margin: "10px 0 0",
-  color: "#f4f4f5",
-  fontSize: "clamp(21px, 4vw, 28px)",
-  lineHeight: 1.2,
-  fontWeight: 700,
-  letterSpacing: "-0.025em",
+  margin: "8px 0 0",
+  color: "#ffffff",
+  fontSize: "clamp(24px, 4vw, 30px)",
+  lineHeight: 1.15,
+  fontWeight: 400,
+  letterSpacing: "-0.035em",
   overflowWrap: "anywhere",
 };
 
 const sectionDescriptionStyle: React.CSSProperties = {
-  margin: "9px 0 0",
-  color: "#85858e",
-  fontSize: 13,
-  lineHeight: 1.6,
+  margin: "8px 0 0",
+  color: "rgba(255,255,255,0.42)",
+  fontSize: 12,
+  lineHeight: 1.65,
 };
 
 const variationBadgeStyle: React.CSSProperties = {
   maxWidth: "100%",
-  padding: "9px 12px",
+  padding: "7px 10px",
   border: "1px solid",
-  background: "rgba(255,241,168,0.04)",
-  fontSize: 12,
-  fontWeight: 600,
+  borderRadius: 999,
+  background: "rgba(212,175,55,0.04)",
+  fontSize: 11,
+  fontWeight: 500,
   lineHeight: 1.4,
   boxSizing: "border-box",
   overflowWrap: "anywhere",
 };
 
 const currentBadgeStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 700,
   letterSpacing: 1.2,
@@ -2150,8 +2154,10 @@ const currentBadgeStyle: React.CSSProperties = {
 const chartWrapperStyle: React.CSSProperties = {
   width: "100%",
   minWidth: 0,
-  marginTop: "clamp(26px, 5vw, 42px)",
+  marginTop: "clamp(24px, 5vw, 36px)",
   overflow: "hidden",
+  background:
+    "linear-gradient(180deg, rgba(212,175,55,0.025), transparent)",
 };
 
 const chartStyle: React.CSSProperties = {
@@ -2189,9 +2195,8 @@ const emptyChartStyle: React.CSSProperties = {
 
 const contentGridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(min(100%, 340px), 1fr))",
-  gap: "clamp(22px, 4vw, 36px)",
+  gridTemplateColumns: "1fr",
+  gap: 0,
   width: "100%",
   minWidth: 0,
 };
@@ -2378,7 +2383,7 @@ const bioMetricValueStyle: React.CSSProperties = {
 const notesStyle: React.CSSProperties = {
   marginTop: 20,
   paddingLeft: 16,
-  borderLeft: "2px solid rgba(255,241,168,0.68)",
+  borderLeft: "2px solid rgba(212,175,55,0.68)",
   color: "#85858e",
   fontSize: 13,
   lineHeight: 1.7,
@@ -2437,6 +2442,7 @@ const previousMetricValueStyle: React.CSSProperties = {
   fontWeight: 700,
   overflowWrap: "anywhere",
 };
+
 
 
 

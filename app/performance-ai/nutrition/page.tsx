@@ -246,7 +246,7 @@ export default function NutritionPage() {
       .order("eaten_at", {
         ascending: false,
       })
-      .limit(100);
+      .limit(10);
 
     if (error) {
       setErrorMessage(
@@ -1085,15 +1085,7 @@ export default function NutritionPage() {
 
         <div style={containerStyle}>
           <header style={topBarStyle}>
-            <Link
-              href="/performance-ai"
-              style={backLinkStyle}
-            >
-              <span aria-hidden="true">
-                ←
-              </span>
-              Performance AI
-            </Link>
+            <PerformanceAiBackButton href="/performance-ai" />
 
             <div style={sectionLabelStyle}>
               Health Intelligence
@@ -1102,24 +1094,20 @@ export default function NutritionPage() {
 
           <section style={heroStyle}>
             <div style={heroEyebrowStyle}>
-              Nutrition AI
+              Nutrição
             </div>
 
             <h1 style={heroTitleStyle}>
-              Transforme uma foto da sua refeição em dados úteis para sua performance.
+              Registre sua alimentação
             </h1>
 
             <p style={heroDescriptionStyle}>
-              Registre o dia e o horário,
-              envie uma foto e revise os
-              alimentos identificados pela
-              inteligência artificial antes
-              de salvar.
+              Adicione uma refeição por foto ou manualmente e acompanhe sua alimentação ao longo do dia.
             </p>
 
             <div style={statusBadgeStyle}>
               <span style={statusDotStyle} />
-              Análise visual disponível
+              Foto e registro manual disponíveis
             </div>
           </section>
 
@@ -1127,7 +1115,7 @@ export default function NutritionPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
-                  Novo registro
+                  Nova refeição
                 </div>
 
                 <h2 style={panelTitleStyle}>
@@ -1184,7 +1172,7 @@ export default function NutritionPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
-                  Forma de registro
+                  Registro
                 </div>
 
                 <h2 style={panelTitleStyle}>
@@ -1217,7 +1205,7 @@ export default function NutritionPage() {
                       : "rgba(255,255,255,0.12)",
                   color:
                     entryMode === "photo"
-                      ? "#f5d76e"
+                      ? "#F1D36B"
                       : "#ffffff",
                 }}
               >
@@ -1236,7 +1224,7 @@ export default function NutritionPage() {
                       : "rgba(255,255,255,0.12)",
                   color:
                     entryMode === "manual"
-                      ? "#f5d76e"
+                      ? "#F1D36B"
                       : "#ffffff",
                 }}
               >
@@ -1270,7 +1258,6 @@ export default function NutritionPage() {
                   setManualMealText(event.target.value)
                 }
                 rows={6}
-                placeholder={"Ex.:`n2 ovos`n1 pão integral`nCafé com leite"}
                 style={textareaStyle}
               />
 
@@ -1324,7 +1311,7 @@ export default function NutritionPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
-                  Imagem
+                  Foto
                 </div>
 
                 <h2 style={panelTitleStyle}>
@@ -1469,7 +1456,7 @@ export default function NutritionPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
-                  Contexto opcional
+                  Opcional
                 </div>
 
                 <h2 style={panelTitleStyle}>
@@ -1509,7 +1496,7 @@ export default function NutritionPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
-                  Análise por IA
+                  Coach IA
                 </div>
 
                 <h2 style={panelTitleStyle}>
@@ -1591,22 +1578,20 @@ export default function NutritionPage() {
                 </div>
 
                 <h2 style={panelTitleStyle}>
-                  Histórico de refeições
+                  Últimas refeições
                 </h2>
 
                 <p style={panelDescriptionStyle}>
-                  Consulte os registros
-                  anteriores em ordem
-                  cronológica.
+                  Suas 10 refeições mais recentes.
                 </p>
               </div>
 
-              <div style={historyCountStyle}>
-                {meals.length}{" "}
-                {meals.length === 1
-                  ? "refeição"
-                  : "refeições"}
-              </div>
+              <Link
+                href="/performance-ai/nutrition/history"
+                style={historyCountStyle}
+              >
+                Ver histórico →
+              </Link>
             </div>
 
             {meals.length === 0 ? (
@@ -1711,7 +1696,7 @@ const pageStyle: CSSProperties = {
   background: "#080808",
   color: "#f4f4f5",
   fontFamily:
-    "Inter, Arial, Helvetica, sans-serif",
+    "Montserrat, Arial, Helvetica, sans-serif",
 };
 
 const pageGlowStyle: CSSProperties = {
@@ -1723,17 +1708,17 @@ const pageGlowStyle: CSSProperties = {
   transform: "translateX(-50%)",
   borderRadius: "50%",
   background:
-    "radial-gradient(circle, rgba(255,241,168,0.09) 0%, rgba(255,241,168,0) 70%)",
+    "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(255,241,168,0) 70%)",
   pointerEvents: "none",
 };
 
 const containerStyle: CSSProperties = {
   position: "relative",
   zIndex: 1,
-  width: "min(100%, 1120px)",
+  width: "min(100%, 920px)",
   margin: "0 auto",
   padding:
-    "max(20px, env(safe-area-inset-top)) clamp(18px, 5vw, 52px) max(110px, env(safe-area-inset-bottom))",
+    "max(16px, env(safe-area-inset-top)) clamp(16px, 4vw, 32px) max(110px, env(safe-area-inset-bottom))",
   boxSizing: "border-box",
 };
 
@@ -1750,7 +1735,7 @@ const topBarStyle: CSSProperties = {
   alignItems: "center",
   flexWrap: "wrap",
   gap: 16,
-  paddingBottom: 24,
+  paddingBottom: 18,
   borderBottom:
     "1px solid rgba(255,255,255,0.09)",
 };
@@ -1774,12 +1759,11 @@ const sectionLabelStyle: CSSProperties = {
 };
 
 const heroStyle: CSSProperties = {
-  padding:
-    "clamp(48px, 9vw, 92px) 0 clamp(36px, 7vw, 68px)",
+  padding: "34px 0 30px",
 };
 
 const heroEyebrowStyle: CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 750,
   letterSpacing: 1.8,
@@ -1787,37 +1771,34 @@ const heroEyebrowStyle: CSSProperties = {
 };
 
 const heroTitleStyle: CSSProperties = {
-  maxWidth: 920,
-  margin: "18px 0 0",
-  color: "#fafafa",
-  fontSize:
-    "clamp(35px, 7vw, 70px)",
-  lineHeight: 0.99,
-  fontWeight: 800,
-  letterSpacing: "-0.055em",
-  overflowWrap: "anywhere",
+  maxWidth: 720,
+  margin: "10px 0 0",
+  color: "#ffffff",
+  fontSize: "clamp(36px, 7vw, 54px)",
+  lineHeight: 1.04,
+  fontWeight: 400,
+  letterSpacing: "-0.045em",
 };
 
 const heroDescriptionStyle: CSSProperties = {
-  maxWidth: 720,
-  margin: "27px 0 0",
-  color: "#9898a1",
-  fontSize:
-    "clamp(15px, 2.3vw, 18px)",
-  lineHeight: 1.72,
+  maxWidth: 620,
+  margin: "14px 0 0",
+  color: "rgba(255,255,255,0.52)",
+  fontSize: 14,
+  lineHeight: 1.7,
 };
 
 const statusBadgeStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 9,
-  marginTop: 28,
+  marginTop: 18,
   padding: "9px 12px",
   border:
-    "1px solid rgba(255,241,168,0.22)",
+    "1px solid rgba(212,175,55,0.22)",
   background:
-    "rgba(255,241,168,0.04)",
-  color: "#d8cf98",
+    "rgba(212,175,55,0.04)",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 650,
 };
@@ -1826,16 +1807,15 @@ const statusDotStyle: CSSProperties = {
   width: 7,
   height: 7,
   borderRadius: "50%",
-  background: "#fff1a8",
+  background: "#D4AF37",
   boxShadow:
-    "0 0 14px rgba(255,241,168,0.45)",
+    "0 0 14px rgba(212,175,55,0.45)",
 };
 
 const mainSectionStyle: CSSProperties = {
-  padding:
-    "clamp(28px, 5vw, 42px) 0",
+  padding: "26px 0",
   borderTop:
-    "1px solid rgba(255,255,255,0.09)",
+    "1px solid rgba(255,255,255,0.07)",
 };
 
 const analysisSectionStyle: CSSProperties = {
@@ -1852,7 +1832,7 @@ const sectionHeaderStyle: CSSProperties = {
 };
 
 const panelEyebrowStyle: CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 750,
   letterSpacing: 1.5,
@@ -1860,25 +1840,24 @@ const panelEyebrowStyle: CSSProperties = {
 };
 
 const panelTitleStyle: CSSProperties = {
-  margin: "10px 0 0",
-  color: "#f4f4f5",
-  fontSize:
-    "clamp(23px, 4vw, 32px)",
-  lineHeight: 1.16,
-  fontWeight: 750,
-  letterSpacing: "-0.03em",
+  margin: "7px 0 0",
+  color: "#ffffff",
+  fontSize: "clamp(21px, 4vw, 27px)",
+  lineHeight: 1.2,
+  fontWeight: 400,
+  letterSpacing: "-0.025em",
 };
 
 const panelDescriptionStyle: CSSProperties = {
   maxWidth: 650,
-  margin: "12px 0 0",
-  color: "#85858e",
-  fontSize: 13,
-  lineHeight: 1.68,
+  margin: "8px 0 0",
+  color: "rgba(255,255,255,0.46)",
+  fontSize: 12,
+  lineHeight: 1.65,
 };
 
 const dateTimeGridStyle: CSSProperties = {
-  marginTop: 30,
+  marginTop: 20,
   display: "grid",
   gridTemplateColumns:
     "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
@@ -1900,15 +1879,15 @@ const fieldLabelStyle: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: "100%",
-  minHeight: 48,
+  minHeight: 50,
   boxSizing: "border-box",
-  padding: "11px 13px",
+  padding: "11px 14px",
   border:
-    "1px solid rgba(255,255,255,0.14)",
-  borderRadius: 0,
+    "1px solid rgba(255,255,255,0.11)",
+  borderRadius: 12,
   outline: "none",
-  background: "#111112",
-  color: "#f4f4f5",
+  background: "rgba(255,255,255,0.035)",
+  color: "#ffffff",
   colorScheme: "dark",
   fontFamily: "inherit",
   fontSize: 13,
@@ -1916,17 +1895,17 @@ const inputStyle: CSSProperties = {
 
 const textareaStyle: CSSProperties = {
   width: "100%",
-  minHeight: 120,
-  marginTop: 30,
+  minHeight: 112,
+  marginTop: 20,
   boxSizing: "border-box",
   resize: "vertical",
   padding: 15,
   border:
-    "1px solid rgba(255,255,255,0.14)",
-  borderRadius: 0,
+    "1px solid rgba(255,255,255,0.11)",
+  borderRadius: 12,
   outline: "none",
-  background: "#111112",
-  color: "#f4f4f5",
+  background: "rgba(255,255,255,0.035)",
+  color: "#ffffff",
   fontFamily: "inherit",
   fontSize: 13,
   lineHeight: 1.65,
@@ -1934,21 +1913,23 @@ const textareaStyle: CSSProperties = {
 
 const uploadAreaStyle: CSSProperties = {
   display: "flex",
-  minHeight: 300,
-  marginTop: 34,
-  padding:
-    "clamp(22px, 5vw, 34px)",
+  minHeight: 230,
+  marginTop: 22,
+  padding: "26px 20px",
   border:
-    "1px dashed rgba(255,255,255,0.17)",
+    "1px dashed rgba(212,175,55,0.28)",
+  borderRadius: 16,
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
   textAlign: "center",
   boxSizing: "border-box",
+  background:
+    "rgba(212,175,55,0.025)",
 };
 
 const uploadLabelStyle: CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 750,
   letterSpacing: 1.4,
@@ -1979,23 +1960,25 @@ const uploadButtonsStyle: CSSProperties = {
   alignItems: "stretch",
   flexWrap: "wrap",
   gap: 14,
-  marginTop: 28,
+  marginTop: 18,
 };
 
 const selectButtonStyle: CSSProperties = {
   width: 180,
-  minHeight: 54,
+  minHeight: 50,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   boxSizing: "border-box",
   padding: "0 18px",
-  border: "1px solid #fff1a8",
-  background: "#fff1a8",
+  border: "1px solid #D4AF37",
+  borderRadius: 12,
+  background:
+    "linear-gradient(145deg, #E0BE52, #D4AF37)",
   color: "#111111",
   fontFamily: "inherit",
   fontSize: 12,
-  fontWeight: 750,
+  fontWeight: 700,
   lineHeight: 1,
   textAlign: "center",
   cursor: "pointer",
@@ -2003,18 +1986,20 @@ const selectButtonStyle: CSSProperties = {
 
 const secondaryButtonStyle: CSSProperties = {
   width: 180,
-  minHeight: 54,
+  minHeight: 50,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   boxSizing: "border-box",
   padding: "0 18px",
-  border: "1px solid rgba(255,241,168,0.42)",
-  background: "transparent",
-  color: "#fff1a8",
+  border:
+    "1px solid rgba(212,175,55,0.38)",
+  borderRadius: 12,
+  background: "rgba(212,175,55,0.035)",
+  color: "#F1D36B",
   fontFamily: "inherit",
   fontSize: 12,
-  fontWeight: 750,
+  fontWeight: 650,
   lineHeight: 1,
   textAlign: "center",
   cursor: "pointer",
@@ -2066,7 +2051,7 @@ const imageDetailsStyle: CSSProperties = {
 };
 
 const fileStatusStyle: CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 750,
   letterSpacing: 1.2,
@@ -2089,14 +2074,16 @@ const fileMetadataStyle: CSSProperties = {
 
 const primaryButtonStyle: CSSProperties = {
   width: "100%",
-  minHeight: 48,
+  minHeight: 50,
   padding: "12px 18px",
-  border: "1px solid #fff1a8",
-  background: "#fff1a8",
+  border: "1px solid #D4AF37",
+  borderRadius: 12,
+  background:
+    "linear-gradient(145deg, #E0BE52, #D4AF37)",
   color: "#111111",
   fontFamily: "inherit",
   fontSize: 12,
-  fontWeight: 800,
+  fontWeight: 700,
   cursor: "pointer",
 };
 
@@ -2117,14 +2104,16 @@ const removeButtonStyle: CSSProperties = {
 const analyzeButtonStyle: CSSProperties = {
   width: "100%",
   minHeight: 52,
-  marginTop: 30,
+  marginTop: 22,
   padding: "13px 20px",
-  border: "1px solid #fff1a8",
-  background: "#fff1a8",
+  border: "1px solid #D4AF37",
+  borderRadius: 12,
+  background:
+    "linear-gradient(145deg, #E0BE52, #D4AF37)",
   color: "#111111",
   fontFamily: "inherit",
   fontSize: 13,
-  fontWeight: 800,
+  fontWeight: 700,
 };
 
 const analysisHelperStyle: CSSProperties = {
@@ -2180,13 +2169,15 @@ const historyHeaderStyle: CSSProperties = {
 const historyCountStyle: CSSProperties = {
   padding: "8px 12px",
   border:
-    "1px solid rgba(255,241,168,0.2)",
+    "1px solid rgba(212,175,55,0.20)",
   background:
-    "rgba(255,241,168,0.04)",
-  color: "#d8cf98",
+    "rgba(212,175,55,0.04)",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 700,
   whiteSpace: "nowrap",
+  textDecoration: "none",
+  cursor: "pointer",
 };
 
 const historyListStyle: CSSProperties = {
@@ -2210,7 +2201,7 @@ const historyContentStyle: CSSProperties = {
 };
 
 const historyDateStyle: CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 750,
   textTransform: "capitalize",
@@ -2266,7 +2257,7 @@ const disclaimerStyle: CSSProperties = {
   marginTop: 32,
   padding: "22px 24px",
   borderLeft:
-    "2px solid rgba(255,241,168,0.65)",
+    "2px solid rgba(212,175,55,0.65)",
   background:
     "rgba(255,255,255,0.025)",
 };
@@ -2284,6 +2275,13 @@ const disclaimerTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
+
+
+
+
+
+
 
 
 

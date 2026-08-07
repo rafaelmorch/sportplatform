@@ -5,33 +5,27 @@ import { useRouter } from "next/navigation";
 const performanceItems = [
   {
     title: "Meu Plano",
-    href: "/performance-ai/coach",
-    icon: "",
+    href: "/performance-ai/coach/plan",
   },
   {
     title: "Perfil do Atleta",
     href: "/performance-ai/profile",
-    icon: "",
   },
   {
     title: "Treinamentos",
     href: "/performance-ai/training",
-    icon: "",
   },
   {
     title: "Corpo",
     href: "/performance-ai/body",
-    icon: "",
   },
   {
     title: "Saúde",
     href: "/performance-ai/blood",
-    icon: "",
   },
   {
     title: "Nutrição",
     href: "/performance-ai/nutrition",
-    icon: "",
   },
 ];
 
@@ -53,13 +47,11 @@ export default function PerformancePage() {
         position: "fixed",
         inset: 0,
         zIndex: 100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        overflowY: "auto",
         boxSizing: "border-box",
         padding:
-          "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))",
-        background: "rgba(0,0,0,0.72)",
+          "max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom))",
+        background: "rgba(0,0,0,0.82)",
         fontFamily: "Montserrat, sans-serif",
       }}
     >
@@ -70,15 +62,12 @@ export default function PerformancePage() {
         style={{
           position: "relative",
           width: "min(560px, 100%)",
-          maxHeight:
-            "calc(100dvh - max(32px, env(safe-area-inset-top) + env(safe-area-inset-bottom)))",
-          overflowY: "auto",
+          minHeight: "100%",
+          margin: "0 auto",
           boxSizing: "border-box",
-          padding: "34px 20px 24px",
-          border: "1px solid rgba(255,241,168,0.15)",
-          borderRadius: 18,
+          padding: "38px 10px 28px",
           background: "#050505",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.34)",
+          color: "#ffffff",
         }}
       >
         <button
@@ -87,20 +76,19 @@ export default function PerformancePage() {
           onClick={closePopup}
           style={{
             position: "absolute",
-            top: 14,
-            right: 14,
-            width: 42,
-            height: 42,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            border: "1px solid rgba(255,241,168,0.12)",
+            top: 6,
+            right: 4,
+            width: 40,
+            height: 40,
+            display: "grid",
+            placeItems: "center",
+            border: "1px solid rgba(255,255,255,0.12)",
             borderRadius: "50%",
-            background: "#18181B",
+            background: "rgba(255,255,255,0.04)",
             color: "#ffffff",
             fontFamily: "Montserrat, sans-serif",
-            fontSize: 27,
-            fontWeight: 400,
+            fontSize: 24,
+            fontWeight: 300,
             lineHeight: 1,
             cursor: "pointer",
           }}
@@ -108,17 +96,18 @@ export default function PerformancePage() {
           ×
         </button>
 
-        <div
+        <header
           style={{
-            paddingRight: 52,
+            paddingRight: 50,
+            paddingBottom: 28,
           }}
         >
           <div
             style={{
-              color: "#FFF1A8",
-              fontSize: 11,
-              fontWeight: 850,
-              letterSpacing: "0.12em",
+              color: "#D4AF37",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.15em",
               lineHeight: 1.4,
               textTransform: "uppercase",
             }}
@@ -128,12 +117,12 @@ export default function PerformancePage() {
 
           <h1
             style={{
-              margin: "10px 0 0",
+              margin: "8px 0 0",
               color: "#ffffff",
-              fontSize: "clamp(30px, 7vw, 42px)",
-              fontWeight: 780,
-              lineHeight: 1.05,
-              letterSpacing: "-0.035em",
+              fontSize: "clamp(34px, 8vw, 46px)",
+              fontWeight: 400,
+              lineHeight: 1.04,
+              letterSpacing: "-0.04em",
             }}
           >
             Minha Performance
@@ -141,74 +130,84 @@ export default function PerformancePage() {
 
           <p
             style={{
-              margin: "14px 0 0",
-              color: "#d4d4d8",
-              fontSize: 18,
-              lineHeight: 1.65,
+              margin: "12px 0 0",
+              maxWidth: 460,
+              color: "rgba(255,255,255,0.46)",
+              fontSize: 13,
+              lineHeight: 1.7,
             }}
           >
             Acesse e atualize seus dados de performance.
           </p>
-        </div>
+        </header>
 
-        <div
+        <nav
+          aria-label="Áreas da Minha Performance"
           style={{
-            marginTop: 30,
-            display: "grid",
-            gap: 10,
+            borderTop:
+              "1px solid rgba(255,255,255,0.09)",
           }}
         >
-          {performanceItems.map((item) => (
-            <button
-              key={item.href}
-              type="button"
-              onClick={() => router.push(item.href)}
-              style={{
-                width: "100%",
-                minHeight: 66,
-                display: "flex",
-                alignItems: "center",
-                gap: 0,
-                border: "1px solid rgba(255,241,168,0.12)",
-                borderRadius: 13,
-                background: "#18181B",
-                color: "#ffffff",
-                padding: "12px 15px",
-                fontFamily: "Montserrat, sans-serif",
-                textAlign: "left",
-                cursor: "pointer",
-              }}
-            >
+          {performanceItems.map((item, index) => {
+            const isPlan = index === 0;
 
-              <span
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() =>
+                  router.push(item.href)
+                }
                 style={{
-                  flex: 1,
-                  fontSize: 18,
-                  fontWeight: 400,
-                  lineHeight: 1.4,
+                  width: "100%",
+                  minHeight: 66,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  border: 0,
+                  borderBottom:
+                    "1px solid rgba(255,255,255,0.09)",
+                  background: "transparent",
+                  color: "#ffffff",
+                  padding: "18px 2px",
+                  fontFamily:
+                    "Montserrat, sans-serif",
+                  textAlign: "left",
+                  cursor: "pointer",
                 }}
               >
-                {item.title}
-              </span>
+                <span
+                  style={{
+                    fontSize: 16,
+                    fontWeight: isPlan ? 600 : 400,
+                    lineHeight: 1.4,
+                    color: isPlan
+                      ? "#D4AF37"
+                      : "#ffffff",
+                  }}
+                >
+                  {item.title}
+                </span>
 
-              <span
-                aria-hidden="true"
-                style={{
-                  color: "#FFF1A8",
-                  fontSize: 22,
-                  lineHeight: 1,
-                }}
-              >
-                ›
-              </span>
-            </button>
-          ))}
-        </div>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    color: isPlan
+                      ? "#D4AF37"
+                      : "rgba(255,255,255,0.48)",
+                    fontSize: 20,
+                    lineHeight: 1,
+                  }}
+                >
+                  ›
+                </span>
+              </button>
+            );
+          })}
+        </nav>
       </section>
     </main>
   );
 }
-
-
-
 

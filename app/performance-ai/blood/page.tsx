@@ -252,7 +252,7 @@ function BloodEvolutionChart({
               color:
                 difference === 0
                   ? "#a1a1aa"
-                  : "#fff1a8",
+                  : "#D4AF37",
             }}
           >
             {difference > 0 ? "+" : ""}
@@ -290,7 +290,7 @@ function BloodEvolutionChart({
             <path
               d={pathData}
               fill="none"
-              stroke="#fff1a8"
+              stroke="#D4AF37"
               strokeWidth="3"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -304,7 +304,7 @@ function BloodEvolutionChart({
                 cy={getY(point.value)}
                 r="5"
                 fill="#080808"
-                stroke="#fff1a8"
+                stroke="#D4AF37"
                 strokeWidth="3"
               />
 
@@ -955,7 +955,7 @@ const pageGlowStyle: React.CSSProperties = {
   transform: "translateX(-50%)",
   borderRadius: "50%",
   background:
-    "radial-gradient(circle, rgba(255,241,168,0.09) 0%, rgba(255,241,168,0) 70%)",
+    "radial-gradient(circle, rgba(212,175,55,0.09) 0%, rgba(212,175,55,0) 70%)",
   pointerEvents: "none",
 };
 
@@ -998,11 +998,11 @@ const sectionLabelStyle: React.CSSProperties = {
 };
 
 const heroStyle: React.CSSProperties = {
-  padding: "clamp(48px, 9vw, 92px) 0 clamp(36px, 7vw, 68px)",
+  padding: "clamp(34px, 7vw, 58px) 0 clamp(28px, 5vw, 42px)",
 };
 
 const heroEyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 750,
   letterSpacing: 1.8,
@@ -1010,22 +1010,22 @@ const heroEyebrowStyle: React.CSSProperties = {
 };
 
 const heroTitleStyle: React.CSSProperties = {
-  maxWidth: 900,
-  margin: "18px 0 0",
-  color: "#fafafa",
-  fontSize: "clamp(35px, 7vw, 70px)",
-  lineHeight: 0.99,
-  fontWeight: 800,
-  letterSpacing: "-0.055em",
+  maxWidth: 720,
+  margin: "12px 0 0",
+  color: "#ffffff",
+  fontSize: "clamp(36px, 7vw, 54px)",
+  lineHeight: 1.03,
+  fontWeight: 400,
+  letterSpacing: "-0.045em",
   overflowWrap: "anywhere",
 };
 
 const heroDescriptionStyle: React.CSSProperties = {
-  maxWidth: 720,
-  margin: "27px 0 0",
-  color: "#9898a1",
-  fontSize: "clamp(15px, 2.3vw, 18px)",
-  lineHeight: 1.72,
+  maxWidth: 680,
+  margin: "16px 0 0",
+  color: "rgba(255,255,255,0.48)",
+  fontSize: 14,
+  lineHeight: 1.7,
 };
 
 const statusBadgeStyle: React.CSSProperties = {
@@ -1034,8 +1034,8 @@ const statusBadgeStyle: React.CSSProperties = {
   gap: 9,
   marginTop: 28,
   padding: "9px 12px",
-  border: "1px solid rgba(255,241,168,0.22)",
-  background: "rgba(255,241,168,0.04)",
+  border: "1px solid rgba(212,175,55,0.22)",
+  background: "rgba(212,175,55,0.04)",
   color: "#d8cf98",
   fontSize: 11,
   fontWeight: 650,
@@ -1045,8 +1045,8 @@ const statusDotStyle: React.CSSProperties = {
   width: 7,
   height: 7,
   borderRadius: "50%",
-  background: "#fff1a8",
-  boxShadow: "0 0 14px rgba(255,241,168,0.45)",
+  background: "#D4AF37",
+  boxShadow: "0 0 14px rgba(212,175,55,0.45)",
 };
 
 const uploadPanelStyle: React.CSSProperties = {
@@ -1066,7 +1066,7 @@ const panelHeaderStyle: React.CSSProperties = {
 };
 
 const panelEyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 750,
   letterSpacing: 1.5,
@@ -1094,7 +1094,7 @@ const documentIconStyle: React.CSSProperties = {
   position: "relative",
   width: 45,
   height: 57,
-  border: "1px solid rgba(255,241,168,0.45)",
+  border: "1px solid rgba(212,175,55,0.45)",
   flexShrink: 0,
 };
 
@@ -1104,8 +1104,8 @@ const documentFoldStyle: React.CSSProperties = {
   right: -1,
   width: 15,
   height: 15,
-  borderLeft: "1px solid rgba(255,241,168,0.45)",
-  borderBottom: "1px solid rgba(255,241,168,0.45)",
+  borderLeft: "1px solid rgba(212,175,55,0.45)",
+  borderBottom: "1px solid rgba(212,175,55,0.45)",
 };
 
 const documentLineStyle: React.CSSProperties = {
@@ -1114,7 +1114,7 @@ const documentLineStyle: React.CSSProperties = {
   left: 10,
   width: 25,
   height: 1,
-  background: "rgba(255,241,168,0.45)",
+  background: "rgba(212,175,55,0.45)",
 };
 
 const dropZoneStyle: React.CSSProperties = {
@@ -1137,9 +1137,9 @@ const uploadCircleStyle: React.CSSProperties = {
   height: 56,
   alignItems: "center",
   justifyContent: "center",
-  border: "1px solid rgba(255,241,168,0.36)",
+  border: "1px solid rgba(212,175,55,0.36)",
   borderRadius: "50%",
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 24,
 };
 
@@ -1192,8 +1192,8 @@ const bloodSelectButtonStyle: React.CSSProperties = {
   minHeight: 46,
   marginTop: 23,
   padding: "12px 20px",
-  border: "1px solid rgba(255,241,168,0.42)",
-  background: "#fff1a8",
+  border: "1px solid rgba(212,175,55,0.42)",
+  background: "#D4AF37",
   color: "#111111",
   fontFamily: "inherit",
   fontSize: 12,
@@ -1202,7 +1202,7 @@ const bloodSelectButtonStyle: React.CSSProperties = {
 };
 
 const bloodUploadLabelStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 750,
   letterSpacing: 1.4,
@@ -1257,8 +1257,8 @@ const bloodFileTypeBadgeStyle: React.CSSProperties = {
   height: 48,
   alignItems: "center",
   justifyContent: "center",
-  border: "1px solid rgba(255,241,168,0.35)",
-  color: "#fff1a8",
+  border: "1px solid rgba(212,175,55,0.35)",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 800,
   flexShrink: 0,
@@ -1295,7 +1295,7 @@ const bloodRemoveFileButtonStyle: React.CSSProperties = {
 
 const bloodFileReadyStyle: React.CSSProperties = {
   marginTop: 28,
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 700,
 };
@@ -1305,8 +1305,8 @@ const bloodAnalyzeButtonStyle: React.CSSProperties = {
   minHeight: 50,
   marginTop: 14,
   padding: "13px 20px",
-  border: "1px solid #fff1a8",
-  background: "#fff1a8",
+  border: "1px solid #D4AF37",
+  background: "#D4AF37",
   color: "#111111",
   fontFamily: "inherit",
   fontSize: 13,
@@ -1395,8 +1395,8 @@ const evolutionUnitStyle: React.CSSProperties = {
 
 const evolutionDifferenceStyle: React.CSSProperties = {
   padding: "7px 9px",
-  border: "1px solid rgba(255,241,168,0.15)",
-  background: "rgba(255,241,168,0.04)",
+  border: "1px solid rgba(212,175,55,0.15)",
+  background: "rgba(212,175,55,0.04)",
   fontSize: 10,
   fontWeight: 750,
   whiteSpace: "nowrap",
@@ -1422,12 +1422,13 @@ const evolutionFooterStyle: React.CSSProperties = {
 };
 
 const historySectionStyle: React.CSSProperties = {
-  marginBottom: "clamp(24px, 5vw, 42px)",
-  padding: "clamp(23px, 5vw, 40px)",
-  border: "1px solid rgba(255,255,255,0.1)",
-  background:
-    "linear-gradient(145deg, rgba(24,24,27,0.92), rgba(12,12,13,0.98))",
-  boxShadow: "0 20px 48px rgba(0,0,0,0.32)",
+  marginBottom: "clamp(34px, 6vw, 52px)",
+  padding: "30px 0 0",
+  border: 0,
+  borderTop:
+    "1px solid rgba(255,255,255,0.09)",
+  background: "transparent",
+  boxShadow: "none",
 };
 
 const historyHeaderStyle: React.CSSProperties = {
@@ -1448,18 +1449,19 @@ const historyDescriptionStyle: React.CSSProperties = {
 };
 
 const historyCountStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  border: "1px solid rgba(255,241,168,0.2)",
-  background: "rgba(255,241,168,0.04)",
-  color: "#d8cf98",
-  fontSize: 11,
-  fontWeight: 700,
+  padding: "7px 10px",
+  border: "1px solid rgba(212,175,55,0.20)",
+  borderRadius: 999,
+  background: "rgba(212,175,55,0.04)",
+  color: "#D4AF37",
+  fontSize: 10,
+  fontWeight: 600,
   whiteSpace: "nowrap",
 };
 
 const historyListStyle: React.CSSProperties = {
   display: "grid",
-  gap: 12,
+  gap: 0,
 };
 
 const historyCardStyle: React.CSSProperties = {
@@ -1468,9 +1470,11 @@ const historyCardStyle: React.CSSProperties = {
   alignItems: "center",
   gap: 20,
   flexWrap: "wrap",
-  padding: "18px 20px",
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "rgba(255,255,255,0.025)",
+  padding: "22px 0",
+  border: 0,
+  borderBottom:
+    "1px solid rgba(255,255,255,0.14)",
+  background: "transparent",
 };
 
 const historyCardContentStyle: React.CSSProperties = {
@@ -1479,7 +1483,7 @@ const historyCardContentStyle: React.CSSProperties = {
 };
 
 const historyDateStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 12,
   fontWeight: 750,
   letterSpacing: 0.4,
@@ -1494,13 +1498,13 @@ const historySummaryStyle: React.CSSProperties = {
 };
 
 const historyButtonStyle: React.CSSProperties = {
-  minHeight: 42,
-  padding: "0 17px",
-  border: "1px solid rgba(255,241,168,0.25)",
-  background: "rgba(255,241,168,0.07)",
-  color: "#fff1a8",
-  fontSize: 12,
-  fontWeight: 750,
+  minHeight: 38,
+  padding: "0 12px",
+  border: 0,
+  background: "transparent",
+  color: "#D4AF37",
+  fontSize: 11,
+  fontWeight: 600,
   fontFamily: "inherit",
 };
 
@@ -1520,7 +1524,7 @@ const emptyHistoryIconStyle: React.CSSProperties = {
   height: 46,
   flex: "0 0 46px",
   borderRadius: "50%",
-  background: "rgba(255,241,168,0.07)",
+  background: "rgba(212,175,55,0.07)",
   fontSize: 20,
 };
 
@@ -1538,10 +1542,12 @@ const emptyHistoryTextStyle: React.CSSProperties = {
 };
 
 const markersSectionStyle: React.CSSProperties = {
-  marginBottom: "clamp(24px, 5vw, 42px)",
-  padding: "clamp(23px, 5vw, 40px)",
-  border: "1px solid rgba(255,255,255,0.09)",
-  background: "#0e0e0f",
+  marginBottom: "clamp(34px, 6vw, 52px)",
+  padding: "30px 0 0",
+  border: 0,
+  borderTop:
+    "1px solid rgba(255,255,255,0.09)",
+  background: "transparent",
 };
 
 const sectionHeadingRowStyle: React.CSSProperties = {
@@ -1563,18 +1569,19 @@ const markerCountStyle: React.CSSProperties = {
 
 const markersGridStyle: React.CSSProperties = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(min(100%, 210px), 1fr))",
-  gap: 1,
-  marginTop: 30,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "rgba(255,255,255,0.08)",
+  gridTemplateColumns: "1fr",
+  gap: 0,
+  marginTop: 24,
+  border: 0,
+  background: "transparent",
 };
 
 const markerCardStyle: React.CSSProperties = {
   minWidth: 0,
-  padding: 22,
-  background: "#111112",
+  padding: "20px 0",
+  borderBottom:
+    "1px solid rgba(255,255,255,0.10)",
+  background: "transparent",
 };
 
 const markerGroupStyle: React.CSSProperties = {
@@ -1585,18 +1592,19 @@ const markerGroupStyle: React.CSSProperties = {
 };
 
 const markerListStyle: React.CSSProperties = {
-  display: "grid",
-  gap: 12,
-  marginTop: 19,
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "9px 18px",
+  marginTop: 12,
 };
 
 const markerItemStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
-  gap: 10,
+  gap: 7,
   minWidth: 0,
-  color: "#85858e",
-  fontSize: 12,
+  color: "rgba(255,255,255,0.46)",
+  fontSize: 11,
   lineHeight: 1.45,
 };
 
@@ -1604,13 +1612,13 @@ const markerDotStyle: React.CSSProperties = {
   width: 4,
   height: 4,
   borderRadius: "50%",
-  background: "#fff1a8",
+  background: "#D4AF37",
   flexShrink: 0,
 };
 
 const disclaimerStyle: React.CSSProperties = {
   padding: "22px 24px",
-  borderLeft: "2px solid rgba(255,241,168,0.65)",
+  borderLeft: "2px solid rgba(212,175,55,0.65)",
   background: "rgba(255,255,255,0.025)",
 };
 
@@ -1627,6 +1635,7 @@ const disclaimerTextStyle: React.CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
 
 
 

@@ -452,7 +452,7 @@ export default function CoachConversation({
         <div style={{ maxWidth: 790 }}>
           <div
             style={{
-              color: "#fff1a8",
+              color: "#D4AF37",
               fontSize: 11,
               fontWeight: 850,
               letterSpacing: "0.14em",
@@ -509,7 +509,7 @@ export default function CoachConversation({
                   style={{
                     color:
                       message.role === "coach"
-                        ? "#fff1a8"
+                        ? "#D4AF37"
                         : "#8f8f98",
                     fontSize: 10,
                     fontWeight: 850,
@@ -650,7 +650,8 @@ export default function CoachConversation({
                     ? "#dc2626"
                     : "#1a1a1a",
                 color: "#ffffff",
-                fontSize: 22,
+                display: "grid",
+                placeItems: "center",
                 fontFamily: "inherit",
                 cursor:
                   sending
@@ -658,7 +659,45 @@ export default function CoachConversation({
                     : "pointer",
               }}
             >
-              {recording ? "◼" : "🎤"}
+              {recording ? (
+  <span
+    style={{
+      width: 11,
+      height: 11,
+      borderRadius: 3,
+      background: "#ffffff",
+      display: "block",
+    }}
+  />
+) : (
+  <svg
+    width="21"
+    height="21"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="M12 3.5a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0v-5a3 3 0 0 0-3-3Z"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M6.5 10.8v.7a5.5 5.5 0 0 0 11 0v-.7"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 17v3.5M9.5 20.5h5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+)}
             </button>
 
             <button
@@ -668,12 +707,12 @@ export default function CoachConversation({
               style={{
                 alignSelf: "stretch",
                 minWidth: 132,
-                border: "1px solid rgba(255,241,168,0.78)",
+                border: "1px solid rgba(212,175,55,0.78)",
                 borderRadius: 0,
                 background:
                   !question.trim() || sending
-                    ? "rgba(255,241,168,0.12)"
-                    : "#fff1a8",
+                    ? "rgba(212,175,55,0.12)"
+                    : "#D4AF37",
                 color:
                   !question.trim() || sending
                     ? "#77776f"
@@ -766,7 +805,7 @@ export default function CoachConversation({
                   aria-hidden="true"
                   style={{
                     flex: "0 0 auto",
-                    color: sending ? "#66666c" : "#fff1a8",
+                    color: sending ? "#66666c" : "#D4AF37",
                     fontSize: 17,
                     lineHeight: 1,
                   }}
@@ -782,7 +821,7 @@ export default function CoachConversation({
           style={{
             marginTop: "clamp(38px, 6vw, 58px)",
             paddingLeft: 16,
-            borderLeft: "2px solid rgba(255,241,168,0.68)",
+            borderLeft: "2px solid rgba(212,175,55,0.68)",
             maxWidth: 760,
             color: "#85858e",
             fontSize: 13,
@@ -797,6 +836,9 @@ export default function CoachConversation({
     </section>
   );
 }
+
+
+
 
 
 

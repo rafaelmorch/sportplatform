@@ -230,7 +230,7 @@ export default function PerformanceAiProfilePage() {
             type="button"
             style={styles.primaryButton}
             onClick={() =>
-              router.push("/performance-ai/coach/consultation")
+              router.push("/performance-ai/coach?openConversation=1")
             }
           >
             Iniciar consulta
@@ -383,7 +383,7 @@ export default function PerformanceAiProfilePage() {
               type="button"
               style={styles.primaryButton}
               onClick={() =>
-                router.push("/performance-ai/coach/consultation")
+                router.push("/performance-ai/coach?openConversation=1")
               }
             >
               Atualizar meu perfil
@@ -462,11 +462,11 @@ const styles: Record<string, CSSProperties> = {
   },
 
   header: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "22px 16px 34px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-  },
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "20px 16px 28px",
+  borderBottom: "1px solid rgba(255,255,255,0.07)",
+},
 
   eyebrow: {
     color: "#d4af37",
@@ -476,97 +476,115 @@ const styles: Record<string, CSSProperties> = {
   },
 
   title: {
-    margin: "9px 0 0",
-    fontSize: "clamp(31px, 8vw, 48px)",
-    fontWeight: 850,
-    lineHeight: 1.03,
-    letterSpacing: "-0.045em",
-  },
+  margin: "8px 0 0",
+  fontSize: "clamp(34px, 8vw, 46px)",
+  fontWeight: 400,
+  lineHeight: 1.04,
+  letterSpacing: "-0.045em",
+},
 
   subtitle: {
-    maxWidth: 760,
-    margin: "14px 0 0",
-    color: "#a1a1aa",
-    fontSize: 14,
-    lineHeight: 1.65,
-  },
+  maxWidth: 760,
+  margin: "12px 0 0",
+  color: "rgba(255,255,255,0.48)",
+  fontSize: 13,
+  lineHeight: 1.7,
+},
 
   section: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "32px 16px 0",
-  },
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "30px 16px 0",
+},
 
   sectionHeader: {
-    paddingBottom: 15,
-    borderBottom: "1px solid rgba(255,255,255,0.12)",
-  },
+  paddingBottom: 12,
+  borderBottom: "1px solid rgba(255,255,255,0.08)",
+},
 
   sectionTitle: {
-    margin: "7px 0 0",
-    fontSize: 20,
-    fontWeight: 800,
-    lineHeight: 1.2,
-    letterSpacing: "-0.025em",
-  },
+  margin: "7px 0 0",
+  fontSize: 22,
+  fontWeight: 400,
+  lineHeight: 1.2,
+  letterSpacing: "-0.03em",
+},
 
   item: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 18,
-    width: "100%",
-    minHeight: 58,
-    boxSizing: "border-box",
-    padding: "16px 0",
-    borderBottom: "1px solid rgba(255,255,255,0.075)",
-  },
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 18,
+  width: "100%",
+  minHeight: 54,
+  boxSizing: "border-box",
+  padding: "14px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.055)",
+},
 
-  multilineItem: {
-    display: "block",
-  },
+  multilineitem: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 18,
+  width: "100%",
+  minHeight: 54,
+  boxSizing: "border-box",
+  padding: "14px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.055)",
+},
 
-  lastItem: {
-    borderBottom: "none",
-  },
+  lastitem: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 18,
+  width: "100%",
+  minHeight: 54,
+  boxSizing: "border-box",
+  padding: "14px 0",
+  borderBottom: "1px solid rgba(255,255,255,0.055)",
+},
 
   itemLabel: {
-    flexShrink: 0,
-    color: "#777780",
-    fontSize: 11,
-    fontWeight: 700,
-  },
+  flexShrink: 0,
+  color: "rgba(255,255,255,0.38)",
+  fontSize: 10,
+  fontWeight: 600,
+},
 
   itemValue: {
-    maxWidth: "64%",
-    color: "#e4e4e7",
-    fontSize: 13,
-    fontWeight: 650,
-    lineHeight: 1.55,
-    textAlign: "right",
-    overflowWrap: "anywhere",
-  },
+  maxWidth: "66%",
+  color: "#ffffff",
+  fontSize: 14,
+  fontWeight: 500,
+  lineHeight: 1.5,
+  textAlign: "right",
+  overflowWrap: "anywhere",
+},
 
   multilineValue: {
-    maxWidth: 780,
-    marginTop: 9,
-    color: "#d4d4d8",
-    fontWeight: 500,
-    textAlign: "left",
-  },
+  maxWidth: 780,
+  marginTop: 9,
+  color: "rgba(255,255,255,0.72)",
+  fontWeight: 400,
+  lineHeight: 1.7,
+  textAlign: "left",
+},
 
-  messageSection: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "42px 16px",
-  },
+  messagesection: {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "30px 16px 0",
+},
 
-  messageTitle: {
-    maxWidth: 720,
-    margin: "22px 0 12px",
-    fontSize: 26,
-    lineHeight: 1.15,
-  },
+  messagetitle: {
+  margin: "8px 0 0",
+  fontSize: "clamp(34px, 8vw, 46px)",
+  fontWeight: 400,
+  lineHeight: 1.04,
+  letterSpacing: "-0.045em",
+},
 
   messageText: {
     maxWidth: 720,
@@ -577,27 +595,26 @@ const styles: Record<string, CSSProperties> = {
   },
 
   aiIcon: {
-    display: "grid",
-    placeItems: "center",
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    border: "1px solid rgba(212,175,55,0.42)",
-    background: "rgba(212,175,55,0.09)",
-    color: "#f0d47a",
-    fontSize: 13,
-    fontWeight: 900,
-  },
+  display: "grid",
+  placeItems: "center",
+  width: 46,
+  height: 46,
+  borderRadius: 14,
+  border: "1px solid rgba(212,175,55,0.35)",
+  background: "rgba(212,175,55,0.06)",
+  color: "#D4AF37",
+  fontSize: 12,
+  fontWeight: 700,
+},
 
   actionSection: {
-    width: "100%",
-    boxSizing: "border-box",
-    marginTop: 36,
-    padding: "34px 16px 16px",
-    borderTop: "1px solid rgba(212,175,55,0.23)",
-    background:
-      "linear-gradient(180deg, rgba(212,175,55,0.055), rgba(212,175,55,0.01))",
-  },
+  width: "100%",
+  boxSizing: "border-box",
+  marginTop: 40,
+  padding: "30px 16px 16px",
+  borderTop: "1px solid rgba(255,255,255,0.09)",
+  background: "transparent",
+},
 
   actionContent: {
     maxWidth: 760,
@@ -605,32 +622,34 @@ const styles: Record<string, CSSProperties> = {
   },
 
   actionTitle: {
-    margin: "8px 0 10px",
-    fontSize: 23,
-    lineHeight: 1.18,
-  },
+  margin: "8px 0 9px",
+  fontSize: 24,
+  fontWeight: 400,
+  lineHeight: 1.18,
+  letterSpacing: "-0.03em",
+},
 
   actionText: {
-    margin: "0 0 22px",
-    color: "#92929b",
-    fontSize: 13,
-    lineHeight: 1.65,
-  },
+  margin: "0 0 20px",
+  color: "rgba(255,255,255,0.45)",
+  fontSize: 12,
+  lineHeight: 1.7,
+},
 
   primaryButton: {
-    width: "100%",
-    minHeight: 52,
-    boxSizing: "border-box",
-    border: "1px solid rgba(240,212,122,0.7)",
-    borderRadius: 12,
-    background:
-      "linear-gradient(180deg, #e2c65f 0%, #b68d20 100%)",
-    color: "#09090b",
-    fontFamily: "Montserrat, sans-serif",
-    fontSize: 13,
-    fontWeight: 850,
-    cursor: "pointer",
-  },
+  width: "100%",
+  minHeight: 50,
+  boxSizing: "border-box",
+  border: "1px solid rgba(212,175,55,0.55)",
+  borderRadius: 11,
+  background:
+    "linear-gradient(180deg, #D8B84C 0%, #B58C20 100%)",
+  color: "#09090b",
+  fontFamily: "Montserrat, sans-serif",
+  fontSize: 13,
+  fontWeight: 700,
+  cursor: "pointer",
+},
 
   secondaryButton: {
     width: "100%",
@@ -646,5 +665,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
 };
+
+
 
 

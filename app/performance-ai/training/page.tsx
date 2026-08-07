@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import PerformanceAiBackButton from "@/components/performance-ai/PerformanceAiBackButton";
+import TrainingDistanceChart from "@/components/performance-ai/TrainingDistanceChart";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type RangeKey = "7d" | "30d" | "6m" | "all";
@@ -153,6 +154,127 @@ function calculatePace(
   return `${minutes}:${seconds.toString().padStart(2, "0")} /km`;
 }
 
+function estimateActivityCalories(
+  activity: StravaActivityRow,
+  weightKg: number | null
+): number | null {
+  if (!weightKg || weightKg <= 0) {
+    return null;
+  }
+
+  const distanceKm =
+    (activity.distance ?? 0) / 1000;
+
+  const durationSeconds =
+    activity.moving_time ?? 0;
+
+  const durationHours =
+    durationSeconds / 3600;
+
+  const durationMinutes =
+    durationSeconds / 60;
+
+  const activityType = [
+    activity.sport_type,
+    activity.type,
+    activity.name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    activityType.includes("run") &&
+    distanceKm > 0
+  ) {
+    return Math.round(
+      weightKg * distanceKm
+    );
+  }
+
+  if (
+    (
+      activityType.includes("walk") ||
+      activityType.includes("hike")
+    ) &&
+    distanceKm > 0
+  ) {
+    return Math.round(
+      weightKg * distanceKm * 0.55
+    );
+  }
+
+  if (
+    (
+      activityType.includes("ride") ||
+      activityType.includes("cycling") ||
+      activityType.includes("bike")
+    ) &&
+    durationMinutes > 0
+  ) {
+    const averageSpeedKmh =
+      durationHours > 0
+        ? distanceKm / durationHours
+        : 0;
+
+    let met = 6;
+
+    if (averageSpeedKmh < 16) {
+      met = 4;
+    } else if (averageSpeedKmh < 19) {
+      met = 6;
+    } else if (averageSpeedKmh < 22) {
+      met = 8;
+    } else if (averageSpeedKmh < 25) {
+      met = 10;
+    } else if (averageSpeedKmh < 30) {
+      met = 12;
+    } else {
+      met = 14;
+    }
+
+    return Math.round(
+      (met * 3.5 * weightKg / 200) *
+        durationMinutes
+    );
+  }
+
+  if (
+    activityType.includes("swim") &&
+    durationMinutes > 0
+  ) {
+    const met = 8.3;
+
+    return Math.round(
+      (met * 3.5 * weightKg / 200) *
+        durationMinutes
+    );
+  }
+
+  if (durationMinutes > 0) {
+    const met = 6;
+
+    return Math.round(
+      (met * 3.5 * weightKg / 200) *
+        durationMinutes
+    );
+  }
+
+  return null;
+}
+
+function formatEstimatedCalories(
+  calories: number | null
+): string {
+  if (calories == null) {
+    return "-";
+  }
+
+  return `~${calories.toLocaleString(
+    "pt-BR"
+  )}`;
+}
+
 function getActivityName(activity: StravaActivityRow) {
   return (
     activity.name ??
@@ -209,6 +331,9 @@ export default function TrainingPage() {
   const [stravaConnected, setStravaConnected] =
     useState(false);
 
+  const [weightKg, setWeightKg] =
+    useState<number | null>(null);
+
   const [activities, setActivities] = useState<
     StravaActivityRow[]
   >([]);
@@ -237,6 +362,33 @@ export default function TrainingPage() {
           router.replace("/login");
           return;
         }
+
+        const {
+          data: performanceProfile,
+          error: profileError,
+        } = await supabase
+          .from("performance_ai_profiles")
+          .select("weight_kg")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (profileError) {
+          console.warn(
+            "Não foi possível carregar o peso do atleta:",
+            profileError
+          );
+        }
+
+        setWeightKg(
+          performanceProfile?.weight_kg != null
+            ? Number(performanceProfile.weight_kg)
+            : null
+        );
+
+        console.log(
+          "Training weightKg:",
+          performanceProfile?.weight_kg
+        );
 
         const { data: tokenRow, error: tokenError } =
           await supabase
@@ -370,6 +522,21 @@ export default function TrainingPage() {
     0
   );
 
+  const estimatedCalories =
+    filteredActivities.reduce(
+      (total, activity) =>
+        total +
+        (estimateActivityCalories(
+          activity,
+          weightKg
+        ) ?? 0),
+      0
+    );
+
+  const hasEstimatedCalories =
+    weightKg != null &&
+    filteredActivities.length > 0;
+
   const totalElevation = filteredActivities.reduce(
     (total, activity) =>
       total + (activity.total_elevation_gain ?? 0),
@@ -420,6 +587,15 @@ export default function TrainingPage() {
   const chartActivities = [...filteredActivities]
     .slice(0, 12)
     .reverse();
+
+  const trainingChartData = chartActivities.map(
+    (activity) => ({
+      label: formatShortDate(activity.start_date),
+      name: getActivityName(activity),
+      distanceKm:
+        (activity.distance ?? 0) / 1000,
+    })
+  );
 
   const chartWidth = 900;
   const chartHeight = 250;
@@ -525,7 +701,7 @@ export default function TrainingPage() {
 
         <h1 style={titleStyle}>
           Meus{" "}
-          <span style={{ color: "#fff1a8" }}>
+          <span style={{ color: "#D4AF37" }}>
             Treinamentos
           </span>
         </h1>
@@ -663,6 +839,26 @@ export default function TrainingPage() {
                   : "sem dados"}
               </div>
             </article>
+
+            <article style={metricCardStyle}>
+              <div style={metricLabelStyle}>
+                Calorias
+              </div>
+
+              <div style={metricValueStyle}>
+                {hasEstimatedCalories
+                  ? formatEstimatedCalories(
+                      estimatedCalories
+                    )
+                  : "-"}
+              </div>
+
+              <div style={metricDetailStyle}>
+                {hasEstimatedCalories
+                  ? "kcal estimadas"
+                  : "peso não informado"}
+              </div>
+            </article>
           </section>
 
           <section style={insightCardStyle}>
@@ -693,132 +889,18 @@ export default function TrainingPage() {
               </div>
             </div>
 
-            {chartPoints.length === 0 ? (
-              <div style={emptyStateStyle}>
-                Nenhuma atividade encontrada neste
-                período.
-              </div>
-            ) : (
-              <div style={chartContainerStyle}>
-                <svg
-                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                  preserveAspectRatio="none"
-                  style={chartSvgStyle}
-                  aria-label="Gráfico de distância por atividade"
-                >
-                  <defs>
-                    <linearGradient
-                      id="trainingAreaGradient"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="rgba(255,241,168,0.22)"
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="rgba(255,241,168,0.01)"
-                      />
-                    </linearGradient>
-                  </defs>
-
-                  {[0, 1, 2, 3].map(
-                    (step) => {
-                      const y =
-                        chartPaddingTop +
-                        ((chartHeight -
-                          chartPaddingTop -
-                          chartPaddingBottom) /
-                          3) *
-                          step;
-
-                      return (
-                        <line
-                          key={step}
-                          x1={chartPaddingX}
-                          x2={
-                            chartWidth -
-                            chartPaddingX
-                          }
-                          y1={y}
-                          y2={y}
-                          stroke="rgba(255,255,255,0.08)"
-                          strokeWidth="1"
-                        />
-                      );
-                    }
-                  )}
-
-                  {chartPoints.length > 1 ? (
-                    <path
-                      d={`${linePath} L ${
-                        chartPoints[
-                          chartPoints.length - 1
-                        ].x
-                      } ${
-                        chartHeight -
-                        chartPaddingBottom
-                      } L ${chartPoints[0].x} ${
-                        chartHeight -
-                        chartPaddingBottom
-                      } Z`}
-                      fill="url(#trainingAreaGradient)"
-                    />
-                  ) : null}
-
-                  {chartPoints.length > 1 ? (
-                    <path
-                      d={linePath}
-                      fill="none"
-                      stroke="#fff1a8"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  ) : null}
-
-                  {chartPoints.map(
-                    (point, index) => (
-                      <g key={index}>
-                        <circle
-                          cx={point.x}
-                          cy={point.y}
-                          r="6"
-                          fill="#050505"
-                          stroke="#fff1a8"
-                          strokeWidth="3"
-                        />
-
-                        <text
-                          x={point.x}
-                          y={point.y - 15}
-                          textAnchor="middle"
-                          fontSize="12"
-                          fill="#ffffff"
-                        >
-                          {point.distanceKm.toFixed(
-                            1
-                          )}
-                        </text>
-
-                        <text
-                          x={point.x}
-                          y={chartHeight - 13}
-                          textAnchor="middle"
-                          fontSize="11"
-                          fill="#9f9fa8"
-                        >
-                          {point.label}
-                        </text>
-                      </g>
-                    )
-                  )}
-                </svg>
-              </div>
-            )}
+        {trainingChartData.length === 0 ? (
+          <div style={emptyStateStyle}>
+            Nenhuma atividade encontrada neste
+            período.
+          </div>
+        ) : (
+          <div style={chartContainerStyle}>
+            <TrainingDistanceChart
+              data={trainingChartData}
+            />
+          </div>
+        )}
           </section>
 
           <section style={sectionCardStyle}>
@@ -962,12 +1044,35 @@ export default function TrainingPage() {
                                 )} bpm`
                               : "-"}
                           </div>
+
                           <div
                             style={
                               activityMetricLabelStyle
                             }
                           >
                             FC média
+                          </div>
+                        </div>
+                        <div>
+                          <div
+                            style={
+                              activityMetricValueStyle
+                            }
+                          >
+                            {formatEstimatedCalories(
+                              estimateActivityCalories(
+                                activity,
+                                weightKg
+                              )
+                            )}
+                          </div>
+
+                          <div
+                            style={
+                              activityMetricLabelStyle
+                            }
+                          >
+                            kcal estimadas
                           </div>
                         </div>
                       </div>
@@ -992,9 +1097,9 @@ const pageStyle: React.CSSProperties = {
   minHeight: "100vh",
   boxSizing: "border-box",
   padding:
-    "max(18px, env(safe-area-inset-top)) 16px max(110px, calc(90px + env(safe-area-inset-bottom)))",
+    "max(16px, env(safe-area-inset-top)) 16px max(120px, calc(90px + env(safe-area-inset-bottom)))",
   background:
-    "radial-gradient(circle at top right, rgba(255,241,168,0.08), transparent 34%), #050505",
+    "radial-gradient(circle at 50% -8%, rgba(212,175,55,0.08), transparent 30%), #050505",
   color: "#ffffff",
   fontFamily: "Montserrat, sans-serif",
 };
@@ -1009,7 +1114,7 @@ const loadingStyle: React.CSSProperties = {
 };
 
 const topBarStyle: React.CSSProperties = {
-  width: "min(1100px, 100%)",
+  width: "min(920px, 100%)",
   margin: "0 auto",
   display: "flex",
   alignItems: "center",
@@ -1018,25 +1123,25 @@ const topBarStyle: React.CSSProperties = {
 };
 
 const syncButtonStyle: React.CSSProperties = {
-  minHeight: 42,
-  padding: "0 16px",
-  border: "1px solid rgba(255,241,168,0.35)",
-  borderRadius: 8,
-  background: "rgba(255,241,168,0.08)",
-  color: "#fff1a8",
+  minHeight: 40,
+  padding: "0 14px",
+  border: "1px solid rgba(212,175,55,0.38)",
+  borderRadius: 11,
+  background: "rgba(212,175,55,0.055)",
+  color: "#D4AF37",
   fontFamily: "Montserrat, sans-serif",
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 600,
 };
 
 const heroStyle: React.CSSProperties = {
-  width: "min(1100px, 100%)",
-  margin: "44px auto 0",
-  padding: "0 0 34px",
+  width: "min(920px, 100%)",
+  margin: "34px auto 0",
+  padding: "0 0 30px",
 };
 
 const eyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 11,
   fontWeight: 700,
   letterSpacing: "0.15em",
@@ -1045,19 +1150,19 @@ const eyebrowStyle: React.CSSProperties = {
 };
 
 const titleStyle: React.CSSProperties = {
-  margin: "13px 0 0",
+  margin: "10px 0 0",
   color: "#ffffff",
-  fontSize: "clamp(38px, 7vw, 64px)",
-  fontWeight: 700,
-  lineHeight: 1,
+  fontSize: "clamp(36px, 7vw, 54px)",
+  fontWeight: 400,
+  lineHeight: 1.04,
   letterSpacing: "-0.045em",
 };
 
 const subtitleStyle: React.CSSProperties = {
-  maxWidth: 720,
-  margin: "18px 0 0",
-  color: "#b4b4bc",
-  fontSize: "clamp(14px, 2vw, 17px)",
+  maxWidth: 650,
+  margin: "14px 0 0",
+  color: "rgba(255,255,255,0.5)",
+  fontSize: 14,
   lineHeight: 1.7,
 };
 
@@ -1071,13 +1176,13 @@ const connectionCardStyle: React.CSSProperties = {
   gap: 24,
   flexWrap: "wrap",
   padding: 24,
-  border: "1px solid rgba(255,241,168,0.2)",
+  border: "1px solid rgba(212,175,55,0.2)",
   borderRadius: 12,
   background: "#111113",
 };
 
 const cardEyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#D4AF37",
   fontSize: 10,
   fontWeight: 700,
   letterSpacing: "0.14em",
@@ -1102,9 +1207,9 @@ const connectionTextStyle: React.CSSProperties = {
 const goldButtonStyle: React.CSSProperties = {
   minHeight: 44,
   padding: "0 18px",
-  border: "1px solid #fff1a8",
+  border: "1px solid #D4AF37",
   borderRadius: 8,
-  background: "#fff1a8",
+  background: "#D4AF37",
   color: "#111111",
   fontFamily: "Montserrat, sans-serif",
   fontSize: 14,
@@ -1113,13 +1218,16 @@ const goldButtonStyle: React.CSSProperties = {
 };
 
 const rangeSectionStyle: React.CSSProperties = {
-  width: "min(1100px, 100%)",
-  margin: "0 auto 18px",
+  width: "min(920px, 100%)",
+  margin: "0 auto 20px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   gap: 14,
   flexWrap: "wrap",
+  paddingBottom: 18,
+  borderBottom:
+    "1px solid rgba(255,255,255,0.07)",
 };
 
 const rangeLabelStyle: React.CSSProperties = {
@@ -1148,41 +1256,47 @@ const rangeButtonStyle: React.CSSProperties = {
 
 const rangeButtonActiveStyle: React.CSSProperties = {
   ...rangeButtonStyle,
-  border: "1px solid rgba(255,241,168,0.45)",
-  background: "rgba(255,241,168,0.12)",
-  color: "#fff1a8",
+  border: "1px solid rgba(212,175,55,0.45)",
+  background: "rgba(212,175,55,0.12)",
+  color: "#D4AF37",
 };
 
 const metricsGridStyle: React.CSSProperties = {
-  width: "min(1100px, 100%)",
+  width: "min(920px, 100%)",
   margin: "0 auto",
   display: "grid",
   gridTemplateColumns:
-    "repeat(auto-fit, minmax(170px, 1fr))",
-  gap: 12,
+    "repeat(auto-fit, minmax(130px, 1fr))",
+  borderTop:
+    "1px solid rgba(255,255,255,0.075)",
+  borderBottom:
+    "1px solid rgba(255,255,255,0.075)",
 };
 
 const metricCardStyle: React.CSSProperties = {
-  minHeight: 132,
+  minHeight: 122,
   boxSizing: "border-box",
-  padding: 18,
-  border: "1px solid rgba(255,255,255,0.09)",
-  borderRadius: 10,
-  background: "#111113",
+  padding: "20px 16px",
+  border: 0,
+  borderRight:
+    "1px solid rgba(255,255,255,0.065)",
+  borderRadius: 0,
+  background: "transparent",
 };
 
 const metricLabelStyle: React.CSSProperties = {
-  color: "#9f9fa8",
-  fontSize: 12,
+  color: "rgba(255,255,255,0.42)",
+  fontSize: 11,
   lineHeight: 1.4,
 };
 
 const metricValueStyle: React.CSSProperties = {
-  marginTop: 14,
+  marginTop: 12,
   color: "#ffffff",
-  fontSize: 30,
-  fontWeight: 600,
+  fontSize: "clamp(25px, 5vw, 32px)",
+  fontWeight: 400,
   lineHeight: 1,
+  letterSpacing: "-0.035em",
 };
 
 const metricDetailStyle: React.CSSProperties = {
@@ -1192,13 +1306,14 @@ const metricDetailStyle: React.CSSProperties = {
 };
 
 const insightCardStyle: React.CSSProperties = {
-  width: "min(1100px, 100%)",
-  margin: "14px auto 0",
+  width: "min(920px, 100%)",
+  margin: "28px auto 0",
   boxSizing: "border-box",
-  padding: 20,
-  borderLeft: "3px solid #fff1a8",
-  borderRadius: 8,
-  background: "#111113",
+  padding: "4px 0 4px 18px",
+  border: 0,
+  borderLeft: "2px solid #D4AF37",
+  borderRadius: 0,
+  background: "transparent",
 };
 
 const insightTextStyle: React.CSSProperties = {
@@ -1209,13 +1324,15 @@ const insightTextStyle: React.CSSProperties = {
 };
 
 const sectionCardStyle: React.CSSProperties = {
-  width: "min(1100px, 100%)",
-  margin: "16px auto 0",
+  width: "min(920px, 100%)",
+  margin: "38px auto 0",
   boxSizing: "border-box",
-  padding: 20,
-  border: "1px solid rgba(255,255,255,0.09)",
-  borderRadius: 12,
-  background: "#0d0d0f",
+  padding: "32px 0 0",
+  border: 0,
+  borderTop:
+    "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 0,
+  background: "transparent",
 };
 
 const sectionHeadingRowStyle: React.CSSProperties = {
@@ -1227,34 +1344,35 @@ const sectionHeadingRowStyle: React.CSSProperties = {
 };
 
 const sectionTitleStyle: React.CSSProperties = {
-  margin: "8px 0 0",
+  margin: "7px 0 0",
   color: "#ffffff",
-  fontSize: 24,
-  fontWeight: 600,
+  fontSize: 27,
+  fontWeight: 400,
+  letterSpacing: "-0.03em",
 };
 
 const averageBadgeStyle: React.CSSProperties = {
   padding: "7px 10px",
-  border: "1px solid rgba(255,241,168,0.2)",
-  borderRadius: 7,
-  background: "rgba(255,241,168,0.07)",
-  color: "#fff1a8",
-  fontSize: 12,
+  border: "1px solid rgba(212,175,55,0.2)",
+  borderRadius: 999,
+  background: "rgba(212,175,55,0.04)",
+  color: "#D4AF37",
+  fontSize: 11,
 };
 
 const chartContainerStyle: React.CSSProperties = {
   marginTop: 22,
   overflowX: "auto",
-  border: "1px solid rgba(255,255,255,0.07)",
-  borderRadius: 10,
+  border: 0,
+  borderRadius: 0,
   background:
-    "linear-gradient(180deg, rgba(255,255,255,0.025), transparent)",
+    "linear-gradient(180deg, rgba(212,175,55,0.025), transparent)",
 };
 
 const chartSvgStyle: React.CSSProperties = {
   width: "100%",
-  minWidth: 720,
-  height: 280,
+  minWidth: 620,
+  height: 270,
   display: "block",
 };
 
@@ -1264,21 +1382,22 @@ const summaryNumbersStyle: React.CSSProperties = {
 };
 
 const activitiesListStyle: React.CSSProperties = {
-  marginTop: 20,
+  marginTop: 16,
   display: "grid",
-  gap: 10,
 };
 
 const activityCardStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns:
-    "minmax(160px, 1.2fr) minmax(320px, 2fr)",
-  gap: 18,
+    "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+  gap: 22,
   alignItems: "center",
-  padding: 16,
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 9,
-  background: "#131315",
+  padding: "22px 0",
+  border: 0,
+  borderBottom:
+    "1px solid rgba(255,255,255,0.16)",
+  borderRadius: 0,
+  background: "transparent",
 };
 
 const activityMainStyle: React.CSSProperties = {
@@ -1295,24 +1414,27 @@ const activityNameStyle: React.CSSProperties = {
   marginTop: 6,
   overflow: "hidden",
   color: "#ffffff",
-  fontSize: 15,
-  fontWeight: 500,
+  fontSize: 18,
+  fontWeight: 400,
   lineHeight: 1.35,
   textOverflow: "ellipsis",
   whiteSpace: "nowrap",
 };
 
 const activityTypeStyle: React.CSSProperties = {
-  marginTop: 5,
-  color: "#fff1a8",
-  fontSize: 11,
+  marginTop: 6,
+  color: "#D4AF37",
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
 };
 
 const activityMetricsStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns:
-    "repeat(4, minmax(70px, 1fr))",
-  gap: 12,
+    "repeat(5, minmax(0, 1fr))",
+  gap: 14,
 };
 
 const activityMetricValueStyle: React.CSSProperties = {
@@ -1321,6 +1443,7 @@ const activityMetricValueStyle: React.CSSProperties = {
   fontWeight: 500,
   lineHeight: 1.3,
 };
+
 
 const activityMetricLabelStyle: React.CSSProperties = {
   marginTop: 4,
@@ -1346,7 +1469,7 @@ const messageStyle: React.CSSProperties = {
   boxSizing: "border-box",
   margin: "18px auto 0",
   padding: "12px 14px",
-  border: "1px solid rgba(255,241,168,0.25)",
+  border: "1px solid rgba(212,175,55,0.25)",
   borderRadius: 8,
   background: "rgba(17,17,19,0.96)",
   color: "#d4d4d8",
@@ -1354,3 +1477,12 @@ const messageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   boxShadow: "0 12px 36px rgba(0,0,0,0.42)",
 };
+
+
+
+
+
+
+
+
+
