@@ -217,8 +217,7 @@ function PerformanceCenter({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(min(100%, 310px), 1fr))",
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: "clamp(32px, 7vw, 80px)",
             alignItems: "end",
           }}
@@ -306,23 +305,32 @@ function PerformanceCenter({
             <article
               key={area.title}
               style={{
-                padding: "clamp(25px, 4vw, 36px) 0",
+                width: "100%",
+                maxWidth: "100%",
+                boxSizing: "border-box",
+                margin: 0,
+                padding: "16px",
+                border: 0,
                 borderBottom:
                   index === areas.length - 1
                     ? "none"
-                    : "1px solid rgba(255,255,255,0.09)",
+                    : "1px solid rgba(255,255,255,0.13)",
+                borderRadius: 0,
+                background: "transparent",
+                overflow: "hidden",
               }}
             >
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns:
-                    "minmax(0, 1fr) minmax(88px, auto)",
-                  gap: "clamp(22px, 5vw, 56px)",
-                  alignItems: "start",
+                  gridTemplateColumns: "minmax(0, 1fr) 52px",
+                  gap: 10,
+                  alignItems: "center",
+                  width: "100%",
+                  minWidth: 0,
                 }}
               >
-                <div style={{ minWidth: 0 }}>
+                <div style={{ minWidth: 0, maxWidth: "100%", overflowWrap: "anywhere" }}>
                   <div
                     style={{
                       display: "flex",
@@ -347,7 +355,7 @@ function PerformanceCenter({
                     <h3
                       style={{
                         margin: 0,
-                        color: "#f4f4f5",
+                        color: "#ffffff",
                         fontSize: "clamp(18px, 2.5vw, 22px)",
                         fontWeight: 760,
                         lineHeight: 1.3,
@@ -356,64 +364,72 @@ function PerformanceCenter({
                       {area.title}
                     </h3>
 
-                    <span
-                      style={{
-                        color: area.available ? "#F1D36B" : "#8f8f98",
-                        fontSize: 10,
-                        fontWeight: 800,
-                        lineHeight: 1.4,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {area.status}
-                    </span>
-                  </div>
+                </div>
 
-                  <p
+                <p
+                  style={{
+                    margin: "5px 0 0",
+                    maxWidth: "100%",
+                    color: "#d4d4d8",
+                    fontSize: 13,
+                    lineHeight: 1.4,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {area.description}
+                </p>
+
+                <div
+                  style={{
+                    marginTop: 5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    minWidth: 0,
+                  }}
+                >
+                  <span
                     style={{
-                      margin: "10px 0 0",
-                      maxWidth: 760,
-                      color: "#a1a1aa",
-                      fontSize: 14,
-                      lineHeight: 1.7,
+                      color: area.available ? "#F1D36B" : "#8f8f98",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      lineHeight: 1.3,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {area.description}
-                  </p>
-
-                  <p
-                    style={{
-                      margin: "8px 0 0",
-                      color: "#73737c",
-                      fontSize: 12,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {area.detail}
-                  </p>
+                    {area.status}
+                  </span>
 
                   <Link
                     href={area.href}
                     style={{
-                      display: "inline-flex",
-                      marginTop: 15,
                       color: "#F1D36B",
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: 780,
-                      lineHeight: 1.4,
+                      lineHeight: 1.3,
                       textDecoration: "none",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {area.action} →
                   </Link>
                 </div>
+              </div>
 
-                <div style={{ textAlign: "right" }}>
+              <div
+                style={{
+                  textAlign: "right",
+                  alignSelf: "center",
+                }}
+              >
                   <div
                     style={{
                       color: "#ffffff",
-                      fontSize: "clamp(28px, 5vw, 44px)",
+                      fontSize: "clamp(24px, 5vw, 34px)",
                       fontWeight: 780,
                       lineHeight: 1,
                       letterSpacing: "-0.05em",
@@ -480,7 +496,7 @@ function CoachAccess() {
           style={{
             display: "flex",
             alignItems: "flex-start",
-            gap: 12,
+            gap: 10,
           }}
         >
           <div
@@ -940,7 +956,7 @@ function PerformanceAIPage() {
       available: completedProfileFields >= 4,
     },
     {
-      title: "Treinamentos",
+      title: "Treinos",
       score: Math.round(trainingScore),
       status:
         stravaActivities.length > 0
@@ -1098,7 +1114,7 @@ const pageStyle: React.CSSProperties = {
   padding: "20px 0 110px",
   background:
     "radial-gradient(circle at 50% -120px, rgba(212,175,55,0.13) 0%, rgba(212,175,55,0.035) 24%, rgba(9,9,11,0) 48%), linear-gradient(180deg, #09090b 0%, #050506 55%, #000000 100%)",
-  color: "#f4f4f5",
+  color: "#ffffff",
   fontFamily: "Montserrat, sans-serif",
 };
 
@@ -1135,6 +1151,21 @@ const backLinkStyle: React.CSSProperties = {
   fontWeight: 650,
   textDecoration: "none",
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

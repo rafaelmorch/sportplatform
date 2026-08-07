@@ -44,28 +44,28 @@
 
 .description {
   margin: 15px 0 0;
-  color: rgba(255, 255, 255, 0.52);
+  color: rgba(255, 255, 255, 0.76);
   font-size: 14px;
   line-height: 1.7;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 32px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 24px;
 }
 
 .card {
   display: flex;
   min-width: 0;
-  min-height: 184px;
+  min-height: 112px;
   box-sizing: border-box;
   flex-direction: column;
   justify-content: space-between;
-  padding: 19px;
+  padding: 16px 18px;
   border: 1px solid rgba(255, 255, 255, 0.085);
-  border-radius: 19px;
+  border-radius: 12px;
   background:
     linear-gradient(
       145deg,
@@ -115,7 +115,7 @@
   align-items: center;
   gap: 7px;
   color: rgba(255, 255, 255, 0.38);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -159,15 +159,15 @@
 .scoreTotal {
   margin-left: 2px;
   color: rgba(255, 255, 255, 0.32);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .areaDescription {
   display: -webkit-box;
   overflow: hidden;
   margin: 18px 0;
-  color: rgba(255, 255, 255, 0.52);
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 15px;
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -181,12 +181,12 @@
 
 .scoreStatus {
   color: rgba(255, 255, 255, 0.44);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .action {
   color: #f1d36b;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -274,15 +274,15 @@
 }
 
   .scoreValue {
-    font-size: 28px;
+    font-size: 34px;
   }
 
   .areaDescription {
-    font-size: 11px;
+    font-size: 15px;
   }
 
   .action {
-    font-size: 10px;
+    font-size: 13px;
   }
 
   .qualityCard {
@@ -295,4 +295,8 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+
+
 
