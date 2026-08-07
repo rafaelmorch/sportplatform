@@ -55,8 +55,8 @@ function TabIcon({
   type: TabItem["icon"];
 }) {
   const commonProps = {
-    width: 20,
-    height: 20,
+    width: 23,
+    height: 23,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -239,8 +239,8 @@ export default function BottomNavbar() {
           >
             <span
               style={{
-                width: 22,
-                height: 22,
+                width: 25,
+                height: 25,
                 display: "grid",
                 placeItems: "center",
                 flexShrink: 0,
@@ -253,8 +253,8 @@ export default function BottomNavbar() {
               style={{
                 maxWidth: "100%",
                 fontSize: isCoach
-                  ? 9.5
-                  : 9,
+                  ? 11
+                  : 10.4,
                 fontWeight: isCoach
                   ? 700
                   : active
@@ -292,5 +292,6 @@ export default function BottomNavbar() {
     </nav>
   );
 }
+
 
 
