@@ -9,7 +9,7 @@ import "@fontsource/montserrat/700.css";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import BottomNavbar from "@/components/BottomNavbar";
+
 import UserAvatar from "@/components/UserAvatar";
 
 type Post = {
@@ -959,11 +959,12 @@ export default function FeedPage() {
           </div>
         </main>
 
-        <BottomNavbar />
+    
       </div>
     </>
   );
 }
+
 
 
 

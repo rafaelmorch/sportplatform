@@ -87,35 +87,52 @@ export default function PerformanceAiSubscribePage() {
   };
 
   return (
-    <main
+  <main
+    style={{
+      width: "100%",
+      height: "100dvh",
+      overflow: "hidden",
+      boxSizing: "border-box",
+
+      paddingTop:
+        "max(16px, env(safe-area-inset-top))",
+
+      paddingLeft: 18,
+      paddingRight: 18,
+
+      paddingBottom:
+        "calc(72px + env(safe-area-inset-bottom))",
+
+      background:
+        "radial-gradient(circle at 50% -100px, rgba(212,175,55,0.10), transparent 34%), #050505",
+
+      color: "#ffffff",
+      fontFamily: "Montserrat, sans-serif",
+    }}
+  >
+    <section
       style={{
-        minHeight: "100vh",
-        boxSizing: "border-box",
-        padding:
-          "max(22px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom))",
-        background:
-          "radial-gradient(circle at top right, rgba(255,241,168,0.1), transparent 35%), #050505",
-        color: "#ffffff",
-        fontFamily: "Montserrat, sans-serif",
+        width: "min(680px, 100%)",
+        height: "100%",
+        margin: "0 auto",
+
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-start",
+        gap: 10,
+        overflow: "hidden",
       }}
     >
-      <section
+      {/* CABEÇALHO */}
+      <header
         style={{
-          width: "min(720px, 100%)",
-          margin: "0 auto",
-          padding: "clamp(30px, 6vw, 58px)",
-          boxSizing: "border-box",
-          border:
-            "1px solid rgba(255,241,168,0.2)",
-          borderRadius: 18,
-          background: "rgba(10,10,10,0.96)",
-          boxShadow:
-            "0 28px 90px rgba(0,0,0,0.45)",
+          flexShrink: 0,
+          marginBottom: 21,
         }}
       >
         <div
           style={{
-            color: "#fff1a8",
+            color: "#D4AF37",
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: "0.15em",
@@ -127,9 +144,10 @@ export default function PerformanceAiSubscribePage() {
 
         <h1
           style={{
-            margin: "16px 0 0",
-            fontSize: "clamp(38px, 8vw, 64px)",
-            fontWeight: 500,
+            margin: "3px 0 0",
+            fontSize:
+              "clamp(34px, 8vw, 50px)",
+            fontWeight: 400,
             lineHeight: 1,
             letterSpacing: "-0.045em",
           }}
@@ -139,10 +157,14 @@ export default function PerformanceAiSubscribePage() {
 
         <p
           style={{
-            margin: "22px 0 0",
-            color: "#c4c4cc",
-            fontSize: "clamp(15px, 2vw, 18px)",
-            lineHeight: 1.7,
+            maxWidth: 560,
+            margin: "2px 0 0",
+
+            color:
+              "#D6D3C8",
+
+            fontSize: 13,
+            lineHeight: 1.55,
           }}
         >
           Treinamento, alimentação e acompanhamento
@@ -160,55 +182,321 @@ export default function PerformanceAiSubscribePage() {
         {paymentState === "processing" ? (
           <div style={noticeStyle}>
             Seu pagamento foi recebido e a assinatura
-            ainda está sendo confirmada. Aguarde alguns
-            segundos e tente acessar novamente.
+            ainda está sendo confirmada.
           </div>
         ) : null}
+      </header>
 
+      {/* ÁREA CENTRAL */}
+      <section
+        style={{
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          marginTop: 0,
+          marginBottom: 21,
+        }}
+      >
         <div
           style={{
-            marginTop: 34,
-            padding: "24px 0",
-            borderTop:
-              "1px solid rgba(255,255,255,0.1)",
-            borderBottom:
-              "1px solid rgba(255,255,255,0.1)",
+            flexShrink: 0,
+
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+
+            gap: 1,
+            marginBottom: 0,
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "#D4AF37",
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.13em",
+                textTransform: "uppercase",
+              }}
+            >
+              O que você recebe
+            </div>
+
+            <h2
+              style={{
+                margin: "2px 0 0",
+                color: "#ffffff",
+
+                fontSize:
+                  "clamp(15px, 4vw, 18px)",
+
+                fontWeight: 400,
+                lineHeight: 1.25,
+              }}
+            >
+              Um Coach que entende o seu contexto
+            </h2>
+          </div>
+
+          <span
+            style={{
+              flexShrink: 0,
+              color:
+                "#A9A69C",
+              fontSize: 14,
+            }}
+          >
+            Deslize →
+          </span>
+        </div>
+
+        {/* CARROSSEL */}
+        <div
+          style={{
+            width: "100%",
+
+            display: "flex",
+            alignItems: "center",
+
+            gap: 1,
+
+            overflowX: "auto",
+            overflowY: "hidden",
+
+            scrollSnapType: "x mandatory",
+            scrollBehavior: "smooth",
+
+            WebkitOverflowScrolling:
+              "touch",
+
+            scrollbarWidth: "none",
+
+            paddingBottom: 2,
           }}
         >
           {[
-            "Plano personalizado para os próximos 7 dias",
-            "Treinamento e alimentação ajustados automaticamente",
-            "Análise dos seus dados do Strava",
-            "Perfil, corpo, saúde e nutrição integrados",
-            "Conversa com o Coach IA",
-          ].map((item) => (
-            <div
-              key={item}
+            {
+              number: "01",
+              title:
+                "Seu plano se adapta a você",
+              text:
+                "O Coach combina seu objetivo, disponibilidade, histórico de treinos e evolução para organizar os próximos 7 dias.",
+              detail:
+                "Seu planejamento deixa de ser uma sequência genérica e passa a considerar o momento atual da sua preparação.",
+            },
+            {
+              number: "02",
+              title:
+                "Treino com contexto, não genérico",
+              text:
+                "Distância, duração, frequência cardíaca e histórico esportivo ajudam o Coach a entender sua carga atual.",
+              detail:
+                "A orientação de cada dia considera o que você já fez, sua capacidade atual e o que vem pela frente.",
+            },
+            {
+              number: "03",
+              title:
+                "Treino e alimentação juntos",
+              text:
+                "A estratégia alimentar acompanha a exigência do treino e a recuperação necessária naquele dia.",
+              detail:
+                "Treinos mais exigentes e dias de recuperação recebem orientações diferentes de alimentação e hidratação.",
+            },
+            {
+              number: "04",
+              title:
+                "Sua performance em um único contexto",
+              text:
+                "Perfil, corpo, exames, alimentação e dados esportivos passam a fazer parte da mesma análise.",
+              detail:
+                "Em vez de informações isoladas, o Coach utiliza o conjunto de dados disponível para compreender melhor sua evolução.",
+            },
+            {
+              number: "05",
+              title:
+                "Pergunte, ajuste e evolua",
+              text:
+                "Converse com o Coach sobre treino, recuperação, provas e mudanças no seu planejamento.",
+              detail:
+                "Você pode tirar dúvidas e contextualizar situações que os números sozinhos não conseguem explicar.",
+            },
+            {
+              number: "06",
+              title:
+                "Planejado x realizado",
+              text:
+                "Veja o que estava programado e compare com seus treinos e refeições realmente registrados.",
+              detail:
+                "O histórico ajuda a identificar consistência, mudanças de rotina e oportunidades de ajuste no próximo ciclo.",
+            },
+          ].map((feature) => (
+            <article
+              key={feature.number}
               style={{
-                padding: "10px 0",
-                color: "#e4e4e7",
-                fontSize: 15,
-                lineHeight: 1.55,
+                flex:
+                  "0 0 calc(92% - 8px)",
+
+                height: 270,
+                minHeight: 270,
+
+                boxSizing: "border-box",
+
+                padding:
+                  "clamp(18px, 4vw, 24px)",
+
+                display: "flex",
+                flexDirection: "column",
+
+                border:
+                  "1px solid rgba(212,175,55,0.20)",
+
+                borderRadius: 16,
+
+                background:
+                  "linear-gradient(160deg, rgba(212,175,55,0.075) 0%, rgba(255,255,255,0.018) 45%, rgba(255,255,255,0.008) 100%)",
+
+                scrollSnapAlign: "start",
+                scrollSnapStop: "always",
+
+                overflow: "hidden",
               }}
             >
-              {item}
-            </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent:
+                    "space-between",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#D4AF37",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  {feature.number}
+                </span>
+
+                <div
+                  aria-hidden="true"
+                  style={{
+                    width: 30,
+                    height: 30,
+
+                    display: "grid",
+                    placeItems: "center",
+
+                    border:
+                      "1px solid rgba(212,175,55,0.26)",
+
+                    borderRadius: "50%",
+
+                    color: "#D4AF37",
+                    fontSize: 12,
+                  }}
+                >
+                  ✦
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+
+                    color: "#ffffff",
+
+                    fontSize:
+                      "clamp(20px, 5vw, 27px)",
+
+                    fontWeight: 500,
+                    lineHeight: 1.15,
+
+                    letterSpacing:
+                      "-0.025em",
+                  }}
+                >
+                  {feature.title}
+                </h3>
+
+                <p
+                  style={{
+                    margin: "12px 0 0",
+
+                    color:
+                      "#D6D3C8",
+
+                    fontSize:
+                      "clamp(13px, 3.2vw, 15px)",
+
+                    lineHeight: 1.65,
+                  }}
+                >
+                  {feature.text}
+                </p>
+
+                <div
+                  style={{
+                    marginTop: 18,
+                    paddingTop: 16,
+
+                    borderTop:
+                      "1px solid rgba(255,255,255,0.08)",
+
+                    color:
+                      "#A9A69C",
+
+                    fontSize:
+                      "clamp(12px, 2.8vw, 13px)",
+
+                    lineHeight: 1.65,
+                  }}
+                >
+                  {feature.detail}
+                </div>
+              </div>
+            </article>
           ))}
         </div>
+      </section>
 
+      {/* PREÇO / CTA */}
+      <footer
+        style={{
+          flexShrink: 0,
+
+          paddingTop: 3,
+
+          borderTop:
+            "1px solid rgba(255,255,255,0.09)",
+
+          background: "#050505",
+        }}
+      >
         <div
           style={{
-            marginTop: 30,
             display: "flex",
             alignItems: "flex-end",
-            gap: 8,
+            gap: 1,
           }}
         >
           <div
             style={{
-              fontSize: "clamp(40px, 8vw, 58px)",
-              fontWeight: 500,
-              lineHeight: 1,
+              fontSize:
+                "clamp(32px, 8vw, 44px)",
+
+              fontWeight: 400,
+              lineHeight: 0.95,
+
+              letterSpacing: "-0.04em",
             }}
           >
             US$ 24,99
@@ -216,8 +504,11 @@ export default function PerformanceAiSubscribePage() {
 
           <div
             style={{
-              paddingBottom: 7,
-              color: "#a1a1aa",
+              paddingBottom: 3,
+
+              color:
+                "#A9A69C",
+
               fontSize: 14,
             }}
           >
@@ -227,26 +518,33 @@ export default function PerformanceAiSubscribePage() {
 
         <div
           style={{
-            marginTop: 10,
-            color: "#85858e",
-            fontSize: 12,
-            lineHeight: 1.6,
+            marginTop: 6,
+
+            color:
+              "#A9A69C",
+
+            fontSize: 13,
+            lineHeight: 1.4,
           }}
         >
           Renovação automática mensal. Sem período
           gratuito. Cancele quando desejar.
         </div>
 
-
         <label
           style={{
             display: "flex",
             alignItems: "flex-start",
-            gap: 12,
-            marginTop: 24,
-            color: "#d4d4d8",
-            fontSize: 13,
-            lineHeight: 1.7,
+
+            gap: 8,
+            marginTop: 6,
+
+            color:
+              "#D6D3C8",
+
+            fontSize: 15,
+            lineHeight: 1.5,
+
             cursor: "pointer",
           }}
         >
@@ -254,13 +552,19 @@ export default function PerformanceAiSubscribePage() {
             type="checkbox"
             checked={acceptedTerms}
             onChange={(event) =>
-              setAcceptedTerms(event.target.checked)
+              setAcceptedTerms(
+                event.target.checked
+              )
             }
             style={{
-              width: 20,
-              height: 20,
-              marginTop: 2,
+              width: 15,
+              height: 15,
+
+              marginTop: 0,
+
               flexShrink: 0,
+
+              accentColor: "#D4AF37",
             }}
           />
 
@@ -270,7 +574,7 @@ export default function PerformanceAiSubscribePage() {
               href="/terms"
               target="_blank"
               style={{
-                color: "#FFF1A8",
+                color: "#D4AF37",
               }}
             >
               Termos de Uso
@@ -280,7 +584,7 @@ export default function PerformanceAiSubscribePage() {
               href="/privacy"
               target="_blank"
               style={{
-                color: "#FFF1A8",
+                color: "#D4AF37",
               }}
             >
               Política de Privacidade
@@ -288,19 +592,27 @@ export default function PerformanceAiSubscribePage() {
             .
           </span>
         </label>
+
         {errorMessage ? (
           <div
             role="alert"
             style={{
-              marginTop: 20,
-              padding: "13px 15px",
+              marginTop: 8,
+
+              padding: "8px 10px",
+
               border:
-                "1px solid rgba(248,113,113,0.35)",
+                "1px solid rgba(248,113,113,0.28)",
+
+              borderRadius: 8,
+
               background:
-                "rgba(127,29,29,0.14)",
+                "rgba(127,29,29,0.12)",
+
               color: "#fecaca",
-              fontSize: 13,
-              lineHeight: 1.6,
+
+              fontSize: 11,
+              lineHeight: 1.45,
             }}
           >
             {errorMessage}
@@ -309,27 +621,46 @@ export default function PerformanceAiSubscribePage() {
 
         <button
           type="button"
-          disabled={loading || !acceptedTerms}
-          onClick={() => void beginCheckout()}
+          disabled={
+            loading || !acceptedTerms
+          }
+          onClick={() =>
+            void beginCheckout()
+          }
           style={{
             width: "100%",
-            minHeight: 56,
-            marginTop: 28,
-            border: "1px solid #fff1a8",
+            minHeight: 43,
+
+            marginTop: 6,
+
+            border:
+              "1px solid rgba(212,175,55,0.68)",
+
             borderRadius: 10,
-            background: loading || !acceptedTerms
-              ? "rgba(255,241,168,0.16)"
-              : "#fff1a8",
-            color: loading || !acceptedTerms
-              ? "#77776f"
-              : "#111111",
-            padding: "0 22px",
-            fontFamily: "Montserrat, sans-serif",
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: loading || !acceptedTerms
-              ? "not-allowed"
-              : "pointer",
+
+            background:
+              loading ||
+              !acceptedTerms
+                ? "rgba(212,175,55,0.10)"
+                : "linear-gradient(180deg, #DDBD4F 0%, #B88B1D 100%)",
+
+            color:
+              loading ||
+              !acceptedTerms
+                ? "#756a4b"
+                : "#090909",
+
+            fontFamily:
+              "Montserrat, sans-serif",
+
+            fontSize: 13,
+            fontWeight: 700,
+
+            cursor:
+              loading ||
+              !acceptedTerms
+                ? "not-allowed"
+                : "pointer",
           }}
         >
           {loading
@@ -337,43 +668,74 @@ export default function PerformanceAiSubscribePage() {
             : "Assinar Performance AI"}
         </button>
 
-        {paymentState === "processing" ? (
+        {paymentState ===
+        "processing" ? (
           <button
             type="button"
             onClick={() =>
-              router.replace("/performance-ai")
+              router.replace(
+                "/performance-ai"
+              )
             }
             style={{
               width: "100%",
-              minHeight: 48,
-              marginTop: 12,
+              minHeight: 36,
+
+              marginTop: 6,
+
               border:
-                "1px solid rgba(255,255,255,0.14)",
-              borderRadius: 10,
-              background: "transparent",
+                "1px solid rgba(255,255,255,0.12)",
+
+              borderRadius: 8,
+
+              background:
+                "transparent",
+
               color: "#d4d4d8",
+
               fontFamily: "inherit",
+              fontSize: 11,
+
               cursor: "pointer",
             }}
           >
             Verificar assinatura novamente
           </button>
         ) : null}
-      </section>
-    </main>
-  );
-}
+      </footer>
+    </section>
+  </main>
+);
 
+}
 const noticeStyle: React.CSSProperties = {
-  marginTop: 22,
-  padding: "13px 15px",
+  marginTop: 12,
+  padding: "10px 12px",
   border:
-    "1px solid rgba(255,241,168,0.22)",
+    "1px solid rgba(212,175,55,0.22)",
+  borderRadius: 10,
   background:
-    "rgba(255,241,168,0.07)",
-  color: "#e4e4e7",
-  fontSize: 13,
-  lineHeight: 1.6,
+    "rgba(212,175,55,0.05)",
+  color: "#d4d4d8",
+  fontSize: 10.5,
+  lineHeight: 1.55,
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
