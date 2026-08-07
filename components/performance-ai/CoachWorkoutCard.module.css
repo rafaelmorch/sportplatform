@@ -1,0 +1,107 @@
+/* components/performance-ai/CoachWorkoutCard.module.css */
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+}
+
+.section {
+  min-width: 0;
+}
+
+.completedSection {
+  padding-top: 21px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.label {
+  margin-bottom: 9px;
+  color: #d4af37;
+  font-family: "Montserrat", sans-serif;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.primaryText {
+  color: rgba(255, 255, 255, 0.9);
+  font-family: "Montserrat", sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.secondaryText {
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.completedTitle {
+  color: #ffffff;
+  font-family: "Montserrat", sans-serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.completedSummary {
+  margin-top: 10px;
+  padding: 13px 14px;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  border-radius: 13px;
+  background: rgba(212, 175, 55, 0.055);
+  color: rgba(255, 255, 255, 0.73);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.emptyText {
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  border-radius: 13px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(212, 175, 55, 0.095),
+      rgba(212, 175, 55, 0.035)
+    );
+  color: #f1d36b;
+  font-family: "Montserrat", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.actionButton:hover {
+  border-color: rgba(212, 175, 55, 0.7);
+  background: rgba(212, 175, 55, 0.13);
+}
+
+.actionButton:active {
+  transform: scale(0.985);
+}
+
+.actionButton span {
+  font-size: 20px;
+  font-weight: 400;
+}

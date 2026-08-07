@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import BackButton from "@/components/BackButton";
 import BottomNavbar from "@/components/BottomNavbar";
-import CoachHero from "@/components/performance/CoachHero";
-import CoachRecommendation from "@/components/performance/CoachRecommendation";
+import PerformanceOverviewHero from "@/components/performance/PerformanceOverviewHero";
+import PerformanceAreasGrid from "@/components/performance/PerformanceAreasGrid";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { formatDuration } from "@/lib/performance/formatters";
 import { isInRange } from "@/lib/performance/ranges";
@@ -265,7 +265,7 @@ function PerformanceCenter({
 
               <div
                 style={{
-                  color: "#fff1a8",
+                  color: "#F1D36B",
                   fontSize: "clamp(32px, 6vw, 54px)",
                   fontWeight: 760,
                   lineHeight: 0.95,
@@ -337,7 +337,7 @@ function PerformanceCenter({
                         width: 7,
                         height: 7,
                         borderRadius: "50%",
-                        background: area.available ? "#fff1a8" : "#5f5f67",
+                        background: area.available ? "#F1D36B" : "#5f5f67",
                         boxShadow: area.available
                           ? "0 0 14px rgba(255,241,168,0.35)"
                           : "none",
@@ -358,7 +358,7 @@ function PerformanceCenter({
 
                     <span
                       style={{
-                        color: area.available ? "#fff1a8" : "#8f8f98",
+                        color: area.available ? "#F1D36B" : "#8f8f98",
                         fontSize: 10,
                         fontWeight: 800,
                         lineHeight: 1.4,
@@ -398,7 +398,7 @@ function PerformanceCenter({
                     style={{
                       display: "inline-flex",
                       marginTop: 15,
-                      color: "#fff1a8",
+                      color: "#F1D36B",
                       fontSize: 13,
                       fontWeight: 780,
                       lineHeight: 1.4,
@@ -470,7 +470,7 @@ function CoachAccess() {
           boxSizing: "border-box",
           padding: "clamp(22px, 5vw, 34px)",
           borderRadius: 24,
-          border: "2px solid #d8aa45",
+          border: "2px solid #D4AF37",
           background: "#f8f3e8",
           boxShadow:
             "0 0 0 2px rgba(255,255,255,0.18), 0 18px 40px rgba(0,0,0,0.22)",
@@ -492,7 +492,7 @@ function CoachAccess() {
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              background: "#d9a83e",
+              background: "#D4AF37",
               color: "#ffffff",
               fontSize: 17,
               boxShadow: "0 8px 18px rgba(168,117,23,0.28)",
@@ -565,7 +565,7 @@ function CoachAccess() {
                 marginTop: 24,
                 borderRadius: 999,
                 background:
-                  "linear-gradient(90deg, #c98d27 0%, #e2bb61 58%, rgba(226,187,97,0) 100%)",
+                  "linear-gradient(90deg, #B8862B 0%, #F1D36B 58%, rgba(226,187,97,0) 100%)",
               }}
             />
           </div>
@@ -1026,15 +1026,6 @@ function PerformanceAIPage() {
   return (
     <>
       <main style={pageStyle}>
-        <div style={{ margin: "0 16px 18px" }}>
-          <Link
-  href="/performance-ai"
-  style={backLinkStyle}
->
-  <span aria-hidden="true">←</span>
-  Performance AI
-</Link>
-        </div>
 
         {message ? <div style={globalMessageStyle}>{message}</div> : null}
 
@@ -1046,20 +1037,17 @@ function PerformanceAIPage() {
             gap: 0,
           }}
         >
-          <CoachHero
+          <PerformanceOverviewHero
             performanceScore={performanceScore}
             performanceStatus={performanceStatus}
             statusDescription={statusDescription}
+            insight={coachInsight}
           />
 
-          <CoachRecommendation insight={coachInsight} />
-
-          <PerformanceCenter
+          <PerformanceAreasGrid
             areas={performanceAreas}
             dataQuality={dataQuality}
           />
-
-          <CoachAccess />
         </section>
       </main>
 
@@ -1069,7 +1057,7 @@ function PerformanceAIPage() {
 }
 
 const eyebrowStyle: React.CSSProperties = {
-  color: "#fff1a8",
+  color: "#F1D36B",
   fontSize: 11,
   fontWeight: 850,
   letterSpacing: "0.14em",
@@ -1125,7 +1113,7 @@ const globalMessageStyle: React.CSSProperties = {
     "linear-gradient(145deg, rgba(39,39,42,0.96) 0%, rgba(15,15,17,0.98) 100%)",
   boxShadow:
     "0 14px 30px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.06)",
-  color: "#f5e6b3",
+  color: "#F1D36B",
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 700,
@@ -1147,3 +1135,6 @@ const backLinkStyle: React.CSSProperties = {
   fontWeight: 650,
   textDecoration: "none",
 };
+
+
+

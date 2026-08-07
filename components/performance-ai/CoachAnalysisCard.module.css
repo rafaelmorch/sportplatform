@@ -1,0 +1,41 @@
+/* components/performance-ai/CoachAnalysisCard.module.css */
+
+.wrapper {
+  position: relative;
+}
+
+.wrapper::before {
+  position: absolute;
+  z-index: 2;
+  top: 22px;
+  bottom: 38px;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      180deg,
+      #f1d36b,
+      #d4af37,
+      rgba(212, 175, 55, 0.08)
+    );
+  box-shadow: 0 0 16px rgba(212, 175, 55, 0.26);
+  content: "";
+}
+
+.analysis {
+  padding-left: 4px;
+}
+
+.analysisText {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+.emptyText {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+  line-height: 1.75;
+}

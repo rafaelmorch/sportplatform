@@ -8,7 +8,10 @@ import {
   type ChangeEvent,
   type CSSProperties,
 } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -121,6 +124,9 @@ function buildMealText(
 
 export default function NutritionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const requestedDate = searchParams.get("date");
   const supabase = useMemo(
     () => supabaseBrowser,
     []
@@ -161,6 +167,12 @@ export default function NutritionPage() {
   const [mealTime, setMealTime] =
     useState(localTimeValue(now));
 
+  const [entryMode, setEntryMode] =
+    useState<"photo" | "manual">("photo");
+
+  const [manualMealText, setManualMealText] =
+    useState("");
+
   const [notes, setNotes] = useState("");
 
   const [uploadingImage, setUploadingImage] =
@@ -189,6 +201,38 @@ export default function NutritionPage() {
 
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
+
+  useEffect(() => {
+    if (!requestedDate) {
+      return;
+    }
+
+    const validDate =
+      /^\d{4}-\d{2}-\d{2}$/.test(requestedDate);
+
+    if (!validDate) {
+      return;
+    }
+
+    const [year, month, day] = requestedDate
+      .split("-")
+      .map(Number);
+
+    const parsedDate = new Date(
+      year,
+      month - 1,
+      day
+    );
+
+    const dateIsValid =
+      parsedDate.getFullYear() === year &&
+      parsedDate.getMonth() === month - 1 &&
+      parsedDate.getDate() === day;
+
+    if (dateIsValid) {
+      setMealDate(requestedDate);
+    }
+  }, [requestedDate]);
 
   async function loadMeals(
     currentUserId: string
@@ -276,16 +320,95 @@ export default function NutritionPage() {
     setAnalysis(null);
     setReviewOpen(false);
     setNotes("");
+    setManualMealText("");
 
     const currentDate = new Date();
 
-    setMealDate(
-      localDateValue(currentDate)
-    );
+    if (
+      requestedDate &&
+      /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+    ) {
+      setMealDate(requestedDate);
+    } else {
+      setMealDate(localDateValue(currentDate));
+    }
 
-    setMealTime(
-      localTimeValue(currentDate)
-    );
+    setMealTime(localTimeValue(currentDate));
+  }
+
+  async function handleSaveManualMeal(): Promise<void> {
+    clearMessages();
+
+    if (!userId) {
+      setErrorMessage("Usuário não identificado.");
+      return;
+    }
+
+    if (!mealDate || !mealTime) {
+      setErrorMessage(
+        "Informe a data e o horário da refeição."
+      );
+      return;
+    }
+
+    const mealText = manualMealText.trim();
+
+    if (!mealText) {
+      setErrorMessage(
+        "Digite o que você comeu."
+      );
+      return;
+    }
+
+    setSavingMeal(true);
+
+    try {
+      const eatenAt = createConsumedAt(
+        mealDate,
+        mealTime
+      );
+
+      const { data: mealRow, error } =
+        await supabase
+          .from("performance_ai_meals")
+          .insert({
+            user_id: userId,
+            profile_id: profileId,
+            meal_text: mealText,
+            eaten_at: eatenAt,
+            meal_type: null,
+            protein_level: null,
+            quality_level: null,
+            ai_notes: notes.trim() || null,
+          })
+          .select(
+            "id, meal_text, eaten_at, meal_type, protein_level, quality_level, ai_notes"
+          )
+          .single();
+
+      if (error || !mealRow) {
+        throw new Error(
+          error?.message ??
+            "Não foi possível salvar a refeição."
+        );
+      }
+
+      setMeals((current) => [
+        mealRow as MealRow,
+        ...current,
+      ]);
+
+      setMessage("Refeição salva com sucesso.");
+      resetForm();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a refeição."
+      );
+    } finally {
+      setSavingMeal(false);
+    }
   }
 
   function handleSelectImage(
@@ -1061,6 +1184,146 @@ export default function NutritionPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
+                  Forma de registro
+                </div>
+
+                <h2 style={panelTitleStyle}>
+                  Como deseja registrar?
+                </h2>
+
+                <p style={panelDescriptionStyle}>
+                  Envie uma foto para análise automática
+                  ou descreva manualmente o que consumiu.
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setEntryMode("photo")}
+                style={{
+                  ...secondaryButtonStyle,
+                  minHeight: 46,
+                  borderColor:
+                    entryMode === "photo"
+                      ? "rgba(212,175,55,0.75)"
+                      : "rgba(255,255,255,0.12)",
+                  color:
+                    entryMode === "photo"
+                      ? "#f5d76e"
+                      : "#ffffff",
+                }}
+              >
+                Foto
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEntryMode("manual")}
+                style={{
+                  ...secondaryButtonStyle,
+                  minHeight: 46,
+                  borderColor:
+                    entryMode === "manual"
+                      ? "rgba(212,175,55,0.75)"
+                      : "rgba(255,255,255,0.12)",
+                  color:
+                    entryMode === "manual"
+                      ? "#f5d76e"
+                      : "#ffffff",
+                }}
+              >
+                Manual
+              </button>
+            </div>
+          </section>
+
+          {entryMode === "manual" && (
+            <section style={mainSectionStyle}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <div style={panelEyebrowStyle}>
+                    Registro manual
+                  </div>
+
+                  <h2 style={panelTitleStyle}>
+                    O que você comeu?
+                  </h2>
+
+                  <p style={panelDescriptionStyle}>
+                    Descreva os alimentos e as quantidades
+                    que conseguir lembrar.
+                  </p>
+                </div>
+              </div>
+
+              <textarea
+                value={manualMealText}
+                onChange={(event) =>
+                  setManualMealText(event.target.value)
+                }
+                rows={6}
+                placeholder={"Ex.:`n2 ovos`n1 pão integral`nCafé com leite"}
+                style={textareaStyle}
+              />
+
+              <button
+                type="button"
+                onClick={() =>
+                  void handleSaveManualMeal()
+                }
+                disabled={
+                  savingMeal ||
+                  !manualMealText.trim() ||
+                  !mealDate ||
+                  !mealTime
+                }
+                style={{
+                  ...primaryButtonStyle,
+                  width: "100%",
+                  marginTop: 18,
+                  opacity:
+                    savingMeal ||
+                    !manualMealText.trim() ||
+                    !mealDate ||
+                    !mealTime
+                      ? 0.5
+                      : 1,
+                  cursor:
+                    savingMeal ||
+                    !manualMealText.trim() ||
+                    !mealDate ||
+                    !mealTime
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {savingMeal
+                  ? "Salvando..."
+                  : "Salvar refeição"}
+              </button>
+            </section>
+          )}
+
+          <section
+            style={{
+              ...mainSectionStyle,
+              display:
+                entryMode === "photo"
+                  ? "block"
+                  : "none",
+            }}
+          >
+            <div style={sectionHeaderStyle}>
+              <div>
+                <div style={panelEyebrowStyle}>
                   Imagem
                 </div>
 
@@ -1234,7 +1497,15 @@ export default function NutritionPage() {
             />
           </section>
 
-          <section style={analysisSectionStyle}>
+          <section
+            style={{
+              ...analysisSectionStyle,
+              display:
+                entryMode === "photo"
+                  ? "block"
+                  : "none",
+            }}
+          >
             <div style={sectionHeaderStyle}>
               <div>
                 <div style={panelEyebrowStyle}>
@@ -2013,6 +2284,8 @@ const disclaimerTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.7,
 };
+
+
 
 
 

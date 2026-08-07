@@ -1,0 +1,95 @@
+/* components/performance-ai/CoachCard.module.css */
+
+.card {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 16px;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 21px;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(212, 175, 55, 0.045),
+      transparent 30%
+    ),
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.045),
+      rgba(255, 255, 255, 0.016)
+    );
+  box-shadow:
+    0 15px 35px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.title {
+  margin: 0 0 22px;
+  color: #ffffff;
+  font-family: "Montserrat", sans-serif;
+  font-size: 23px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.content {
+  min-width: 0;
+}
+
+.footer {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.065);
+}
+
+@media (max-width: 420px) {
+  .card {
+    padding: 19px;
+    border-radius: 19px;
+  }
+
+  .title {
+    margin-bottom: 19px;
+    font-size: 21px;
+  }
+}
+
+.flat {
+  overflow: visible;
+  margin-bottom: 0;
+  padding: 34px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.flat + .flat {
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.flat .title {
+  margin-bottom: 26px;
+  font-size: 27px;
+  font-weight: 400;
+}
+
+.flat .footer {
+  margin-top: 26px;
+  padding-top: 20px;
+}
+
+@media (max-width: 420px) {
+  .flat {
+    padding: 28px 0;
+  }
+
+  .flat .title {
+    margin-bottom: 22px;
+    font-size: 24px;
+  }
+}
