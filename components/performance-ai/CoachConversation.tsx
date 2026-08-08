@@ -708,7 +708,6 @@ export default function CoachConversation({
               disabled={sending}
               style={{
             width: 48,
-            width: 48,
             alignSelf: "center",
             height: 48,
                 border: "1px solid rgba(255,255,255,0.18)",
@@ -905,6 +904,9 @@ export default function CoachConversation({
     </section>
   );
 }
+
+
+
 
 
 
