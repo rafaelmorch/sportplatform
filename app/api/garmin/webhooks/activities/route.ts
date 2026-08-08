@@ -45,23 +45,22 @@ export async function POST(request: NextRequest) {
       processing_status: "pending",
     }));
 
-    const { error } = await supabase
-      .from("garmin_webhook_events")
-      .upsert(rows, {
-        onConflict: "event_type,garmin_user_id,external_id",
-        ignoreDuplicates: true,
-      });
+    for (const row of rows) {
+      const { error } = await supabase
+        .from("garmin_webhook_events")
+        .insert(row);
 
-    if (error) {
-      console.error("Garmin webhook Supabase error:", error);
+      if (error && error.code !== "23505") {
+        console.error("Garmin webhook Supabase error:", error);
 
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Failed to persist Garmin activities.",
-        },
-        { status: 500 }
-      );
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Failed to persist Garmin activities.",
+          },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json(
@@ -82,3 +81,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
