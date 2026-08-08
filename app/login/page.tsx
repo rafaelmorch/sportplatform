@@ -40,13 +40,8 @@ export default function LoginPage() {
       setErrorMsg(null);
       setLoading(true);
 
-      const { Capacitor } =
-      await import("@capacitor/core");
-
-    const redirectTo =
-      Capacitor.getPlatform() === "ios"
-        ? "platformsports://auth/callback"
-        : "https://www.sportsplatform.app/mobile/auth/callback";
+      const redirectTo =
+        "https://www.sportsplatform.app/mobile/auth/callback";
 
       const { data, error } =
         await supabase.auth.signInWithOAuth({
@@ -315,9 +310,6 @@ export default function LoginPage() {
     </>
   );
 }
-
-
-
 
 
 
