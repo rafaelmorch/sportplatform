@@ -17,6 +17,8 @@ export default function MobileAuthCallbackPage() {
       try {
         const url = new URL(window.location.href);
         console.log("MOBILE AUTH CALLBACK:", window.location.href);
+        setMsg("CALLBACK RECEBIDO: " + window.location.href);
+        setMsg("CALLBACK RECEBIDO: " + window.location.href);
 
         const queryParams = url.searchParams;
         const hashParams = new URLSearchParams(
@@ -124,4 +126,6 @@ export default function MobileAuthCallbackPage() {
     </main>
   );
 }
+
+
 
