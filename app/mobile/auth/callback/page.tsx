@@ -16,6 +16,7 @@ export default function MobileAuthCallbackPage() {
     async function finishLogin() {
       try {
         const url = new URL(window.location.href);
+        console.log("MOBILE AUTH CALLBACK:", window.location.href);
 
         const queryParams = url.searchParams;
         const hashParams = new URLSearchParams(
@@ -123,3 +124,4 @@ export default function MobileAuthCallbackPage() {
     </main>
   );
 }
+

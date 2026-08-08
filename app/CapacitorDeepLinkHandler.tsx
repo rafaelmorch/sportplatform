@@ -13,6 +13,7 @@ export default function CapacitorDeepLinkHandler() {
       const { App } = await import("@capacitor/app");
 
       const openUrl = (url: string) => {
+        console.log("APP URL OPEN:", url);
         try {
           const parsedUrl = new URL(url);
 
@@ -75,3 +76,4 @@ export default function CapacitorDeepLinkHandler() {
 
   return null;
 }
+
