@@ -498,58 +498,124 @@ export default function CoachConversation({
             }}
           >
             {messages.map((message) => (
+          <div
+            key={message.id}
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent:
+                message.role === "coach"
+                  ? "flex-start"
+                  : "flex-end",
+              padding: "7px 0",
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                width: "fit-content",
+                maxWidth: "82%",
+                minWidth: 0,
+              }}
+            >
               <div
-                key={message.id}
                 style={{
-                  padding: "clamp(25px, 4vw, 36px) 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.09)",
+                  marginBottom: 5,
+                  paddingLeft:
+                    message.role === "coach" ? 4 : 0,
+                  paddingRight:
+                    message.role === "coach" ? 0 : 4,
+                  color:
+                    message.role === "coach"
+                      ? "#F1D36B"
+                      : "#9FB8D0",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  lineHeight: 1.3,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  textAlign:
+                    message.role === "coach"
+                      ? "left"
+                      : "right",
                 }}
               >
-                <div
-                  style={{
-                    color:
-                      message.role === "coach"
-                        ? "#D4AF37"
-                        : "#8f8f98",
-                    fontSize: 10,
-                    fontWeight: 850,
-                    lineHeight: 1.4,
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {message.role === "coach" ? "Coach" : "Você"}
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 11,
-                    maxWidth: 760,
-                    color:
-                      message.role === "coach"
-                        ? "#f4f4f5"
-                        : "#d4d4d8",
-                    fontSize: "clamp(15px, 2vw, 17px)",
-                    lineHeight: 1.75,
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {message.content}
-                </div>
+                {message.role === "coach" ? "Coach IA" : "Você"}
               </div>
+
+              <div
+                style={{
+                  padding: "12px 14px",
+                  border:
+                    message.role === "coach"
+                      ? "1px solid rgba(241,211,107,0.18)"
+                      : "1px solid rgba(125,162,196,0.22)",
+                  borderRadius:
+                    message.role === "coach"
+                      ? "16px 16px 16px 5px"
+                      : "16px 16px 5px 16px",
+                  background:
+                    message.role === "coach"
+                      ? "linear-gradient(145deg, #181818, #111111)"
+                      : "linear-gradient(145deg, #2B4054, #213344)",
+                  color: "#F7F7F8",
+                  fontSize: "clamp(14px, 2vw, 16px)",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere",
+                  boxShadow: "0 8px 22px rgba(0,0,0,0.18)",
+                }}
+              >
+                {message.content}
+              </div>
+            </div>
+          </div>
             ))}
 
             {sending && (
               <div
                 style={{
-                  padding: "26px 0",
-                  color: "#a1a1aa",
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  borderBottom: "1px solid rgba(255,255,255,0.09)",
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "flex-start",
+                  padding: "7px 0",
                 }}
               >
-                O Coach está analisando seus dados...
+                <div
+                  style={{
+                    width: "fit-content",
+                    maxWidth: "82%",
+                  }}
+                >
+                  <div
+                    style={{
+                      marginBottom: 5,
+                      paddingLeft: 4,
+                      color: "#F1D36B",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Coach IA
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      border: "1px solid rgba(241,211,107,0.18)",
+                      borderRadius: "16px 16px 16px 5px",
+                      background:
+                        "linear-gradient(145deg, #181818, #111111)",
+                      color: "#BFC0C5",
+                      fontSize: 14,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    O Coach está analisando seus dados...
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -597,9 +663,9 @@ export default function CoachConversation({
           <div
             style={{
               display: "flex",
-              alignItems: "stretch",
+              alignItems: "center",
               gap: 10,
-              flexWrap: "wrap",
+              flexWrap: "nowrap",
             }}
           >
             <textarea
@@ -619,16 +685,17 @@ export default function CoachConversation({
               placeholder="Exemplo: estou pronto para aumentar meu longão?"
               rows={3}
               style={{
-                flex: "1 1 560px",
+              flex: "1 1 0",
                 width: "100%",
-                minHeight: 112,
-                resize: "vertical",
+              minHeight: 52,
+              maxHeight: 130,
+              resize: "none",
                 border: "1px solid rgba(255,255,255,0.16)",
                 borderRadius: 0,
                 outline: "none",
-                background: "#111111",
+              background: "#171717",
                 color: "#ffffff",
-                padding: "17px 18px",
+              padding: "14px 16px",
                 fontFamily: "inherit",
                 fontSize: 15,
                 lineHeight: 1.65,
@@ -640,11 +707,12 @@ export default function CoachConversation({
               onClick={() => void toggleRecording()}
               disabled={sending}
               style={{
-                width: 58,
-                minWidth: 58,
-                alignSelf: "stretch",
+            width: 48,
+            width: 48,
+            alignSelf: "center",
+            height: 48,
                 border: "1px solid rgba(255,255,255,0.18)",
-                borderRadius: 0,
+            borderRadius: "50%",
                 background:
                   recording
                     ? "#dc2626"
@@ -705,10 +773,11 @@ export default function CoachConversation({
               onClick={() => void submitQuestion()}
               disabled={!question.trim() || sending}
               style={{
-                alignSelf: "stretch",
-                minWidth: 132,
+            alignSelf: "center",
+            height: 48,
+            minWidth: 86,
                 border: "1px solid rgba(212,175,55,0.78)",
-                borderRadius: 0,
+            borderRadius: 16,
                 background:
                   !question.trim() || sending
                     ? "rgba(212,175,55,0.12)"
@@ -836,6 +905,8 @@ export default function CoachConversation({
     </section>
   );
 }
+
+
 
 
 
