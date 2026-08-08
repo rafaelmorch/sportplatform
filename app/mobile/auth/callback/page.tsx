@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function MobileAuthCallbackPage() {
   const router = useRouter();
@@ -16,10 +18,20 @@ export default function MobileAuthCallbackPage() {
     async function finishLogin() {
       try {
         const url = new URL(window.location.href);
-        console.log("MOBILE AUTH CALLBACK:", window.location.href);
-        setMsg("CALLBACK RECEBIDO: " + window.location.href);
-        setMsg("CALLBACK RECEBIDO: " + window.location.href);
 
+        // Se estiver no navegador, devolve o callback para o app.
+        if (!Capacitor.isNativePlatform()) {
+          const appUrl =
+            "platformsports://auth/callback" +
+            url.search +
+            url.hash;
+
+          setMsg("Abrindo Platform Sports...");
+          window.location.href = appUrl;
+          return;
+        }
+
+        // A partir daqui estamos dentro do app.
         const queryParams = url.searchParams;
         const hashParams = new URLSearchParams(
           url.hash.startsWith("#")
@@ -51,55 +63,38 @@ export default function MobileAuthCallbackPage() {
           const { error } =
             await supabase.auth.exchangeCodeForSession(code);
 
-          if (error) {
-            throw error;
-          }
+          if (error) throw error;
         } else if (accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
 
-          if (error) {
-            throw error;
-          }
+          if (error) throw error;
         }
 
         const { data, error } =
           await supabase.auth.getSession();
 
-        if (error) {
-          throw error;
-        }
+        if (error) throw error;
 
         if (!data.session) {
-          setMsg("Sessão não encontrada. Volte e tente novamente.");
+          setMsg("Sessão não encontrada.");
           return;
         }
 
         try {
           const { Browser } =
             await import("@capacitor/browser");
-
           await Browser.close();
-        } catch {
-          // O navegador pode já estar fechado.
-        }
-
-        window.history.replaceState(
-          null,
-          "",
-          "/mobile/auth/callback"
-        );
+        } catch {}
 
         router.replace("/intro");
       } catch (error: unknown) {
-        console.error("Erro no login móvel:", error);
-
         setMsg(
           error instanceof Error
             ? error.message
-            : "Erro inesperado ao finalizar login."
+            : "Erro ao finalizar login."
         );
       }
     }
@@ -111,21 +106,16 @@ export default function MobileAuthCallbackPage() {
     <main
       style={{
         minHeight: "100dvh",
-        background:
-          "radial-gradient(circle at top, #020617 0, #020617 45%, #000000 100%)",
-        color: "#e5e7eb",
+        background: "#000",
+        color: "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 24,
         textAlign: "center",
-        fontSize: 14,
       }}
     >
       {msg}
     </main>
   );
 }
-
-
-
