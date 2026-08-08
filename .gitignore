@@ -48,3 +48,6 @@ Backups/
 *.backup-before-*.tsx
 *.before-*.tsx
 *-before-*.tsx
+
+# Local backup files
+*.backup-*
