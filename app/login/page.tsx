@@ -1,5 +1,9 @@
 "use client";
 
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -90,19 +94,26 @@ const [isIOS, setIsIOS] = useState(false);
     try {
       setErrorMsg(null);
       setLoading(true);
+      const { SocialLogin } =
+        await import("@capgo/capacitor-social-login");
 
-      const { SignInWithApple } =
-        await import("@capacitor-community/apple-sign-in");
-
-      const result = await SignInWithApple.authorize({
-        clientId: "com.platformsports.app",
-        redirectURI: "",
-        scopes: "email name",
-        state: "",
-        nonce: "",
+      await SocialLogin.initialize({
+        apple: {
+          clientId: "com.platformsports.app",
+        },
       });
 
-      const identityToken = result.response.identityToken;
+      const result = await SocialLogin.login({
+        provider: "apple",
+        options: {
+          scopes: ["email", "name"],
+        },
+      });
+
+      const identityToken =
+        result.provider === "apple"
+          ? result.result.idToken
+          : null;
 
       if (!identityToken) {
         throw new Error("A Apple não retornou o identity token.");
@@ -157,6 +168,7 @@ const [isIOS, setIsIOS] = useState(false);
 
       <main
         style={{
+          fontFamily: "Montserrat, sans-serif",
           position: "fixed",
           inset: 0,
           width: "100%",
@@ -340,6 +352,12 @@ const [isIOS, setIsIOS] = useState(false);
               gap: 10,
             }}
           >
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.91h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z" />
+              <path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.44l-3.24-2.54c-.9.6-2.05.96-3.38.96-2.6 0-4.81-1.76-5.6-4.12H3.05v2.62A10 10 0 0 0 12 22Z" />
+              <path fill="#FBBC05" d="M6.4 13.86A6.02 6.02 0 0 1 6.08 12c0-.65.11-1.28.32-1.86V7.52H3.05A10 10 0 0 0 2 12c0 1.61.38 3.14 1.05 4.48l3.35-2.62Z" />
+              <path fill="#EA4335" d="M12 6.02c1.47 0 2.79.5 3.83 1.5l2.87-2.88A9.66 9.66 0 0 0 12 2a10 10 0 0 0-8.95 5.52l3.35 2.62c.79-2.36 3-4.12 5.6-4.12Z" />
+            </svg>
             Continue with Google
           </button>
         )}
@@ -362,6 +380,11 @@ const [isIOS, setIsIOS] = useState(false);
     </>
   );
 }
+
+
+
+
+
 
 
 
