@@ -577,20 +577,30 @@ export default function BadgesChallenges({
 
                 <div
                   style={{
-                    minHeight: 24,
+                    height: 52,
                     padding: "3px 2px 0",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    justifyContent: "center",
+                    justifyContent: "flex-start",
                     textAlign: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    lineHeight: 1.25,
                     color: "#0f172a",
                   }}
                 >
-                  {challenge.title}
+                  <div
+                    style={{
+                      minHeight: 28,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {challenge.title}
+                  </div>
+
                   {(() => {
                     const completedCount = new Set(
                       posts
@@ -602,19 +612,20 @@ export default function BadgesChallenges({
                         .map((post) => post.user_id)
                     ).size;
 
-                    return completedCount > 0 ? (
+                    return (
                       <div
                         style={{
+                          height: 18,
                           marginTop: 6,
                           fontSize: 9,
                           fontWeight: 500,
                           color: "#64748b",
-                          lineHeight: 1.2,
+                          lineHeight: "18px",
                         }}
                       >
-                        {completedCount} completed
+                        {completedCount > 0 ? `${completedCount} completed` : ""}
                       </div>
-                    ) : null;
+                    );
                   })()}
                 </div>
               </button>
