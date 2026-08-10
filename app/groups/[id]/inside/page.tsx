@@ -7,6 +7,8 @@ import "@fontsource/montserrat/700.css";
 
 import Link from "next/link";
 import JourneyLevelCard from "@/components/membership/JourneyLevelCard";
+import CommunityFeed from "@/components/membership/CommunityFeed";
+import BadgesChallenges from "@/components/membership/BadgesChallenges";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
@@ -33,27 +35,6 @@ type HighlightRow = {
   link_url: string | null;
   link_label: string | null;
   expires_at: string | null;
-  created_at: string;
-};
-
-type FeedPost = {
-  id: string;
-  created_at: string;
-  community_id: string;
-  user_id: string;
-  author_name: string | null;
-  content: string;
-  image_url: string | null;
-  likes: number;
-  comments_count: number;
-};
-
-type FeedComment = {
-  id: string;
-  post_id: string;
-  user_id: string;
-  author_name: string | null;
-  content: string;
   created_at: string;
 };
 
@@ -200,23 +181,6 @@ function getAvatarBackground(seed: string): string {
 
 function getDisplayName(name: string | null): string {
   return name?.trim() ? name.trim() : "Athlete";
-}
-
-function getRecencyBonus(createdAt: string): number {
-  const createdTime = new Date(createdAt).getTime();
-  if (Number.isNaN(createdTime)) return 0;
-
-  const ageInMs = Date.now() - createdTime;
-  const ageInDays = ageInMs / (1000 * 60 * 60 * 24);
-
-  if (ageInDays <= 1) return 12;
-  if (ageInDays <= 3) return 8;
-  if (ageInDays <= 7) return 4;
-  return 0;
-}
-
-function getFeedScore(post: Pick<FeedPost, "likes" | "comments_count" | "created_at">): number {
-  return post.likes + post.comments_count * 2 + getRecencyBonus(post.created_at);
 }
 
 function formatActivityType(value: string): string {
@@ -382,23 +346,7 @@ const [stravaSyncMessage, setStravaSyncMessage] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
 
   const [highlights, setHighlights] = useState<HighlightRow[]>([]);
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [feedLoading, setFeedLoading] = useState(true);
-
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
-  const [commentText, setCommentText] = useState<Record<string, string>>({});
-  const [likeLoadingPostId, setLikeLoadingPostId] = useState<string | null>(null);
-  const [commentLoadingPostId, setCommentLoadingPostId] = useState<string | null>(null);
-
-  const [postComments, setPostComments] = useState<Record<string, FeedComment[]>>({});
-  const [openComments, setOpenComments] = useState<Set<string>>(new Set());
-  const [loadingCommentsPostId, setLoadingCommentsPostId] = useState<string | null>(null);
-  const [activePostId, setActivePostId] = useState<string | null>(null);
-  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
-  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
-
-  const [checkinsLoading, setCheckinsLoading] = useState(true);
+const [checkinsLoading, setCheckinsLoading] = useState(true);
   const [recentCheckins, setRecentCheckins] = useState<CheckinRow[]>([]);
   const [checkinTotalCount, setCheckinTotalCount] = useState(0);
   const [openCheckinImages, setOpenCheckinImages] = useState<Set<string>>(new Set());
@@ -449,81 +397,6 @@ const [stravaSyncMessage, setStravaSyncMessage] = useState<string | null>(null);
     }
 
     setHasVideos(Boolean(data && data.length > 0));
-  }
-
-  async function loadFeed(targetCommunityId: string, currentUserId: string | null) {
-    setFeedLoading(true);
-
-    const { data: postsData, error: postsError } = await supabase
-      .from("app_membership_feed_posts")
-      .select("*")
-      .eq("community_id", targetCommunityId)
-      .order("created_at", { ascending: false });
-
-    if (postsError || !postsData) {
-      console.error("Error loading membership feed posts:", postsError);
-      setPosts([]);
-      setLikedPosts(new Set());
-      setActivePostId(null);
-      setFeedLoading(false);
-      return;
-    }
-
-    const rawPosts = (postsData as FeedPost[]) ?? [];
-    const postIds = rawPosts.map((p) => p.id);
-
-    const likeCountMap: Record<string, number> = {};
-    const commentCountMap: Record<string, number> = {};
-    const likedByCurrentUser = new Set<string>();
-
-    if (postIds.length > 0) {
-      const { data: likesData } = await supabase
-        .from("app_membership_feed_likes")
-        .select("post_id, user_id")
-        .in("post_id", postIds);
-
-      if (likesData) {
-        (likesData as Array<{ post_id: string; user_id: string }>).forEach((row) => {
-          const pid = row.post_id;
-          likeCountMap[pid] = (likeCountMap[pid] ?? 0) + 1;
-
-          if (currentUserId && row.user_id === currentUserId) {
-            likedByCurrentUser.add(pid);
-          }
-        });
-      }
-
-      const { data: commentsData } = await supabase
-        .from("app_membership_feed_comments")
-        .select("post_id")
-        .in("post_id", postIds);
-
-      if (commentsData) {
-        (commentsData as Array<{ post_id: string }>).forEach((row) => {
-          const pid = row.post_id;
-          commentCountMap[pid] = (commentCountMap[pid] ?? 0) + 1;
-        });
-      }
-    }
-
-    const postsWithCounters = rawPosts.map((p) => ({
-      ...p,
-      likes: likeCountMap[p.id] ?? 0,
-      comments_count: commentCountMap[p.id] ?? 0,
-    }));
-
-    const sortedPosts = [...postsWithCounters].sort((a, b) => {
-      const scoreA = getFeedScore(a);
-      const scoreB = getFeedScore(b);
-
-      if (scoreB !== scoreA) return scoreB - scoreA;
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-
-    setPosts(sortedPosts);
-    setLikedPosts(likedByCurrentUser);
-    setActivePostId(sortedPosts[0]?.id ?? null);
-    setFeedLoading(false);
   }
 
   async function loadCheckins(targetCommunityId: string, currentUserId: string | null, canManageCommunity: boolean) {
@@ -755,6 +628,7 @@ setCompletedChallengeIds(completedIds);
       .from("app_membership_challenges")
       .select("*")
       .eq("community_id", targetCommunityId)
+  .eq("is_badge", false)
       .order("created_at", { ascending: false });
 
     if (error || !data) {
@@ -948,7 +822,6 @@ const typedCommunity = community as CommunityRow;
       setHighlights(visibleHighlights);
 
       await Promise.all([
-        loadFeed(id, user.id),
         loadCheckins(id, user.id, canManageCommunity),
         loadRanking(id, typedCommunity.created_by ?? null, user.id),
         loadLeaderOfMonth(id),
@@ -963,44 +836,6 @@ const typedCommunity = community as CommunityRow;
     checkAccessAndLoad();
   }, [params, supabase, router]);
 
-  useEffect(() => {
-    const container = carouselRef.current;
-    if (!container || posts.length === 0) return;
-
-    const updateActiveCard = () => {
-      const cards = Array.from(
-        container.querySelectorAll<HTMLElement>("[data-feed-card='true']")
-      );
-
-      if (cards.length === 0) return;
-
-      const containerCenter = container.scrollLeft + container.clientWidth / 2;
-      let nearestId: string | null = null;
-      let nearestDistance = Number.POSITIVE_INFINITY;
-
-      cards.forEach((card) => {
-        const cardCenter = card.offsetLeft + card.offsetWidth / 2;
-        const distance = Math.abs(containerCenter - cardCenter);
-        const postId = card.dataset.postId || null;
-
-        if (distance < nearestDistance) {
-          nearestDistance = distance;
-          nearestId = postId;
-        }
-      });
-
-      setActivePostId(nearestId);
-    };
-
-    updateActiveCard();
-    container.addEventListener("scroll", updateActiveCard, { passive: true });
-    window.addEventListener("resize", updateActiveCard);
-
-    return () => {
-      container.removeEventListener("scroll", updateActiveCard);
-      window.removeEventListener("resize", updateActiveCard);
-    };
-  }, [posts]);
 
   
 async function handleSyncStrava() {
@@ -1093,249 +928,8 @@ async function handleCancelSubscription() {
       setCancelingSubscription(false);
     }
   }
-  async function handleLike(postId: string) {
-    if (!userId) return;
 
-    const alreadyLiked = likedPosts.has(postId);
-    setLikeLoadingPostId(postId);
-
-    if (alreadyLiked) {
-      const { error } = await supabase
-        .from("app_membership_feed_likes")
-        .delete()
-        .eq("post_id", postId)
-        .eq("user_id", userId);
-
-      if (error) {
-        console.error("Error removing like:", error);
-      } else {
-        setLikedPosts((prev) => {
-          const copy = new Set(prev);
-          copy.delete(postId);
-          return copy;
-        });
-
-        setPosts((current) =>
-          current.map((post) =>
-            post.id === postId ? { ...post, likes: Math.max(0, post.likes - 1) } : post
-          )
-        );
-      }
-    } else {
-      const { error } = await supabase
-        .from("app_membership_feed_likes")
-        .insert({
-          post_id: postId,
-          user_id: userId,
-        });
-
-      if (error) {
-        console.error("Error saving like:", error);
-      } else {
-        setLikedPosts((prev) => {
-          const copy = new Set(prev);
-          copy.add(postId);
-          return copy;
-        });
-
-        setPosts((current) =>
-          current.map((post) => (post.id === postId ? { ...post, likes: post.likes + 1 } : post))
-        );
-      }
-    }
-
-    setLikeLoadingPostId(null);
-  }
-
-  async function toggleComments(postId: string) {
-    if (openComments.has(postId)) {
-      setOpenComments((prev) => {
-        const copy = new Set(prev);
-        copy.delete(postId);
-        return copy;
-      });
-      return;
-    }
-
-    if (postComments[postId]) {
-      setOpenComments((prev) => {
-        const copy = new Set(prev);
-        copy.add(postId);
-        return copy;
-      });
-      return;
-    }
-
-    setLoadingCommentsPostId(postId);
-
-    const { data, error } = await supabase
-      .from("app_membership_feed_comments")
-      .select("*")
-      .eq("post_id", postId)
-      .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("Error loading comments:", error);
-    } else if (data) {
-      setPostComments((prev) => ({
-        ...prev,
-        [postId]: data as FeedComment[],
-      }));
-
-      setOpenComments((prev) => {
-        const copy = new Set(prev);
-        copy.add(postId);
-        return copy;
-      });
-    }
-
-    setLoadingCommentsPostId(null);
-  }
-
-  async function handleSubmitComment(postId: string) {
-    const text = (commentText[postId] || "").trim();
-
-    if (!text || !userId) return;
-
-    setCommentLoadingPostId(postId);
-
-    const { data, error } = await supabase
-      .from("app_membership_feed_comments")
-      .insert({
-        post_id: postId,
-        user_id: userId,
-        author_name: userName,
-        content: text,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error saving comment:", error);
-    } else if (data) {
-      const newComment = data as FeedComment;
-
-      setCommentText((prev) => ({
-        ...prev,
-        [postId]: "",
-      }));
-
-      setPosts((current) =>
-        current.map((post) =>
-          post.id === postId ? { ...post, comments_count: post.comments_count + 1 } : post
-        )
-      );
-
-      setPostComments((prev) => ({
-        ...prev,
-        [postId]: [...(prev[postId] ?? []), newComment],
-      }));
-
-      setOpenComments((prev) => {
-        const copy = new Set(prev);
-        copy.add(postId);
-        return copy;
-      });
-    }
-
-    setCommentLoadingPostId(null);
-  }
-
-  async function handleDeletePost(postId: string) {
-    if (!userId) return;
-
-    const confirmed = window.confirm("Delete this post?");
-    if (!confirmed) return;
-
-    setDeletingPostId(postId);
-
-    const { error } = await supabase
-  .from("app_membership_feed_posts")
-  .delete()
-  .eq("id", postId)
-  .eq("user_id", userId);
-
-    if (error) {
-      console.error("Error deleting post:", error);
-      setDeletingPostId(null);
-      return;
-    }
-
-    setPosts((current) => current.filter((post) => post.id !== postId));
-    setLikedPosts((prev) => {
-      const copy = new Set(prev);
-      copy.delete(postId);
-      return copy;
-    });
-    setOpenComments((prev) => {
-      const copy = new Set(prev);
-      copy.delete(postId);
-      return copy;
-    });
-    setPostComments((prev) => {
-      const copy = { ...prev };
-      delete copy[postId];
-      return copy;
-    });
-    setExpandedPosts((prev) => {
-      const copy = new Set(prev);
-      copy.delete(postId);
-      return copy;
-    });
-
-    setDeletingPostId(null);
-  }
-
-  async function handleDeleteComment(postId: string, commentId: string) {
-    if (!userId) return;
-
-    const confirmed = window.confirm("Delete this comment?");
-    if (!confirmed) return;
-
-    setDeletingCommentId(commentId);
-
-    const { error } = await supabase
-      .from("app_membership_feed_comments")
-      .delete()
-      .eq("id", commentId)
-      .eq("user_id", userId);
-
-    if (error) {
-      console.error("Error deleting comment:", error);
-      setDeletingCommentId(null);
-      return;
-    }
-
-    setPostComments((prev) => {
-      const currentComments = prev[postId] ?? [];
-      return {
-        ...prev,
-        [postId]: currentComments.filter((comment) => comment.id !== commentId),
-      };
-    });
-
-    setPosts((current) =>
-      current.map((post) =>
-        post.id === postId ? { ...post, comments_count: Math.max(0, post.comments_count - 1) } : post
-      )
-    );
-
-    setDeletingCommentId(null);
-  }
-
-  function toggleExpandedPost(postId: string) {
-    setExpandedPosts((prev) => {
-      const copy = new Set(prev);
-      if (copy.has(postId)) {
-        copy.delete(postId);
-      } else {
-        copy.add(postId);
-      }
-      return copy;
-    });
-  }
-
-  function toggleCheckinImage(checkinId: string) {
+function toggleCheckinImage(checkinId: string) {
     setOpenCheckinImages((prev) => {
       const copy = new Set(prev);
       if (copy.has(checkinId)) {
@@ -1382,7 +976,7 @@ return (
           box-sizing: border-box;
         }
 
-        .page * {
+        .page { position: relative; } .page::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 220px; background: url("/images/groups/groups-background.png") center center / cover no-repeat; z-index: 0; } .page > * { position: relative; z-index: 1; } .page * {
           font-family: "Montserrat", Arial, sans-serif;
         }
 
@@ -1417,86 +1011,7 @@ return (
           max-width: 100%;
           border: 0;
           border-radius: 12px;
-        }
-
-        .membership-feed-shell {
-          position: relative;
-        }
-
-        .membership-feed-shell::before,
-        .membership-feed-shell::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 48px;
-          pointer-events: none;
-          z-index: 2;
-        }
-
-        .membership-feed-shell::before {
-          left: 0;
-          background: linear-gradient(90deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%);
-        }
-
-        .membership-feed-shell::after {
-          right: 0;
-          background: linear-gradient(270deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0) 100%);
-        }
-
-        .membership-feed-carousel,
-        .membership-challenge-carousel {
-          display: flex;
-          gap: 16px;
-          overflow-x: auto;
-          padding: 10px 22px 20px 22px;
-          margin: 0 -22px;
-          scroll-snap-type: x mandatory;
-          scroll-padding-left: calc(50% - 170px);
-          scroll-padding-right: calc(50% - 170px);
-          -webkit-overflow-scrolling: touch;
-          overscroll-behavior-x: contain;
-          scrollbar-width: none;
-        }
-
-        .membership-feed-carousel::-webkit-scrollbar,
-        .membership-challenge-carousel::-webkit-scrollbar {
-          display: none;
-        }
-
-        .membership-feed-carousel::before,
-        .membership-feed-carousel::after,
-        .membership-challenge-carousel::before,
-        .membership-challenge-carousel::after {
-          content: "";
-          flex: 0 0 max(4px, calc(50% - 170px));
-        }
-
-        .membership-feed-card,
-        .membership-challenge-card {
-          flex: 0 0 340px;
-          width: 340px;
-          max-width: 340px;
-          scroll-snap-align: center;
-          min-width: 0;
-        }
-
-        .membership-feed-card {
-          transition:
-            transform 0.28s ease,
-            opacity 0.28s ease,
-            box-shadow 0.28s ease,
-            border-color 0.28s ease;
-          transform: scale(0.94);
-          opacity: 0.68;
-        }
-
-        .membership-feed-card.is-active {
-          transform: scale(1);
-          opacity: 1;
-        }
-
-        .membership-checkin-scroll {
+        }.membership-checkin-scroll {
           max-height: 420px;
           overflow-y: auto;
           padding-right: 6px;
@@ -1909,6 +1424,25 @@ fontWeight: 700,
 />
               </div>
             )}
+
+          <div style={{ height: 24, background: "#ffffff" }} />
+
+          {communityId && (
+            <div
+              style={{
+                background: "#f3f4f6",
+                padding: "14px 0 0",
+                marginBottom: 0,
+              }}
+            >
+              <BadgesChallenges
+                communityId={communityId}
+                userId={userId}
+                userName={userName}
+              />
+            </div>
+          )}
+
           </div>
 
           <div
@@ -1917,7 +1451,7 @@ fontWeight: 700,
     marginBottom: 28,
     borderRadius: 0,
     padding: 16,
-    background: "#f8fafc",
+    background: "#ffffff",
     borderBottom: "1px solid #e2e8f0",
   }}
 >
@@ -2057,520 +1591,16 @@ fontWeight: 700,
             )}
           </div>
 
-          <div
-  style={{
-    ...dividerSectionStyle,
-    marginBottom: 28,
-    borderRadius: 0,
-    padding: 16,
-    background: "#f8fafc",
-    borderBottom: "1px solid #e2e8f0",
-  }}
->
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <h2
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                    margin: "0 0 4px 0",
-                    color: "#0f172a",
-                  }}
-                >
-                  Community Feed
-                </h2>
-                <div style={{ color: "#64748b", fontSize: 13 }}>
-                  Swipe sideways to explore the latest community posts.
-                </div>
-              </div>
-
           {communityId && (
-                <Link
-                  href={`/groups/${communityId}/inside/feed/new`}
-                  style={{
-                    textDecoration: "none",
-                    borderRadius: 999,
-                    padding: "10px 16px",
-                    background: "#22c55e",
-                    color: "#052e16",
-                    fontWeight: 700,
-                    fontSize: 12,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  New Post
-                </Link>
-              )}
-            </div>
+            <CommunityFeed
+              communityId={communityId}
+              userId={userId}
+              userName={userName}
+            />
+          )}
 
-            {feedLoading ? (
-              <div style={{ color: "#64748b", fontSize: 14 }}>Loading feed...</div>
-            ) : posts.length === 0 ? (
-              <div
-                style={{
-                  borderRadius: 0,
-                  padding: 18,
-                  background: "#f8fafc",
-                  borderBottom: "1px solid #e2e8f0",
-                  color: "#475569",
-                  fontSize: 14,
-                  lineHeight: 1.7,
-                }}
-              >
-                No posts yet. Be the first to share something with the community.
-              </div>
-            ) : (
-              <div className="membership-feed-shell">
-                <div ref={carouselRef} className="membership-feed-carousel">
-                  {posts.map((post) => {
-                    const isLiked = likedPosts.has(post.id);
-                    const isCommentsOpen = openComments.has(post.id);
-                    const comments = postComments[post.id] ?? [];
-                    const authorLabel = getDisplayName(post.author_name);
-                    const isActive = activePostId === post.id;
-                    const isExpanded = expandedPosts.has(post.id);
-                    const canDeletePost = userId === post.user_id;
 
-                    return (
-                      <article
-                        key={post.id}
-                        data-feed-card="true"
-                        data-post-id={post.id}
-                        className={`membership-feed-card${isActive ? " is-active" : ""}`}
-                        style={{
-                          borderRadius: 24,
-                          border: isActive ? "1px solid #cbd5e1" : "1px solid #e2e8f0",
-                          background: isActive
-                            ? "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)"
-                            : "linear-gradient(180deg, #fbfdff 0%, #f1f5f9 100%)",
-                          padding: 16,
-                                                    minWidth: 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            justifyContent: "space-between",
-                            gap: 10,
-                            marginBottom: 12,
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 10,
-                              minWidth: 0,
-                              flex: 1,
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 999,
-                                background: getAvatarBackground(authorLabel),
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 14,
-                                fontWeight: 700,
-                                color: "#f8fafc",
-                                flexShrink: 0,
-                              }}
-                            >
-                              {getInitials(authorLabel)}
-                            </div>
 
-                            <div style={{ minWidth: 0 }}>
-                              <div
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  color: "#0f172a",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {authorLabel}
-                              </div>
-
-                              <div
-                                style={{
-                                  fontSize: 10,
-                                  color: "#64748b",
-                                }}
-                              >
-                                {new Date(post.created_at).toLocaleString()}
-                              </div>
-                            </div>
-                          </div>
-
-                          {canDeletePost && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeletePost(post.id)}
-                              disabled={deletingPostId === post.id}
-                              style={{
-                                border: "1px solid #fecaca",
-                                background: "#fff1f2",
-                                color: "#be123c",
-                                borderRadius: 999,
-                                padding: "3px 8px",
-                                fontSize: 10,
-                                fontWeight: 700,
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                                opacity: deletingPostId === post.id ? 0.7 : 1,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {deletingPostId === post.id ? "Deleting..." : "Delete"}
-                            </button>
-                          )}
-                        </div>
-
-                        <div style={{ marginBottom: post.image_url ? 12 : 10 }}>
-                          <p
-                            style={{
-                              fontSize: 14,
-                              color: "#0f172a",
-                              margin: 0,
-                              lineHeight: 1.6,
-                              display: isExpanded ? "block" : "-webkit-box",
-                              WebkitLineClamp: isExpanded ? "unset" : 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {post.content}
-                          </p>
-
-                          {post.content.length > 90 && (
-                            <button
-                              type="button"
-                              onClick={() => toggleExpandedPost(post.id)}
-                              style={{
-                                marginTop: 6,
-                                border: "none",
-                                background: "transparent",
-                                color: "#2563eb",
-                                fontSize: 12,
-                                fontWeight: 700,
-                                cursor: "pointer",
-                                padding: 0,
-                              }}
-                            >
-                              {isExpanded ? "Show less" : "Read more"}
-                            </button>
-                          )}
-                        </div>
-
-                        {post.image_url && (
-                          <div
-                            style={{
-                              borderRadius: 18,
-                              overflow: "hidden",
-                              border: "1px solid #dbe2ea",
-                              marginBottom: 6,
-                              background: "#eef2f7",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              padding: 8,
-                            }}
-                          >
-                            <img
-                              src={post.image_url}
-                              alt="Community post"
-                              style={{
-                                width: "100%",
-                                maxHeight: 360,
-                                objectFit: "contain",
-                                display: "block",
-                                borderRadius: 0,
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            fontSize: 12,
-                            marginTop: 6,
-                            gap: 12,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 12,
-                              alignItems: "center",
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={() => handleLike(post.id)}
-                              disabled={likeLoadingPostId === post.id}
-                              style={{
-                                border: "none",
-                                background: isLiked ? "rgba(34,197,94,0.12)" : "transparent",
-                                color: isLiked ? "#16a34a" : "#334155",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                cursor: "pointer",
-                                padding: "3px 8px",
-                                borderRadius: 999,
-                                fontWeight: 600,
-                                opacity: likeLoadingPostId === post.id ? 0.7 : 1,
-                              }}
-                            >
-                              <span style={{ fontSize: 14, lineHeight: 1 }}>
-                                {isLiked ? "💚" : "🤍"}
-                              </span>
-                              <span>{isLiked ? "Liked" : "Like"}</span>
-                            </button>
-
-                            <span style={{ fontSize: 12, color: "#64748b" }}>
-                              {post.likes} like{post.likes === 1 ? "" : "s"}
-                            </span>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => toggleComments(post.id)}
-                            style={{
-                              border: "none",
-                              background: "transparent",
-                              color: "#64748b",
-                              fontSize: 12,
-                              cursor: "pointer",
-                              padding: "4px 6px",
-                              borderRadius: 999,
-                              textDecoration: "underline",
-                              textDecorationStyle: "dotted",
-                            }}
-                          >
-                            {loadingCommentsPostId === post.id
-                              ? "Loading comments..."
-                              : isCommentsOpen
-                              ? `Hide comments (${post.comments_count})`
-                              : `View comments (${post.comments_count})`}
-                          </button>
-                        </div>
-
-                        <div style={{ marginTop: 10 }}>
-                          <form
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              handleSubmitComment(post.id);
-                            }}
-                            style={{
-                              display: "flex",
-                              gap: 4,
-                              alignItems: "center",
-                            }}
-                          >
-                            <input
-                              type="text"
-                              placeholder="Write a comment..."
-                              value={commentText[post.id] ?? ""}
-                              onChange={(e) =>
-                                setCommentText((prev) => ({
-                                  ...prev,
-                                  [post.id]: e.target.value,
-                                }))
-                              }
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                                fontSize: 12,
-                                padding: "8px 10px",
-                                borderRadius: 999,
-                                border: "1px solid #d6dbe4",
-                                backgroundColor: "#ffffff",
-                                color: "#0f172a",
-                                outline: "none",
-                              }}
-                            />
-                            <button
-                              type="submit"
-                              disabled={commentLoadingPostId === post.id}
-                              style={{
-                                fontSize: 12,
-                                padding: "8px 12px",
-                                borderRadius: 999,
-                                border: "none",
-                                background: "#0f172a",
-                                color: "#ffffff",
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                                opacity: commentLoadingPostId === post.id ? 0.7 : 1,
-                              }}
-                            >
-                              {commentLoadingPostId === post.id ? "Sending..." : "Send"}
-                            </button>
-                          </form>
-                        </div>
-
-                        {isCommentsOpen && (
-                          <div
-                            style={{
-                              marginTop: 10,
-                              paddingTop: 10,
-                              borderTop: "1px solid #e2e8f0",
-                              maxHeight: 220,
-                              overflowY: "auto",
-                            }}
-                          >
-                            {comments.length === 0 ? (
-                              <p
-                                style={{
-                                  fontSize: 12,
-                                  color: "#64748b",
-                                  margin: 0,
-                                  lineHeight: 1.35,
-                                }}
-                              >
-                                No comments yet on this post.
-                              </p>
-                            ) : (
-                              <ul
-                                style={{
-                                  listStyle: "none",
-                                  padding: 0,
-                                  margin: 0,
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 4,
-                                }}
-                              >
-                                {comments.map((c) => {
-                                  const commentAuthor = getDisplayName(c.author_name);
-                                  const canDeleteComment = userId === c.user_id;
-
-                                  return (
-                                    <li
-                                      key={c.id}
-                                      style={{ display: "flex", gap: 8 }}
-                                    >
-                                      <div
-                                        style={{
-                                          width: 24,
-                                          height: 24,
-                                          borderRadius: 999,
-                                          background: getAvatarBackground(commentAuthor),
-                                          display: "flex",
-                                          alignItems: "center",
-                                          justifyContent: "center",
-                                          fontSize: 10,
-                                          fontWeight: 700,
-                                          color: "#f8fafc",
-                                          flexShrink: 0,
-                                        }}
-                                      >
-                                        {getInitials(commentAuthor)}
-                                      </div>
-
-                                      <div
-                                        style={{
-                                          flex: 1,
-                                          fontSize: 12,
-                                          lineHeight: 1.45,
-                                          minWidth: 0,
-                                        }}
-                                      >
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "baseline",
-                                            gap: 4,
-                                          }}
-                                        >
-                                          <span
-                                            style={{
-                                              fontWeight: 700,
-                                              color: "#0f172a",
-                                              whiteSpace: "nowrap",
-                                              overflow: "hidden",
-                                              textOverflow: "ellipsis",
-                                            }}
-                                          >
-                                            {commentAuthor}
-                                          </span>
-
-                                          <span
-                                            style={{
-                                              fontSize: 10,
-                                              color: "#94a3b8",
-                                              flexShrink: 0,
-                                            }}
-                                          >
-                                            {new Date(c.created_at).toLocaleDateString("en-US", {
-                                              month: "2-digit",
-                                              day: "2-digit",
-                                            })}
-                                          </span>
-                                        </div>
-
-                                        <p style={{ margin: "2px 0 0 0", color: "#334155" }}>
-                                          {c.content}
-                                        </p>
-
-                                        {canDeleteComment && (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDeleteComment(post.id, c.id)}
-                                            disabled={deletingCommentId === c.id}
-                                            style={{
-                                              marginTop: 4,
-                                              border: "none",
-                                              background: "transparent",
-                                              color: "#be123c",
-                                              fontSize: 10,
-                                              fontWeight: 700,
-                                              cursor: "pointer",
-                                              padding: 0,
-                                              opacity: deletingCommentId === c.id ? 0.7 : 1,
-                                            }}
-                                          >
-                                            {deletingCommentId === c.id ? "Deleting..." : "Delete"}
-                                          </button>
-                                        )}
-                                      </div>
-                                    </li>
-                                  );
-                                })}
-                              </ul>
-                            )}
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
 {/* 
           <div style={{ ...dividerSectionStyle, marginBottom: 22 }}>
             {leaderLoading ? (
@@ -3354,6 +2384,31 @@ fontWeight: 700,
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
