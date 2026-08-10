@@ -9,7 +9,7 @@ import Link from "next/link";
 import JourneyLevelCard from "@/components/membership/JourneyLevelCard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import BackButton from "@/components/BackButton";
+import BackArrow from "@/components/BackArrow";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 export const dynamic = "force-dynamic";
@@ -370,6 +370,8 @@ export default function MembershipInsidePage() {
   const [journeyTitle, setJourneyTitle] = useState("Runner Journey");
   const [canManageHighlights, setCanManageHighlights] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+const [syncingStrava, setSyncingStrava] = useState(false);
+const [stravaSyncMessage, setStravaSyncMessage] = useState<string | null>(null);
   const [hasVideos, setHasVideos] = useState(false);
   const [stripeSubscriptionId, setStripeSubscriptionId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
@@ -1000,7 +1002,64 @@ const typedCommunity = community as CommunityRow;
     };
   }, [posts]);
 
-  async function handleCancelSubscription() {
+  
+async function handleSyncStrava() {
+  try {
+    setSyncingStrava(true);
+    setStravaSyncMessage(null);
+
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    const accessToken =
+      sessionData.session?.access_token ?? null;
+
+    if (!accessToken) {
+      setStravaSyncMessage(
+        "You need to be logged in to sync."
+      );
+      setSyncingStrava(false);
+      return;
+    }
+
+    const response = await fetch("/api/strava/sync", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const json = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        json?.message ??
+          "Could not sync with Strava."
+      );
+    }
+
+    setStravaSyncMessage(
+      typeof json?.fetched === "number"
+        ? `${json.fetched} activities checked. Updating...`
+        : "Sync complete. Updating..."
+    );
+
+    window.location.reload();
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Unexpected error while syncing.";
+
+    setStravaSyncMessage(errorMessage);
+    setSyncingStrava(false);
+  }
+}
+async function handleCancelSubscription() {
     if (!communityId || !userId || !stripeSubscriptionId) return;
 
     const confirmed = window.confirm(
@@ -1495,30 +1554,32 @@ return (
         className="page"
         style={{
           minHeight: "100vh",
-          background:
-            "linear-gradient(180deg, #eef1f5 0%, #e5e7eb 45%, #dfe3e8 100%)",
+          background: "#ffffff",
           paddingTop: "max(16px, env(safe-area-inset-top))",
-          paddingRight: "max(16px, env(safe-area-inset-right))",
-          paddingBottom: "max(16px, env(safe-area-inset-bottom))",
-          paddingLeft: "max(16px, env(safe-area-inset-left))",
+          paddingRight: 0,
+          paddingBottom: 0,
+          paddingLeft: 0,
           overflowX: "hidden",
         }}
       >
 <div
   style={{
-    maxWidth: 900,
-    margin: "0 auto 16px auto",
+    width: "100%",
+    margin: "0 0 16px 0",
+    paddingLeft: 18,
+    paddingRight: 18,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
   }}
 >
-  <BackButton fallbackHref="/groups" />
+  <BackArrow href="/groups" />
 
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
   <a
     href="/integrations"
     style={{
-      backgroundColor: "#f97316", // laranja
+      backgroundColor: "#f97316",
       color: "#fff",
       padding: "8px 14px",
       borderRadius: 8,
@@ -1529,15 +1590,36 @@ return (
   >
     Connect Strava
   </a>
+
+  <button
+    type="button"
+    onClick={handleSyncStrava}
+    disabled={syncingStrava}
+    style={{
+      border: "1px solid #e2e8f0",
+      background: "#ffffff",
+      color: "#0f172a",
+      padding: "7px 12px",
+      borderRadius: 8,
+      fontSize: 11,
+      fontWeight: 700,
+      cursor: syncingStrava ? "default" : "pointer",
+      opacity: syncingStrava ? 0.65 : 1,
+      boxShadow: "0 3px 10px rgba(15,23,42,0.08)",
+    }}
+  >
+    {syncingStrava ? "Syncing..." : "Sync Strava"}
+  </button>
+</div>
 </div>
         <div
           style={{
-            maxWidth: 900,
-            margin: "0 auto",
-            borderRadius: 28,
-            padding: "clamp(18px, 3vw, 24px)",
-            border: "1px solid #d6dbe4",
-            background: "#fff",
+            maxWidth: "100%",
+            margin: "0",
+           borderRadius: 0,
+padding: "clamp(18px, 3vw, 24px)",
+border: "none",
+background: "transparent",
 overflow: "hidden",
           }}
         >
@@ -1553,8 +1635,8 @@ overflow: "hidden",
           >
             <h1
               style={{
-                fontSize: "clamp(22px, 4vw, 24px)",
-                fontWeight: 800,
+                fontSize: "clamp(34px, 6vw, 42px)",
+fontWeight: 700,
                 margin: 0,
                 color: "#0f172a",
                 lineHeight: 1.15,
@@ -1624,7 +1706,7 @@ overflow: "hidden",
                   fontSize: 14,
                   fontWeight: 700,
                   padding: "9px 14px",
-                  borderRadius: 999,
+                  borderRadius: 8,
                   background: "#0f172a",
                   color: "#ffffff",
                   borderBottom: "none",
@@ -1643,7 +1725,7 @@ overflow: "hidden",
                   fontSize: 14,
                   fontWeight: 600,
                   padding: "9px 14px",
-                  borderRadius: 999,
+                  borderRadius: 8,
                   background: "#f8fafc",
                   border: "1px solid #e2e8f0",
                   whiteSpace: "nowrap",
@@ -1653,7 +1735,7 @@ overflow: "hidden",
                 Chat
               </Link>
 
-<Link href={`/groups/${communityId}/inside/performance`} style={{ textDecoration: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: "9px 14px", borderRadius: 999, background: "#f8fafc", border: "1px solid #e2e8f0", whiteSpace: "nowrap", flexShrink: 0 }}>Performance</Link>
+<Link href={`/groups/${communityId}/inside/performance`} style={{ textDecoration: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: "9px 14px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0", whiteSpace: "nowrap", flexShrink: 0 }}>Performance</Link>
 
               <Link
                 href={`/groups/${communityId}/inside/events`}
@@ -1663,7 +1745,7 @@ overflow: "hidden",
                   fontSize: 14,
                   fontWeight: 600,
                   padding: "9px 14px",
-                  borderRadius: 999,
+                  borderRadius: 8,
                   background: "#f8fafc",
                   border: "1px solid #e2e8f0",
                   whiteSpace: "nowrap",
@@ -1682,7 +1764,7 @@ overflow: "hidden",
                     fontSize: 14,
                     fontWeight: 600,
                     padding: "9px 14px",
-                  borderRadius: 999,
+                  borderRadius: 8,
                   background: "#f8fafc",
                   border: "1px solid #e2e8f0",
                   whiteSpace: "nowrap",
@@ -3272,89 +3354,6 @@ overflow: "hidden",
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
