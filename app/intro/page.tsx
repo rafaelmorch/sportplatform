@@ -1,169 +1,137 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Montserrat } from "next/font/google";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
-const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "500", "600"] });
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
 
-type HomeCardTone = "yellow" | "green" | "purple" | "blue" | "neutral";
-
-type HomeCardProps = {
-  title: string;
-  children: React.ReactNode;
-  onClick?: () => void;
-  tone?: HomeCardTone;
-  icon?: React.ReactNode;
-  visual?: React.ReactNode;
-};
-
-const CARD_TONES: Record<
-  HomeCardTone,
-  {
-    accent: string;
-    border: string;
-    glow: string;
-    haze: string;
-  }
-> = {
-  yellow: {
-    accent: "#facc15",
-    border: "rgba(250,204,21,0.58)",
-    glow: "rgba(245,158,11,0.24)",
-    haze: "rgba(245,158,11,0.30)",
-  },
-  green: {
-    accent: "#4ade80",
-    border: "rgba(74,222,128,0.56)",
-    glow: "rgba(34,197,94,0.22)",
-    haze: "rgba(34,197,94,0.28)",
-  },
-  purple: {
-    accent: "#c084fc",
-    border: "rgba(192,132,252,0.58)",
-    glow: "rgba(168,85,247,0.24)",
-    haze: "rgba(168,85,247,0.28)",
-  },
-  blue: {
-    accent: "#60a5fa",
-    border: "rgba(96,165,250,0.56)",
-    glow: "rgba(59,130,246,0.24)",
-    haze: "rgba(59,130,246,0.28)",
-  },
-  neutral: {
-    accent: "#ffffff",
-    border: "rgba(255,255,255,0.34)",
-    glow: "rgba(255,255,255,0.10)",
-    haze: "rgba(255,255,255,0.10)",
-  },
-};
-
-function HomeCard({
-  title,
+function IconBox({
   children,
-  onClick,
-  tone = "neutral",
-  icon,
-  visual,
-}: HomeCardProps) {
-  const colors = CARD_TONES[tone];
+  color,
+}: {
+  children: React.ReactNode;
+  color: string;
+}) {
+  return (
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        flexShrink: 0,
+        borderRadius: 10,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color,
+        background: `${color}12`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
+function SmallCard({
+  title,
+  text,
+  color,
+  icon,
+  onClick,
+  children,
+}: {
+  title: string;
+  text: string;
+  color: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+  children?: React.ReactNode;
+}) {
   return (
     <section
       onClick={onClick}
       style={{
         position: "relative",
-        width: "100%",
-        boxSizing: "border-box",
-        minHeight: tone === "neutral" ? undefined : 92,
         overflow: "hidden",
-        border: `1px solid ${colors.border}`,
-        borderRadius: 12,
-        padding: "14px 10px 14px 8px",
+        width: "100%",
+        minWidth: 0,
+        minHeight: 220,
+        boxSizing: "border-box",
+        borderRadius: 13,
+        border: `1px solid ${color}55`,
         background: `
-          radial-gradient(circle at 12% 18%, ${colors.haze}, transparent 42%),
-          linear-gradient(135deg, rgba(5,7,10,0.80), rgba(3,4,6,0.52))
+          radial-gradient(circle at 50% 0%, ${color}16, transparent 40%),
+          linear-gradient(180deg,#0a0c10,#060709)
         `,
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        boxShadow: `
-          inset 0 1px 0 rgba(255,255,255,0.07),
-          0 14px 34px rgba(0,0,0,0.30),
-          0 0 24px ${colors.glow}
-        `,
+        padding: "13px 8px 10px",
         cursor: onClick ? "pointer" : "default",
       }}
     >
       <div
-        aria-hidden="true"
         style={{
-          position: "absolute",
-          inset: 0,
-          pointerEvents: "none",
-          background:
-            "linear-gradient(115deg, rgba(255,255,255,0.08), transparent 28%)",
-          opacity: 0.55,
-        }}
-      />
-
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: tone === "neutral" ? "block" : "grid",
-          gridTemplateColumns:
-            tone === "neutral"
-              ? undefined
-              : icon
-                ? "48px minmax(0,1fr) 64px"
-                : "minmax(0,1fr) 64px",
-          alignItems: tone === "neutral" ? undefined : "center",
-          gap: tone === "neutral" ? undefined : 10,
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
         }}
       >
-        {tone !== "neutral" && icon && (
-          <div
-            style={{
-              color: colors.accent,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {icon}
-          </div>
-        )}
-
-        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <h2
-            style={{
-              margin: 0,
-              marginBottom: 7,
-              color: tone === "neutral" ? "#ffffff" : colors.accent,
-              fontSize: tone === "neutral" ? 18 : 18,
-              lineHeight: 1.15,
-              fontWeight: 600,
-              letterSpacing: tone === "neutral" ? undefined : "-0.02em",
-            }}
-          >
-            {title}
-          </h2>
-
-          {children}
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            borderRadius: 11,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color,
+            background: `${color}12`,
+            marginBottom: 9,
+          }}
+        >
+          {icon}
         </div>
 
-        {tone !== "neutral" && visual && (
+        <h2
+          style={{
+            margin: 0,
+            color,
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.18,
+            minHeight: 34,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {title}
+        </h2>
+
+        <p
+          style={{
+            margin: "7px 0 0",
+            color: "rgba(255,255,255,.68)",
+            fontSize: 10.5,
+            lineHeight: 1.35,
+          }}
+        >
+          {text}
+        </p>
+
+        {children && (
           <div
-            aria-hidden="true"
             style={{
-              color: colors.accent,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: 0.88,
+              width: "100%",
+              marginTop: "auto",
             }}
           >
-            {visual}
+            {children}
           </div>
         )}
       </div>
@@ -171,49 +139,47 @@ function HomeCard({
   );
 }
 
-function ActionButton({
-  label,
-  onClick,
-  primary = false,
-}: {
-  label: string;
-  onClick: () => void;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        minHeight: 46,
-        border: primary
-          ? "1px solid rgba(255,255,255,0.95)"
-          : "1px solid rgba(255,255,255,0.55)",
-        borderRadius: 12,
-        padding: "10px 16px",
-        background: primary ? "#ffffff" : "rgba(255,255,255,0.12)",
-        color: primary ? "#111827" : "#ffffff",
-        fontSize: 15,
-        fontWeight: 600,
-        cursor: "pointer",
-        touchAction: "manipulation",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
+type IntroCommunity = {
+  id: string;
+  name: string | null;
+  short_description: string | null;
+  cover_image_url: string | null;
+  banner_image_url: string | null;
+};
 
 export default function IntroPage() {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-
-  const [videoReady, setVideoReady] = useState(false);
+  const supabase = useMemo(() => supabaseBrowser, []);
+  const [communities, setCommunities] = useState<IntroCommunity[]>([]);
 
   useEffect(() => {
-    videoRef.current?.play().catch(() => {});
-  }, []);
+    let cancelled = false;
+
+    async function loadCommunities() {
+      const { data, error } = await supabase
+        .from("app_membership_communities")
+        .select("id,name,short_description,cover_image_url,banner_image_url")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Error loading intro communities:", error);
+        setCommunities([]);
+        return;
+      }
+
+      setCommunities((data as IntroCommunity[]) ?? []);
+    }
+
+    loadCommunities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
 
 
   const navigate = (href: string) => {
@@ -232,70 +198,51 @@ export default function IntroPage() {
         width: "100vw",
         height: "100dvh",
         overflow: "hidden",
-        background: "#111827",
+        background: "#030405",
+        color: "#fff",
         fontFamily: montserrat.style.fontFamily,
       }}
     >
       <div
-        aria-hidden="true"
         style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: `
-            linear-gradient(
-              to bottom,
-              rgba(0,0,0,0.05) 0%,
-              rgba(0,0,0,0.08) 28%,
-              rgba(0,0,0,0.42) 48%,
-              rgba(0,0,0,0.88) 66%,
-              #000000 82%
-            ),
-            url("/intro-hero.png")
-          `,
-          backgroundSize: "100% auto",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "top center",
-          backgroundColor: "#000000",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.42) 36%, rgba(0,0,0,0.78) 100%)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
           width: "100%",
           height: "100%",
-          boxSizing: "border-box",
           overflowY: "auto",
           WebkitOverflowScrolling: "touch",
-          paddingTop: "calc(26px + env(safe-area-inset-top))",
-          paddingBottom: "calc(170px + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(115px + env(safe-area-inset-bottom))",
         }}
       >
-        <div
+        {/* HERO */}
+        <section
           style={{
-            width: "100%",
-            maxWidth: 560,
-            boxSizing: "border-box",
-            margin: "0 auto",
-            padding: "0 18px",
+            position: "relative",
+            height: "clamp(265px, 36dvh, 360px)",
+            overflow: "hidden",
           }}
         >
           <div
-            aria-hidden="true"
             style={{
-              height: "28dvh",
-              minHeight: 180,
-              maxHeight: 300,
+              position: "absolute",
+              inset: 0,
+              backgroundImage: `url("/intro-hero-new.png")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center top",
+            }}
+          />
+
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: `
+                linear-gradient(
+                  to bottom,
+                  rgba(0,0,0,.05) 0%,
+                  rgba(0,0,0,.08) 45%,
+                  rgba(0,0,0,.50) 72%,
+                  #030405 100%
+                )
+              `,
             }}
           />
 
@@ -304,351 +251,762 @@ export default function IntroPage() {
             alt="Sports Platform"
             style={{
               position: "absolute",
-              top: "calc(20px + env(safe-area-inset-top))",
+              top: "calc(190px + env(safe-area-inset-top))",
               left: "50%",
               transform: "translateX(-50%)",
-              zIndex: 10,
-              display: "block",
-              width: "clamp(280px, 60vw, 420px)",
-              maxWidth: "calc(100% - 36px)",
+              width: "clamp(276px,66vw,420px)",
+              maxWidth: "calc(100% - 32px)",
               height: "auto",
-              objectFit: "contain",
+            }}
+          />
+        </section>
+
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 520,
+            margin: "-65px auto 0",
+            padding: "0 16px",
+            boxSizing: "border-box",
+            position: "relative",
+            zIndex: 3,
+          }}
+        >
+          {/* INTRO */}
+          <h1
+            style={{
+              margin: 0,
+              maxWidth: 300,
+              color: "#ffffff",
+              fontSize: "clamp(22px, 5.2vw, 27px)",
+              lineHeight: 1.05,
+              fontWeight: 600,
+              letterSpacing: "-0.03em",
+            }}
+          >
+            Transforme sua vida
+            <br />
+            através do esporte.
+          </h1>
+
+          <div
+            aria-hidden="true"
+            style={{
+              width: 48,
+              height: 3,
+              borderRadius: 999,
+              background: "#2f80ff",
+              marginTop: 8,
+              boxShadow: "0 0 10px rgba(47,128,255,.45)",
             }}
           />
 
+          <p
+            style={{
+              margin: "10px 0 0",
+              color: "rgba(255,255,255,.58)",
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              maxWidth: 450,
+            }}
+          >
+            Comunidade, desafios, performance e inteligência para acompanhar
+            cada etapa da sua evolução.
+          </p>
+
+                    {/* BOTÕES */}
           <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 10,
+              marginTop: 10,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
               style={{
-                display: "grid",
-                gap: 10,
+                height: 48,
+                borderRadius: 10,
+                border: "1px solid rgba(47,128,255,.40)",
+                background: "rgba(3,8,14,.82)",
+                color: "#ffffff",
+                fontFamily: "inherit",
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                cursor: "pointer",
+              }}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                style={{ color: "#2196f3" }}
+              >
+                <path
+                  d="M10 17l5-5-5-5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15 12H4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+
+              Entrar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/signup")}
+              style={{
+                height: 48,
+                borderRadius: 10,
+                border: "1px solid rgba(38,132,255,.95)",
+                background:
+                  "linear-gradient(135deg, #1688ff 0%, #0568e8 100%)",
+                color: "#ffffff",
+                fontFamily: "inherit",
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                boxShadow: "0 4px 14px rgba(0,105,230,.22)",
+                cursor: "pointer",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle
+                  cx="10"
+                  cy="7"
+                  r="3"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                />
+                <path
+                  d="M4.5 19a5.5 5.5 0 0 1 11 0"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M19 10v6M16 13h6"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                />
+              </svg>
+
+              Criar conta
+            </button>
+          </div>
+<p
+            style={{
+              margin: "9px 0 18px",
+              textAlign: "center",
+              color: "rgba(255,255,255,.30)",
+              fontSize: 9.5,
+            }}
+          >
+            Seus dados protegidos. Sua jornada é sua.
+          </p>
+
+          <p
+            style={{
+              margin: "0 0 10px",
+              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: ".02em",
+              textTransform: "uppercase",
+            }}
+          >
+            Tudo que você precisa para evoluir
+          </p>
+
+          <div style={{ display: "grid", gap: 10 }}>
+          <div
+            style={{
+              width: "calc(100% + 32px)",
+              marginLeft: -16,
+              marginRight: -16,
+              padding: "18px 16px 16px",
+              boxSizing: "border-box",
+              background: "#1c1f24",
+            }}
+          >
+            <section
+              style={{
+                width: "100%",
+                marginTop: 4,
+                marginBottom: 8,
               }}
             >
               <div
                 style={{
-                  padding: "6px 2px 8px",
-                  color: "#ffffff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
                 }}
               >
-
-                <h1
-                  style={{
-                    margin: "12px 0 0",
-                    maxWidth: 520,
-                    fontSize: "clamp(27px, 7vw, 38px)",
-                    lineHeight: 1.08,
-                    fontWeight: 500,
-                    letterSpacing: "-0.025em",
-                  }}
-                >
-                  Transforme sua vida através do esporte.
-                </h1>
-
-                <p
-                  style={{
-                    margin: "12px 0 0",
-                    maxWidth: 500,
-                    color: "rgba(255,255,255,0.72)",
-                    fontSize: 14,
-                    lineHeight: 1.5,
-                    fontWeight: 400,
-                  }}
-                >
-                  Participe de comunidades, complete desafios, evolua pelas cores das camisetas e acompanhe sua jornada rumo a uma vida mais saudável.
-                </p>
-              </div>
-
-              
-
-              <HomeCard
-                title="Comunidades"
-                tone="blue"
-                onClick={() => navigate("/groups")}
-                visual={
-                  <svg
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                    style={{
-                      display: "block",
-                      color: "#3B82F6",
-                      filter:
-                        "drop-shadow(0 0 5px rgba(59,130,246,0.65))",
-                    }}
-                  >
-                    <circle cx="12" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
-                    <circle cx="5" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.8"/>
-                    <circle cx="19" cy="9" r="2.2" stroke="currentColor" strokeWidth="1.8"/>
-
-                    <path
-                      d="M7.5 19a4.5 4.5 0 0 1 9 0"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-
-                    <path
-                      d="M1.8 19a3.2 3.2 0 0 1 4.4-2.9"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-
-                    <path
-                      d="M22.2 19a3.2 3.2 0 0 0-4.4-2.9"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                }
-              >
-                <p
+                <h2
                   style={{
                     margin: 0,
                     color: "#ffffff",
-                    fontSize: 18,
+                    fontSize: 21,
+                    lineHeight: 1.15,
                     fontWeight: 600,
+                    letterSpacing: "-0.03em",
                   }}
                 >
-                  Encontre sua comunidade
-                </p>
+                  Comunidades
+                </h2>
 
-                <p
+                <button
+                  type="button"
+                  onClick={() => navigate("/groups")}
                   style={{
-                    margin: "7px 0 0",
-                    color: "rgba(255,255,255,0.76)",
-                    fontSize: 14,
-                    lineHeight: 1.5,
-                    fontWeight: 400,
+                    border: 0,
+                    padding: 0,
+                    background: "transparent",
+                    color: "#2f80ff",
+                    fontFamily: "inherit",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: "pointer",
                   }}
                 >
-                  Conecte-se com pessoas que têm os mesmos objetivos e comece sua jornada esportiva.
-                </p>
-              </HomeCard>
+                  Ver todas
+                </button>
+              </div>
 
-              <HomeCard
-                title="Como funciona"
-                tone="blue"
-                visual={
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 5,
-                      color: "#3B82F6",
-                      filter:
-                        "drop-shadow(0 0 6px rgba(59,130,246,0.70))",
-                    }}
-                  >
-                    <svg
-                      width="52"
-                      height="52"
-                      viewBox="0 0 64 64"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="24"
-                        stroke="rgba(59,130,246,0.24)"
-                        strokeWidth="5"
-                      />
+              <p
+                style={{
+                  margin: "7px 0 13px",
+                  maxWidth: 410,
+                  color: "rgba(255,255,255,.54)",
+                  fontSize: 11.5,
+                  lineHeight: 1.5,
+                }}
+              >
+                Encontre pessoas que compartilham seus objetivos, sua rotina
+                e sua paixão pelo esporte.
+              </p>
 
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="24"
-                        stroke="currentColor"
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        strokeDasharray="90.5 150.8"
-                        transform="rotate(-90 32 32)"
-                      />
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  width: "calc(100% + 16px)",
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  marginRight: -16,
+                  paddingRight: 16,
+                  paddingBottom: 4,
+                  scrollSnapType: "x mandatory",
+                  WebkitOverflowScrolling: "touch",
+                  scrollbarWidth: "none",
+                }}
+              >
+                {communities.map((community) => {
+                  const image =
+                    community.cover_image_url ||
+                    community.banner_image_url;
 
-                      <text
-                        x="32"
-                        y="36"
-                        fill="currentColor"
-                        fontSize="13"
-                        fontWeight="600"
-                        textAnchor="middle"
-                      >
-                        60%
-                      </text>
-                    </svg>
-
-                    <div
+                  return (
+                    <button
+                      key={community.id}
+                      type="button"
+                      onClick={() =>
+                        navigate(`/groups/${community.id}`)
+                      }
                       style={{
-                        width: 1,
-                        height: 10,
-                        background: "rgba(59,130,246,0.72)",
-                        boxShadow: "0 0 6px rgba(59,130,246,0.65)",
+                        position: "relative",
+                        flex: "0 0 76%",
+                        maxWidth: 300,
+                        aspectRatio: "16 / 10",
+                        overflow: "hidden",
+                        padding: 0,
+                        borderRadius: 13,
+                        border: "1px solid rgba(255,255,255,.10)",
+                        background: "#090b0e",
+                        scrollSnapAlign: "start",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        textAlign: "left",
                       }}
-                    />
-
-                    <svg
-                      width="42"
-                      height="42"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
                     >
-                      <path
-                        d="M8 4 4.5 6 2 10l3 2 1.5-2V21h11V10L19 12l3-2-2.5-4L16 4c-.7 1.4-2.1 2.2-4 2.2S8.7 5.4 8 4Z"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                      {image ? (
+                        <img
+                          src={image}
+                          alt={community.name || "Comunidade"}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : null}
+
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background:
+                            "linear-gradient(to bottom, rgba(0,0,0,.02) 30%, rgba(0,0,0,.22) 58%, rgba(0,0,0,.93) 100%)",
+                        }}
                       />
-                    </svg>
-                  </div>
-                }
+
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: 13,
+                          right: 13,
+                          bottom: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            color: "#ffffff",
+                            fontSize: 15,
+                            fontWeight: 600,
+                            lineHeight: 1.2,
+                            textShadow:
+                              "0 2px 8px rgba(0,0,0,.65)",
+                          }}
+                        >
+                          {community.name || "Comunidade"}
+                        </div>
+
+                        {community.short_description && (
+                          <div
+                            style={{
+                              marginTop: 4,
+                              color: "rgba(255,255,255,.70)",
+                              fontSize: 10,
+                              lineHeight: 1.35,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {community.short_description}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginTop: 11,
+                marginBottom: 20,
+                overflowX: "auto",
+                whiteSpace: "nowrap",
+                scrollbarWidth: "none",
+                color: "rgba(255,255,255,.65)",
+                fontSize: 10.5,
+                fontWeight: 500,
+              }}
+            >
+              <span>Desafios & Journey</span>
+              <span style={{ color: "#2f80ff" }}>•</span>
+              <span>Performance</span>
+              <span style={{ color: "#2f80ff" }}>•</span>
+              <span>Fórum</span>
+              <span style={{ color: "#2f80ff" }}>•</span>
+              <span>Conteúdo Especializado</span>
+            </div>
+
+          </div>
+
+            {/* ATIVIDADES */}
+            <section
+              onClick={() => navigate("/activities")}
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                width: "100%",
+                boxSizing: "border-box",
+                borderRadius: 14,
+                border: "1px solid rgba(59,130,246,.48)",
+                background: `
+                  radial-gradient(circle at 100% 50%, rgba(59,130,246,.10), transparent 42%),
+                  linear-gradient(135deg,#0a0d12,#060709)
+                `,
+                padding: "14px 15px",
+                cursor: "pointer",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "42px minmax(0,1fr) 38px",
+                  gap: 11,
+                  alignItems: "center",
+                }}
               >
                 <div
                   style={{
-                    display: "grid",
-                    gap: 11,
+                    width: 48,
+                    height: 48,
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
-                  {[
-                    "Entre para uma comunidade esportiva",
-                    "Complete desafios",
-                    "Evolua pelas cores das camisetas",
-                    "Acompanhe sua performance",
-                  ].map((item, index) => (
+                  <img
+                    src="/activities-icon.png"
+                    alt="Atividades"
+                    style={{
+                      display: "block",
+                      width: "48px",
+                      height: "48px",
+                      objectFit: "contain",
+                    }}
+                  />
+                </div>
+
+                <div style={{ minWidth: 0, transform: "translateX(5px)" }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      color: "#3b82f6",
+                      fontSize: 15,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Atividades
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      color: "#ffffff",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    Encontre atividades perto de você
+                  </p>
+
+                  <p
+                    style={{
+                      margin: "3px 0 0",
+                      color: "rgba(255,255,255,.52)",
+                      fontSize: 10,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    Corridas, pedaladas, eventos e muito mais.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    border: "1px solid rgba(59,130,246,.32)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#3b82f6",
+                    fontSize: 22,
+                  }}
+                >
+                  →
+                </div>
+              </div>
+
+              <img
+                src="/activities-journey.png"
+                alt="Jornada de atividades"
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "auto",
+                  marginTop: 12,
+                  objectFit: "contain",
+                }}
+              />
+            </section>
+
+            {/* COACH IA */}
+            <section
+              onClick={() => navigate("/performance-ai")}
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                borderRadius: 16,
+                border: "1px solid rgba(212,175,55,.72)",
+                background: `
+                  radial-gradient(circle at 85% 15%, rgba(212,175,55,.09), transparent 38%),
+                  linear-gradient(145deg,#0b0c0e,#050607)
+                `,
+                padding: "12px",
+                boxShadow: "0 0 24px rgba(212,175,55,.07)",
+                cursor: "pointer",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0,1fr) 86px",
+                  gap: 14,
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      color: "#f1c94b",
+                      fontSize: 23,
+                      lineHeight: 1.1,
+                      fontWeight: 600,
+                      letterSpacing: "-0.03em",
+                    }}
+                  >
+                    Coach IA
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: "10px 0 0",
+                      color: "rgba(255,255,255,.72)",
+                      fontSize: 11.5,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    Seu treinador inteligente 24/7. Planos personalizados,
+                    insights e recomendações para você evoluir todos os dias.
+                  </p>
+                </div>
+
+                <div>
+                  <p
+                    style={{
+                      margin: "0 0 7px",
+                      textAlign: "center",
+                      color: "rgba(255,255,255,.82)",
+                      fontSize: 9.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Seu progresso
+                  </p>
+
+                  <div
+                    style={{
+                      width: 70,
+                      height: 70,
+                      borderRadius: "50%",
+                      padding: 6,
+                      boxSizing: "border-box",
+                      background:
+                        "conic-gradient(#ff2d2d 0deg,#ff7a00 55deg,#ffd60a 110deg,#c86bff 185deg,#6f3cff 235deg,#1e7bff 300deg,#12d7ff 360deg)",
+                      boxShadow: "0 0 16px rgba(30,123,255,.18)",
+                    }}
+                  >
                     <div
-                      key={item}
                       style={{
+                        width: "100%",
+                        height: "100%",
+                        borderRadius: "50%",
+                        background: "#070809",
                         display: "flex",
+                        flexDirection: "column",
                         alignItems: "center",
-                        gap: 12,
+                        justifyContent: "center",
                       }}
                     >
-                      <div
+                      <span
                         style={{
-                          width: 30,
-                          height: 30,
-                          flexShrink: 0,
-                          borderRadius: 99,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: "rgba(255,255,255,0.16)",
                           color: "#ffffff",
-                          fontSize: 14,
+                          fontSize: 20,
+                          lineHeight: 1,
                           fontWeight: 600,
                         }}
                       >
-                        {index + 1}
-                      </div>
+                        78%
+                      </span>
 
-                      <p
+                      <span
                         style={{
-                          margin: 0,
-                          color: "#ffffff",
-                          fontSize: 15,
+                          marginTop: 4,
+                          color: "rgba(255,255,255,.76)",
+                          fontSize: 8.5,
                           fontWeight: 500,
                         }}
                       >
-                        {item}
-                      </p>
+                        Excelente
+                      </span>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </HomeCard>
+              </div>
 
-              <HomeCard
-                title="Atividades"
-                tone="blue"
-                onClick={() => navigate("/activities")}
-                visual={
-                  <svg
-                    width="44"
-                    height="44"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                    style={{
-                      display: "block",
-                      color: "#3B82F6",
-                      filter:
-                        "drop-shadow(0 0 5px rgba(59,130,246,0.65))",
-                    }}
-                  >
-                    <circle
-                      cx="6"
-                      cy="18"
-                      r="2"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    />
-                    <circle
-                      cx="18"
-                      cy="6"
-                      r="2"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    />
-                    <path
-                      d="M7.8 17.1c2.1-1 2.4-2.6 1.2-4.1-1.3-1.7-.5-3.5 1.6-4.1 1.8-.5 3.2.4 4.3-.4.8-.6 1.2-1.4 1.5-2.3"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeDasharray="2.5 2.5"
-                    />
-                  </svg>
-                }
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/performance-ai");
+                }}
+                style={{
+                  marginTop: 10,
+                  height: 42,
+                  padding: "0 15px",
+                  borderRadius: 11,
+                  border: "1px solid rgba(212,175,55,.72)",
+                  background: "rgba(212,175,55,.04)",
+                  color: "#ffffff",
+                  fontFamily: "inherit",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
               >
-                    <p
-                  style={{
-                    margin: 0,
-                    color: "#ffffff",
-                    fontSize: 18,
-                    fontWeight: 600,
-                  }}
-                >
-                  Encontre atividades perto de você
-                </p>
-
-                <p
-                  style={{
-                    margin: "7px 0 0",
-                    color: "rgba(255,255,255,0.76)",
-                    fontSize: 14,
-                    lineHeight: 1.5,
-                    fontWeight: 400,
-                  }}
-                >
-                  Explore corridas, pedaladas, eventos esportivos e atividades da comunidade.
-                </p>
-              </HomeCard>
+                Conhecer o Coach IA
+              </button>
 
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
+                  gap: "12px 14px",
+                  marginTop: 10,
+                  paddingTop: 10,
+                  borderTop: "1px solid rgba(212,175,55,.16)",
                 }}
               >
-                <ActionButton
-                  label="Entrar"
-                  onClick={() => navigate("/login")}
-                />
+                {[
+                  {
+                    label: "Plano personalizado",
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                        <path d="M8 3v4M16 3v4M4 10h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    label: "Treinos inteligentes",
+                    icon: (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                        <path d="M4 10v4M7 7v10M17 7v10M20 10v4M7 12h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    label: "Análises e insights",
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 19v-6M10 19V9M15 19v-4M20 19V5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    label: "Recomendações diárias",
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                      </svg>
+                    ),
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "20px minmax(0,1fr)",
+                      gap: 7,
+                      alignItems: "center",
+                      color: "#f1c94b",
+                    }}
+                  >
+                    {item.icon}
 
-                <ActionButton
-                  label="Criar conta"
-                  onClick={() => navigate("/signup")}
-                  primary
-                />
+                    <span
+                      style={{
+                        color: "rgba(255,255,255,.78)",
+                        fontSize: 9.5,
+                        lineHeight: 1.3,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
+            </section>
+          </div>
+
+          <div
+            style={{
+              height: 110,
+            }}
+          />
         </div>
       </div>
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
