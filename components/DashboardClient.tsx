@@ -1,6 +1,11 @@
 // components/DashboardClient.tsx
 "use client";
 
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import DashboardCharts from "@/components/DashboardCharts";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -30,6 +35,7 @@ type RangeKey = "all" | "today" | "7d" | "30d" | "6m";
 type DashboardClientProps = {
   activities: StravaActivity[];
   eventsSummary: EventsSummary; // compat
+  communityId?: string;
 };
 
 type RankingEntry = {
@@ -158,7 +164,7 @@ function getStravaActivityPoints(type: string | null, movingSeconds: number): nu
   return hours * rate;
 }
 
-export default function DashboardClient({ activities, eventsSummary }: DashboardClientProps) {
+export default function DashboardClient({ activities, eventsSummary, communityId }: DashboardClientProps) {
   const now = new Date();
 
   const [range, setRange] = useState<RangeKey>("7d");
@@ -509,6 +515,21 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
     return entries;
   }, [groupActivities, athleteNames, currentAthleteId]);
 
+
+  const topRanking = ranking.slice(0, 10);
+
+  const currentUserRankingIndex = ranking.findIndex((entry) => entry.isCurrent);
+
+  const currentUserRanking =
+    currentUserRankingIndex >= 0
+      ? {
+          ...ranking[currentUserRankingIndex],
+          position: currentUserRankingIndex + 1,
+        }
+      : null;
+
+  const currentUserIsTop10 =
+    currentUserRankingIndex >= 0 && currentUserRankingIndex < 10;
   const lastPlace = ranking.length > 0 ? ranking[ranking.length - 1] : null;
 
   const evolutionData: EvolutionPoint[] = useMemo(() => {
@@ -724,71 +745,20 @@ style={{
   </div>
 )}
 
-      {/* MEME DO CHURRASCO */}
-      {lastPlace && (
-        <section
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            marginBottom: 18,
-            padding: "10px 12px",
-            borderRadius: 18,
-            border: "1px solid rgba(248,113,113,0.6)",
-            background: "linear-gradient(135deg, #fff1f2, #ffffff)",
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-            <span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.16em", color: "#fca5a5" }}>
-              Quem vai pagar o próximo churrasco?
-            </span>
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {lastPlace.label}
-            </span>
-            <span style={{ fontSize: 11, color: "#64748b" }}>Último colocado no ranking neste período.</span>
-          </div>
-
-          <div
-            aria-hidden="true"
-            style={{
-              minWidth: 56,
-              minHeight: 56,
-              borderRadius: "999px",
-              border: "2px solid rgba(248,113,113,0.9)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 26,
-              fontWeight: 800,
-            }}
-          >
-            🥩
-          </div>
-        </section>
-      )}
 
       {/* RANKING */}
       <section
         style={{
           marginBottom: 18,
           padding: "14px 14px",
-          borderRadius: 22,
+          borderRadius: 6,
           border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
           background: "#ffffff",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Ranking do grupo ({rangeLabel})</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, fontFamily: "Montserrat, sans-serif", letterSpacing: "-0.01em" }}>Ranking do grupo ({rangeLabel})</h2>
           <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
             Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100 pts/h, caminhada = 15 pts/h.
           </p>
@@ -798,7 +768,7 @@ style={{
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "80px 1fr 140px 140px",
+              gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
               gap: 10,
               padding: "10px 10px",
               color: "#64748b",
@@ -817,25 +787,26 @@ style={{
               Ainda não há atividades suficientes neste período.
             </div>
           ) : (
-            ranking.map((r, idx) => (
+            topRanking.map((r, idx) => (
               <div
                 key={r.athleteId}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "80px 1fr 140px 140px",
+                  gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
                   gap: 10,
                   padding: "12px 10px",
-                  borderBottom: idx === ranking.length - 1 ? "none" : "1px solid #e2e8f0",
+                  borderBottom: idx === topRanking.length - 1 ? "none" : "1px solid #e2e8f0",
                   background: r.isCurrent ? "#ecfdf5" : "transparent",
                 }}
               >
-                <div style={{ fontWeight: 800, fontSize: 18 }}>#{idx + 1}</div>
+                <div style={{ fontWeight: 600, fontSize: 17, fontFamily: "Montserrat, sans-serif" }}>#{idx + 1}</div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, width: "100%" }}>
                   <div
                     style={{
-                      fontWeight: 800,
-                      fontSize: 18,
+                      fontWeight: 500,
+                  fontSize: 16,
+                  fontFamily: "Montserrat, sans-serif",
                       whiteSpace: "nowrap",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
@@ -859,10 +830,71 @@ style={{
                       Você
                     </span>
                   )}
+      {!currentUserIsTop10 && currentUserRanking && (
+        <div
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: "1px solid #e2e8f0",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: 8,
+              fontSize: 11,
+              fontWeight: 500,
+              color: "#64748b",
+              fontFamily: "Montserrat, sans-serif",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+            }}
+          >
+            Sua posição
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
+              gap: 10,
+              alignItems: "center",
+              padding: "12px 10px",
+              background: "#ecfdf5",
+              borderRadius: 6,
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: 17, fontFamily: "Montserrat, sans-serif" }}>
+              #{currentUserRanking.position}
+            </div>
+
+            <div
+              style={{
+                minWidth: 0,
+                fontWeight: 500,
+                fontSize: 15,
+                fontFamily: "Montserrat, sans-serif",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {currentUserRanking.label}
+            </div>
+
+            <div style={{ textAlign: "right", fontSize: 16, fontWeight: 600, fontFamily: "Montserrat, sans-serif" }}>
+              {currentUserRanking.totalPoints}
+            </div>
+
+            <div style={{ textAlign: "right", fontSize: 16, fontWeight: 600, fontFamily: "Montserrat, sans-serif" }}>
+              {currentUserRanking.totalHours.toFixed(1)} h
+            </div>
+          </div>
+        </div>
+      )}
                 </div>
 
-                <div style={{ textAlign: "right", fontSize: 18, fontWeight: 800 }}>{r.totalPoints}</div>
-                <div style={{ textAlign: "right", fontSize: 18, fontWeight: 800 }}>{r.totalHours.toFixed(1)} h</div>
+                <div style={{ textAlign: "right", fontSize: 17, fontWeight: 600, fontFamily: "Montserrat, sans-serif" }}>{r.totalPoints}</div>
+                <div style={{ textAlign: "right", fontSize: 17, fontWeight: 600, fontFamily: "Montserrat, sans-serif" }}>{r.totalHours.toFixed(1)} h</div>
               </div>
             ))
           )}
@@ -878,22 +910,26 @@ style={{
           marginBottom: 18,
         }}
       >
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
           <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Atividades</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteActivitiesCount}</div>
         </div>
 
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
           <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Distância (km)</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteDistance.toFixed(1)}</div>
         </div>
 
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
           <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Tempo em movimento</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{formatDuration(athleteMovingTime)}</div>
         </div>
 
-        <div style={{ padding: 14, borderRadius: 18, border: "1px solid #e2e8f0", background: "#ffffff" }}>
+        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
           <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Elevação (m)</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{Math.round(athleteElevation)}</div>
         </div>
@@ -915,8 +951,9 @@ style={{
           marginTop: 0, // ✅ não precisa mais, já tem espaço garantido no gráfico
           marginBottom: 18,
           padding: "14px 14px",
-          borderRadius: 22,
+          borderRadius: 6,
           border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
           background: "#ffffff",
         }}
       >
@@ -945,8 +982,9 @@ style={{
                     justifyContent: "space-between",
                     gap: 12,
                     padding: "10px 10px",
-                    borderRadius: 16,
+                    borderRadius: 6,
                     border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
                     background: "#f8fafc",
                     flexWrap: "wrap",
                   }}
@@ -999,9 +1037,188 @@ style={{
           </div>
         )}
       </section>
+    
+  {/* RANKING COMPLETO */}
+  <section
+    style={{
+      marginTop: 18,
+      marginBottom: 18,
+      padding: "14px 14px",
+      borderRadius: 6,
+      border: "1px solid #e2e8f0",
+          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
+      background: "#ffffff",
+    }}
+  >
+    <h2
+      style={{
+        margin: 0,
+        marginBottom: 6,
+        fontSize: 18,
+        fontWeight: 600,
+        fontFamily: "Montserrat, sans-serif",
+        letterSpacing: "-0.01em",
+      }}
+    >
+      Ranking completo
+    </h2>
+
+    <p
+      style={{
+        margin: "0 0 12px",
+        fontSize: 12,
+        color: "#64748b",
+        fontFamily: "Montserrat, sans-serif",
+      }}
+    >
+      Classificação completa do grupo neste período.
+    </p>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
+        gap: 10,
+        padding: "10px 10px",
+        color: "#64748b",
+        fontSize: 12,
+        borderBottom: "1px solid #e2e8f0",
+      }}
+    >
+      <div>Pos.</div>
+      <div>Atleta</div>
+      <div style={{ textAlign: "right" }}>Pontos</div>
+      <div style={{ textAlign: "right" }}>Horas</div>
     </div>
+
+    {ranking.length === 0 ? (
+      <div
+        style={{
+          padding: "14px 10px",
+          color: "#64748b",
+          fontSize: 13,
+        }}
+      >
+        Ainda não há atividades suficientes neste período.
+      </div>
+    ) : (
+      ranking.map((r, idx) => (
+        <div
+          key={`full-${r.athleteId}`}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
+            gap: 10,
+            alignItems: "center",
+            padding: "12px 10px",
+            borderBottom:
+              idx === ranking.length - 1
+                ? "none"
+                : "1px solid #e2e8f0",
+            background: r.isCurrent ? "#ecfdf5" : "transparent",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: 15,
+              fontFamily: "Montserrat, sans-serif",
+            }}
+          >
+            #{idx + 1}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              minWidth: 0,
+              width: "100%",
+            }}
+          >
+            <div
+              style={{
+                minWidth: 0,
+                fontWeight: 500,
+                fontSize: 14,
+                fontFamily: "Montserrat, sans-serif",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {r.label}
+            </div>
+
+            {r.isCurrent && (
+              <span
+                style={{
+                  flexShrink: 0,
+                  fontSize: 10,
+                  padding: "2px 7px",
+                  borderRadius: 999,
+                  border: "1px solid #22c55e",
+                  color: "#166534",
+                  background: "#dcfce7",
+                  fontWeight: 500,
+                  fontFamily: "Montserrat, sans-serif",
+                }}
+              >
+                Você
+              </span>
+            )}
+          </div>
+
+          <div
+            style={{
+              textAlign: "right",
+              fontSize: 14,
+              fontWeight: 600,
+              fontFamily: "Montserrat, sans-serif",
+            }}
+          >
+            {r.totalPoints}
+          </div>
+
+          <div
+            style={{
+              textAlign: "right",
+              fontSize: 14,
+              fontWeight: 500,
+              fontFamily: "Montserrat, sans-serif",
+            }}
+          >
+            {r.totalHours.toFixed(1)} h
+          </div>
+        </div>
+      ))
+    )}
+  </section>
+</div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,7 +1,7 @@
 // app/groups/[id]/inside/performance/page.tsx
 import DashboardClient from "@/components/DashboardClient";
 import { createClient } from "@supabase/supabase-js";
-import BackButton from "@/components/BackButton";
+import BackArrow from "@/components/BackArrow";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -71,15 +71,15 @@ return (
     style={{
       minHeight: "100vh",
       background: "#f8fafc",
-      padding: "20px 16px 80px",
+      padding: "20px 10px 80px",
       fontFamily: "Montserrat, sans-serif",
     }}
   >
     <div style={{ marginBottom: 12 }}>
-      <BackButton />
+      <BackArrow href={`/groups/${communityId}/inside`} />
     </div>
 
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ width: "100%", maxWidth: "100%", margin: 0 }}>
 <div style={{ marginBottom: 16 }}>
           <h1
             style={{
@@ -104,13 +104,15 @@ return (
         </div>
 
         <div
-          style={{
-            background: "#ffffff",
-            borderRadius: 16,
-            padding: 16,
-            border: "1px solid #e2e8f0",
-          }}
-        >
+      style={{
+        width: "100%",
+        maxWidth: "100%",
+        background: "transparent",
+        borderRadius: 0,
+        padding: 0,
+        border: "none",
+      }}
+    >
           <DashboardClient
             activities={activities}
             eventsSummary={eventsSummary}
@@ -120,3 +122,11 @@ return (
     </main>
   );
 }
+
+
+
+
+
+
+
+
