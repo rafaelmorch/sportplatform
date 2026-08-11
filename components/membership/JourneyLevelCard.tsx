@@ -95,20 +95,22 @@ export default function JourneyLevelCard({
           >
             <div
               style={{
-                width: 62,
-                height: 62,
+                width: 60,
+                height: 60,
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                borderRadius: "50%",
+                background: "#f1f3f5",
               }}
             >
               <img
                 src={shirtImage}
                 alt={cleanTitle}
                 style={{
-                  width: "100%",
-                  height: "100%",
+                  width: 47,
+                  height: 47,
                   objectFit: "contain",
                   display: "block",
                 }}
@@ -188,20 +190,22 @@ export default function JourneyLevelCard({
         >
           <div
             style={{
-              width: 78,
-              height: 78,
+              width: 72,
+              height: 72,
               flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              borderRadius: "50%",
+              background: "#f1f3f5",
             }}
           >
             <img
               src={shirtImage}
               alt={cleanTitle}
               style={{
-                width: "100%",
-                height: "100%",
+                width: "80%",
+                height: "80%",
                 objectFit: "contain",
                 display: "block",
               }}
@@ -463,6 +467,15 @@ export default function JourneyLevelCard({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 
