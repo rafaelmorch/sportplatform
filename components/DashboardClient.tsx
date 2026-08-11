@@ -638,57 +638,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
             </h1>
           </div>
         </div>
-
-        {/* Seletor de grupo */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-            alignItems: "center",
-            marginTop: 4,
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#64748b" }}>
-            {groups.length > 1 ? "Selecione o grupo para ver ranking e métricas:" : "Grupo atual:"}
-          </span>
-
-          {groups.length === 0 ? (
-            <span style={{ fontSize: 12, color: "#64748b" }}>Nenhum grupo encontrado.</span>
-          ) : (
-            <select
-              value={selectedGroupId ?? ""}
-              onChange={(e) => setSelectedGroupId(e.target.value || null)}
-              style={{
-                fontSize: 12,
-                padding: "4px 10px",
-                borderRadius: 999,
-                border: "1px solid #cbd5e1",
-                backgroundColor: "#ffffff",
-                color: "#0f172a",
-                outline: "none",
-                cursor: "pointer",
-                maxWidth: "100%",
-              }}
-            >
-              {groups.map((g) => (
-                <option
-                  key={g.id}
-                  value={g.id}
-                  style={{ backgroundColor: "#ffffff", color: "#0f172a" }}
-                >
-                  {g.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {(loadingGroups || loadingGroupAthletes) && (
-            <span style={{ fontSize: 11, color: "#64748b" }}>Carregando grupos/atletas...</span>
-          )}
-        </div>
-
-        <p style={{ fontSize: 13, color: "#64748b", margin: 0, marginTop: 4 }}>
+<p style={{ fontSize: 13, color: "#64748b", margin: 0, marginTop: 4 }}>
           Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e
           resumo das suas atividades.
         </p>
@@ -1052,6 +1002,7 @@ style={{
     </div>
   );
 }
+
 
 
 
