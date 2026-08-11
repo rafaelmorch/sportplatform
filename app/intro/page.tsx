@@ -208,6 +208,7 @@ export default function IntroPage() {
           width: "100%",
           height: "100%",
           overflowY: "auto",
+          overflowX: "hidden",
           WebkitOverflowScrolling: "touch",
           paddingBottom: "calc(115px + env(safe-area-inset-bottom))",
         }}
@@ -251,7 +252,7 @@ export default function IntroPage() {
             alt="Sports Platform"
             style={{
               position: "absolute",
-              top: "calc(190px + env(safe-area-inset-top))",
+              top: "calc(160px + env(safe-area-inset-top))",
               left: "50%",
               transform: "translateX(-50%)",
               width: "clamp(276px,66vw,420px)",
@@ -265,7 +266,9 @@ export default function IntroPage() {
           style={{
             width: "100%",
             maxWidth: 520,
-            margin: "-65px auto 0",
+            margin: "-40px auto 0",
+            marginLeft: "auto",
+            marginRight: "auto",
             padding: "0 16px",
             boxSizing: "border-box",
             position: "relative",
@@ -991,6 +994,13 @@ export default function IntroPage() {
     </main>
   );
 }
+
+
+
+
+
+
+
 
 
 
