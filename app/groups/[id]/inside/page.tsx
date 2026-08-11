@@ -1466,6 +1466,8 @@ fontWeight: 700,
                 background: "#f3f4f6",
                 padding: "14px 0 0",
                 marginBottom: 0,
+                marginLeft: -16,
+                marginRight: -16,
               }}
             >
               <BadgesChallenges
@@ -2417,6 +2419,7 @@ fontWeight: 700,
     </>
   );
 }
+
 
 
 
