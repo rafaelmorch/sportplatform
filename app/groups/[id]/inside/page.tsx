@@ -1111,7 +1111,7 @@ return (
     onClick={handleSyncStrava}
     disabled={syncingStrava}
     style={{
-      border: "1px solid #e2e8f0",
+      border: "1px solid #cbd5e1",
       background: "#ffffff",
       color: "#0f172a",
       padding: "7px 12px",
@@ -1168,7 +1168,7 @@ fontWeight: 700,
                     textDecoration: "none",
                     borderRadius: 999,
                     padding: "10px 16px",
-                    background: "#f8fafc",
+                    background: "#eef2f6",
                     color: "#0f172a",
                     border: "1px solid #cbd5e1",
                     fontWeight: 700,
@@ -1220,29 +1220,43 @@ fontWeight: 700,
                   textDecoration: "none",
                   fontSize: 14,
                   fontWeight: 700,
-                  padding: "9px 14px",
+                  padding: "9px 14px 12px",
                   borderRadius: 8,
                   background: "#0f172a",
                   color: "#ffffff",
-                  borderBottom: "none",
+                  border: "1px solid #0f172a",
                   whiteSpace: "nowrap",
                   flexShrink: 0,
+                  position: "relative",
+                  boxShadow: "0 2px 6px rgba(15,23,42,0.18)",
                 }}
               >
                 Home
+                <span
+                  style={{
+                    position: "absolute",
+                    left: "28%",
+                    right: "28%",
+                    bottom: 5,
+                    height: 3,
+                    borderRadius: 999,
+                    background: "#facc15",
+                  }}
+                />
               </Link>
 
               <Link
                 href={`/groups/${communityId}/inside/chat`}
                 style={{
                   textDecoration: "none",
-                  color: "#64748b",
+                  color: "#0f172a",
                   fontSize: 14,
                   fontWeight: 600,
                   padding: "9px 14px",
                   borderRadius: 8,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
+                  background: "#ffffff",
+                  border: "1px solid #94a3b8",
+                  boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
                   whiteSpace: "nowrap",
                   flexShrink: 0,
                 }}
@@ -1250,19 +1264,37 @@ fontWeight: 700,
                 Chat
               </Link>
 
-<Link href={`/groups/${communityId}/inside/performance`} style={{ textDecoration: "none", color: "#64748b", fontSize: 14, fontWeight: 600, padding: "9px 14px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0", whiteSpace: "nowrap", flexShrink: 0 }}>Performance</Link>
+              <Link
+                href={`/groups/${communityId}/inside/performance`}
+                style={{
+                  textDecoration: "none",
+                  color: "#0f172a",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  padding: "9px 14px",
+                  borderRadius: 8,
+                  background: "#ffffff",
+                  border: "1px solid #94a3b8",
+                  boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                Performance
+              </Link>
 
               <Link
                 href={`/groups/${communityId}/inside/events`}
                 style={{
                   textDecoration: "none",
-                  color: "#64748b",
+                  color: "#0f172a",
                   fontSize: 14,
                   fontWeight: 600,
                   padding: "9px 14px",
                   borderRadius: 8,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
+                  background: "#ffffff",
+                  border: "1px solid #94a3b8",
+                  boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
                   whiteSpace: "nowrap",
                   flexShrink: 0,
                 }}
@@ -1275,15 +1307,16 @@ fontWeight: 700,
                   href={`/groups/${communityId}/inside/videos`}
                   style={{
                     textDecoration: "none",
-                    color: "#64748b",
+                    color: "#0f172a",
                     fontSize: 14,
                     fontWeight: 600,
                     padding: "9px 14px",
-                  borderRadius: 8,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
+                    borderRadius: 8,
+                    background: "#ffffff",
+                    border: "1px solid #94a3b8",
+                    boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
                   }}
                 >
                   Videos
@@ -1314,7 +1347,7 @@ fontWeight: 700,
                 >
                   {journeyTitle}
                 </h2>
-                <div style={{ color: "#64748b", fontSize: 13 }}>
+                <div style={{ color: "#334155", fontSize: 13 }}>
                   Complete all challenges in your level to earn your runner shirt.
                 </div>
 
@@ -1351,13 +1384,13 @@ fontWeight: 700,
 
 
             {challengesLoading ? (
-              <div style={{ color: "#64748b", fontSize: 14 }}>Loading challenges...</div>
+              <div style={{ color: "#334155", fontSize: 14 }}>Loading challenges...</div>
             ) : challenges.length === 0 ? (
               <div
                 style={{
                   borderRadius: 0,
                   padding: 18,
-                  background: "#f8fafc",
+                  background: "#eef2f6",
                   borderBottom: "1px solid #e2e8f0",
                   color: "#475569",
                   fontSize: 14,
@@ -1484,7 +1517,7 @@ fontWeight: 700,
                 style={{
                   borderRadius: 0,
                   padding: 18,
-                  background: "#f8fafc",
+                  background: "#eef2f6",
                   borderBottom: "1px solid #e2e8f0",
                   color: "#475569",
                   fontSize: 14,
@@ -1539,7 +1572,7 @@ fontWeight: 700,
                         <div
                           style={{
                             fontSize: 10,
-                            color: "#64748b",
+                            color: "#334155",
                             fontWeight: 700,
                             textAlign: "center",
                             padding: 6,
@@ -1604,7 +1637,7 @@ fontWeight: 700,
 {/* 
           <div style={{ ...dividerSectionStyle, marginBottom: 22 }}>
             {leaderLoading ? (
-              <div style={{ color: "#64748b", fontSize: 14 }}>Loading leader...</div>
+              <div style={{ color: "#334155", fontSize: 14 }}>Loading leader...</div>
             ) : leaderRow ? (
               <div
                 style={{
@@ -1799,7 +1832,7 @@ fontWeight: 700,
     marginBottom: 28,
     borderRadius: 0,
     padding: 16,
-    background: "#f8fafc",
+    background: "#eef2f6",
     borderBottom: "1px solid #e2e8f0",
   }}
 >
@@ -1824,7 +1857,7 @@ fontWeight: 700,
                 >
                   Check-in
                 </h2>
-                <div style={{ color: "#64748b", fontSize: 13 }}>
+                <div style={{ color: "#334155", fontSize: 13 }}>
                   Register your activity and earn points for the ranking.
                 </div>
               </div>
@@ -1876,13 +1909,13 @@ fontWeight: 700,
             </div>
 
             {checkinsLoading ? (
-              <div style={{ color: "#64748b", fontSize: 14 }}>Loading check-ins...</div>
+              <div style={{ color: "#334155", fontSize: 14 }}>Loading check-ins...</div>
             ) : recentCheckins.length === 0 ? (
               <div
                 style={{
                   borderRadius: 0,
                   padding: 18,
-                  background: "#f8fafc",
+                  background: "#eef2f6",
                   borderBottom: "1px solid #e2e8f0",
                   color: "#475569",
                   fontSize: 14,
@@ -2004,7 +2037,7 @@ fontWeight: 700,
                                 <div
                                   style={{
                                     fontSize: 10,
-                                    color: "#64748b",
+                                    color: "#334155",
                                   }}
                                 >
                                   {new Date(item.created_at).toLocaleString()}
@@ -2222,20 +2255,20 @@ fontWeight: 700,
                 >
                   Ranking
                 </h2>
-                <div style={{ color: "#64748b", fontSize: 13 }}>
+                <div style={{ color: "#334155", fontSize: 13 }}>
                   Community points based on completed visible check-ins.
                 </div>
               </div>
             </div>
 
             {rankingLoading ? (
-              <div style={{ color: "#64748b", fontSize: 14 }}>Loading ranking...</div>
+              <div style={{ color: "#334155", fontSize: 14 }}>Loading ranking...</div>
             ) : rankingRows.length === 0 ? (
               <div
                 style={{
                   borderRadius: 0,
                   padding: 18,
-                  background: "#f8fafc",
+                  background: "#eef2f6",
                   borderBottom: "1px solid #e2e8f0",
                   color: "#475569",
                   fontSize: 14,
@@ -2384,6 +2417,7 @@ fontWeight: 700,
     </>
   );
 }
+
 
 
 
