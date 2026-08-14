@@ -49,7 +49,8 @@ export default function PerformanceAiSubscribePage() {
 
       const isNativeIos =
         Capacitor.isNativePlatform() &&
-        Capacitor.getPlatform() === "ios";
+        Capacitor.getPlatform() === "ios" &&
+        Capacitor.isPluginAvailable("NativePurchases");
 
       if (isNativeIos) {
         const { NativePurchases } = await import(

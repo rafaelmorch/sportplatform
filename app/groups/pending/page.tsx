@@ -119,7 +119,8 @@ function PendingMembershipContent() {
 
       const isNativeIos =
         Capacitor.isNativePlatform() &&
-        Capacitor.getPlatform() === "ios";
+        Capacitor.getPlatform() === "ios" &&
+        Capacitor.isPluginAvailable("NativePurchases");
 
       if (isNativeIos) {
         const productId = APPLE_COMMUNITY_PRODUCTS[communityId];
