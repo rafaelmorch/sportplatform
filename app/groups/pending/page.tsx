@@ -9,6 +9,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { Capacitor } from "@capacitor/core";
+import { APPLE_COMMUNITY_PRODUCTS } from "@/lib/apple-iap-products";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,89 @@ function PendingMembershipContent() {
         return;
       }
 
+      const isNativeIos =
+        Capacitor.isNativePlatform() &&
+        Capacitor.getPlatform() === "ios";
+
+      if (isNativeIos) {
+        const productId = APPLE_COMMUNITY_PRODUCTS[communityId];
+
+        if (!productId) {
+          setMessage(
+            "This community is not available for Apple subscription yet. | Esta comunidade ainda não está disponível para assinatura pela Apple."
+          );
+          return;
+        }
+
+        const {
+          data: sessionData,
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        const accessToken = sessionData.session?.access_token;
+
+        if (!accessToken) {
+          router.push("/login");
+          return;
+        }
+
+        const { NativePurchases } = await import(
+          "@capgo/native-purchases"
+        );
+
+        const transaction =
+          await NativePurchases.purchaseProduct({
+            productIdentifier: productId,
+            appAccountToken: user.id,
+            autoAcknowledgePurchases: false,
+          });
+
+        if (!transaction.jwsRepresentation) {
+          throw new Error(
+            "Apple did not return a StoreKit transaction for validation."
+          );
+        }
+
+        const validationResponse = await fetch(
+          "/api/apple-iap/community/validate",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              community_id: communityId,
+              jwsRepresentation:
+                transaction.jwsRepresentation,
+            }),
+          }
+        );
+
+        const validationData =
+          await validationResponse
+            .json()
+            .catch(() => null);
+
+        if (!validationResponse.ok) {
+          throw new Error(
+            validationData?.error ||
+              "Apple subscription could not be validated."
+          );
+        }
+
+        await NativePurchases.acknowledgePurchase({
+          purchaseToken: transaction.transactionId,
+        });
+
+        router.replace(`/groups/${communityId}/inside`);
+        return;
+      }
+
       const response = await fetch(
         "/api/stripe/create-subscription-checkout",
         {
@@ -143,13 +228,12 @@ function PendingMembershipContent() {
     } catch (err: any) {
       setMessage(
         err?.message ||
-          "Unexpected Stripe error. | Ocorreu um erro inesperado."
+          "Unexpected payment error. | Ocorreu um erro inesperado no pagamento."
       );
     } finally {
       setCreatingCheckout(false);
     }
   }
-
   return (
     <main
       className="pending-page"
@@ -209,12 +293,12 @@ function PendingMembershipContent() {
         >
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
             Unlock your full Platform Sports experience.
-No charge today.
+No charge today if eligible for the free trial.
           </div>
 
           <div>
             Desbloqueie toda a experiência da Platform Sports.
-Nenhuma cobrança hoje.
+Nenhuma cobrança hoje se você for elegível ao período grátis.
           </div>
         </div>
 
@@ -322,7 +406,7 @@ Nenhuma cobrança hoje.
               color: "#0f172a",
             }}
           >
-            30-Day Free Trial
+            14-Day Free Trial for Eligible Subscribers
           </h2>
 
           <div
@@ -347,7 +431,7 @@ Nenhuma cobrança hoje.
               <br />
               ✓ No long-term commitment
               <br />
-              ✓ Secure payment powered by Stripe
+              ✓ Secure payment
               <br />
               ✓ Automatic monthly renewal
             </div>
@@ -375,7 +459,7 @@ Nenhuma cobrança hoje.
               <br />
               ✓ Sem fidelidade
               <br />
-              ✓ Pagamento seguro via Stripe
+              ✓ Pagamento seguro
               <br />
               ✓ Renovação automática mensal
             </div>
@@ -478,7 +562,7 @@ Nenhuma cobrança hoje.
               opacity: creatingCheckout || !termsAccepted ? 0.55 : 1,
             }}
           >
-            {creatingCheckout ? "Opening checkout..." : "Start Free Trial (30 Days)"}
+            {creatingCheckout ? "Processing..." : "Start 14-Day Free Trial"}
           </button>
 
           <div
@@ -490,9 +574,9 @@ Nenhuma cobrança hoje.
               lineHeight: 1.8,
             }}
           >
-            🔒 No charge today • Secure checkout powered by Stripe.
+            🔒 14-day free trial for eligible subscribers • Secure subscription checkout.
             <br />
-            🔒 Nenhuma cobrança hoje • Pagamento seguro processado pelo Stripe.
+            🔒 14 dias grátis para assinantes elegíveis • Pagamento seguro da assinatura.
           </div>
 
           {message && (
@@ -621,13 +705,3 @@ export default function PendingMembershipPage() {
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-

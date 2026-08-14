@@ -80,7 +80,7 @@ export async function POST(req: Request) {
         user_id,
       },
       subscription_data: {
-        trial_period_days: 30,
+        trial_period_days: 14,
         metadata: {
           community_id,
           user_id,
@@ -98,10 +98,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-
-
-
-
-
