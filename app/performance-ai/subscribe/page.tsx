@@ -7,6 +7,8 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { Capacitor } from "@capacitor/core";
+import { APPLE_PERFORMANCE_AI_PRODUCT_ID } from "@/lib/apple-iap-products";
 
 export default function PerformanceAiSubscribePage() {
   const router = useRouter();
@@ -36,11 +38,70 @@ export default function PerformanceAiSubscribePage() {
         throw sessionError;
       }
 
-      const accessToken =
-        sessionData.session?.access_token;
+      const session = sessionData.session;
+      const accessToken = session?.access_token;
+      const userId = session?.user?.id;
 
-      if (!accessToken) {
+      if (!accessToken || !userId) {
         router.push("/login");
+        return;
+      }
+
+      const isNativeIos =
+        Capacitor.isNativePlatform() &&
+        Capacitor.getPlatform() === "ios";
+
+      if (isNativeIos) {
+        const { NativePurchases } = await import(
+          "@capgo/native-purchases"
+        );
+
+        const transaction =
+          await NativePurchases.purchaseProduct({
+            productIdentifier:
+              APPLE_PERFORMANCE_AI_PRODUCT_ID,
+            appAccountToken: userId,
+            autoAcknowledgePurchases: false,
+          });
+
+        if (!transaction.jwsRepresentation) {
+          throw new Error(
+            "A Apple não retornou uma transação StoreKit para validação."
+          );
+        }
+
+        const validationResponse = await fetch(
+          "/api/apple-iap/performance-ai/validate",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              jwsRepresentation:
+                transaction.jwsRepresentation,
+            }),
+          }
+        );
+
+        const validationData =
+          await validationResponse
+            .json()
+            .catch(() => null);
+
+        if (!validationResponse.ok) {
+          throw new Error(
+            validationData?.error ||
+              "Não foi possível validar a assinatura da Apple."
+          );
+        }
+
+        await NativePurchases.acknowledgePurchase({
+          purchaseToken: transaction.transactionId,
+        });
+
+        router.replace("/performance-ai");
         return;
       }
 
@@ -73,8 +134,13 @@ export default function PerformanceAiSubscribePage() {
         );
       }
 
-      const { Browser } = await import("@capacitor/browser");
-      await Browser.open({ url: json.url });
+      const { Browser } = await import(
+        "@capacitor/browser"
+      );
+
+      await Browser.open({
+        url: json.url,
+      });
     } catch (error: unknown) {
       setErrorMessage(
         error instanceof Error
@@ -85,7 +151,6 @@ export default function PerformanceAiSubscribePage() {
       setLoading(false);
     }
   };
-
   return (
   <main
     style={{
@@ -616,7 +681,7 @@ export default function PerformanceAiSubscribePage() {
           }}
         >
           {loading
-            ? "Abrindo pagamento..."
+            ? "Processando..."
             : "Assinar Performance AI"}
         </button>
 
