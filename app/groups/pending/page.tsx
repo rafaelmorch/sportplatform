@@ -148,13 +148,14 @@ function PendingMembershipContent() {
           return;
         }
 
-        const { NativePurchases } = await import(
+        const { NativePurchases, PURCHASE_TYPE } = await import(
           "@capgo/native-purchases"
         );
 
         const transaction =
           await NativePurchases.purchaseProduct({
             productIdentifier: productId,
+            productType: PURCHASE_TYPE.SUBS,
             appAccountToken: user.id,
             autoAcknowledgePurchases: false,
           });
@@ -706,3 +707,4 @@ export default function PendingMembershipPage() {
     </>
   );
 }
+
