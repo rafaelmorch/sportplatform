@@ -4,6 +4,7 @@ function eventTypeFromKey(key) {
   if (key.startsWith("activities/")) return "activity";
   if (key.startsWith("dailies/")) return "daily";
   if (key.startsWith("sleeps/")) return "sleep";
+  if (key.startsWith("hrv/")) return "hrv";
   if (key.startsWith("permissions/")) return "permissions";
   if (key.startsWith("deregistrations/")) return "deregistration";
   return null;
@@ -769,6 +770,7 @@ export default {
       "/activities",
       "/dailies",
       "/sleeps",
+      "/hrv",
       "/permissions",
       "/deregistrations",
     ]);
@@ -1093,6 +1095,7 @@ export default {
     }
   },
 };
+
 
 
 
