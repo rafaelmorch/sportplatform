@@ -55,7 +55,7 @@ export default function TermsPage() {
         </h1>
 
         <div style={{ color: "#64748b", fontSize: 13 }}>
-          Termos e Condições · Last updated / Última atualização: August 1, 2026
+          Termos e Condições · Last updated / Última atualização: August 17, 2026
         </div>
 
         <h2 style={sectionTitleStyle}>English</h2>
@@ -69,21 +69,20 @@ export default function TermsPage() {
 
         <h3 style={sectionTitleStyle}>2. Membership and free trial</h3>
         <p style={paragraphStyle}>
-          Eligible memberships include a 30-day free trial. Your payment method
-          is collected securely by Stripe when you start the trial, but you
-          will not be charged during the 30-day trial period. Unless you cancel
-          before the trial ends, your membership will automatically convert
-          into a paid monthly subscription at the price displayed before
-          checkout. The first payment will be charged immediately after the
-          trial period ends.
+          Eligible memberships may include a free trial. The duration and
+          conditions of any applicable trial will be displayed before checkout.
+          Unless you cancel before the trial ends, your membership may
+          automatically convert into a paid monthly subscription at the price
+          displayed before checkout.
         </p>
 
         <h3 style={sectionTitleStyle}>3. Billing and automatic renewal</h3>
         <p style={paragraphStyle}>
-          Paid memberships renew automatically each month using the payment
-          method provided through Stripe. The applicable price, billing
-          frequency and trial terms are displayed before checkout. Taxes may
-          apply where required.
+          Paid memberships may be processed by Platform Sports or by third-party
+          payment platforms, including Stripe, Apple App Store or Google Play,
+          depending on the platform through which the subscription is
+          purchased. The applicable price, billing frequency and trial terms
+          are displayed before checkout. Taxes may apply where required.
         </p>
 
         <h3 style={sectionTitleStyle}>4. Cancellation</h3>
@@ -138,22 +137,42 @@ export default function TermsPage() {
 
         <h3 style={sectionTitleStyle}>9. Third-party services</h3>
         <p style={paragraphStyle}>
-          Platform Sports may integrate with services such as Stripe, Strava,
-          Supabase and Google. Your use of those services may also be governed
-          by their own terms and privacy policies.
+          Platform Sports may integrate with third-party services such as
+          Garmin Connect, Strava, Stripe, Supabase, Apple and Google. When you
+          choose to connect or use a third-party service, your use of that
+          service may also be subject to that provider's terms and privacy
+          policies.
         </p>
 
         <h3 style={sectionTitleStyle}>
-          10. Performance AI and artificial intelligence
+          10. Connected fitness and health data
+        </h3>
+        <p style={paragraphStyle}>
+          If you choose to connect services such as Garmin Connect or Strava,
+          Platform Sports may receive activity, fitness and health data
+          authorized by you, including workouts, distance, duration, heart
+          rate, steps, sleep and other available metrics. This information is
+          used to provide features such as activity history, performance
+          analysis, community features and personalized Performance AI
+          insights. Platform Sports does not sell Garmin or Strava activity or
+          health data to third parties. Additional information about
+          collection, use, retention and deletion is provided in our Privacy
+          Policy.
+        </p>
+
+        <h3 style={sectionTitleStyle}>
+          11. Performance AI and artificial intelligence
         </h3>
 
         <p style={paragraphStyle}>
           Performance AI, including the Coach AI, provides automated
           information, suggestions and personalized plans based on the
           information available in your account. This may include profile
-          information, training history, connected activity data, nutrition
-          records, body measurements, laboratory information, PAR-Q responses
-          and information provided during conversations with the Coach AI.
+          information, training history, connected activity and health data
+          from services such as Garmin Connect and Strava when authorized by
+          you, nutrition records, body measurements, laboratory information,
+          PAR-Q responses and information provided during conversations with
+          the Coach AI.
         </p>
 
         <p style={paragraphStyle}>
@@ -175,15 +194,16 @@ export default function TermsPage() {
         </p>
 
         <h3 style={sectionTitleStyle}>
-          11. Performance AI subscription
+          12. Performance AI subscription
         </h3>
 
         <p style={paragraphStyle}>
           Performance AI is offered as a separate paid subscription. Unless
           otherwise displayed before checkout, the Performance AI subscription
-          has no free trial, is billed monthly through Stripe and renews
-          automatically until canceled. The price and billing frequency are
-          displayed before payment.
+          has no free trial and renews automatically until canceled. Payment
+          may be processed through Stripe, Apple App Store or Google Play,
+          depending on where the subscription is purchased. The price and
+          billing frequency are displayed before payment.
         </p>
 
         <p style={paragraphStyle}>
@@ -193,7 +213,7 @@ export default function TermsPage() {
           follow the subscription status and period displayed in the app.
         </p>
 
-        <h3 style={sectionTitleStyle}>12. Changes and contact</h3>
+        <h3 style={sectionTitleStyle}>13. Changes and contact</h3>
         <p style={paragraphStyle}>
           We may update these Terms when the platform, memberships or legal
           requirements change. Questions may be sent to
@@ -221,21 +241,24 @@ export default function TermsPage() {
           2. Assinatura e período gratuito
         </h3>
         <p style={paragraphStyle}>
-          Assinaturas elegíveis podem incluir 30 dias gratuitos. Nenhuma
-          cobrança de mensalidade é feita no início do teste. Se você não
-          cancelar antes do término do período gratuito, a assinatura será
-          convertida automaticamente em uma assinatura mensal paga pelo valor
-          apresentado antes do checkout.
+          Assinaturas elegíveis poderão incluir um período gratuito. A duração
+          e as condições de qualquer período gratuito aplicável serão
+          apresentadas antes do checkout. Se você não cancelar antes do
+          término do período gratuito, a assinatura poderá ser convertida
+          automaticamente em uma assinatura mensal paga pelo valor apresentado
+          antes do checkout.
         </p>
 
         <h3 style={sectionTitleStyle}>
           3. Cobrança e renovação automática
         </h3>
         <p style={paragraphStyle}>
-          As assinaturas pagas são renovadas automaticamente todos os meses
-          utilizando a forma de pagamento cadastrada no Stripe. O preço, a
-          frequência da cobrança e as condições do teste são apresentados antes
-          do checkout. Impostos poderão ser aplicados quando exigidos.
+          As assinaturas pagas poderão ser processadas pela Platform Sports ou
+          por plataformas de pagamento de terceiros, incluindo Stripe, Apple
+          App Store ou Google Play, dependendo da plataforma pela qual a
+          assinatura for adquirida. O preço, a frequência da cobrança e as
+          condições do teste são apresentados antes do checkout. Impostos
+          poderão ser aplicados quando exigidos.
         </p>
 
         <h3 style={sectionTitleStyle}>4. Cancelamento</h3>
@@ -291,22 +314,42 @@ export default function TermsPage() {
 
         <h3 style={sectionTitleStyle}>9. Serviços de terceiros</h3>
         <p style={paragraphStyle}>
-          A Platform Sports poderá integrar serviços como Stripe, Strava,
-          Supabase e Google. O uso desses serviços também poderá estar sujeito
-          aos termos e políticas de privacidade de cada fornecedor.
+          A Platform Sports poderá integrar serviços de terceiros como Garmin
+          Connect, Strava, Stripe, Supabase, Apple e Google. Quando você optar
+          por conectar ou utilizar um serviço de terceiros, o uso desse serviço
+          também poderá estar sujeito aos termos e políticas de privacidade do
+          respectivo fornecedor.
         </p>
 
         <h3 style={sectionTitleStyle}>
-          10. Performance AI e inteligência artificial
+          10. Dados conectados de atividade física e saúde
+        </h3>
+        <p style={paragraphStyle}>
+          Se você optar por conectar serviços como Garmin Connect ou Strava, a
+          Platform Sports poderá receber dados de atividade física, fitness e
+          saúde autorizados por você, incluindo treinos, distância, duração,
+          frequência cardíaca, passos, sono e outras métricas disponíveis.
+          Essas informações são utilizadas para fornecer recursos como
+          histórico de atividades, análise de desempenho, funcionalidades da
+          comunidade e insights personalizados do Performance AI. A Platform
+          Sports não vende dados de atividade ou saúde da Garmin ou Strava a
+          terceiros. Informações adicionais sobre coleta, uso, retenção e
+          exclusão estão disponíveis em nossa Política de Privacidade.
+        </p>
+
+        <h3 style={sectionTitleStyle}>
+          11. Performance AI e inteligência artificial
         </h3>
 
         <p style={paragraphStyle}>
           O Performance AI, incluindo o Coach IA, fornece informações,
           sugestões e planos personalizados gerados automaticamente com base
           nos dados disponíveis na conta do usuário. Esses dados podem incluir
-          perfil, histórico de treinamentos, atividades conectadas, registros
-          de alimentação, medidas corporais, exames laboratoriais, respostas
-          do PAR-Q e informações fornecidas nas conversas com o Coach IA.
+          perfil, histórico de treinamentos, dados de atividade e saúde
+          provenientes de serviços conectados como Garmin Connect e Strava
+          quando autorizados por você, registros de alimentação, medidas
+          corporais, exames laboratoriais, respostas do PAR-Q e informações
+          fornecidas nas conversas com o Coach IA.
         </p>
 
         <p style={paragraphStyle}>
@@ -329,16 +372,17 @@ export default function TermsPage() {
         </p>
 
         <h3 style={sectionTitleStyle}>
-          11. Assinatura do Performance AI
+          12. Assinatura do Performance AI
         </h3>
 
         <p style={paragraphStyle}>
           O Performance AI é oferecido como uma assinatura paga independente.
           Salvo quando informado de forma diferente antes do checkout, a
-          assinatura do Performance AI não possui período gratuito, é cobrada
-          mensalmente pelo Stripe e renovada automaticamente até o
-          cancelamento. O preço e a frequência da cobrança são apresentados
-          antes do pagamento.
+          assinatura do Performance AI não possui período gratuito e é
+          renovada automaticamente até o cancelamento. O pagamento poderá ser
+          processado pelo Stripe, Apple App Store ou Google Play, dependendo
+          de onde a assinatura for adquirida. O preço e a frequência da
+          cobrança são apresentados antes do pagamento.
         </p>
 
         <p style={paragraphStyle}>
@@ -350,7 +394,7 @@ export default function TermsPage() {
         </p>
 
         <h3 style={sectionTitleStyle}>
-          12. Alterações e contato
+          13. Alterações e contato
         </h3>
         <p style={{ ...paragraphStyle, marginBottom: 0 }}>
           Estes Termos poderão ser atualizados quando houver mudanças na
@@ -361,6 +405,7 @@ export default function TermsPage() {
     </main>
   );
 }
+
 
 
 

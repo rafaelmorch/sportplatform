@@ -55,7 +55,7 @@ export default function PrivacyPage() {
         </h1>
 
         <div style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>
-          Política de Privacidade · Last updated / Última atualização: August 1, 2026
+          Política de Privacidade · Last updated / Última atualização: August 17, 2026
         </div>
 
         <p style={paragraphStyle}>
@@ -84,15 +84,21 @@ export default function PrivacyPage() {
 
         <h2 style={sectionTitleStyle}>Payments</h2>
         <p style={paragraphStyle}>
-          Payment information is processed securely by Stripe. Platform Sports
-          does not directly store your full credit card details.
+          Payments may be processed by third-party payment providers such as
+          Stripe, Apple App Store or Google Play, depending on where you
+          purchase your subscription. Platform Sports does not directly store
+          your full payment card details.
         </p>
 
         <h2 style={sectionTitleStyle}>Data Sharing</h2>
         <p style={paragraphStyle}>
           We do not sell your personal data. We only share information when
           necessary to operate the platform, provide integrated services,
-          process payments or comply with legal obligations.
+          process payments or comply with legal obligations. Service providers
+          may process information only as necessary to provide services to
+          Platform Sports and subject to applicable privacy, security and
+          contractual obligations. We do not permit service providers to sell
+          Garmin or Strava data.
         </p>
 
         <h2 style={sectionTitleStyle}>Data Security</h2>
@@ -128,6 +134,45 @@ export default function PrivacyPage() {
           deletion of your Strava-related data by contacting us.
         </p>
 
+        <h2 style={sectionTitleStyle}>Garmin Data Access</h2>
+
+        <p style={paragraphStyle}>
+          Platform Sports may connect to your Garmin Connect account only with
+          your authorization. When you connect Garmin Connect, Platform Sports
+          may receive activity and health information that you authorize
+          Garmin to share, including activity type, distance, duration, pace,
+          heart rate, steps, calories, sleep, stress, body composition and
+          other fitness or wellness metrics made available through the Garmin
+          Connect APIs.
+        </p>
+
+        <p style={paragraphStyle}>
+          We use Garmin data to provide features requested by you, including
+          activity history, performance tracking, community features,
+          challenges, rankings and personalized Performance AI insights.
+        </p>
+
+        <p style={paragraphStyle}>
+          Platform Sports does not sell or rent Garmin user, activity or
+          health data. Garmin data is not used for advertising. Any processing
+          by service providers is limited to what is necessary to provide
+          Platform Sports services and is subject to the safeguards described
+          in this Privacy Policy.
+        </p>
+
+        <p style={paragraphStyle}>
+          You may revoke Platform Sports' access to your Garmin data through
+          Garmin Connect or disconnect Garmin from Platform Sports. When you
+          revoke authorization or request deletion of your Garmin-related
+          data, Platform Sports will delete Garmin data associated with your
+          account, except where retention is required by applicable law.
+        </p>
+
+        <p style={paragraphStyle}>
+          Garmin data is accessed and processed only with your authorization
+          and for the purposes described in this Privacy Policy.
+        </p>
+
         <h2 style={sectionTitleStyle}>
           Performance AI and AI Processing
         </h2>
@@ -135,7 +180,10 @@ export default function PrivacyPage() {
         <p style={paragraphStyle}>
           When you use Performance AI, relevant account, training, nutrition,
           body, health and conversation data may be processed to generate
-          personalized plans, summaries, insights and responses. Only
+          personalized plans, summaries, insights and responses. This may
+          include fitness and health information obtained from connected
+          services such as Garmin Connect and Strava when you have authorized
+          Platform Sports to access that information. Only
           information reasonably necessary to provide the requested feature
           should be sent for AI processing.
         </p>
@@ -181,7 +229,9 @@ export default function PrivacyPage() {
           Ao utilizar o Performance AI, dados relevantes da conta, perfil,
           treinamentos, alimentação, corpo, saúde, PAR-Q e conversas poderão ser
           processados para gerar planos, análises, resumos e respostas
-          personalizadas.
+          personalizadas. Isso poderá incluir dados de atividade física e saúde
+          obtidos de serviços conectados como Garmin Connect e Strava quando
+          você tiver autorizado a Platform Sports a acessar essas informações.
         </p>
 
         <p style={paragraphStyle}>
@@ -205,7 +255,11 @@ export default function PrivacyPage() {
           We retain personal information only for as long as necessary to
           provide the platform, comply with legal obligations, resolve disputes
           and enforce our agreements. You may request deletion of your account
-          and associated personal data.
+          and associated personal data. If you disconnect Garmin Connect,
+          revoke Platform Sports' authorization or request deletion of
+          Garmin-related data, we will delete Garmin user, activity and health
+          data associated with your account, except where retention is required
+          by applicable law.
         </p>
 
         <h2 style={sectionTitleStyle}>Your Rights</h2>
@@ -217,9 +271,10 @@ export default function PrivacyPage() {
 
         <h2 style={sectionTitleStyle}>Third-Party Services</h2>
         <p style={paragraphStyle}>
-          Platform Sports may use services such as Stripe, Strava, Supabase, OpenAI,
-          Google and other service providers. Their handling of information may
-          also be governed by their own privacy policies.
+          Platform Sports may use services such as Garmin Connect, Strava,
+          Stripe, Apple, Google, Supabase, OpenAI and other service providers.
+          Their handling of information may also be governed by their own
+          privacy policies and applicable data-processing commitments.
         </p>
 
         <h2 style={sectionTitleStyle}>Changes to This Policy</h2>
@@ -240,5 +295,7 @@ export default function PrivacyPage() {
     </main>
   );
 }
+
+
 
 
