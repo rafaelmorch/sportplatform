@@ -134,7 +134,7 @@ export default function PrivacyPage() {
           deletion of your Strava-related data by contacting us.
         </p>
 
-        <h2 style={sectionTitleStyle}>Garmin Data Access</h2>
+        <h2 id="garmin-data-access" style={sectionTitleStyle}>Garmin Data Access</h2>
 
         <p style={paragraphStyle}>
           Platform Sports may connect to your Garmin Connect account only with
@@ -171,6 +171,17 @@ export default function PrivacyPage() {
         <p style={paragraphStyle}>
           Garmin data is accessed and processed only with your authorization
           and for the purposes described in this Privacy Policy.
+        </p>
+
+        <p style={paragraphStyle}>
+          Garmin data may be processed by service providers used by Platform
+          Sports solely as necessary to provide the requested services. These
+          providers may include infrastructure, database and artificial
+          intelligence providers such as Supabase and OpenAI. Such providers
+          process information on behalf of Platform Sports subject to
+          applicable contractual, privacy and security obligations. Platform
+          Sports does not permit these providers to sell Garmin data or use it
+          for advertising.
         </p>
 
         <h2 style={sectionTitleStyle}>
@@ -295,6 +306,7 @@ export default function PrivacyPage() {
     </main>
   );
 }
+
 
 
 
