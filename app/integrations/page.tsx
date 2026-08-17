@@ -14,6 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type ConnectionStatus = {
   stravaConnected: boolean;
+  garminConnected: boolean;
 };
 
 export default function IntegrationsPage() {
@@ -21,12 +22,14 @@ export default function IntegrationsPage() {
 
   const [loading, setLoading] = useState(true);
   const [revokingStrava, setRevokingStrava] = useState(false);
+  const [connectingGarmin, setConnectingGarmin] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [status, setStatus] = useState<ConnectionStatus>({
     stravaConnected: false,
+    garminConnected: false,
   });
 
   const queryParams = useMemo(() => {
@@ -47,8 +50,34 @@ export default function IntegrationsPage() {
       setErrorMsg("Erro ao verificar conexão do Strava. Tente recarregar.");
     }
 
+    const {
+      data: sessionData,
+      error: sessionErr,
+    } = await supabase.auth.getSession();
+
+    let garminConnected = false;
+
+    if (!sessionErr && sessionData.session?.access_token) {
+      try {
+        const garminResp = await fetch("/api/garmin/status", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+          },
+        });
+
+        if (garminResp.ok) {
+          const garminJson = await garminResp.json();
+          garminConnected = !!garminJson?.connected;
+        }
+      } catch (error) {
+        console.error("Erro ao verificar conexão Garmin:", error);
+      }
+    }
+
     setStatus({
       stravaConnected: !!stravaRow?.athlete_id,
+      garminConnected,
     });
   }
 
@@ -113,6 +142,46 @@ export default function IntegrationsPage() {
     run();
   }, [queryParams]);
 
+  const handleConnectGarmin = async () => {
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setConnectingGarmin(true);
+
+      const {
+        data: sessionData,
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      if (sessionErr || !sessionData.session?.access_token) {
+        setErrorMsg("Você precisa estar logado para conectar Garmin.");
+        setConnectingGarmin(false);
+        return;
+      }
+
+      const resp = await fetch("/api/garmin/login", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`,
+        },
+      });
+
+      const json = await resp.json().catch(() => null);
+
+      if (!resp.ok || !json?.authorizationUrl) {
+        console.error("Garmin login failed:", resp.status, json);
+        setErrorMsg("Não foi possível iniciar a conexão Garmin.");
+        setConnectingGarmin(false);
+        return;
+      }
+
+      window.location.href = json.authorizationUrl;
+    } catch (error) {
+      console.error("Erro ao iniciar Garmin:", error);
+      setErrorMsg("Erro inesperado ao conectar Garmin.");
+      setConnectingGarmin(false);
+    }
+  };
   const handleRevokeStrava = async () => {
     try {
       setErrorMsg(null);
@@ -352,6 +421,105 @@ export default function IntegrationsPage() {
           </div>
         </div>
 
+        {/* Garmin */}
+        <div
+          style={{
+            marginTop: 16,
+            borderRadius: 18,
+            padding: "14px 16px",
+            border: "1px solid rgba(148,163,184,0.4)",
+            background: "#ffffff",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: "#0f172a",
+                }}
+              >
+                Garmin Connect
+              </div>
+
+              <div
+                style={{
+                  fontSize: 14,
+                  color: "#475569",
+                  marginTop: 6,
+                }}
+              >
+                Sincroniza atividades e dados de saúde da sua conta Garmin.
+              </div>
+            </div>
+
+            {status.garminConnected && (
+              <div
+                style={{
+                  alignSelf: "center",
+                  fontSize: 12,
+                  color: "#166534",
+                  border: "1px solid #22c55e",
+                  background: "#dcfce7",
+                  padding: "6px 10px",
+                  borderRadius: "10px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Conectado ✅
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleConnectGarmin}
+            disabled={
+              loading ||
+              connectingGarmin ||
+              status.garminConnected
+            }
+            style={{
+              display: "inline-flex",
+              width: "100%",
+              justifyContent: "center",
+              alignItems: "center",
+              height: 44,
+              borderRadius: "10px",
+              marginTop: 10,
+              background: "#111827",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: "18px",
+              border: "1px solid #111827",
+              cursor:
+                loading ||
+                connectingGarmin ||
+                status.garminConnected
+                  ? "default"
+                  : "pointer",
+              opacity:
+                loading ||
+                connectingGarmin ||
+                status.garminConnected
+                  ? 0.7
+                  : 1,
+            }}
+          >
+            {connectingGarmin
+              ? "Conectando..."
+              : status.garminConnected
+                ? "Garmin Conectado"
+                : "Conectar com Garmin"}
+          </button>
+        </div>
         <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
           <Link
             href="/groups"
@@ -369,6 +537,10 @@ export default function IntegrationsPage() {
     </main>
   );
 }
+
+
+
+
 
 
 
