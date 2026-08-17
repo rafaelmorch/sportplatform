@@ -3,6 +3,7 @@ const MAX_INLINE_PROCESSING_BYTES = 8 * 1024 * 1024;
 function eventTypeFromKey(key) {
   if (key.startsWith("activities/")) return "activity";
   if (key.startsWith("dailies/")) return "daily";
+  if (key.startsWith("sleeps/")) return "sleep";
   if (key.startsWith("permissions/")) return "permissions";
   if (key.startsWith("deregistrations/")) return "deregistration";
   return null;
@@ -538,6 +539,214 @@ async function processDailyItem(
     throw error;
   }
 }
+async function upsertHealthSleepSummary(
+  env,
+  appUserId,
+  externalId,
+  item
+) {
+  const day =
+    typeof item?.calendarDate === "string"
+      ? item.calendarDate
+      : null;
+
+  if (!day) {
+    throw new Error(
+      `Garmin Sleep ${externalId} has no calendarDate.`
+    );
+  }
+
+  const sleepStart =
+    item?.startTimeInSeconds != null
+      ? new Date(
+          Number(item.startTimeInSeconds) * 1000
+        ).toISOString()
+      : null;
+
+  const sleepScore =
+    item?.overallSleepScore?.value != null
+      ? Number(item.overallSleepScore.value)
+      : null;
+
+  const sleepScoreQualifier =
+    typeof item?.overallSleepScore?.qualifierKey === "string"
+      ? item.overallSleepScore.qualifierKey
+      : null;
+
+  const row = {
+    user_id: appUserId,
+    provider: "garmin",
+    external_id: externalId,
+    day,
+
+    sleep_start: sleepStart,
+
+    sleep_duration_s:
+      item?.durationInSeconds != null
+        ? Number(item.durationInSeconds)
+        : null,
+
+    deep_sleep_s:
+      item?.deepSleepDurationInSeconds != null
+        ? Number(item.deepSleepDurationInSeconds)
+        : null,
+
+    light_sleep_s:
+      item?.lightSleepDurationInSeconds != null
+        ? Number(item.lightSleepDurationInSeconds)
+        : null,
+
+    rem_sleep_s:
+      item?.remSleepInSeconds != null
+        ? Number(item.remSleepInSeconds)
+        : null,
+
+    awake_s:
+      item?.awakeDurationInSeconds != null
+        ? Number(item.awakeDurationInSeconds)
+        : null,
+
+    nap_duration_s:
+      item?.totalNapDurationInSeconds != null
+        ? Number(item.totalNapDurationInSeconds)
+        : null,
+
+    sleep_score: sleepScore,
+    sleep_score_qualifier: sleepScoreQualifier,
+
+    raw: item,
+    updated_at: new Date().toISOString(),
+  };
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/health_sleep_summaries?on_conflict=user_id,provider,day`,
+    {
+      method: "POST",
+      headers: {
+        ...supabaseHeaders(env),
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(row),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Health Sleep upsert failed (${response.status}): ${errorText}`
+    );
+  }
+}
+
+async function updateSleepWebhookEvent(
+  env,
+  garminUserId,
+  externalId,
+  values
+) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/garmin_webhook_events` +
+    `?event_type=eq.sleep` +
+    `&garmin_user_id=eq.${encodeURIComponent(garminUserId)}` +
+    `&external_id=eq.${encodeURIComponent(externalId)}`;
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      ...supabaseHeaders(env),
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(values),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Sleep webhook update failed (${response.status}): ${errorText}`
+    );
+  }
+}
+
+async function processSleepItem(
+  env,
+  item,
+  externalId
+) {
+  const garminUserId =
+    typeof item?.userId === "string"
+      ? item.userId
+      : null;
+
+  if (!garminUserId) {
+    console.log(
+      `Garmin Sleep ${externalId} has no userId; left pending.`
+    );
+    return;
+  }
+
+  const appUserId =
+    await getAppUserId(env, garminUserId);
+
+  if (!appUserId) {
+    console.log(
+      `No Platform Sports user linked to Garmin user ${garminUserId}; Sleep ${externalId} left pending.`
+    );
+    return;
+  }
+
+  try {
+    await upsertHealthSleepSummary(
+      env,
+      appUserId,
+      externalId,
+      item
+    );
+
+    await updateSleepWebhookEvent(
+      env,
+      garminUserId,
+      externalId,
+      {
+        app_user_id: appUserId,
+        processing_status: "processed",
+        processed_at: new Date().toISOString(),
+        processing_error: null,
+      }
+    );
+
+    console.log(
+      `Garmin Sleep auto-imported: ${externalId}`
+    );
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    try {
+      await updateSleepWebhookEvent(
+        env,
+        garminUserId,
+        externalId,
+        {
+          app_user_id: appUserId,
+          processing_status: "error",
+          processed_at: new Date().toISOString(),
+          processing_error: errorMessage,
+        }
+      );
+    } catch (updateError) {
+      console.error(
+        "Failed to save Garmin Sleep processing error:",
+        updateError
+      );
+    }
+
+    throw error;
+  }
+}
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -559,6 +768,7 @@ export default {
     const allowedPaths = new Set([
       "/activities",
       "/dailies",
+      "/sleeps",
       "/permissions",
       "/deregistrations",
     ]);
@@ -720,6 +930,15 @@ export default {
               ? payload.dailies
               : [];
         } else if (
+          eventType === "sleep"
+        ) {
+          items =
+            Array.isArray(
+              payload?.sleeps
+            )
+              ? payload.sleeps
+              : [];
+        } else if (
           eventType === "permissions"
         ) {
           items =
@@ -811,7 +1030,8 @@ export default {
 
           if (
             eventType === "activity" ||
-            eventType === "daily"
+            eventType === "daily" ||
+            eventType === "sleep"
           ) {
             for (
               let index = 0;
@@ -838,8 +1058,14 @@ export default {
                   item,
                   externalId
                 );
-              } else {
+              } else if (eventType === "daily") {
                 await processDailyItem(
+                  env,
+                  item,
+                  externalId
+                );
+              } else {
+                await processSleepItem(
                   env,
                   item,
                   externalId
@@ -867,5 +1093,9 @@ export default {
     }
   },
 };
+
+
+
+
 
 
