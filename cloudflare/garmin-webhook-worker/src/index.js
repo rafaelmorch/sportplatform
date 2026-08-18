@@ -748,6 +748,212 @@ async function processSleepItem(
     throw error;
   }
 }
+
+async function deleteSupabaseRows(
+  env,
+  table,
+  filters
+) {
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/${table}?${filters}`,
+    {
+      method: "DELETE",
+      headers: {
+        ...supabaseHeaders(env),
+        Prefer: "return=minimal",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Delete from ${table} failed (${response.status}): ${errorText}`
+    );
+  }
+}
+
+async function getGarminWebhookR2Keys(
+  env,
+  garminUserId
+) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/garmin_webhook_events` +
+    `?garmin_user_id=eq.${encodeURIComponent(garminUserId)}` +
+    `&select=payload`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: supabaseHeaders(env),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Garmin webhook lookup failed (${response.status}): ${errorText}`
+    );
+  }
+
+  const rows = await response.json();
+  const keys = new Set();
+
+  for (const row of rows) {
+    const key = row?.payload?._r2_key;
+
+    if (typeof key === "string" && key) {
+      keys.add(key);
+    }
+  }
+
+  return [...keys];
+}
+
+async function updateDeregistrationWebhookEvent(
+  env,
+  garminUserId,
+  externalId,
+  values
+) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/garmin_webhook_events` +
+    `?event_type=eq.deregistration` +
+    `&garmin_user_id=eq.${encodeURIComponent(garminUserId)}` +
+    `&external_id=eq.${encodeURIComponent(externalId)}`;
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      ...supabaseHeaders(env),
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(values),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Deregistration webhook update failed (${response.status}): ${errorText}`
+    );
+  }
+}
+
+async function processDeregistrationItem(
+  env,
+  item,
+  externalId
+) {
+  const garminUserId =
+    typeof item?.userId === "string"
+      ? item.userId
+      : null;
+
+  if (!garminUserId) {
+    console.log(
+      `Garmin deregistration ${externalId} has no userId; left pending.`
+    );
+    return;
+  }
+
+  const appUserId =
+    await getAppUserId(env, garminUserId);
+
+  if (!appUserId) {
+    console.log(
+      `No Platform Sports user linked to Garmin user ${garminUserId}; deregistration ${externalId} left pending.`
+    );
+    return;
+  }
+
+  try {
+    const userFilter =
+      `user_id=eq.${encodeURIComponent(appUserId)}` +
+      `&provider=eq.garmin`;
+
+    await deleteSupabaseRows(
+      env,
+      "imported_activities",
+      userFilter
+    );
+
+    await deleteSupabaseRows(
+      env,
+      "health_daily_summaries",
+      userFilter
+    );
+
+    await deleteSupabaseRows(
+      env,
+      "health_sleep_summaries",
+      userFilter
+    );
+
+    const r2Keys =
+      await getGarminWebhookR2Keys(
+        env,
+        garminUserId
+      );
+
+    for (const key of r2Keys) {
+      await env.GARMIN_INBOX.delete(key);
+    }
+
+    const previousEventsFilter =
+      `garmin_user_id=eq.${encodeURIComponent(garminUserId)}` +
+      `&external_id=neq.${encodeURIComponent(externalId)}`;
+
+    await deleteSupabaseRows(
+      env,
+      "garmin_webhook_events",
+      previousEventsFilter
+    );
+
+    if (typeof item?._r2_key === "string") {
+      await env.GARMIN_INBOX.delete(
+        item._r2_key
+      );
+    }
+
+    await updateDeregistrationWebhookEvent(
+      env,
+      garminUserId,
+      externalId,
+      {
+        garmin_user_id: null,
+        app_user_id: null,
+        payload: {
+          deregistration_processed: true,
+        },
+        processing_status: "processed",
+        processed_at: new Date().toISOString(),
+        processing_error: null,
+      }
+    );
+
+    await deleteSupabaseRows(
+      env,
+      "garmin_connections",
+      `garmin_user_id=eq.${encodeURIComponent(garminUserId)}`
+    );
+
+    console.log(
+      `Garmin user deregistered and data removed: ${garminUserId}`
+    );
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    console.error(
+      `Garmin deregistration processing failed: ${errorMessage}`
+    );
+
+    throw error;
+  }
+}
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -1033,7 +1239,8 @@ export default {
           if (
             eventType === "activity" ||
             eventType === "daily" ||
-            eventType === "sleep"
+            eventType === "sleep" ||
+            eventType === "deregistration"
           ) {
             for (
               let index = 0;
@@ -1066,8 +1273,14 @@ export default {
                   item,
                   externalId
                 );
-              } else {
+              } else if (eventType === "sleep") {
                 await processSleepItem(
+                  env,
+                  item,
+                  externalId
+                );
+              } else {
+                await processDeregistrationItem(
                   env,
                   item,
                   externalId
@@ -1095,6 +1308,8 @@ export default {
     }
   },
 };
+
+
 
 
 

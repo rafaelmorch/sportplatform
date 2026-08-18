@@ -23,6 +23,7 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(true);
   const [revokingStrava, setRevokingStrava] = useState(false);
   const [connectingGarmin, setConnectingGarmin] = useState(false);
+  const [revokingGarmin, setRevokingGarmin] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -182,6 +183,78 @@ export default function IntegrationsPage() {
       setConnectingGarmin(false);
     }
   };
+  const handleRevokeGarmin = async () => {
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setRevokingGarmin(true);
+
+      const {
+        data: sessionData,
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      const session = sessionData.session;
+      const userId = session?.user?.id ?? null;
+      const accessToken = session?.access_token ?? null;
+
+      if (sessionErr || !userId || !accessToken) {
+        setErrorMsg(
+          "Você precisa estar logado para desconectar Garmin."
+        );
+        return;
+      }
+
+      const resp = await fetch("/api/garmin/revoke", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const json = await resp.json().catch(() => null);
+
+      if (!resp.ok) {
+        console.error(
+          "Garmin revoke failed:",
+          resp.status,
+          json
+        );
+
+        setErrorMsg(
+          json?.error ||
+            "Não foi possível desconectar Garmin. Tente novamente."
+        );
+        return;
+      }
+
+      setStatus((current) => ({
+        ...current,
+        garminConnected: false,
+      }));
+
+      setSuccessMsg(
+        "Garmin desconectado com sucesso. Seus dados Garmin serão removidos da Platform Sports."
+      );
+
+      window.history.replaceState(
+        null,
+        "",
+        "/integrations"
+      );
+    } catch (error) {
+      console.error(
+        "Erro inesperado ao desconectar Garmin:",
+        error
+      );
+
+      setErrorMsg(
+        "Erro inesperado ao desconectar Garmin."
+      );
+    } finally {
+      setRevokingGarmin(false);
+    }
+  };
   const handleRevokeStrava = async () => {
     try {
       setErrorMsg(null);
@@ -300,8 +373,7 @@ export default function IntegrationsPage() {
         </div>
 
         <p style={{ fontSize: "21px", lineHeight: 1.6, color: "#475569", marginBottom: "18px" }}>
-          Conecte sua conta do Strava ao Sports Platform para centralizar histórico de atividades,
-          métricas e desafios em um só lugar.
+          Conecte seus apps de treino ao Platform Sports para centralizar atividades, métricas de saúde e desempenho em um só lugar.
         </p>
 
         {errorMsg && (
@@ -519,6 +591,33 @@ export default function IntegrationsPage() {
                 ? "Garmin Conectado"
                 : "Conectar com Garmin"}
           </button>
+
+          {status.garminConnected && (
+            <button
+              type="button"
+              onClick={handleRevokeGarmin}
+              disabled={revokingGarmin}
+              style={{
+                marginTop: 10,
+                width: "100%",
+                height: 40,
+                borderRadius: "10px",
+                border: "2px solid #111827",
+                background: "#ffffff",
+                color: "#111827",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor: revokingGarmin
+                  ? "not-allowed"
+                  : "pointer",
+                opacity: revokingGarmin ? 0.7 : 1,
+              }}
+            >
+              {revokingGarmin
+                ? "Desconectando..."
+                : "Revogar acesso (Garmin)"}
+            </button>
+          )}
         </div>
         <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
           <Link
@@ -537,6 +636,11 @@ export default function IntegrationsPage() {
     </main>
   );
 }
+
+
+
+
+
 
 
 
