@@ -14,9 +14,9 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 type RangeKey = "7d" | "30d" | "6m" | "all";
 
-type StravaActivityRow = {
+type TrainingActivityRow = {
   id: string;
-  athlete_id: number;
+  athlete_id: number | null;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -26,6 +26,8 @@ type StravaActivityRow = {
   average_heartrate: number | null;
   max_heartrate: number | null;
   total_elevation_gain?: number | null;
+  calories?: number | null;
+  provider: "strava" | "garmin";
 };
 
 function startOfDayLocal(date: Date) {
@@ -155,7 +157,7 @@ function calculatePace(
 }
 
 function estimateActivityCalories(
-  activity: StravaActivityRow,
+  activity: TrainingActivityRow,
   weightKg: number | null
 ): number | null {
   if (!weightKg || weightKg <= 0) {
@@ -275,7 +277,7 @@ function formatEstimatedCalories(
   )}`;
 }
 
-function getActivityName(activity: StravaActivityRow) {
+function getActivityName(activity: TrainingActivityRow) {
   return (
     activity.name ??
     activity.sport_type ??
@@ -330,12 +332,14 @@ export default function TrainingPage() {
   const [syncing, setSyncing] = useState(false);
   const [stravaConnected, setStravaConnected] =
     useState(false);
+  const [garminConnected, setGarminConnected] =
+    useState(false);
 
   const [weightKg, setWeightKg] =
     useState<number | null>(null);
 
   const [activities, setActivities] = useState<
-    StravaActivityRow[]
+    TrainingActivityRow[]
   >([]);
 
   const [range, setRange] = useState<RangeKey>("7d");
@@ -389,7 +393,6 @@ export default function TrainingPage() {
           "Training weightKg:",
           performanceProfile?.weight_kg
         );
-
         const { data: tokenRow, error: tokenError } =
           await supabase
             .from("strava_tokens")
@@ -400,19 +403,55 @@ export default function TrainingPage() {
             .maybeSingle();
 
         if (tokenError) {
-          throw tokenError;
+          console.warn(
+            "Não foi possível verificar conexão Strava:",
+            tokenError
+          );
         }
 
-        if (!tokenRow?.athlete_id) {
-          setStravaConnected(false);
-          setActivities([]);
-          return;
+        const hasStrava = !!tokenRow?.athlete_id;
+        setStravaConnected(hasStrava);
+
+        const {
+          data: sessionData,
+        } = await supabase.auth.getSession();
+
+        let hasGarmin = false;
+
+        if (sessionData.session?.access_token) {
+          try {
+            const garminStatusResponse = await fetch(
+              "/api/garmin/status",
+              {
+                headers: {
+                  Authorization: `Bearer ${sessionData.session.access_token}`,
+                },
+              }
+            );
+
+            if (garminStatusResponse.ok) {
+              const garminStatus =
+                await garminStatusResponse.json();
+
+              hasGarmin = !!garminStatus?.connected;
+            }
+          } catch (error) {
+            console.warn(
+              "Não foi possível verificar conexão Garmin:",
+              error
+            );
+          }
         }
 
-        setStravaConnected(true);
+        setGarminConnected(hasGarmin);
 
-        const { data: activitiesData, error: activitiesError } =
-          await supabase
+        let stravaActivities: TrainingActivityRow[] = [];
+
+        if (hasStrava) {
+          const {
+            data: activitiesData,
+            error: activitiesError,
+          } = await supabase
             .from("strava_activities")
             .select(
               "id, athlete_id, name, type, sport_type, start_date, distance, moving_time, average_heartrate, max_heartrate, total_elevation_gain"
@@ -421,13 +460,158 @@ export default function TrainingPage() {
             .order("start_date", { ascending: false })
             .limit(200);
 
-        if (activitiesError) {
-          throw activitiesError;
+          if (activitiesError) {
+            console.warn(
+              "Não foi possível carregar atividades Strava:",
+              activitiesError
+            );
+          } else {
+            stravaActivities = (activitiesData ?? []).map(
+              (activity) => ({
+                id: `strava-${activity.id}`,
+                athlete_id:
+                  activity.athlete_id != null
+                    ? Number(activity.athlete_id)
+                    : null,
+                name: activity.name ?? null,
+                type: activity.type ?? null,
+                sport_type: activity.sport_type ?? null,
+                start_date: activity.start_date ?? null,
+                distance:
+                  activity.distance != null
+                    ? Number(activity.distance)
+                    : null,
+                moving_time:
+                  activity.moving_time != null
+                    ? Number(activity.moving_time)
+                    : null,
+                average_heartrate:
+                  activity.average_heartrate != null
+                    ? Number(activity.average_heartrate)
+                    : null,
+                max_heartrate:
+                  activity.max_heartrate != null
+                    ? Number(activity.max_heartrate)
+                    : null,
+                total_elevation_gain:
+                  activity.total_elevation_gain != null
+                    ? Number(activity.total_elevation_gain)
+                    : null,
+                calories: null,
+                provider: "strava" as const,
+              })
+            );
+          }
         }
 
-        setActivities(
-          (activitiesData ?? []) as StravaActivityRow[]
-        );
+        const {
+          data: garminData,
+          error: garminError,
+        } = await supabase
+          .from("imported_activities")
+          .select(
+            "id,name,sport_type,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
+          )
+          .eq("user_id", user.id)
+          .eq("provider", "garmin")
+          .order("start_date", { ascending: false })
+          .limit(200);
+
+        if (garminError) {
+          console.warn(
+            "Não foi possível carregar atividades Garmin:",
+            garminError
+          );
+        }
+
+        const garminActivities: TrainingActivityRow[] =
+          (garminData ?? []).map((activity) => ({
+            id: `garmin-${activity.id}`,
+            athlete_id: null,
+            name: activity.name ?? null,
+            type: activity.sport_type ?? null,
+            sport_type: activity.sport_type ?? null,
+            start_date: activity.start_date ?? null,
+            distance:
+              activity.distance_m != null
+                ? Number(activity.distance_m)
+                : null,
+            moving_time:
+              activity.moving_time_s != null
+                ? Number(activity.moving_time_s)
+                : null,
+            average_heartrate:
+              activity.avg_heartrate != null
+                ? Number(activity.avg_heartrate)
+                : null,
+            max_heartrate:
+              activity.max_heartrate != null
+                ? Number(activity.max_heartrate)
+                : null,
+            total_elevation_gain:
+              activity.elev_gain_m != null
+                ? Number(activity.elev_gain_m)
+                : null,
+            calories:
+              activity.calories != null
+                ? Number(activity.calories)
+                : null,
+            provider: "garmin" as const,
+          }));
+
+        const combinedActivities = [
+          ...stravaActivities,
+          ...garminActivities,
+        ].sort((a, b) => {
+          const timeA = a.start_date
+            ? new Date(a.start_date).getTime()
+            : 0;
+          const timeB = b.start_date
+            ? new Date(b.start_date).getTime()
+            : 0;
+
+          return timeB - timeA;
+        });
+
+        const deduplicatedActivities =
+          combinedActivities.filter(
+            (activity, index, list) =>
+              index ===
+              list.findIndex((candidate) => {
+                if (
+                  !activity.start_date ||
+                  !candidate.start_date
+                ) {
+                  return activity.id === candidate.id;
+                }
+
+                const startDifference =
+                  Math.abs(
+                    new Date(activity.start_date).getTime() -
+                      new Date(candidate.start_date).getTime()
+                  );
+
+                const distanceDifference =
+                  Math.abs(
+                    (activity.distance ?? 0) -
+                      (candidate.distance ?? 0)
+                  );
+
+                const durationDifference =
+                  Math.abs(
+                    (activity.moving_time ?? 0) -
+                      (candidate.moving_time ?? 0)
+                  );
+
+                return (
+                  startDifference <= 120000 &&
+                  distanceDifference <= 100 &&
+                  durationDifference <= 120
+                );
+              })
+          );
+
+        setActivities(deduplicatedActivities);
       } catch (error: unknown) {
         const errorMessage =
           error instanceof Error
@@ -709,11 +893,11 @@ export default function TrainingPage() {
         <p style={subtitleStyle}>
           Acompanhe sua carga, distância,
           frequência cardíaca e evolução com os
-          dados sincronizados do Strava.
+          dados sincronizados dos seus apps de treino.
         </p>
       </header>
 
-      {!stravaConnected ? (
+      {!stravaConnected && !garminConnected ? (
         <section style={connectionCardStyle}>
           <div>
             <div style={cardEyebrowStyle}>
@@ -721,11 +905,11 @@ export default function TrainingPage() {
             </div>
 
             <h2 style={connectionTitleStyle}>
-              Conecte seu Strava
+              Conecte um app de treino
             </h2>
 
             <p style={connectionTextStyle}>
-              Conecte sua conta para visualizar
+              Conecte Strava ou Garmin para visualizar
               atividades, duração, distância,
               frequência cardíaca e evolução.
             </p>
@@ -960,13 +1144,17 @@ export default function TrainingPage() {
                           )}
                         </div>
 
-                        <div
-                          style={activityTypeStyle}
-                        >
-                          {activity.sport_type ??
-                            activity.type ??
-                            "Atividade"}
-                        </div>
+                        <div style={activityTypeStyle}>
+  {activity.sport_type ??
+    activity.type ??
+    "Atividade"}
+  {" · "}
+  <span style={{ fontWeight: 600 }}>
+    {activity.provider === "garmin"
+      ? "Garmin"
+      : "Strava"}
+  </span>
+</div>
                       </div>
 
                       <div
@@ -1477,6 +1665,11 @@ const messageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   boxShadow: "0 12px 36px rgba(0,0,0,0.42)",
 };
+
+
+
+
+
 
 
 
