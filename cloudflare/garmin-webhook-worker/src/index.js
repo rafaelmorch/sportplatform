@@ -540,6 +540,182 @@ async function processDailyItem(
     throw error;
   }
 }
+async function upsertHealthHrvSummary(
+  env,
+  appUserId,
+  externalId,
+  item
+) {
+  const day =
+    typeof item?.calendarDate === "string"
+      ? item.calendarDate
+      : null;
+
+  if (!day) {
+    throw new Error(
+      `Garmin HRV ${externalId} has no calendarDate.`
+    );
+  }
+
+  const row = {
+    user_id: appUserId,
+    provider: "garmin",
+    external_id: externalId,
+    day,
+
+    last_night_avg:
+      item?.lastNightAvg != null
+        ? Number(item.lastNightAvg)
+        : null,
+
+    last_night_5min_high:
+      item?.lastNight5MinHigh != null
+        ? Number(item.lastNight5MinHigh)
+        : null,
+
+    duration_s:
+      item?.durationInSeconds != null
+        ? Number(item.durationInSeconds)
+        : null,
+
+    hrv_readings:
+      item?.hrvReadings != null
+        ? item.hrvReadings
+        : null,
+
+    raw: item,
+    updated_at: new Date().toISOString(),
+  };
+
+  const response = await fetch(
+    `${env.SUPABASE_URL}/rest/v1/health_hrv_summaries?on_conflict=user_id,provider,day`,
+    {
+      method: "POST",
+      headers: {
+        ...supabaseHeaders(env),
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(row),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Health HRV upsert failed (${response.status}): ${errorText}`
+    );
+  }
+}
+
+async function updateHrvWebhookEvent(
+  env,
+  garminUserId,
+  externalId,
+  values
+) {
+  const url =
+    `${env.SUPABASE_URL}/rest/v1/garmin_webhook_events` +
+    `?event_type=eq.hrv` +
+    `&garmin_user_id=eq.${encodeURIComponent(garminUserId)}` +
+    `&external_id=eq.${encodeURIComponent(externalId)}`;
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: {
+      ...supabaseHeaders(env),
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify(values),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `HRV webhook update failed (${response.status}): ${errorText}`
+    );
+  }
+}
+
+async function processHrvItem(
+  env,
+  item,
+  externalId
+) {
+  const garminUserId =
+    typeof item?.userId === "string"
+      ? item.userId
+      : null;
+
+  if (!garminUserId) {
+    console.log(
+      `Garmin HRV ${externalId} has no userId; left pending.`
+    );
+    return;
+  }
+
+  const appUserId =
+    await getAppUserId(env, garminUserId);
+
+  if (!appUserId) {
+    console.log(
+      `No Platform Sports user linked to Garmin user ${garminUserId}; HRV ${externalId} left pending.`
+    );
+    return;
+  }
+
+  try {
+    await upsertHealthHrvSummary(
+      env,
+      appUserId,
+      externalId,
+      item
+    );
+
+    await updateHrvWebhookEvent(
+      env,
+      garminUserId,
+      externalId,
+      {
+        app_user_id: appUserId,
+        processing_status: "processed",
+        processed_at: new Date().toISOString(),
+        processing_error: null,
+      }
+    );
+
+    console.log(
+      `Garmin HRV auto-imported: ${externalId}`
+    );
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    try {
+      await updateHrvWebhookEvent(
+        env,
+        garminUserId,
+        externalId,
+        {
+          app_user_id: appUserId,
+          processing_status: "error",
+          processed_at: new Date().toISOString(),
+          processing_error: errorMessage,
+        }
+      );
+    } catch (updateError) {
+      console.error(
+        "Failed to save Garmin HRV processing error:",
+        updateError
+      );
+    }
+
+    throw error;
+  }
+}
 async function upsertHealthSleepSummary(
   env,
   appUserId,
@@ -1147,6 +1323,15 @@ export default {
               ? payload.sleeps
               : [];
         } else if (
+          eventType === "hrv"
+        ) {
+          items =
+            Array.isArray(
+              payload?.hrv
+            )
+              ? payload.hrv
+              : [];
+        } else if (
           eventType === "permissions"
         ) {
           items =
@@ -1240,6 +1425,7 @@ export default {
             eventType === "activity" ||
             eventType === "daily" ||
             eventType === "sleep" ||
+            eventType === "hrv" ||
             eventType === "deregistration"
           ) {
             for (
@@ -1279,6 +1465,12 @@ export default {
                   item,
                   externalId
                 );
+              } else if (eventType === "hrv") {
+                await processHrvItem(
+                  env,
+                  item,
+                  externalId
+                );
               } else {
                 await processDeregistrationItem(
                   env,
@@ -1308,6 +1500,9 @@ export default {
     }
   },
 };
+
+
+
 
 
 

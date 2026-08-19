@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,25 +11,35 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  let body: unknown;
+
   try {
-    const body = await request.json().catch(() => null);
-
-    console.log("Garmin webhook received:", JSON.stringify(body));
-
-    return NextResponse.json(
-      {
-        ok: true,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Garmin webhook error:", error);
-
+    body = await request.json();
+  } catch {
     return NextResponse.json(
       {
         ok: false,
+        error: "Invalid JSON payload.",
       },
-      { status: 500 }
+      { status: 400 }
     );
   }
+
+  after(async () => {
+    try {
+      console.log("Garmin webhook received:", JSON.stringify(body));
+    } catch (error) {
+      console.error(
+        "Garmin permissions background processing error:",
+        error
+      );
+    }
+  });
+
+  return NextResponse.json(
+    {
+      ok: true,
+    },
+    { status: 200 }
+  );
 }
