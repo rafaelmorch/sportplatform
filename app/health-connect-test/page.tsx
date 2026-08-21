@@ -70,6 +70,42 @@ export default function HealthConnectTestPage() {
     }
   }
 
+
+  async function readHealthData() {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+
+      const types: HealthDataType[] = [
+        "heartRate",
+        "restingHeartRate",
+        "heartRateVariability",
+        "sleep",
+      ];
+
+      const results = await Promise.all(
+        types.map(async (dataType) => {
+          const data = await Health.readSamples({
+            dataType,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            limit: 100,
+            ascending: false,
+          });
+
+          return {
+            dataType,
+            samples: data.samples,
+          };
+        })
+      );
+
+      setResult(JSON.stringify(results, null, 2));
+    } catch (error) {
+      setResult(error instanceof Error ? error.message : JSON.stringify(error));
+    }
+  }
   return (
     <main style={{ minHeight: "100vh", padding: "40px 20px", fontFamily: "Arial, sans-serif" }}>
       <h1>Health Connect Test</h1>
@@ -86,11 +122,16 @@ export default function HealthConnectTestPage() {
         Ler atividades
       </button>
 
+      <button onClick={readHealthData} style={{ display: "block", marginTop: 16, padding: "12px 18px", fontSize: 16 }}>
+        Ler dados de saúde
+      </button>
+
       <pre style={{ marginTop: 30, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
         {result}
       </pre>
     </main>
   );
 }
+
 
 
