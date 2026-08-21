@@ -90,6 +90,11 @@ async function insertImportedActivity(
     provider: "garmin",
     external_id: externalId,
 
+    device_name:
+      typeof item?.deviceName === "string"
+        ? item.deviceName.trim()
+        : null,
+
     name:
       typeof item?.activityName === "string"
         ? item.activityName
@@ -1500,6 +1505,7 @@ export default {
     }
   },
 };
+
 
 
 

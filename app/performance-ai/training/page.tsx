@@ -20,6 +20,7 @@ type TrainingActivityRow = {
   name: string | null;
   type: string | null;
   sport_type: string | null;
+  device_name?: string | null;
   start_date: string | null;
   distance: number | null;
   moving_time: number | null;
@@ -510,7 +511,7 @@ export default function TrainingPage() {
         } = await supabase
           .from("imported_activities")
           .select(
-            "id,name,sport_type,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
+            "id,name,sport_type,device_name,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
           )
           .eq("user_id", user.id)
           .eq("provider", "garmin")
@@ -531,6 +532,7 @@ export default function TrainingPage() {
             name: activity.name ?? null,
             type: activity.sport_type ?? null,
             sport_type: activity.sport_type ?? null,
+            device_name: activity.device_name ?? null,
             start_date: activity.start_date ?? null,
             distance:
               activity.distance_m != null
@@ -1151,7 +1153,7 @@ export default function TrainingPage() {
   {" · "}
   <span style={{ fontWeight: 600 }}>
     {activity.provider === "garmin"
-      ? "Garmin"
+      ? activity.device_name?.trim() || "Garmin"
       : "Strava"}
   </span>
 </div>
@@ -1665,6 +1667,7 @@ const messageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   boxShadow: "0 12px 36px rgba(0,0,0,0.42)",
 };
+
 
 
 
