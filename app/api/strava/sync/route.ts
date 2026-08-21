@@ -1,3 +1,15 @@
+/**
+ * PLATFORM SPORTS
+ * Arquivo: app/api/strava/sync/route.ts
+ * Última alteração: 2026-08-21 17:59 ET
+ *
+ * Alteração:
+ * Strava continua gravando em strava_activities e passa também
+ * a alimentar imported_activities como tabela consolidada.
+ *
+ * Backup anterior:
+ * Backups/strava/sync-route-BACKUP-2026-08-21-1758.txt
+ */
 // app/api/strava/sync/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -279,6 +291,61 @@ export async function GET(req: NextRequest) {
         );
       }
 
+      // Tabela consolidada de atividades de todos os providers
+      const importedRows = all
+        .filter((a) => a?.id && a?.start_date)
+        .map((a) => ({
+          user_id: userId,
+          athlete_id: athleteId,
+          strava_activity_id: a.id,
+          provider: "strava",
+          external_id: String(a.id),
+
+          name: a.name ?? null,
+          sport_type: a.sport_type ?? a.type ?? null,
+          start_date: a.start_date ?? null,
+
+          distance_m: a.distance ?? null,
+          moving_time_s: a.moving_time ?? null,
+          elapsed_time_s: a.elapsed_time ?? null,
+          elev_gain_m: a.total_elevation_gain ?? null,
+
+          avg_speed_ms: a.average_speed ?? null,
+          max_speed_ms: a.max_speed ?? null,
+
+          avg_heartrate: a.average_heartrate ?? null,
+          max_heartrate: a.max_heartrate ?? null,
+          has_heartrate:
+            a.average_heartrate != null ||
+            a.max_heartrate != null,
+
+          commute: a.commute ?? null,
+          trainer: a.trainer ?? null,
+
+          map_polyline:
+            a.map?.summary_polyline ?? null,
+
+          raw_activity: a,
+          device_name: null,
+        }));
+
+      const { error: importedErr } =
+        await supabaseAdmin
+          .from("imported_activities")
+          .upsert(importedRows, {
+            onConflict: "provider,external_id",
+          });
+
+      if (importedErr) {
+        return NextResponse.json(
+          {
+            message:
+              "Erro ao consolidar atividades Strava em imported_activities.",
+            details: importedErr.message,
+          },
+          { status: 500 }
+        );
+      }
     challengeEvaluation = await processChallengeCompletions({
       supabase: supabaseAdmin,
       userId,
@@ -307,3 +374,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+

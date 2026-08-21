@@ -28,7 +28,7 @@ type TrainingActivityRow = {
   max_heartrate: number | null;
   total_elevation_gain?: number | null;
   calories?: number | null;
-  provider: "strava" | "garmin";
+  provider: string;
 };
 
 function startOfDayLocal(date: Date) {
@@ -506,28 +506,27 @@ export default function TrainingPage() {
         }
 
         const {
-          data: garminData,
-          error: garminError,
+          data: importedData,
+          error: importedError,
         } = await supabase
           .from("imported_activities")
           .select(
             "id,name,sport_type,device_name,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
           )
           .eq("user_id", user.id)
-          .eq("provider", "garmin")
           .order("start_date", { ascending: false })
-          .limit(200);
+          .limit(500);
 
-        if (garminError) {
+        if (importedError) {
           console.warn(
-            "Não foi possível carregar atividades Garmin:",
-            garminError
+            "Não foi possível carregar atividades importadas:",
+            importedError
           );
         }
 
-        const garminActivities: TrainingActivityRow[] =
-          (garminData ?? []).map((activity) => ({
-            id: `garmin-${activity.id}`,
+        const importedActivities: TrainingActivityRow[] =
+          (importedData ?? []).map((activity) => ({
+            id: `${activity.provider ?? "imported"}-${activity.id}`,
             athlete_id: null,
             name: activity.name ?? null,
             type: activity.sport_type ?? null,
@@ -558,12 +557,12 @@ export default function TrainingPage() {
               activity.calories != null
                 ? Number(activity.calories)
                 : null,
-            provider: "garmin" as const,
+            provider: activity.provider ?? "unknown",
           }));
 
         const combinedActivities = [
           ...stravaActivities,
-          ...garminActivities,
+          ...importedActivities,
         ].sort((a, b) => {
           const timeA = a.start_date
             ? new Date(a.start_date).getTime()
@@ -1152,9 +1151,14 @@ export default function TrainingPage() {
     "Atividade"}
   {" · "}
   <span style={{ fontWeight: 600 }}>
-    {activity.provider === "garmin"
-      ? activity.device_name?.trim() || "Garmin"
-      : "Strava"}
+    {activity.device_name?.trim() ||
+      (activity.provider === "health_connect"
+        ? "Health Connect"
+        : activity.provider === "garmin"
+          ? "Garmin"
+          : activity.provider === "strava"
+            ? "Strava"
+            : activity.provider)}
   </span>
 </div>
                       </div>
@@ -1667,6 +1671,7 @@ const messageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   boxShadow: "0 12px 36px rgba(0,0,0,0.42)",
 };
+
 
 
 
