@@ -1,9 +1,35 @@
+/**
+ * PLATFORM SPORTS
+ * Arquivo: app/integrations/page.tsx
+ * Última alteração: 2026-08-21 16:49 ET
+ *
+ * Função:
+ * Gerenciar integrações de atividades e saúde da Platform Sports.
+ *
+ * Arquitetura:
+ * Providers específicos ficam em lib/integrations.
+ * A página deve concentrar apenas interface, status e ações.
+ *
+ * Alteração 2026-08-21 16:34 ET:
+ * - Preparação para Health Connect.
+ * - Estrutura preparada para novos providers.
+ *
+ * Backup anterior:
+ * app/integrations/page-BACKUP-2026-08-21-1634.tsx
+ */
+
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import BackButton from "@/components/BackButton";
 import { createClient } from "@supabase/supabase-js";
+import {
+  authorizeHealthConnect,
+  checkHealthConnectAvailability,
+  isAndroidNative,
+  syncHealthConnect,
+} from "@/lib/integrations/health-connect";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
 const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID!;
@@ -15,6 +41,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 type ConnectionStatus = {
   stravaConnected: boolean;
   garminConnected: boolean;
+  healthConnectAvailable: boolean;
 };
 
 export default function IntegrationsPage() {
@@ -24,6 +51,8 @@ export default function IntegrationsPage() {
   const [revokingStrava, setRevokingStrava] = useState(false);
   const [connectingGarmin, setConnectingGarmin] = useState(false);
   const [revokingGarmin, setRevokingGarmin] = useState(false);
+  const [authorizingHealthConnect, setAuthorizingHealthConnect] = useState(false);
+  const [syncingHealthConnect, setSyncingHealthConnect] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -31,6 +60,7 @@ export default function IntegrationsPage() {
   const [status, setStatus] = useState<ConnectionStatus>({
     stravaConnected: false,
     garminConnected: false,
+    healthConnectAvailable: false,
   });
 
   const queryParams = useMemo(() => {
@@ -76,9 +106,27 @@ export default function IntegrationsPage() {
       }
     }
 
+    let healthConnectAvailable = false;
+
+    if (isAndroidNative()) {
+      try {
+        const healthAvailability =
+          await checkHealthConnectAvailability();
+
+        healthConnectAvailable =
+          !!healthAvailability?.available;
+      } catch (error) {
+        console.error(
+          "Erro ao verificar Health Connect:",
+          error
+        );
+      }
+    }
+
     setStatus({
       stravaConnected: !!stravaRow?.athlete_id,
       garminConnected,
+      healthConnectAvailable,
     });
   }
 
@@ -255,6 +303,86 @@ export default function IntegrationsPage() {
       setRevokingGarmin(false);
     }
   };
+  const handleAuthorizeHealthConnect = async () => {
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setAuthorizingHealthConnect(true);
+
+      const status = await authorizeHealthConnect();
+
+      const hasAnyPermission =
+        status.readAuthorized?.length > 0;
+
+      if (!hasAnyPermission) {
+        setErrorMsg(
+          "Nenhuma permissão do Health Connect foi autorizada."
+        );
+        return;
+      }
+
+      setSuccessMsg(
+        "Health Connect autorizado com sucesso."
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao autorizar Health Connect:",
+        error
+      );
+
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Erro ao autorizar Health Connect."
+      );
+    } finally {
+      setAuthorizingHealthConnect(false);
+    }
+  };
+
+  const handleSyncHealthConnect = async () => {
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setSyncingHealthConnect(true);
+
+      const {
+        data: sessionData,
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      const accessToken =
+        sessionData.session?.access_token;
+
+      if (sessionErr || !accessToken) {
+        setErrorMsg(
+          "Você precisa estar logado para sincronizar Health Connect."
+        );
+        return;
+      }
+
+      const result =
+        await syncHealthConnect(accessToken);
+
+      setSuccessMsg(
+        `Health Connect sincronizado. ${result.workoutsReadFromHealthConnect ?? 0} atividades encontradas.`
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao sincronizar Health Connect:",
+        error
+      );
+
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Erro ao sincronizar Health Connect."
+      );
+    } finally {
+      setSyncingHealthConnect(false);
+    }
+  };
+
   const handleRevokeStrava = async () => {
     try {
       setErrorMsg(null);
@@ -619,6 +747,133 @@ export default function IntegrationsPage() {
             </button>
           )}
         </div>
+        {/* Health Connect - Android */}
+        {isAndroidNative() && (
+          <div
+            style={{
+              marginTop: 16,
+              borderRadius: 18,
+              padding: "14px 16px",
+              border: "1px solid rgba(148,163,184,0.4)",
+              background: "#ffffff",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: "#0f172a",
+                  }}
+                >
+                  Health Connect
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 14,
+                    color: "#475569",
+                    marginTop: 6,
+                  }}
+                >
+                  Centraliza atividades e métricas de saúde dos apps conectados ao Android.
+                </div>
+              </div>
+
+              {status.healthConnectAvailable && (
+                <div
+                  style={{
+                    alignSelf: "center",
+                    fontSize: 12,
+                    color: "#166534",
+                    border: "1px solid #22c55e",
+                    background: "#dcfce7",
+                    padding: "6px 10px",
+                    borderRadius: "10px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Disponível ✅
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleAuthorizeHealthConnect}
+              disabled={
+                !status.healthConnectAvailable ||
+                authorizingHealthConnect
+              }
+              style={{
+                width: "100%",
+                height: 44,
+                borderRadius: "10px",
+                marginTop: 10,
+                background: "#111827",
+                color: "#ffffff",
+                border: "1px solid #111827",
+                fontWeight: 700,
+                fontSize: 18,
+                cursor:
+                  !status.healthConnectAvailable ||
+                  authorizingHealthConnect
+                    ? "default"
+                    : "pointer",
+                opacity:
+                  !status.healthConnectAvailable ||
+                  authorizingHealthConnect
+                    ? 0.7
+                    : 1,
+              }}
+            >
+              {authorizingHealthConnect
+                ? "Autorizando..."
+                : "Autorizar Health Connect"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSyncHealthConnect}
+              disabled={
+                !status.healthConnectAvailable ||
+                syncingHealthConnect
+              }
+              style={{
+                width: "100%",
+                height: 40,
+                borderRadius: "10px",
+                marginTop: 10,
+                background: "#ffffff",
+                color: "#111827",
+                border: "2px solid #111827",
+                fontWeight: 700,
+                fontSize: 15,
+                cursor:
+                  !status.healthConnectAvailable ||
+                  syncingHealthConnect
+                    ? "default"
+                    : "pointer",
+                opacity:
+                  !status.healthConnectAvailable ||
+                  syncingHealthConnect
+                    ? 0.7
+                    : 1,
+              }}
+            >
+              {syncingHealthConnect
+                ? "Sincronizando..."
+                : "Sincronizar Health Connect"}
+            </button>
+          </div>
+        )}
         <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
           <Link
             href="/groups"
@@ -636,6 +891,11 @@ export default function IntegrationsPage() {
     </main>
   );
 }
+
+
+
+
+
 
 
 
