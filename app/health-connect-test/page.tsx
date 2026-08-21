@@ -96,7 +96,8 @@ export default function HealthConnectTestPage() {
 
           return {
             dataType,
-            samples: data.samples,
+            count: data.samples.length,
+            sample: data.samples[0] ?? null,
           };
         })
       );
@@ -132,6 +133,7 @@ export default function HealthConnectTestPage() {
     </main>
   );
 }
+
 
 
 
