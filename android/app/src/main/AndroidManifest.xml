@@ -61,6 +61,7 @@
 
     </application>
 
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <uses-permission android:name="android.permission.INTERNET" />
 
 </manifest>
