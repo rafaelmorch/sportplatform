@@ -55,12 +55,12 @@ export default function HealthConnectTestPage() {
     try {
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      startDate.setFullYear(startDate.getFullYear() - 1);
 
       const data = await Health.queryWorkouts({
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        limit: 20,
+        limit: 100,
         ascending: false,
       });
 
@@ -92,4 +92,5 @@ export default function HealthConnectTestPage() {
     </main>
   );
 }
+
 
