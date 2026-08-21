@@ -1,8 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Health } from "@capgo/capacitor-health";
+import { Health, type HealthDataType } from "@capgo/capacitor-health";
 import { Capacitor } from "@capacitor/core";
+
+const readTypes: HealthDataType[] = [
+  "steps",
+  "distance",
+  "calories",
+  "heartRate",
+  "restingHeartRate",
+  "heartRateVariability",
+  "vo2Max",
+  "sleep",
+  "workouts",
+];
 
 export default function HealthConnectTestPage() {
   const [result, setResult] = useState("");
@@ -15,8 +27,27 @@ export default function HealthConnectTestPage() {
       }
 
       const availability = await Health.isAvailable();
-
       setResult(JSON.stringify(availability, null, 2));
+    } catch (error) {
+      setResult(
+        error instanceof Error ? error.message : JSON.stringify(error)
+      );
+    }
+  }
+
+  async function requestPermissions() {
+    try {
+      if (!Capacitor.isNativePlatform()) {
+        setResult("Abra esta página pelo app Android.");
+        return;
+      }
+
+      const status = await Health.requestAuthorization({
+        read: readTypes,
+        requestHistoryAccess: true,
+      });
+
+      setResult(JSON.stringify(status, null, 2));
     } catch (error) {
       setResult(
         error instanceof Error ? error.message : JSON.stringify(error)
@@ -43,6 +74,18 @@ export default function HealthConnectTestPage() {
         }}
       >
         Verificar Health Connect
+      </button>
+
+      <button
+        onClick={requestPermissions}
+        style={{
+          display: "block",
+          marginTop: 16,
+          padding: "12px 18px",
+          fontSize: 16,
+        }}
+      >
+        Autorizar Health Connect
       </button>
 
       <pre
