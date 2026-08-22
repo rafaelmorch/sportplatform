@@ -1,15 +1,26 @@
-// app/performance/page.tsx
+/**
+ * PLATFORM SPORTS
+ * Arquivo: app/performance/page.tsx
+ * Última alteração: 2026-08-21 18:44 ET
+ *
+ * Função:
+ * Exibir performance usando a fonte consolidada imported_activities
+ * do usuário autenticado.
+ *
+ * Backup anterior:
+ * Backups/performance/page-BACKUP-2026-08-21-1844.txt
+ */
+
+"use client";
+
+import { useEffect, useState } from "react";
 import DashboardClient from "@/components/DashboardClient";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
-export const dynamic = "force-dynamic";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-type StravaActivity = {
+type GroupActivity = {
   id: string;
-  athlete_id: number;
+  user_id: string;
+  user_name?: string;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -19,26 +30,70 @@ type StravaActivity = {
   total_elevation_gain: number | null;
 };
 
-export default async function PerformancePage() {
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export default function PerformancePage() {
+  const [activities, setActivities] = useState<GroupActivity[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ⚠️ Performance não tem sessão server-side aqui (anon). Então:
-  // - ou você já tinha essa página funcionando pegando “tudo” mesmo (sem RLS),
-  // - ou você já tinha alguma lógica diferente.
-  // Para não quebrar build, mantemos simples: tenta pegar atividades (se RLS permitir).
-  const { data: activitiesData } = await supabase
-    .from("strava_activities")
-    .select("id, athlete_id, name, type, sport_type, start_date, distance, moving_time, total_elevation_gain")
-    .order("start_date", { ascending: false })
-    .limit(200);
+  useEffect(() => {
+    async function load() {
+      try {
+        const {
+          data: { user },
+        } = await supabaseBrowser.auth.getUser();
 
-  const activities = (activitiesData ?? []) as StravaActivity[];
+        if (!user) return;
 
-  const eventsSummary = { availableEvents: 0, userEvents: 0 };
+        const { data, error } = await supabaseBrowser
+          .from("imported_activities")
+          .select(
+            "id,user_id,name,sport_type,start_date,distance_m,moving_time_s,elev_gain_m"
+          )
+          .eq("user_id", user.id)
+          .order("start_date", { ascending: false })
+          .limit(500);
+
+        if (error) {
+          console.error("Erro ao carregar performance:", error);
+          return;
+        }
+
+        const mapped: GroupActivity[] = (data ?? []).map((row) => ({
+          id: row.id,
+          user_id: row.user_id,
+          name: row.name ?? null,
+          type: row.sport_type ?? null,
+          sport_type: row.sport_type ?? null,
+          start_date: row.start_date ?? null,
+          distance:
+            row.distance_m != null ? Number(row.distance_m) : null,
+          moving_time:
+            row.moving_time_s != null ? Number(row.moving_time_s) : null,
+          total_elevation_gain:
+            row.elev_gain_m != null ? Number(row.elev_gain_m) : null,
+        }));
+
+        setActivities(mapped);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, []);
+
+  if (loading) {
+    return <main style={{ padding: 16 }}>Carregando...</main>;
+  }
 
   return (
     <main style={{ padding: 16, paddingBottom: 80 }}>
-      <DashboardClient activities={activities} eventsSummary={eventsSummary} />
+      <DashboardClient
+        activities={activities}
+        eventsSummary={{
+          availableEvents: 0,
+          userEvents: 0,
+        }}
+      />
     </main>
   );
 }

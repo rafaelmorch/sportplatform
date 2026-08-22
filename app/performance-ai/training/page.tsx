@@ -446,64 +446,7 @@ export default function TrainingPage() {
 
         setGarminConnected(hasGarmin);
 
-        let stravaActivities: TrainingActivityRow[] = [];
 
-        if (hasStrava) {
-          const {
-            data: activitiesData,
-            error: activitiesError,
-          } = await supabase
-            .from("strava_activities")
-            .select(
-              "id, athlete_id, name, type, sport_type, start_date, distance, moving_time, average_heartrate, max_heartrate, total_elevation_gain"
-            )
-            .eq("athlete_id", tokenRow.athlete_id)
-            .order("start_date", { ascending: false })
-            .limit(200);
-
-          if (activitiesError) {
-            console.warn(
-              "Não foi possível carregar atividades Strava:",
-              activitiesError
-            );
-          } else {
-            stravaActivities = (activitiesData ?? []).map(
-              (activity) => ({
-                id: `strava-${activity.id}`,
-                athlete_id:
-                  activity.athlete_id != null
-                    ? Number(activity.athlete_id)
-                    : null,
-                name: activity.name ?? null,
-                type: activity.type ?? null,
-                sport_type: activity.sport_type ?? null,
-                start_date: activity.start_date ?? null,
-                distance:
-                  activity.distance != null
-                    ? Number(activity.distance)
-                    : null,
-                moving_time:
-                  activity.moving_time != null
-                    ? Number(activity.moving_time)
-                    : null,
-                average_heartrate:
-                  activity.average_heartrate != null
-                    ? Number(activity.average_heartrate)
-                    : null,
-                max_heartrate:
-                  activity.max_heartrate != null
-                    ? Number(activity.max_heartrate)
-                    : null,
-                total_elevation_gain:
-                  activity.total_elevation_gain != null
-                    ? Number(activity.total_elevation_gain)
-                    : null,
-                calories: null,
-                provider: "strava" as const,
-              })
-            );
-          }
-        }
 
         const {
           data: importedData,
@@ -561,7 +504,6 @@ export default function TrainingPage() {
           }));
 
         const combinedActivities = [
-          ...stravaActivities,
           ...importedActivities,
         ].sort((a, b) => {
           const timeA = a.start_date
@@ -1671,6 +1613,8 @@ const messageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   boxShadow: "0 12px 36px rgba(0,0,0,0.42)",
 };
+
+
 
 
 

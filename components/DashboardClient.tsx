@@ -12,10 +12,10 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 
 const supabase = supabaseBrowser;
 
-type StravaActivity = {
+type GroupActivity = {
   id: string;
-  athlete_id: number;
-  athlete_name?: string;
+  user_id: string;
+  user_name?: string;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -33,13 +33,13 @@ type EventsSummary = {
 type RangeKey = "all" | "today" | "7d" | "30d" | "6m";
 
 type DashboardClientProps = {
-  activities: StravaActivity[];
+  activities: GroupActivity[];
   eventsSummary: EventsSummary; // compat
   communityId?: string;
 };
 
 type RankingEntry = {
-  athleteId: number;
+  userId: string;
   label: string;
   totalPoints: number;
   totalHours: number;
@@ -169,15 +169,10 @@ export default function DashboardClient({ activities, eventsSummary, communityId
 
   const [range, setRange] = useState<RangeKey>("7d");
 
-  const [currentAthleteId, setCurrentAthleteId] = useState<number | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [athleteName, setAthleteName] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
 
-  const [groups, setGroups] = useState<GroupOption[]>([]);
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [groupAthleteIds, setGroupAthleteIds] = useState<number[] | null>(null);
-
-  const [athleteNames, setAthleteNames] = useState<Record<number, string>>({});
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
 
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [loadingGroupAthletes, setLoadingGroupAthletes] = useState(false);
@@ -244,87 +239,46 @@ export default function DashboardClient({ activities, eventsSummary, communityId
     }
   };
 
-  // load user + groups
+  // load current user
   useEffect(() => {
-    const loadAthleteAndGroups = async () => {
+    const loadCurrentUser = async () => {
       try {
         const { data } = await supabase.auth.getUser();
         const user = data?.user ?? null;
 
         if (!user) {
-          const firstAthlete = safeActivities?.[0]?.athlete_id ?? null;
-          setCurrentAthleteId(firstAthlete);
           return;
         }
 
         setCurrentUserId(user.id);
 
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", user.id)
-          .maybeSingle();
+        const { data: profile, error: profileError } =
+          await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .maybeSingle();
 
-        if (profileError) console.error("Erro ao carregar profile:", profileError);
-        if (profile?.full_name) setAthleteName(profile.full_name);
-
-        const { data: tokenRow, error: tokenError } = await supabase
-          .from("strava_tokens")
-          .select("athlete_id")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (tokenError) console.error("Erro ao carregar strava_tokens:", tokenError);
-
-        if (tokenRow?.athlete_id) setCurrentAthleteId(tokenRow.athlete_id);
-        else setCurrentAthleteId(safeActivities?.[0]?.athlete_id ?? null);
-
-        setLoadingGroups(true);
-
-        const { data: memberRows, error: memberError } = await supabase
-          .from("training_group_members")
-          .select("group_id")
-          .eq("user_id", user.id);
-
-        if (memberError) {
-          console.error("Erro ao carregar grupos do usuário:", memberError);
-          return;
+        if (profileError) {
+          console.error(
+            "Erro ao carregar profile:",
+            profileError
+          );
         }
 
-        const groupIds = Array.from(new Set((memberRows ?? []).map((m: any) => m.group_id)));
-        if (groupIds.length === 0) return;
-
-        const { data: groupRows, error: groupError } = await supabase
-          .from("training_groups")
-          .select("id, title")
-          .in("id", groupIds);
-
-        if (groupError) {
-          console.error("Erro ao carregar dados dos grupos:", groupError);
-          return;
+        if (profile?.full_name) {
+          setCurrentUserName(profile.full_name);
         }
-
-        const opts: GroupOption[] = (groupRows ?? []).map((g: any) => ({
-          id: g.id as string,
-          name: g.title as string,
-        }));
-
-        setGroups(opts);
-        if (opts.length > 0) setSelectedGroupId(opts[0].id);
       } catch (err) {
-        console.error("Erro inesperado ao definir atleta/grupos:", err);
-        setCurrentAthleteId(safeActivities?.[0]?.athlete_id ?? null);
-      } finally {
-        setLoadingGroups(false);
+        console.error(
+          "Erro inesperado ao definir usuário:",
+          err
+        );
       }
     };
 
-    loadAthleteAndGroups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadCurrentUser();
   }, []);
-
   // auto-sync cooldown
   useEffect(() => {
     const runAutoSync = async () => {
@@ -359,92 +313,15 @@ export default function DashboardClient({ activities, eventsSummary, communityId
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId]);
 
-  // load athlete ids for group
-  useEffect(() => {
-    const loadGroupAthletes = async () => {
-      if (!selectedGroupId) {
-        setGroupAthleteIds(null);
-        return;
-      }
-
-      try {
-        setLoadingGroupAthletes(true);
-
-        const { data, error } = await supabase
-          .from("training_group_strava_athletes")
-          .select("athlete_id")
-          .eq("group_id", selectedGroupId);
-
-        if (error) {
-          console.error("Erro ao carregar atletas do grupo:", error);
-          setGroupAthleteIds(null);
-          return;
-        }
-
-        const ids = Array.from(
-          new Set(
-            (data ?? [])
-              .map((r: any) => r.athlete_id as number | null)
-              .filter((id): id is number => typeof id === "number")
-          )
-        );
-
-        setGroupAthleteIds(ids);
-      } catch (err) {
-        console.error("Erro inesperado ao carregar atletas do grupo:", err);
-        setGroupAthleteIds(null);
-      } finally {
-        setLoadingGroupAthletes(false);
-      }
-    };
-
-    loadGroupAthletes();
-  }, [selectedGroupId]);
-
-  // load names via RPC
-  useEffect(() => {
-    const loadNames = async () => {
-      if (!selectedGroupId) return;
-
-      const { data, error } = await supabase.rpc("get_group_athlete_names", {
-        p_group_id: selectedGroupId,
-      });
-
-      if (error) {
-        console.error("Erro RPC get_group_athlete_names:", error);
-        return;
-      }
-
-      const map: Record<number, string> = {};
-      (data ?? []).forEach((r: any) => {
-        const aid = r?.athlete_id;
-        const name = r?.full_name;
-        if (typeof aid === "number" && typeof name === "string" && name.trim()) {
-          map[aid] = name.trim();
-        }
-      });
-
-      if (currentAthleteId && athleteName) map[currentAthleteId] = athleteName;
-
-      setAthleteNames(map);
-    };
-
-    loadNames();
-  }, [selectedGroupId, currentAthleteId, athleteName]);
-
   // filters
   const activitiesInRange = safeActivities.filter((a) => isInRange(a.start_date, range, now));
 
-  let groupActivities = activitiesInRange;
-  if (groupAthleteIds && groupAthleteIds.length > 0) {
-    groupActivities = groupActivities.filter((a) => groupAthleteIds.includes(a.athlete_id));
-  } else if (groupAthleteIds && groupAthleteIds.length === 0) {
-    groupActivities = [];
-  }
+  const groupActivities = activitiesInRange;
+
 
   const athleteActivities =
-    currentAthleteId != null
-      ? groupActivities.filter((a) => a.athlete_id === currentAthleteId)
+    currentUserId != null
+      ? groupActivities.filter((a) => a.user_id === currentUserId)
       : groupActivities;
 
   const athleteDistance = athleteActivities.reduce((sum, a) => sum + metersToKm(a.distance), 0);
@@ -481,7 +358,7 @@ export default function DashboardClient({ activities, eventsSummary, communityId
   const ranking: RankingEntry[] = useMemo(() => {
     if (!groupActivities || groupActivities.length === 0) return [];
 
-    const map = new Map<number, { points: number; hours: number }>();
+    const map = new Map<string, { points: number; hours: number }>();
 
     for (const a of groupActivities) {
       const secs = a.moving_time ?? 0;
@@ -490,30 +367,30 @@ export default function DashboardClient({ activities, eventsSummary, communityId
       const pts = getStravaActivityPoints(a.type ?? a.sport_type ?? null, secs);
       const hours = secs / 3600;
 
-      const prev = map.get(a.athlete_id) ?? { points: 0, hours: 0 };
-      map.set(a.athlete_id, {
+      const prev = map.get(a.user_id) ?? { points: 0, hours: 0 };
+      map.set(a.user_id, {
         points: prev.points + pts,
         hours: prev.hours + hours,
       });
     }
 
-const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) => {
+const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
   const activityWithName = groupActivities.find(
-    (a) => a.athlete_id === athleteId
+    (a) => a.user_id === userId
   );
 
   return {
-    athleteId,
- label: activityWithName?.athlete_name ?? `Atleta ${athleteId}`,
+    userId,
+    label: activityWithName?.user_name ?? "Atleta",
     totalPoints: Math.round(v.points),
     totalHours: v.hours,
-    isCurrent: currentAthleteId === athleteId,
+    isCurrent: currentUserId === userId,
   };
 });
 
     entries.sort((a, b) => b.totalPoints - a.totalPoints);
     return entries;
-  }, [groupActivities, athleteNames, currentAthleteId]);
+  }, [groupActivities, currentUserId]);
 
 
   const topRanking = ranking.slice(0, 10);
@@ -535,11 +412,11 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
   const evolutionData: EvolutionPoint[] = useMemo(() => {
     if (!groupActivities || groupActivities.length === 0) return [];
 
-    const leaderAthleteId = ranking.length > 0 ? ranking[0].athleteId : null;
+    const leaderUserId = ranking.length > 0 ? ranking[0].userId : null;
 
     const userMap = new Map<string, number>();
     const leaderMap = new Map<string, number>();
-    const groupMap = new Map<string, { totalMinutes: number; athleteIds: Set<number> }>();
+    const groupMap = new Map<string, { totalMinutes: number; userIds: Set<string> }>();
 
     for (const a of groupActivities) {
       if (!a.start_date) continue;
@@ -550,16 +427,16 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
       const key = dateKeyLocal(d);
       const minutes = (a.moving_time ?? 0) / 60;
 
-      const gPrev = groupMap.get(key) ?? { totalMinutes: 0, athleteIds: new Set<number>() };
+      const gPrev = groupMap.get(key) ?? { totalMinutes: 0, userIds: new Set<string>() };
       gPrev.totalMinutes += minutes;
-      gPrev.athleteIds.add(a.athlete_id);
+      gPrev.userIds.add(a.user_id);
       groupMap.set(key, gPrev);
 
-      if (currentAthleteId != null && a.athlete_id === currentAthleteId) {
+      if (currentUserId != null && a.user_id === currentUserId) {
         userMap.set(key, (userMap.get(key) ?? 0) + minutes);
       }
 
-      if (leaderAthleteId != null && a.athlete_id === leaderAthleteId) {
+      if (leaderUserId != null && a.user_id === leaderUserId) {
         leaderMap.set(key, (leaderMap.get(key) ?? 0) + minutes);
       }
     }
@@ -599,8 +476,8 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
 
       const groupInfo = groupMap.get(key);
       const groupAvgMinutes =
-        groupInfo && groupInfo.athleteIds.size > 0
-          ? groupInfo.totalMinutes / groupInfo.athleteIds.size
+        groupInfo && groupInfo.userIds.size > 0
+          ? groupInfo.totalMinutes / groupInfo.userIds.size
           : 0;
 
       return {
@@ -611,7 +488,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([athleteId, v]) =
         groupAvgMinutes: Number(groupAvgMinutes.toFixed(1)),
       };
     });
-  }, [groupActivities, ranking, range, currentAthleteId, now]);
+  }, [groupActivities, ranking, range, currentUserId, now]);
 
   return (
     <div
@@ -789,7 +666,7 @@ style={{
           ) : (
             topRanking.map((r, idx) => (
               <div
-                key={r.athleteId}
+                key={r.userId}
                 style={{
                   display: "grid",
                   gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
@@ -1104,7 +981,7 @@ style={{
     ) : (
       ranking.map((r, idx) => (
         <div
-          key={`full-${r.athleteId}`}
+          key={`full-${r.userId}`}
           style={{
             display: "grid",
             gridTemplateColumns: "40px minmax(90px, 1fr) 58px 68px",
@@ -1198,6 +1075,15 @@ style={{
 </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 
