@@ -13,6 +13,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { processChallengeCompletions } from "@/lib/membership/processChallengeCompletions";
 
 export const runtime = "nodejs";
 
@@ -173,6 +174,17 @@ export async function POST(req: Request) {
         }
 
         workoutCount = rows.length;
+
+        const challengeEvaluation =
+          await processChallengeCompletions({
+            supabase,
+            userId,
+          });
+
+        console.log(
+          "Health Connect challenge evaluation:",
+          challengeEvaluation
+        );
       }
     }
 
@@ -250,4 +262,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
+
 
