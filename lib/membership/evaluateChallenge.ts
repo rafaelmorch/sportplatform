@@ -19,7 +19,13 @@ export type ChallengeForEvaluation = {
 };
 
 function normalizeActivityType(value?: string | null) {
-  return (value || "").trim().toLowerCase();
+  const normalized = (value || "").trim().toLowerCase();
+
+  if (normalized === "running") {
+    return "run";
+  }
+
+  return normalized;
 }
 
 function getActivityMetricValue(activity: ActivityForChallenge, metric?: string | null) {
@@ -102,3 +108,4 @@ export function evaluateChallenge(
 
   return true;
 }
+
