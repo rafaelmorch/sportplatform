@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Montserrat } from "next/font/google";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import UserAvatar from "@/components/UserAvatar";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -61,7 +62,7 @@ function SmallCard({
         minWidth: 0,
         minHeight: 220,
         boxSizing: "border-box",
-        borderRadius: 13,
+        borderRadius: 8,
         border: `1px solid ${color}55`,
         background: `
           radial-gradient(circle at 50% 0%, ${color}16, transparent 40%),
@@ -152,6 +153,17 @@ export default function IntroPage() {
 
   const supabase = useMemo(() => supabaseBrowser, []);
   const [communities, setCommunities] = useState<IntroCommunity[]>([]);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [connectedSource, setConnectedSource] = useState<string | null>(null);
+  const [latestActivity, setLatestActivity] = useState<{
+    name: string | null;
+    sport_type: string | null;
+    start_date: string | null;
+    distance_m: number | null;
+    moving_time_s: number | null;
+    provider: string | null;
+    device_name: string | null;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,6 +193,150 @@ export default function IntroPage() {
     };
   }, [supabase]);
 
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUser() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const session = sessionData.session;
+      const user = session?.user ?? null;
+
+      if (cancelled) return;
+
+      if (!user) {
+        setUserName(null);
+        setConnectedSource(null);
+        setLatestActivity(null);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Error loading intro profile:", profileError);
+      }
+
+      const metadata = user.user_metadata ?? {};
+
+      const fallbackName =
+        metadata.full_name ||
+        metadata.name ||
+        metadata.display_name ||
+        user.email?.split("@")[0] ||
+        "";
+
+      const displayName = profile?.full_name || fallbackName;
+      setUserName(String(displayName).trim() || null);
+
+      const [stravaResult, activitySourceResult, activityResult] =
+        await Promise.all([
+          supabase
+            .from("strava_tokens")
+            .select("athlete_id")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("user_activity_source")
+            .select("provider")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("imported_activities")
+            .select(
+              "name,sport_type,start_date,distance_m,moving_time_s,provider,device_name"
+            )
+            .eq("user_id", user.id)
+            .order("start_date", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+
+      let garminConnected = false;
+
+      if (session?.access_token) {
+        try {
+          const garminResponse = await fetch("/api/garmin/status", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (garminResponse.ok) {
+            const garminData = await garminResponse.json();
+            garminConnected = !!garminData?.connected;
+          }
+        } catch (error) {
+          console.error("Error loading Garmin status on Intro:", error);
+        }
+      }
+
+      let source: string | null = null;
+
+      if (activitySourceResult.data?.provider === "health_connect") {
+        source = "Health Connect";
+      } else if (garminConnected) {
+        source = "Garmin";
+      } else if (stravaResult.data?.athlete_id) {
+        source = "Strava";
+      }
+
+      if (!cancelled) {
+        setConnectedSource(source);
+        setLatestActivity(activityResult.data ?? null);
+      }
+    }
+
+    loadUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase]);
+
+  const formatActivityAge = (startDate: string | null) => {
+    if (!startDate) return null;
+
+    const time = new Date(startDate).getTime();
+    if (Number.isNaN(time)) return null;
+
+    const days = Math.max(
+      0,
+      Math.floor((Date.now() - time) / (1000 * 60 * 60 * 24))
+    );
+
+    if (days === 0) return "hoje";
+    if (days === 1) return "há 1 dia";
+    return `há ${days} dias`;
+  };
+
+  const latestActivitySummary = latestActivity
+    ? [
+        latestActivity.sport_type || latestActivity.name || "Atividade",
+        latestActivity.distance_m != null
+          ? `${(Number(latestActivity.distance_m) / 1000).toFixed(1).replace(".", ",")} km`
+          : null,
+        formatActivityAge(latestActivity.start_date),
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+
+  const connectedDevice =
+    connectedSource ||
+    latestActivity?.device_name ||
+    (latestActivity?.provider === "garmin"
+      ? "Garmin"
+      : latestActivity?.provider === "strava"
+        ? "Strava"
+        : latestActivity?.provider === "health_connect"
+          ? "Health Connect"
+          : null);
 
   const navigate = (href: string) => {
     try {
@@ -317,23 +473,93 @@ export default function IntroPage() {
             cada etapa da sua evolução.
           </p>
 
-                    {/* BOTÕES */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 10,
-              marginTop: 10,
-            }}
-          >
+          {/* LOGIN / SAUDAÇÃO */}
+          {userName ? (
+            <div
+              style={{
+                marginTop: 10,
+                minHeight: 48,
+                padding: "15px 16px 14px",
+                boxSizing: "border-box",
+                borderRadius: 8,
+                border: "1px solid transparent",
+                background: "radial-gradient(circle at 100% 50%, rgba(47,128,255,.10), transparent 38%), linear-gradient(135deg, rgba(10,18,30,.96), rgba(4,8,14,.98)) padding-box, linear-gradient(115deg, #22d3ee 0%, #38bdf8 20%, #2684ff 45%, #3155ff 70%, #0ea5e9 100%) border-box",
+                boxShadow: "0 0 10px rgba(34,211,238,.12), 0 0 20px rgba(38,132,255,.16), 0 0 28px rgba(49,85,255,.10), inset 0 0 18px rgba(47,128,255,.035)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  gap: 10,
+                  color: "#ffffff",
+                }}
+              >
+                <UserAvatar name={userName} size={36} />
+                <span
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  Olá, {userName}
+                </span>
+              </div>
+
+              {(connectedDevice || latestActivitySummary) && (
+                <div
+                  style={{
+                    marginTop: 7,
+                    marginLeft: 46,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                    fontSize: 10.5,
+                    lineHeight: 1.4,
+                    color: "rgba(255,255,255,.58)",
+                  }}
+                >
+                  {connectedDevice && (
+                    <span>
+                      Conectado ao <span style={{ color: "#2684ff", fontWeight: 500 }}>{connectedDevice}</span>
+                    </span>
+                  )}
+
+                  <div
+                    style={{
+                      height: 1,
+                      margin: "8px 0 7px",
+                      background: "rgba(255,255,255,.08)",
+                    }}
+                  />
+                  {latestActivitySummary && (
+                    <div
+                      style={{
+                        marginTop: 2,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#ffffff",
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      Última atividade: {latestActivitySummary}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
             <button
               type="button"
               onClick={() => navigate("/login")}
               style={{
+                width: "100%",
                 height: 48,
+                marginTop: 10,
                 borderRadius: 10,
-                border: "1px solid rgba(47,128,255,.40)",
-                background: "rgba(3,8,14,.82)",
+                border: "1px solid rgba(38,132,255,.95)",
+                background: "linear-gradient(135deg, #1688ff 0%, #0568e8 100%)",
                 color: "#ffffff",
                 fontFamily: "inherit",
                 fontSize: 12,
@@ -351,7 +577,7 @@ export default function IntroPage() {
                 viewBox="0 0 24 24"
                 fill="none"
                 aria-hidden="true"
-                style={{ color: "#2196f3" }}
+                style={{ color: "#ffffff" }}
               >
                 <path
                   d="M10 17l5-5-5-5"
@@ -373,62 +599,10 @@ export default function IntroPage() {
                   strokeLinecap="round"
                 />
               </svg>
-
               Entrar
             </button>
+          )}
 
-            <button
-              type="button"
-              onClick={() => navigate("/signup")}
-              style={{
-                height: 48,
-                borderRadius: 10,
-                border: "1px solid rgba(38,132,255,.95)",
-                background:
-                  "linear-gradient(135deg, #1688ff 0%, #0568e8 100%)",
-                color: "#ffffff",
-                fontFamily: "inherit",
-                fontSize: 12,
-                fontWeight: 600,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                boxShadow: "0 4px 14px rgba(0,105,230,.22)",
-                cursor: "pointer",
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
-                <circle
-                  cx="10"
-                  cy="7"
-                  r="3"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                />
-                <path
-                  d="M4.5 19a5.5 5.5 0 0 1 11 0"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M19 10v6M16 13h6"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                />
-              </svg>
-
-              Criar conta
-            </button>
-          </div>
 <p
             style={{
               margin: "9px 0 18px",
@@ -557,7 +731,7 @@ export default function IntroPage() {
                         aspectRatio: "16 / 10",
                         overflow: "hidden",
                         padding: 0,
-                        borderRadius: 13,
+                        borderRadius: 8,
                         border: "1px solid rgba(255,255,255,.10)",
                         background: "#090b0e",
                         scrollSnapAlign: "start",
@@ -667,7 +841,7 @@ export default function IntroPage() {
                 overflow: "hidden",
                 width: "100%",
                 boxSizing: "border-box",
-                borderRadius: 14,
+                borderRadius: 8,
                 border: "1px solid rgba(59,130,246,.48)",
                 background: `
                   radial-gradient(circle at 100% 50%, rgba(59,130,246,.10), transparent 42%),
@@ -779,7 +953,7 @@ export default function IntroPage() {
               style={{
                 position: "relative",
                 overflow: "hidden",
-                borderRadius: 16,
+                borderRadius: 8,
                 border: "1px solid rgba(212,175,55,.72)",
                 background: `
                   radial-gradient(circle at 85% 15%, rgba(212,175,55,.09), transparent 38%),
@@ -994,6 +1168,12 @@ export default function IntroPage() {
     </main>
   );
 }
+
+
+
+
+
+
 
 
 
