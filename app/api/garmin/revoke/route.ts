@@ -118,23 +118,61 @@ export async function POST(request: NextRequest) {
     const errorText =
       await garminResponse.text().catch(() => "");
 
+    const tokenAlreadyInactive =
+      garminResponse.status === 401 &&
+      errorText.toLowerCase().includes("token is not active");
+
+    if (!tokenAlreadyInactive) {
+      console.error(
+        "Garmin deregistration request failed:",
+        garminResponse.status,
+        errorText
+      );
+
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Garmin deregistration request failed.",
+        },
+        { status: 502 }
+      );
+    }
+
+    console.log(
+      "Garmin token already inactive. Clearing local connection."
+    );
+  }
+
+  // A Garmin confirmou a revogação.
+  // Remove somente a conexão/token local.
+  // Atividades já importadas permanecem preservadas.
+  const { error: deleteConnectionError } =
+    await supabaseAdmin
+      .from("garmin_connections")
+      .delete()
+      .eq("user_id", userData.user.id);
+
+  if (deleteConnectionError) {
     console.error(
-      "Garmin deregistration request failed:",
-      garminResponse.status,
-      errorText
+      "Garmin local connection cleanup failed:",
+      deleteConnectionError
     );
 
     return NextResponse.json(
       {
         ok: false,
-        error: "Garmin deregistration request failed.",
+        error:
+          "Garmin access was revoked, but the local connection could not be cleared.",
       },
-      { status: 502 }
+      { status: 500 }
     );
   }
 
   return NextResponse.json({
     ok: true,
     deregistration_requested: true,
+    connection_removed: true,
   });
 }
+
+

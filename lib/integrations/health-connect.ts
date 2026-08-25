@@ -65,6 +65,25 @@ export async function checkHealthConnectAvailability() {
   return Health.isAvailable();
 }
 
+export async function checkHealthConnectAuthorization() {
+  if (!isAndroidNative()) {
+    return {
+      connected: false,
+      readAuthorized: [] as HealthDataType[],
+    };
+  }
+
+  const status = await Health.checkAuthorization({
+    read: readTypes,
+    requestHistoryAccess: true,
+  });
+
+  return {
+    connected: status.readAuthorized?.length > 0,
+    readAuthorized: status.readAuthorized ?? [],
+  };
+}
+
 export async function authorizeHealthConnect() {
   if (!isAndroidNative()) {
     throw new Error(
@@ -240,3 +259,4 @@ export async function syncHealthConnect(
       samples.length,
   };
 }
+

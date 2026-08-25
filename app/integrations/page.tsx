@@ -42,6 +42,7 @@ type ConnectionStatus = {
   stravaConnected: boolean;
   garminConnected: boolean;
   healthConnectAvailable: boolean;
+  healthConnectConnected: boolean;
 };
 
 export default function IntegrationsPage() {
@@ -61,6 +62,7 @@ export default function IntegrationsPage() {
     stravaConnected: false,
     garminConnected: false,
     healthConnectAvailable: false,
+    healthConnectConnected: false,
   });
 
   const queryParams = useMemo(() => {
@@ -123,10 +125,26 @@ export default function IntegrationsPage() {
       }
     }
 
+    const { data: activitySource, error: activitySourceError } =
+      await supabase
+        .from("user_activity_source")
+        .select("provider")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (activitySourceError) {
+      console.error(
+        "Erro ao verificar fonte ativa:",
+        activitySourceError
+      );
+    }
+
     setStatus({
       stravaConnected: !!stravaRow?.athlete_id,
       garminConnected,
       healthConnectAvailable,
+      healthConnectConnected:
+        activitySource?.provider === "health_connect",
     });
   }
 
@@ -309,10 +327,11 @@ export default function IntegrationsPage() {
       setSuccessMsg(null);
       setAuthorizingHealthConnect(true);
 
-      const status = await authorizeHealthConnect();
+      const authorizationStatus =
+        await authorizeHealthConnect();
 
       const hasAnyPermission =
-        status.readAuthorized?.length > 0;
+        authorizationStatus.readAuthorized?.length > 0;
 
       if (!hasAnyPermission) {
         setErrorMsg(
@@ -321,8 +340,49 @@ export default function IntegrationsPage() {
         return;
       }
 
+      const {
+        data: sessionData,
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      const accessToken =
+        sessionData.session?.access_token;
+
+      if (sessionErr || !accessToken) {
+        setErrorMsg(
+          "Você precisa estar logado para conectar Health Connect."
+        );
+        return;
+      }
+
+      const connectionResponse = await fetch(
+        "/api/health-connect/connection",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const connectionData =
+        await connectionResponse.json().catch(() => null);
+
+      if (!connectionResponse.ok) {
+        setErrorMsg(
+          connectionData?.error ??
+            "Não foi possível conectar Health Connect."
+        );
+        return;
+      }
+
+      setStatus((current) => ({
+        ...current,
+        healthConnectConnected: true,
+      }));
+
       setSuccessMsg(
-        "Health Connect autorizado com sucesso."
+        "Health Connect conectado com sucesso."
       );
     } catch (error) {
       console.error(
@@ -337,6 +397,67 @@ export default function IntegrationsPage() {
       );
     } finally {
       setAuthorizingHealthConnect(false);
+    }
+  };
+
+  const handleDisconnectHealthConnect = async () => {
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const {
+        data: sessionData,
+        error: sessionErr,
+      } = await supabase.auth.getSession();
+
+      const accessToken =
+        sessionData.session?.access_token;
+
+      if (sessionErr || !accessToken) {
+        setErrorMsg(
+          "Você precisa estar logado para desconectar Health Connect."
+        );
+        return;
+      }
+
+      const response = await fetch(
+        "/api/health-connect/connection",
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const responseData =
+        await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setErrorMsg(
+          responseData?.error ??
+            "Não foi possível desconectar Health Connect."
+        );
+        return;
+      }
+
+      setStatus((current) => ({
+        ...current,
+        healthConnectConnected: false,
+      }));
+
+      setSuccessMsg(
+        "Health Connect desconectado com sucesso."
+      );
+    } catch (error) {
+      console.error(
+        "Erro ao desconectar Health Connect:",
+        error
+      );
+
+      setErrorMsg(
+        "Erro inesperado ao desconectar Health Connect."
+      );
     }
   };
 
@@ -511,7 +632,7 @@ export default function IntegrationsPage() {
               <Link
                 href="/login"
                 style={{
-                  display: "inline-flex",
+                  display: status.stravaConnected ? "none" : "inline-flex",
                   padding: "10px 14px",
                   borderRadius: "10px",
                   background: "rgba(148,163,184,0.12)",
@@ -539,6 +660,7 @@ export default function IntegrationsPage() {
           {/* Strava */}
           <div
             style={{
+              display: status.garminConnected || status.healthConnectConnected ? "none" : "block",
               borderRadius: 18,
               padding: "14px 16px",
               border: "1px solid rgba(148,163,184,0.4)",
@@ -574,7 +696,7 @@ export default function IntegrationsPage() {
             <a
               href={stravaUrl ?? "#"}
               style={{
-                display: "inline-flex",
+                display: status.stravaConnected ? "none" : "inline-flex",
                 width: "100%",
                 justifyContent: "center",
                 alignItems: "center",
@@ -615,7 +737,7 @@ export default function IntegrationsPage() {
                   opacity: revokingStrava ? 0.7 : 1,
                 }}
               >
-                {revokingStrava ? "Revogando..." : "Revogar acesso (Strava)"}
+                {revokingStrava ? "Desconectando..." : "Desconectar"}
               </button>
             )}
           </div>
@@ -624,6 +746,7 @@ export default function IntegrationsPage() {
         {/* Garmin */}
         <div
           style={{
+            display: status.stravaConnected || status.healthConnectConnected ? "none" : "block",
             marginTop: 16,
             borderRadius: 18,
             padding: "14px 16px",
@@ -687,7 +810,7 @@ export default function IntegrationsPage() {
               status.garminConnected
             }
             style={{
-              display: "inline-flex",
+              display: status.garminConnected ? "none" : "inline-flex",
               width: "100%",
               justifyContent: "center",
               alignItems: "center",
@@ -743,7 +866,7 @@ export default function IntegrationsPage() {
             >
               {revokingGarmin
                 ? "Desconectando..."
-                : "Revogar acesso (Garmin)"}
+                : "Desconectar"}
             </button>
           )}
         </div>
@@ -787,7 +910,7 @@ export default function IntegrationsPage() {
                 </div>
               </div>
 
-              {status.healthConnectAvailable && (
+              {status.healthConnectConnected && (
                 <div
                   style={{
                     alignSelf: "center",
@@ -800,78 +923,67 @@ export default function IntegrationsPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Disponível ✅
+                  Conectado ✅
                 </div>
               )}
             </div>
 
-            <button
-              type="button"
-              onClick={handleAuthorizeHealthConnect}
-              disabled={
-                !status.healthConnectAvailable ||
-                authorizingHealthConnect
-              }
-              style={{
-                width: "100%",
-                height: 44,
-                borderRadius: "10px",
-                marginTop: 10,
-                background: "#111827",
-                color: "#ffffff",
-                border: "1px solid #111827",
-                fontWeight: 700,
-                fontSize: 18,
-                cursor:
+            {!status.healthConnectConnected && (
+              <button
+                type="button"
+                onClick={handleAuthorizeHealthConnect}
+                disabled={
                   !status.healthConnectAvailable ||
                   authorizingHealthConnect
-                    ? "default"
-                    : "pointer",
-                opacity:
-                  !status.healthConnectAvailable ||
-                  authorizingHealthConnect
-                    ? 0.7
-                    : 1,
-              }}
-            >
-              {authorizingHealthConnect
-                ? "Autorizando..."
-                : "Autorizar Health Connect"}
-            </button>
+                }
+                style={{
+                  width: "100%",
+                  height: 44,
+                  borderRadius: "10px",
+                  marginTop: 10,
+                  background: "#111827",
+                  color: "#ffffff",
+                  border: "1px solid #111827",
+                  fontWeight: 700,
+                  fontSize: 18,
+                  cursor:
+                    !status.healthConnectAvailable ||
+                    authorizingHealthConnect
+                      ? "default"
+                      : "pointer",
+                  opacity:
+                    !status.healthConnectAvailable ||
+                    authorizingHealthConnect
+                      ? 0.7
+                      : 1,
+                }}
+              >
+                {authorizingHealthConnect
+                  ? "Conectando..."
+                  : "Conectar"}
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={handleSyncHealthConnect}
-              disabled={
-                !status.healthConnectAvailable ||
-                syncingHealthConnect
-              }
-              style={{
-                width: "100%",
-                height: 40,
-                borderRadius: "10px",
-                marginTop: 10,
-                background: "#ffffff",
-                color: "#111827",
-                border: "2px solid #111827",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor:
-                  !status.healthConnectAvailable ||
-                  syncingHealthConnect
-                    ? "default"
-                    : "pointer",
-                opacity:
-                  !status.healthConnectAvailable ||
-                  syncingHealthConnect
-                    ? 0.7
-                    : 1,
-              }}
-            >
-              {syncingHealthConnect
-                ? "Sincronizando..."
-                : "Sincronizar Health Connect"}
-            </button>
+            {status.healthConnectConnected && (
+              <button
+                type="button"
+                onClick={handleDisconnectHealthConnect}
+                style={{
+                  width: "100%",
+                  height: 40,
+                  borderRadius: "10px",
+                  marginTop: 10,
+                  background: "#ffffff",
+                  color: "#111827",
+                  border: "2px solid #111827",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: "pointer",
+                }}
+              >
+                Desconectar
+              </button>
+            )}
           </div>
         )}
         <div style={{ marginTop: 18, display: "flex", justifyContent: "center" }}>
@@ -891,6 +1003,20 @@ export default function IntegrationsPage() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
