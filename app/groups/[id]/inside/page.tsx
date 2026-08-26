@@ -9,10 +9,12 @@ import Link from "next/link";
 import JourneyLevelCard from "@/components/membership/JourneyLevelCard";
 import CommunityFeed from "@/components/membership/CommunityFeed";
 import BadgesChallenges from "@/components/membership/BadgesChallenges";
+import TriathlonChallenges from "@/components/membership/TriathlonChallenges";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { syncHealthConnect } from "@/lib/integrations/health-connect";
 
 export const dynamic = "force-dynamic";
 
@@ -334,8 +336,8 @@ export default function MembershipInsidePage() {
   const [journeyTitle, setJourneyTitle] = useState("Runner Journey");
   const [canManageHighlights, setCanManageHighlights] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-const [syncingStrava, setSyncingStrava] = useState(false);
-const [stravaSyncMessage, setStravaSyncMessage] = useState<string | null>(null);
+const [activityProvider, setActivityProvider] = useState<"strava" | "garmin" | "health_connect" | null>(null);
+const [syncingActivities, setSyncingActivities] = useState(false);
   const [hasVideos, setHasVideos] = useState(false);
   const [stripeSubscriptionId, setStripeSubscriptionId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
@@ -706,6 +708,7 @@ setCompletedChallengeIds(completedIds);
       }
 
       setUserId(user.id);
+      await loadActivityProvider(user.id);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -838,60 +841,132 @@ const typedCommunity = community as CommunityRow;
 
 
   
-async function handleSyncStrava() {
+async function loadActivityProvider(targetUserId: string) {
   try {
-    setSyncingStrava(true);
-    setStravaSyncMessage(null);
+    const [
+      { data: stravaRow, error: stravaError },
+      { data: activitySource, error: activitySourceError },
+    ] = await Promise.all([
+      supabase
+        .from("strava_tokens")
+        .select("athlete_id")
+        .eq("user_id", targetUserId)
+        .maybeSingle(),
 
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
+      supabase
+        .from("user_activity_source")
+        .select("provider")
+        .eq("user_id", targetUserId)
+        .maybeSingle(),
+    ]);
+
+    if (stravaError) {
+      console.error("Error checking Strava connection:", stravaError);
+    }
+
+    if (activitySourceError) {
+      console.error("Error checking activity source:", activitySourceError);
+    }
+
+    if (activitySource?.provider === "health_connect") {
+      setActivityProvider("health_connect");
+      return;
+    }
+
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (!sessionError && sessionData.session?.access_token) {
+      try {
+        const garminResponse = await fetch("/api/garmin/status", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${sessionData.session.access_token}`,
+          },
+        });
+
+        if (garminResponse.ok) {
+          const garminJson = await garminResponse.json();
+
+          if (garminJson?.connected) {
+            setActivityProvider("garmin");
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking Garmin connection:", error);
+      }
+    }
+
+    if (stravaRow?.athlete_id) {
+      setActivityProvider("strava");
+      return;
+    }
+
+    setActivityProvider(null);
+  } catch (error) {
+    console.error("Error loading activity provider:", error);
+    setActivityProvider(null);
+  }
+}
+
+async function handleSyncActivities() {
+  if (!activityProvider || activityProvider === "garmin") {
+    return;
+  }
+
+  try {
+    setSyncingActivities(true);
+
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
     if (sessionError) {
       throw sessionError;
     }
 
-    const accessToken =
-      sessionData.session?.access_token ?? null;
+    const accessToken = sessionData.session?.access_token ?? null;
 
     if (!accessToken) {
-      setStravaSyncMessage(
-        "You need to be logged in to sync."
-      );
-      setSyncingStrava(false);
-      return;
+      throw new Error("You need to be logged in to sync activities.");
     }
 
-    const response = await fetch("/api/strava/sync", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    if (activityProvider === "strava") {
+      const response = await fetch("/api/strava/sync", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    const json = await response.json().catch(() => null);
+      const json = await response.json().catch(() => null);
 
-    if (!response.ok) {
-      throw new Error(
-        json?.message ??
-          "Could not sync with Strava."
-      );
+      if (!response.ok) {
+        throw new Error(
+          json?.message ?? "Could not sync activities."
+        );
+      }
     }
 
-    setStravaSyncMessage(
-      typeof json?.fetched === "number"
-        ? `${json.fetched} activities checked. Updating...`
-        : "Sync complete. Updating..."
-    );
+    if (activityProvider === "health_connect") {
+      await syncHealthConnect(accessToken);
+    }
 
     window.location.reload();
-  } catch (error: unknown) {
-    const errorMessage =
+  } catch (error) {
+    console.error("Error syncing activities:", error);
+
+    window.alert(
       error instanceof Error
         ? error.message
-        : "Unexpected error while syncing.";
-
-    setStravaSyncMessage(errorMessage);
-    setSyncingStrava(false);
+        : "Unexpected error while syncing activities."
+    );
+  } finally {
+    setSyncingActivities(false);
   }
 }
 async function handleCancelSubscription() {
@@ -976,7 +1051,7 @@ return (
           box-sizing: border-box;
         }
 
-        .page { position: relative; } .page::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 220px; background: url("/images/groups/groups-background.png") center center / cover no-repeat; z-index: 0; } .page > * { position: relative; z-index: 1; } .page * {
+        .page { position: relative; } .page::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 190px; background: var(--group-header-image) center center / cover no-repeat; z-index: 0; } .page > * { position: relative; z-index: 1; } .page * {
           font-family: "Montserrat", Arial, sans-serif;
         }
 
@@ -1068,6 +1143,9 @@ return (
       <main
         className="page"
         style={{
+          "--group-header-image": communityName?.toLowerCase().includes("triathlon")
+            ? 'url("/images/groups/triathlon-background.png")'
+            : 'url("/images/groups/groups-background.png")',
           minHeight: "100vh",
           background: "#ffffff",
           paddingTop: "max(16px, env(safe-area-inset-top))",
@@ -1075,7 +1153,7 @@ return (
           paddingBottom: 0,
           paddingLeft: 0,
           overflowX: "hidden",
-        }}
+        } as React.CSSProperties & { "--group-header-image": string }}
       >
 <div
   style={{
@@ -1094,40 +1172,66 @@ return (
   <a
     href="/integrations"
     style={{
-      backgroundColor: "#f97316",
-      color: "#fff",
+      backgroundColor: activityProvider ? "#ffffff" : "#f97316",
+      color: activityProvider ? "#0f172a" : "#ffffff",
+      border: activityProvider ? "1px solid #cbd5e1" : "1px solid #f97316",
       padding: "8px 14px",
       borderRadius: 8,
       fontSize: 12,
-      fontWeight: 600,
+      fontWeight: 700,
       textDecoration: "none",
+      boxShadow: activityProvider
+        ? "0 3px 10px rgba(15,23,42,0.08)"
+        : "none",
     }}
   >
-    Connect Strava
+    {activityProvider === "garmin"
+      ? "Garmin Connected"
+      : activityProvider === "strava"
+        ? "Strava Connected"
+        : activityProvider === "health_connect"
+          ? "Health Connect Connected"
+          : "Connect Device"}
   </a>
 
-  <button
-    type="button"
-    onClick={handleSyncStrava}
-    disabled={syncingStrava}
-    style={{
-      border: "1px solid #cbd5e1",
-      background: "#ffffff",
-      color: "#0f172a",
-      padding: "7px 12px",
-      borderRadius: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      cursor: syncingStrava ? "default" : "pointer",
-      opacity: syncingStrava ? 0.65 : 1,
-      boxShadow: "0 3px 10px rgba(15,23,42,0.08)",
-    }}
-  >
-    {syncingStrava ? "Syncing..." : "Sync Strava"}
-  </button>
+  {(activityProvider === "strava" ||
+    activityProvider === "health_connect") && (
+    <button
+      type="button"
+      onClick={handleSyncActivities}
+      disabled={syncingActivities}
+      style={{
+        border: "1px solid #cbd5e1",
+        background: "#ffffff",
+        color: "#0f172a",
+        padding: "7px 12px",
+        borderRadius: 8,
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: syncingActivities ? "default" : "pointer",
+        opacity: syncingActivities ? 0.65 : 1,
+        boxShadow: "0 3px 10px rgba(15,23,42,0.08)",
+      }}
+    >
+      {syncingActivities ? "Syncing..." : "Sync Activities"}
+    </button>
+  )}
+
+  {activityProvider === "garmin" && (
+    <div
+      style={{
+        fontSize: 10,
+        fontWeight: 600,
+        color: "#ffffff",
+        textShadow: "0 1px 4px rgba(0,0,0,0.35)",
+      }}
+    >
+      Automatic Sync
+    </div>
+  )}
 </div>
 </div>
-        <div
+<div
           style={{
             maxWidth: "100%",
             margin: "0",
@@ -1153,7 +1257,7 @@ overflow: "hidden",
                 fontSize: "clamp(34px, 6vw, 42px)",
 fontWeight: 700,
                 margin: 0,
-                color: "#0f172a",
+                color: communityName?.toLowerCase().includes("triathlon") ? "#ffffff" : "#0f172a",
                 lineHeight: 1.15,
               }}
             >
@@ -1325,7 +1429,21 @@ fontWeight: 700,
             </div>
           )}
 
-          <div style={{ marginBottom: 28 }}>
+                    {communityId && communityName?.toLowerCase().includes("triathlon") && (
+            <TriathlonChallenges
+              communityId={communityId}
+              userId={userId}
+            />
+          )}
+
+          <div
+  style={{
+    marginBottom: 28,
+    display: communityName?.toLowerCase().includes("triathlon")
+      ? "none"
+      : "block",
+  }}
+>
             <div
               style={{
                 display: "flex",
@@ -2419,6 +2537,16 @@ fontWeight: 700,
     </>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
