@@ -1576,6 +1576,8 @@ fontWeight: 700,
               </div>
             )}
 
+          </div>
+
           <div style={{ height: 24, background: "#ffffff" }} />
 
           {communityId && (
@@ -1595,8 +1597,6 @@ fontWeight: 700,
               />
             </div>
           )}
-
-          </div>
 
           <div
   style={{

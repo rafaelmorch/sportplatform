@@ -78,6 +78,278 @@ function mapImportedActivity(row: ImportedActivity): ActivityForChallenge {
   };
 }
 
+type AutomaticBadgeRow = {
+  id: string;
+  community_id: string;
+  title: string;
+  activity_type: string;
+  goal_metric?: string | null;
+  goal_value?: number | string | null;
+  goal_unit?: string | null;
+  validation_method?: string | null;
+};
+
+function isAutomaticBadgeActivity(
+  row: ImportedActivity,
+  activityType: string
+) {
+  const type = normalizeActivityType(row.sport_type);
+
+  const expected = normalizeActivityType(activityType);
+
+  if (expected === "swim") {
+    return [
+      "swim",
+      "swimming",
+      "swimmingpool",
+      "poolswim",
+      "openwaterswim",
+    ].includes(type);
+  }
+
+  if (expected === "bike") {
+    return [
+      "ride",
+      "cycling",
+      "bike",
+      "virtualride",
+      "ebikeride",
+      "mountainbikeride",
+    ].includes(type);
+  }
+
+  if (expected === "run") {
+    return [
+      "run",
+      "running",
+      "trailrun",
+      "virtualrun",
+      "treadmill",
+    ].includes(type);
+  }
+
+  return false;
+}
+
+async function processAutomaticBadges({
+  supabase,
+  userId,
+  memberships,
+}: {
+  supabase: SupabaseLike;
+  userId: string;
+  memberships: MembershipRow[];
+}) {
+  const communityIds = Array.from(
+    new Set(memberships.map((row) => row.community_id))
+  );
+
+  if (communityIds.length === 0) return;
+
+  const membershipByCommunity = new Map<string, MembershipRow>();
+
+  for (const row of memberships) {
+    membershipByCommunity.set(row.community_id, row);
+  }
+
+
+  const { data: badgeRows, error: badgeError } = await supabase
+    .from("app_membership_challenges")
+    .select(
+      "id,community_id,title,activity_type,goal_metric,goal_value,goal_unit,validation_method"
+    )
+    .eq("is_active", true)
+    .eq("is_badge", true)
+    .in("community_id", communityIds);
+
+  if (badgeError) {
+    console.error("Error loading automatic badges:", badgeError);
+    return;
+  }
+
+  const badges = (badgeRows ?? []) as AutomaticBadgeRow[];
+
+  if (badges.length === 0) return;
+
+  const badgeIds = badges.map((badge) => badge.id);
+
+  const { data: completedRows, error: completedError } = await supabase
+    .from("app_membership_badge_posts")
+    .select("challenge_id")
+    .eq("user_id", userId)
+    .eq("did_challenge", true)
+    .in("challenge_id", badgeIds);
+
+  if (completedError) {
+    console.error(
+      "Error loading completed automatic badges:",
+      completedError
+    );
+    return;
+  }
+
+  const completedBadgeIds = new Set(
+    (completedRows ?? [])
+      .map((row: { challenge_id: string | null }) => row.challenge_id)
+      .filter(Boolean) as string[]
+  );
+
+  const { data: importedRows, error: importedError } = await supabase
+    .from("imported_activities")
+    .select(
+      "id,user_id,provider,external_id,strava_activity_id,sport_type,start_date,distance_m,moving_time_s,elapsed_time_s"
+    )
+    .eq("user_id", userId);
+
+  if (importedError) {
+    console.error(
+      "Error loading activities for automatic badges:",
+      importedError
+    );
+    return;
+  }
+
+  const importedActivities =
+    (importedRows ?? []) as ImportedActivity[];
+
+  const badgePostsToInsert: any[] = [];
+
+  for (const badge of badges) {
+    if (completedBadgeIds.has(badge.id)) continue;
+
+    if (
+      badge.validation_method === "manual" ||
+      badge.goal_metric !== "distance" ||
+      !["swim", "bike", "run"].includes(
+        normalizeActivityType(badge.activity_type)
+      )
+    ) {
+      continue;
+    }
+
+    const membership =
+      membershipByCommunity.get(badge.community_id);
+
+    if (!membership) continue;
+
+    const membershipStart = new Date(
+      getMembershipStart(membership)
+    );
+
+    const totalDistanceMeters = importedActivities
+      .filter((activity) => {
+        if (!activity.start_date) return false;
+
+        if (
+          new Date(activity.start_date) < membershipStart
+        ) {
+          return false;
+        }
+
+        return isAutomaticBadgeActivity(
+          activity,
+          badge.activity_type
+        );
+      })
+      .reduce(
+        (sum, activity) =>
+          sum + Number(activity.distance_m ?? 0),
+        0
+      );
+
+    const goalValue = Number(badge.goal_value ?? 0);
+
+    const goalMeters =
+      normalizeActivityType(badge.goal_unit) === "km"
+        ? goalValue * 1000
+        : goalValue;
+
+    if (goalValue <= 0 || totalDistanceMeters < goalMeters) {
+      continue;
+    }
+
+    badgePostsToInsert.push({
+      community_id: badge.community_id,
+      challenge_id: badge.id,
+      user_id: userId,
+      author_name: "Platform Sports",
+      comment: "Automatically earned from activity history.",
+      did_challenge: true,
+    });
+
+    completedBadgeIds.add(badge.id);
+  }
+
+  /*
+   * Triathlete:
+   * liberada quando as três badges de distância
+   * já tiverem sido conquistadas.
+   */
+  const triathleteBadge = badges.find(
+    (badge) =>
+      badge.title.trim().toLowerCase() === "triathlete"
+  );
+
+  if (
+    triathleteBadge &&
+    !completedBadgeIds.has(triathleteBadge.id)
+  ) {
+    const requiredTitles = [
+      "100 km swim",
+      "3,000 km bike",
+      "1,000 km run",
+    ];
+
+    const requiredBadges = requiredTitles
+      .map((title) =>
+        badges.find(
+          (badge) =>
+            badge.community_id === triathleteBadge.community_id &&
+            badge.title.trim().toLowerCase() === title
+        )
+      )
+      .filter(Boolean) as AutomaticBadgeRow[];
+
+    const earnedAllRequired =
+      requiredBadges.length === 3 &&
+      requiredBadges.every((badge) =>
+        completedBadgeIds.has(badge.id)
+      );
+
+    if (earnedAllRequired) {
+      badgePostsToInsert.push({
+        community_id: triathleteBadge.community_id,
+        challenge_id: triathleteBadge.id,
+        user_id: userId,
+        author_name: "Platform Sports",
+        comment:
+          "Automatically earned after completing Swim, Bike, and Run distance badges.",
+        did_challenge: true,
+      });
+
+      completedBadgeIds.add(triathleteBadge.id);
+    }
+  }
+
+  if (badgePostsToInsert.length === 0) return;
+
+  const { error: insertError } = await supabase
+    .from("app_membership_badge_posts")
+    .insert(badgePostsToInsert);
+
+  if (insertError) {
+    console.error(
+      "Error creating automatic badge completions:",
+      insertError
+    );
+    return;
+  }
+
+  console.log(
+    "Automatic badges created:",
+    badgePostsToInsert.length
+  );
+}
 export async function processChallengeCompletions({
   supabase,
   userId,
@@ -136,6 +408,16 @@ export async function processChallengeCompletions({
   for (const row of memberships) {
     membershipByCommunity.set(row.community_id, row);
   }
+
+  /*
+   * Avalia badges automáticas separadamente dos
+   * challenges normais do Journey.
+   */
+  await processAutomaticBadges({
+    supabase,
+    userId,
+    memberships,
+  });
 
   /*
    * Só avaliamos desafios das comunidades das quais
