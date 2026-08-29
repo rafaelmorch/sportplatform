@@ -120,7 +120,7 @@ export default function NewMembershipPostPage() {
     }
 
     console.log("Post created successfully:", data);
-    router.push(`/groups/${communityId}/inside`);
+    router.push(`/groups/${communityId}/inside/feed`);
   }
 
   return (
@@ -142,10 +142,10 @@ export default function NewMembershipPostPage() {
         <div
           style={{
             marginTop: 20,
-            borderRadius: 24,
+            borderRadius: 6,
             padding: 20,
             background: "#fff",
-            border: "1px solid #e2e8f0",
+            border: "1px solid #cbd5e1",
             boxShadow:
               "8px 8px 24px rgba(148,163,184,0.18), -6px -6px 20px rgba(255,255,255,0.9)",
           }}
@@ -168,7 +168,7 @@ export default function NewMembershipPostPage() {
             style={{
               width: "100%",
               minHeight: 120,
-              borderRadius: 16,
+              borderRadius: 6,
               border: "1px solid #d6dbe4",
               padding: 12,
               fontSize: 14,
@@ -192,7 +192,7 @@ export default function NewMembershipPostPage() {
             <div
               style={{
                 marginBottom: 16,
-                borderRadius: 14,
+                borderRadius: 8,
                 padding: "12px 14px",
                 background: "#fee2e2",
                 border: "1px solid #fecaca",
@@ -213,7 +213,7 @@ export default function NewMembershipPostPage() {
             style={{
               width: "100%",
               padding: "12px 16px",
-              borderRadius: 999,
+              borderRadius: 6,
               border: "none",
               background: "#0f172a",
               color: "#fff",
@@ -229,5 +229,8 @@ export default function NewMembershipPostPage() {
     </main>
   );
 }
+
+
+
 
 

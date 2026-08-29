@@ -26,9 +26,10 @@ type FeedComment = {
 };
 
 type CommunityFeedProps = {
-  communityId: string;
+  communityId?: string;
   userId: string | null;
   userName: string | null;
+  mode?: "community" | "app";
 };
 
 function getInitials(name: string | null): string {
@@ -73,9 +74,10 @@ function getRecencyBonus(createdAt: string): number {
   const ageInMs = Date.now() - createdTime;
   const ageInDays = ageInMs / (1000 * 60 * 60 * 24);
 
-  if (ageInDays <= 1) return 12;
-  if (ageInDays <= 3) return 8;
-  if (ageInDays <= 7) return 4;
+  if (ageInDays <= 1) return 30;
+  if (ageInDays <= 3) return 20;
+  if (ageInDays <= 7) return 10;
+  if (ageInDays <= 14) return 4;
 
   return 0;
 }
@@ -83,13 +85,14 @@ function getRecencyBonus(createdAt: string): number {
 function getFeedScore(
   post: Pick<FeedPost, "likes" | "comments_count" | "created_at">
 ): number {
-  return post.likes + post.comments_count * 2 + getRecencyBonus(post.created_at);
+  return post.likes + post.comments_count * 4 + getRecencyBonus(post.created_at);
 }
 
 export default function CommunityFeed({
   communityId,
   userId,
   userName,
+  mode = "community",
 }: CommunityFeedProps) {
   const supabase = useMemo(() => supabaseBrowser, []);
   const carouselRef = useRef<HTMLDivElement | null>(null);
@@ -129,11 +132,16 @@ export default function CommunityFeed({
     async function loadFeed() {
       setFeedLoading(true);
 
-      const { data: postsData, error: postsError } = await supabase
+      let postsQuery = supabase
         .from("app_membership_feed_posts")
         .select("*")
-        .eq("community_id", communityId)
         .order("created_at", { ascending: false });
+
+      if (mode === "community" && communityId) {
+        postsQuery = postsQuery.eq("community_id", communityId);
+      }
+
+      const { data: postsData, error: postsError } = await postsQuery;
 
       if (cancelled) return;
 
@@ -225,7 +233,7 @@ export default function CommunityFeed({
     return () => {
       cancelled = true;
     };
-  }, [communityId, userId, supabase]);
+  }, [communityId, mode, userId, supabase]);
 
   useEffect(() => {
     const container = carouselRef.current;
@@ -570,106 +578,51 @@ export default function CommunityFeed({
     <section style={{ marginBottom: 28 }}>
       <style>{`
         .community-feed-shell {
-          position: relative;
+          width: 100%;
         }
 
         .community-feed-shell::before,
         .community-feed-shell::after {
-          content: "";
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: 48px;
-          pointer-events: none;
-          z-index: 2;
-        }
-
-        .community-feed-shell::before {
-          left: 0;
-          background: linear-gradient(
-            90deg,
-            rgba(255,255,255,0.95) 0%,
-            rgba(255,255,255,0) 100%
-          );
-        }
-
-        .community-feed-shell::after {
-          right: 0;
-          background: linear-gradient(
-            270deg,
-            rgba(255,255,255,0.95) 0%,
-            rgba(255,255,255,0) 100%
-          );
+          display: none;
         }
 
         .community-feed-carousel {
           display: flex;
-          gap: 16px;
-          overflow-x: auto;
-          padding: 10px 22px 20px 22px;
-          margin: 0 -22px;
-          scroll-snap-type: x mandatory;
-          scroll-padding-left: calc(50% - 170px);
-          scroll-padding-right: calc(50% - 170px);
-          -webkit-overflow-scrolling: touch;
-          overscroll-behavior-x: contain;
-          scrollbar-width: none;
-        }
-
-        .community-feed-carousel::-webkit-scrollbar {
-          display: none;
+          flex-direction: column;
+          gap: 0;
+          width: 100%;
+          overflow: visible;
+          padding: 0;
+          margin: 0;
+          scroll-snap-type: none;
         }
 
         .community-feed-carousel::before,
         .community-feed-carousel::after {
-          content: "";
-          flex: 0 0 max(4px, calc(50% - 170px));
+          display: none;
         }
 
         .community-feed-card {
-          flex: 0 0 340px;
-          width: 340px;
-          max-width: 340px;
+          width: 100%;
+          max-width: 100%;
           min-width: 0;
-          scroll-snap-align: center;
-          transition:
-            transform 0.28s ease,
-            opacity 0.28s ease;
-          transform: scale(0.94);
-          opacity: 0.68;
+          box-sizing: border-box;
+          transform: none;
+          opacity: 1;
+          scroll-snap-align: none;
         }
 
         .community-feed-card.is-active {
-          transform: scale(1);
+          transform: none;
           opacity: 1;
         }
 
         @media (max-width: 640px) {
-          .community-feed-shell::before,
-          .community-feed-shell::after {
-            width: 24px;
-          }
-
           .community-feed-carousel {
-            gap: 12px;
-            padding: 8px 14px 18px 14px;
-            margin: 0 -14px;
-            scroll-padding-left: calc(50% - 140px);
-            scroll-padding-right: calc(50% - 140px);
-          }
-
-          .community-feed-carousel::before,
-          .community-feed-carousel::after {
-            flex: 0 0 max(4px, calc(50% - 140px));
-          }
-
-          .community-feed-card {
-            flex: 0 0 280px;
-            width: 280px;
-            max-width: 280px;
+            width: 100%;
           }
         }
-      `}</style>
+`}</style>
 
       <div
         style={{
@@ -690,7 +643,7 @@ export default function CommunityFeed({
               color: "#0f172a",
             }}
           >
-            Community Feed
+            Feed do Grupo
           </h2>
 
           <div
@@ -699,12 +652,12 @@ export default function CommunityFeed({
               fontSize: 13,
             }}
           >
-            Swipe sideways to explore the latest community posts.
+            Converse, compartilhe treinos e acompanhe a comunidade.
           </div>
         </div>
 
         <Link
-          href={`/groups/${communityId}/inside/feed/new`}
+          href={mode === "app" ? "/feed/new" : `/groups/${communityId}/inside/feed/new`}
           style={{
             textDecoration: "none",
             borderRadius: 999,
@@ -716,7 +669,7 @@ export default function CommunityFeed({
             whiteSpace: "nowrap",
           }}
         >
-          New Post
+          Nova publicação
         </Link>
       </div>
 
@@ -727,7 +680,7 @@ export default function CommunityFeed({
             fontSize: 14,
           }}
         >
-          Loading feed...
+          Carregando feed...
         </div>
       ) : posts.length === 0 ? (
         <div
@@ -740,7 +693,7 @@ export default function CommunityFeed({
             lineHeight: 1.7,
           }}
         >
-          No posts yet. Be the first to share something with the community.
+          Ainda não há publicações neste grupo. Seja o primeiro a compartilhar.
         </div>
       ) : (
         <div className="community-feed-shell">
@@ -775,18 +728,13 @@ export default function CommunityFeed({
                   key={post.id}
                   data-feed-card="true"
                   data-post-id={post.id}
-                  className={`community-feed-card${
-                    isActive ? " is-active" : ""
-                  }`}
+                  className="community-feed-card"
                   style={{
-                    borderRadius: 24,
-                    border: isActive
-                      ? "1px solid #cbd5e1"
-                      : "1px solid #e2e8f0",
-                    background: isActive
-                      ? "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)"
-                      : "linear-gradient(180deg, #fbfdff 0%, #f1f5f9 100%)",
-                    padding: 16,
+                    borderRadius: 0,
+                    border: "none",
+                    borderBottom: "10px solid #f1f5f9",
+                    background: "#ffffff",
+                    padding: "18px 4px 20px",
                   }}
                 >
                   <div
@@ -895,6 +843,7 @@ export default function CommunityFeed({
                     <p
                       style={{
                         fontSize: 14,
+                        fontWeight: !post.image_url && !isExpanded ? 700 : 400,
                         color: "#0f172a",
                         margin: 0,
                         lineHeight: 1.6,
@@ -930,8 +879,8 @@ export default function CommunityFeed({
                         }}
                       >
                         {isExpanded
-                          ? "Show less"
-                          : "Read more"}
+                          ? "Ver menos"
+                          : "Ver mais"}
                       </button>
                     )}
                   </div>
@@ -939,13 +888,12 @@ export default function CommunityFeed({
                   {post.image_url && (
                     <div
                       style={{
-                        borderRadius: 18,
+                        borderRadius: 0,
                         overflow: "hidden",
-                        border:
-                          "1px solid #dbe2ea",
-                        marginBottom: 6,
-                        background: "#eef2f7",
-                        padding: 8,
+                        border: "none",
+                        marginBottom: 8,
+                        background: "#f8fafc",
+                        padding: 0,
                       }}
                     >
                       <img
@@ -953,7 +901,7 @@ export default function CommunityFeed({
                         alt="Community post"
                         style={{
                           width: "100%",
-                          maxHeight: 360,
+                          maxHeight: 520,
                           objectFit: "contain",
                           display: "block",
                         }}
@@ -968,7 +916,9 @@ export default function CommunityFeed({
                         "space-between",
                       alignItems: "center",
                       fontSize: 12,
-                      marginTop: 6,
+                      marginTop: 10,
+                      paddingTop: 8,
+                      borderTop: "1px solid #e2e8f0",
                       gap: 12,
                       flexWrap: "wrap",
                     }}
@@ -991,9 +941,7 @@ export default function CommunityFeed({
                         }
                         style={{
                           border: "none",
-                          background: isLiked
-                            ? "rgba(34,197,94,0.12)"
-                            : "transparent",
+                          background: "transparent",
                           color: isLiked
                             ? "#16a34a"
                             : "#334155",
@@ -1001,8 +949,8 @@ export default function CommunityFeed({
                           alignItems: "center",
                           gap: 6,
                           cursor: "pointer",
-                          padding: "3px 8px",
-                          borderRadius: 999,
+                          padding: "8px 10px",
+                          borderRadius: 6,
                           fontWeight: 600,
                         }}
                       >
@@ -1022,7 +970,7 @@ export default function CommunityFeed({
                           color: "#64748b",
                         }}
                       >
-                        {post.likes} like
+                        {post.likes} curtida
                         {post.likes === 1
                           ? ""
                           : "s"}
@@ -1045,10 +993,10 @@ export default function CommunityFeed({
                     >
                       {loadingCommentsPostId ===
                       post.id
-                        ? "Loading comments..."
+                        ? "Carregando comentários..."
                         : isCommentsOpen
-                          ? `Hide comments (${post.comments_count})`
-                          : `View comments (${post.comments_count})`}
+                          ? `Ocultar comentários (${post.comments_count})`
+                          : `Comentários (${post.comments_count})`}
                     </button>
                   </div>
 
@@ -1068,7 +1016,7 @@ export default function CommunityFeed({
                     >
                       <input
                         type="text"
-                        placeholder="Write a comment..."
+                        placeholder="Escreva um comentário..."
                         value={
                           commentText[post.id] ?? ""
                         }
@@ -1113,8 +1061,8 @@ export default function CommunityFeed({
                       >
                         {commentLoadingPostId ===
                         post.id
-                          ? "Sending..."
-                          : "Send"}
+                          ? "Enviando..."
+                          : "Enviar"}
                       </button>
                     </form>
                   </div>
@@ -1138,7 +1086,7 @@ export default function CommunityFeed({
                             margin: 0,
                           }}
                         >
-                          No comments yet on this post.
+                          Ainda não há comentários nesta publicação.
                         </p>
                       ) : (
                         <ul
@@ -1169,12 +1117,13 @@ export default function CommunityFeed({
                                   style={{
                                     display: "flex",
                                     gap: 8,
+                                    alignItems: "flex-start",
                                   }}
                                 >
                                   <div
                                     style={{
-                                      width: 24,
-                                      height: 24,
+                                      width: 32,
+                                      height: 32,
                                       borderRadius: 999,
                                       background:
                                         getAvatarBackground(
@@ -1185,7 +1134,7 @@ export default function CommunityFeed({
                                         "center",
                                       justifyContent:
                                         "center",
-                                      fontSize: 10,
+                                      fontSize: 11,
                                       fontWeight: 700,
                                       color: "#f8fafc",
                                       flexShrink: 0,
@@ -1199,59 +1148,66 @@ export default function CommunityFeed({
                                   <div
                                     style={{
                                       flex: 1,
-                                      fontSize: 12,
                                       minWidth: 0,
                                     }}
                                   >
                                     <div
                                       style={{
-                                        display: "flex",
-                                        justifyContent:
-                                          "space-between",
-                                        gap: 4,
+                                        background: "#f1f5f9",
+                                        borderRadius: 14,
+                                        padding: "8px 11px 9px",
                                       }}
                                     >
-                                      <span
+                                      <div
                                         style={{
-                                          fontWeight:
-                                            700,
-                                          color:
-                                            "#0f172a",
+                                          display: "flex",
+                                          justifyContent:
+                                            "space-between",
+                                          alignItems: "center",
+                                          gap: 8,
                                         }}
                                       >
-                                        {commentAuthor}
-                                      </span>
+                                        <span
+                                          style={{
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            color: "#0f172a",
+                                          }}
+                                        >
+                                          {commentAuthor}
+                                        </span>
 
-                                      <span
+                                        <span
+                                          style={{
+                                            fontSize: 10,
+                                            color: "#94a3b8",
+                                            flexShrink: 0,
+                                          }}
+                                        >
+                                          {new Date(
+                                            comment.created_at
+                                          ).toLocaleDateString(
+                                            "pt-BR",
+                                            {
+                                              day: "2-digit",
+                                              month: "2-digit",
+                                            }
+                                          )}
+                                        </span>
+                                      </div>
+
+                                      <p
                                         style={{
-                                          fontSize: 10,
-                                          color:
-                                            "#94a3b8",
+                                          margin: "3px 0 0",
+                                          color: "#334155",
+                                          fontSize: 12,
+                                          lineHeight: 1.5,
+                                          wordBreak: "break-word",
                                         }}
                                       >
-                                        {new Date(
-                                          comment.created_at
-                                        ).toLocaleDateString(
-                                          "en-US",
-                                          {
-                                            month:
-                                              "2-digit",
-                                            day: "2-digit",
-                                          }
-                                        )}
-                                      </span>
+                                        {comment.content}
+                                      </p>
                                     </div>
-
-                                    <p
-                                      style={{
-                                        margin:
-                                          "2px 0 0 0",
-                                        color:
-                                          "#334155",
-                                      }}
-                                    >
-                                      {comment.content}
-                                    </p>
 
                                     {canDeleteComment && (
                                       <button
@@ -1267,14 +1223,14 @@ export default function CommunityFeed({
                                           comment.id
                                         }
                                         style={{
-                                          marginTop: 4,
+                                          marginTop: 3,
+                                          marginLeft: 10,
                                           border: "none",
                                           background:
                                             "transparent",
-                                          color:
-                                            "#be123c",
+                                          color: "#64748b",
                                           fontSize: 10,
-                                          fontWeight: 700,
+                                          fontWeight: 600,
                                           cursor:
                                             "pointer",
                                           padding: 0,
@@ -1282,8 +1238,8 @@ export default function CommunityFeed({
                                       >
                                         {deletingCommentId ===
                                         comment.id
-                                          ? "Deleting..."
-                                          : "Delete"}
+                                          ? "Excluindo..."
+                                          : "Excluir"}
                                       </button>
                                     )}
                                   </div>
@@ -1304,3 +1260,15 @@ export default function CommunityFeed({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

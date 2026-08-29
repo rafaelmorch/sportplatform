@@ -6,7 +6,7 @@ import "@fontsource/montserrat/500.css";
 import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -100,6 +100,71 @@ export default function FeedPage() {
     null
   );
 
+  const carouselRef = useRef<HTMLDivElement | null>(null);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const carousel = carouselRef.current;
+
+    if (!carousel || posts.length === 0) {
+      return;
+    }
+
+    let frameId: number | null = null;
+
+    const updateActivePost = () => {
+      const carouselRect = carousel.getBoundingClientRect();
+      const carouselCenter =
+        carouselRect.left + carouselRect.width / 2;
+
+      const cards = Array.from(
+        carousel.querySelectorAll<HTMLElement>(
+          '[data-feed-card="true"]'
+        )
+      );
+
+      let closestId: string | null = null;
+      let closestDistance = Number.POSITIVE_INFINITY;
+
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const cardCenter = rect.left + rect.width / 2;
+        const distance = Math.abs(cardCenter - carouselCenter);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestId = card.dataset.postId ?? null;
+        }
+      });
+
+      setActivePostId(closestId);
+    };
+
+    const handleScroll = () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+
+      frameId = requestAnimationFrame(updateActivePost);
+    };
+
+    updateActivePost();
+
+    carousel.addEventListener("scroll", handleScroll, {
+      passive: true,
+    });
+
+    window.addEventListener("resize", updateActivePost);
+
+    return () => {
+      carousel.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", updateActivePost);
+
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [posts]);
   async function loadPosts() {
     setLoading(true);
 
@@ -466,7 +531,71 @@ export default function FeedPage() {
         }
       `}</style>
 
-      <div
+            <style>{`
+        .app-feed-carousel {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          padding: 10px 22px 20px;
+          margin: 0 -22px;
+          scroll-snap-type: x mandatory;
+          scroll-padding-left: calc(50% - 170px);
+          scroll-padding-right: calc(50% - 170px);
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior-x: contain;
+          scrollbar-width: none;
+        }
+
+        .app-feed-carousel::-webkit-scrollbar {
+          display: none;
+        }
+
+        .app-feed-carousel::before,
+        .app-feed-carousel::after {
+          content: "";
+          flex: 0 0 max(4px, calc(50% - 170px));
+        }
+
+        .app-feed-card {
+          flex: 0 0 340px;
+          width: 340px;
+          max-width: 340px;
+          min-width: 0;
+          scroll-snap-align: center;
+          transition:
+            transform 0.28s ease,
+            opacity 0.28s ease;
+          transform: scale(0.94);
+          opacity: 0.68;
+        }
+
+        .app-feed-card.is-active {
+          transform: scale(1);
+          opacity: 1;
+        }
+
+        @media (max-width: 640px) {
+          .app-feed-carousel {
+            gap: 12px;
+            padding: 8px 14px 18px;
+            margin: 0 -14px;
+            scroll-padding-left: calc(50% - 140px);
+            scroll-padding-right: calc(50% - 140px);
+          }
+
+          .app-feed-carousel::before,
+          .app-feed-carousel::after {
+            flex: 0 0 max(4px, calc(50% - 140px));
+          }
+
+          .app-feed-card {
+            flex: 0 0 280px;
+            width: 280px;
+            max-width: 280px;
+          }
+        }
+      `}</style>
+<div
         style={{
           minHeight: "100vh",
           fontFamily: "Montserrat, sans-serif",
@@ -530,7 +659,7 @@ export default function FeedPage() {
                     marginBottom: "4px",
                   }}
                 >
-                  Feed de Treinos
+                  Feed
                 </h1>
                 <p
                   style={{
@@ -548,8 +677,7 @@ export default function FeedPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Desafios te levam a um novo nível. Compartilhe o seu no esporte
-                  hoje.
+                  Compartilhe treinos, tire dúvidas e conecte-se com a comunidade esportiva.
                 </p>
               </div>
 
@@ -590,16 +718,15 @@ export default function FeedPage() {
                   marginTop: "8px",
                 }}
               >
-                Nenhuma postagem ainda. Seja o primeiro a registrar seu treino.
+                Nenhuma postagem ainda. Seja o primeiro a compartilhar com a comunidade.
               </p>
             )}
 
             <div
+              ref={carouselRef}
+              className="app-feed-carousel"
               style={{
                 marginTop: posts.length > 0 ? "4px" : "0",
-                display: "flex",
-                flexDirection: "column",
-                gap: "16px",
               }}
             >
               {posts.map((post) => {
@@ -610,6 +737,11 @@ export default function FeedPage() {
                 return (
                   <article
                     key={post.id}
+                    data-feed-card="true"
+                    data-post-id={post.id}
+                    className={`app-feed-card${
+                      activePostId === post.id ? " is-active" : ""
+                    }`}
                     style={{
                       borderRadius: "16px",
                       border: "1px solid #e2e8f0",
@@ -964,6 +1096,13 @@ export default function FeedPage() {
     </>
   );
 }
+
+
+
+
+
+
+
 
 
 

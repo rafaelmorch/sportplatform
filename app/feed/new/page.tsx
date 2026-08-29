@@ -266,8 +266,9 @@ export default function NewFeedPostPage() {
               rows={4}
               style={{
                 width: "100%",
+                boxSizing: "border-box",
                 borderRadius: 12,
-                padding: 10,
+                padding: 12,
                 border: "1px solid #cbd5e1",
                 backgroundColor: "#ffffff",
                 color: "#0f172a",
@@ -346,3 +347,4 @@ export default function NewFeedPostPage() {
     </>
   );
 }
+
