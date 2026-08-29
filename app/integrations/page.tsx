@@ -871,7 +871,7 @@ export default function IntegrationsPage() {
           )}
         </div>
         {/* Health Connect - Android */}
-        {isAndroidNative() && (
+        {(isAndroidNative() || status.healthConnectConnected) && (
           <div
             style={{
               marginTop: 16,
@@ -1003,56 +1003,4 @@ export default function IntegrationsPage() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
