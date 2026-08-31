@@ -310,11 +310,9 @@ export default function PerformanceAiSubscribePage() {
             width: "100%",
 
             display: "flex",
-            alignItems: "center",
-
-            gap: 12,
-
-            overflowX: "auto",
+              alignItems: "stretch",
+              gap: 12,
+              overflowX: "auto",
             overflowY: "hidden",
 
             scrollSnapType: "x mandatory",
@@ -382,14 +380,16 @@ export default function PerformanceAiSubscribePage() {
           key={feature.number}
           style={{
             flex: "0 0 72%",
-            height: "auto",
-            minHeight: 0,
+              height: "auto",
+              minHeight: 0,
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             border:
-              "1px solid rgba(241,211,107,0.20)",
-            borderRadius: 16,
+                "2.5px solid rgba(241,211,107,0.72)",
+              borderRadius: 16,
+              boxShadow:
+                "0 10px 30px rgba(0,0,0,0.42), 0 0 18px rgba(241,211,107,0.10)",
             background:
               "linear-gradient(160deg, rgba(241,211,107,0.055) 0%, rgba(255,255,255,0.018) 45%, rgba(255,255,255,0.008) 100%)",
             scrollSnapAlign: "start",
@@ -403,10 +403,8 @@ export default function PerformanceAiSubscribePage() {
               width: "100%",
             height: "auto",
               flexShrink: 0,
-              overflowX: "hidden",
-              background: "#050505",
-              borderBottom:
-                "1px solid rgba(255,255,255,0.08)",
+              overflowX: "hidden",                background: "#050505",                borderBottom:
+                  "1px solid rgba(255,255,255,0.08)",
             }}
           >
             <img
@@ -738,6 +736,13 @@ const noticeStyle: React.CSSProperties = {
   fontSize: 10.5,
   lineHeight: 1.55,
 };
+
+
+
+
+
+
+
 
 
 
