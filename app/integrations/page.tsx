@@ -571,7 +571,7 @@ export default function IntegrationsPage() {
         padding: "24px", fontFamily: "Montserrat, sans-serif",
       }}
     >
-      <div style={{ position: "absolute", top: 20, left: 20 }}><BackButton fallbackHref="/inside" /></div>
+      <div style={{ position: "absolute", top: 20, left: 20 }}><BackButton href="/" /></div>
 
       <section
         style={{
@@ -1003,4 +1003,5 @@ export default function IntegrationsPage() {
     </main>
   );
 }
+
 

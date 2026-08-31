@@ -5,15 +5,22 @@ import { useRouter } from "next/navigation";
 type BackButtonProps = {
   label?: string;
   fallbackHref?: string;
+  href?: string;
 };
 
 export default function BackButton({
   label = "Back",
   fallbackHref = "/",
+  href,
 }: BackButtonProps) {
   const router = useRouter();
 
   const handleBack = () => {
+    if (href) {
+      router.push(href);
+      return;
+    }
+
     if (window.history.length > 1) {
       router.back();
       return;
@@ -66,3 +73,4 @@ export default function BackButton({
     </button>
   );
 }
+
