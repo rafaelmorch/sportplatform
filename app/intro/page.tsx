@@ -328,8 +328,8 @@ export default function IntroPage() {
     : null;
 
   const connectedDevice =
-    connectedSource ||
     latestActivity?.device_name ||
+    connectedSource ||
     (latestActivity?.provider === "garmin"
       ? "Garmin"
       : latestActivity?.provider === "strava"
@@ -1168,35 +1168,4 @@ export default function IntroPage() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
