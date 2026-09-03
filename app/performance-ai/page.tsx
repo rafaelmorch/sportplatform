@@ -73,7 +73,7 @@ type WeightLogRow = {
 
 type StravaActivityRow = {
   id: string;
-  athlete_id: number;
+  athlete_id: number | null;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -157,7 +157,7 @@ function getCoachInsight(params: {
   }
 
   if (weeklyActivitiesCount === 0 && meals.length > 0) {
-    return "Você registrou alimentação, mas não há treinos recentes no Strava. Se hoje for dia de descanso, foque em recuperação e consistência.";
+    return "Você registrou alimentação, mas não há treinos recentes sincronizados. Se hoje for dia de descanso, foque em recuperação e consistência.";
   }
 
   if (totalTrainingHours >= 3 && highProteinMeals >= 2) {
@@ -654,7 +654,7 @@ function PerformanceAIPage() {
           weightResult,
           bioResult,
           bloodResult,
-          tokenResult,
+          importedResult,
         ] = await Promise.all([
           supabase
             .from("performance_ai_profiles")
@@ -692,12 +692,13 @@ function PerformanceAIPage() {
             .order("created_at", { ascending: false })
             .limit(5),
           supabase
-            .from("strava_tokens")
-            .select("athlete_id")
-            .eq("user_id", user.id)
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
+              .from("imported_activities")
+              .select(
+                "id,name,sport_type,device_name,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
+              )
+              .eq("user_id", user.id)
+              .order("start_date", { ascending: false })
+              .limit(500),
         ]);
 
         const profile = profileResult.data;
@@ -729,25 +730,34 @@ function PerformanceAIPage() {
         setWeightLogs((weightResult.data ?? []) as WeightLogRow[]);
         setBioimpedanceLogs((bioResult.data ?? []) as BioimpedanceRow[]);
         setBloodTestLogs((bloodResult.data ?? []) as BloodTestRow[]);
+        const importedActivities: StravaActivityRow[] =
+          (importedResult.data ?? []).map((activity) => ({
+            id: `${activity.provider ?? "imported"}-${activity.id}`,
+            athlete_id: null,
+            name: activity.name ?? null,
+            type: activity.sport_type ?? null,
+            sport_type: activity.sport_type ?? null,
+            start_date: activity.start_date ?? null,
+            distance:
+              activity.distance_m != null
+                ? Number(activity.distance_m)
+                : null,
+            moving_time:
+              activity.moving_time_s != null
+                ? Number(activity.moving_time_s)
+                : null,
+            average_heartrate:
+              activity.avg_heartrate != null
+                ? Number(activity.avg_heartrate)
+                : null,
+            max_heartrate:
+              activity.max_heartrate != null
+                ? Number(activity.max_heartrate)
+                : null,
+          }));
 
-        const athleteId = tokenResult.data?.athlete_id;
-
-        if (athleteId) {
-          setStravaConnected(true);
-
-          const { data: activitiesData } = await supabase
-            .from("strava_activities")
-            .select(
-              "id, athlete_id, name, type, sport_type, start_date, distance, moving_time, average_heartrate, max_heartrate"
-            )
-            .eq("athlete_id", athleteId)
-            .order("start_date", { ascending: false })
-            .limit(20);
-
-          setStravaActivities(
-            (activitiesData ?? []) as StravaActivityRow[]
-          );
-        }
+        setStravaActivities(importedActivities);
+        setStravaConnected(importedActivities.length > 0);
       } catch (error) {
         console.error("Erro ao carregar Performance AI:", error);
         setMessage("Não foi possível carregar todos os dados do Performance AI.");
@@ -1151,6 +1161,8 @@ const backLinkStyle: React.CSSProperties = {
   fontWeight: 650,
   textDecoration: "none",
 };
+
+
 
 
 

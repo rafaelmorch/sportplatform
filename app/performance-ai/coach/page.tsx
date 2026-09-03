@@ -81,7 +81,7 @@ type RangeKey = "7d" | "30d" | "6m" | "all";
 
 type StravaActivityRow = {
   id: string;
-  athlete_id: number;
+  athlete_id: number | null;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -177,7 +177,7 @@ function getCoachInsight(params: {
   }
 
   if (weeklyActivitiesCount === 0 && meals.length > 0) {
-    return "Você registrou alimentação, mas não há treinos recentes no Strava. Se hoje for dia de descanso, foque em recuperação e consistência.";
+    return "Você registrou alimentação, mas não há treinos recentes sincronizados. Se hoje for dia de descanso, foque em recuperação e consistência.";
   }
 
   if (totalTrainingHours >= 3 && highProteinMeals >= 2) {
@@ -242,7 +242,7 @@ function getTrainingCoachInsight(params: {
       : null;
 
   if (weeklyActivitiesCount === 0) {
-    return "Você está sem treinos recentes no Strava. Vale voltar com uma sessão leve para retomar consistência.";
+    return "Você está sem treinos recentes sincronizados. Vale voltar com uma sessão leve para retomar consistência.";
   }
 
   if (weeklyDistanceKm >= 30 || totalTrainingHours >= 4) {
@@ -918,26 +918,43 @@ export default function PerformanceAIPage() {
 
       setBloodTestLogs((bloodTestData ?? []) as BloodTestRow[]);
 
-      const { data: tokenRow } = await supabase
-        .from("strava_tokens")
-        .select("athlete_id")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (tokenRow?.athlete_id) {
-        setStravaConnected(true);
-
-        const { data: activitiesData } = await supabase
-          .from("strava_activities")
-          .select("id, athlete_id, name, type, sport_type, start_date, distance, moving_time, average_heartrate, max_heartrate")
-          .eq("athlete_id", tokenRow.athlete_id)
+      const { data: importedData } = await supabase
+          .from("imported_activities")
+          .select(
+            "id,name,sport_type,device_name,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
+          )
+          .eq("user_id", user.id)
           .order("start_date", { ascending: false })
-          .limit(20);
+          .limit(500);
 
-        setStravaActivities((activitiesData ?? []) as StravaActivityRow[]);
-      }
+        const importedActivities: StravaActivityRow[] =
+          (importedData ?? []).map((activity) => ({
+            id: `${activity.provider ?? "imported"}-${activity.id}`,
+            athlete_id: null,
+            name: activity.name ?? null,
+            type: activity.sport_type ?? null,
+            sport_type: activity.sport_type ?? null,
+            start_date: activity.start_date ?? null,
+            distance:
+              activity.distance_m != null
+                ? Number(activity.distance_m)
+                : null,
+            moving_time:
+              activity.moving_time_s != null
+                ? Number(activity.moving_time_s)
+                : null,
+            average_heartrate:
+              activity.avg_heartrate != null
+                ? Number(activity.avg_heartrate)
+                : null,
+            max_heartrate:
+              activity.max_heartrate != null
+                ? Number(activity.max_heartrate)
+                : null,
+          }));
+
+        setStravaActivities(importedActivities);
+        setStravaConnected(importedActivities.length > 0);
 
       
       const { data: latestAI } = await supabase
@@ -1702,6 +1719,8 @@ const globalMessageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 700,
 };
+
+
 
 
 

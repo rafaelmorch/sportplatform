@@ -53,7 +53,7 @@ type RangeKey = "7d" | "30d" | "6m" | "all";
 
 type StravaActivityRow = {
   id: string;
-  athlete_id: number;
+  athlete_id: number | null;
   name: string | null;
   type: string | null;
   sport_type: string | null;
@@ -200,6 +200,14 @@ export default function CoachConversation({
     setSending(true);
 
     try {
+      const today = new Date();
+
+      const currentDate = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, "0"),
+        String(today.getDate()).padStart(2, "0"),
+      ].join("-");
+
       const response = await fetch("/api/performance-ai/coach", {
         method: "POST",
         headers: {
@@ -212,6 +220,7 @@ export default function CoachConversation({
             content: message.content,
           })),
           athleteContext: {
+            currentDate,
             profile,
             training: {
               stravaConnected: training.stravaConnected,
@@ -395,6 +404,51 @@ export default function CoachConversation({
             }
           }
         }
+        if (
+          !Array.isArray(updatedPlan.days) ||
+          updatedPlan.days.length !== 7
+        ) {
+          throw new Error(
+            "O Coach retornou um plano sem os 7 dias necessários para atualizar o calendário."
+          );
+        }
+
+        const now = new Date().toISOString();
+
+        const dailyPlanRows = updatedPlan.days.map(
+          (day: any, index: number) => {
+            const planDate = new Date(
+              `${currentDate}T12:00:00Z`
+            );
+
+            planDate.setUTCDate(
+              planDate.getUTCDate() + index
+            );
+
+            return {
+              user_id: userId,
+              plan_date: planDate
+                .toISOString()
+                .slice(0, 10),
+              training: day.training,
+              nutrition: day.nutrition,
+              coach_analysis: null,
+              updated_at: now,
+            };
+          }
+        );
+
+        const { error: dailyPlanError } = await supabase
+          .from("performance_ai_daily_plans")
+          .upsert(dailyPlanRows, {
+            onConflict: "user_id,plan_date",
+          });
+
+        if (dailyPlanError) {
+          throw new Error(
+            `O Coach criou o plano, mas não conseguiu atualizar o calendário: ${dailyPlanError.message}`
+          );
+        }
 
         const { error: saveError } = await supabase
           .from("performance_ai_ai_results")
@@ -409,7 +463,6 @@ export default function CoachConversation({
           );
         }
 
-        router.refresh();
       }
 
       const coachMessage: CoachConversationMessage = {
@@ -904,6 +957,15 @@ export default function CoachConversation({
     </section>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

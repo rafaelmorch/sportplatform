@@ -378,14 +378,15 @@ export default function CoachPlanDayPage() {
           .maybeSingle(),
 
         supabase
-          .from("strava_tokens")
-          .select("athlete_id")
-          .eq("user_id", user.id)
-          .order("updated_at", {
-            ascending: false,
-          })
-          .limit(1)
-          .maybeSingle(),
+            .from("imported_activities")
+            .select(
+              "id,name,sport_type,device_name,start_date,distance_m,moving_time_s,elev_gain_m,avg_heartrate,max_heartrate,calories,provider,external_id"
+            )
+            .eq("user_id", user.id)
+            .order("start_date", {
+              ascending: false,
+            })
+            .limit(30),
 
         supabase
           .from("performance_ai_meals")
@@ -399,30 +400,35 @@ export default function CoachPlanDayPage() {
           .limit(20),
       ]);
 
-      let recentActivities: unknown[] = [];
-
-      const athleteId =
-        tokenResult.data?.athlete_id;
-
-      if (athleteId) {
-        const { data: activityData } =
-          await supabase
-            .from("strava_activities")
-            .select(
-              "name,type,sport_type,start_date,distance,moving_time,average_heartrate,max_heartrate,total_elevation_gain"
-            )
-            .eq(
-              "athlete_id",
-              athleteId
-            )
-            .order("start_date", {
-              ascending: false,
-            })
-            .limit(30);
-
-        recentActivities =
-          activityData ?? [];
-      }
+      const recentActivities =
+          (tokenResult.data ?? []).map((activity) => ({
+            name: activity.name ?? null,
+            type: activity.sport_type ?? null,
+            sport_type: activity.sport_type ?? null,
+            start_date: activity.start_date ?? null,
+            distance:
+              activity.distance_m != null
+                ? Number(activity.distance_m)
+                : null,
+            moving_time:
+              activity.moving_time_s != null
+                ? Number(activity.moving_time_s)
+                : null,
+            average_heartrate:
+              activity.avg_heartrate != null
+                ? Number(activity.avg_heartrate)
+                : null,
+            max_heartrate:
+              activity.max_heartrate != null
+                ? Number(activity.max_heartrate)
+                : null,
+            total_elevation_gain:
+              activity.elev_gain_m != null
+                ? Number(activity.elev_gain_m)
+                : null,
+            provider: activity.provider ?? null,
+            device_name: activity.device_name ?? null,
+          }));
 
       const response = await fetch(
         "/api/performance-ai/coach/day",
@@ -843,6 +849,7 @@ export default function CoachPlanDayPage() {
     </main>
   );
 }
+
 
 
 

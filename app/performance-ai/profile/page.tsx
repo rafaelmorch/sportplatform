@@ -23,6 +23,21 @@ type PerformanceAiProfile = {
   health_notes: string | null;
 };
 
+type ProfileEditForm = {
+  age: string;
+  gender: string;
+  height_cm: string;
+  weight_kg: string;
+  goal: string;
+  goal_text: string;
+  goal_date: string;
+  level: string;
+  days_per_week: string;
+  minutes_per_session: string;
+  sports: string;
+  health_notes: string;
+};
+
 function showValue(value: string | null, fallback = "Não informado") {
   return value?.trim() || fallback;
 }
@@ -129,6 +144,108 @@ export default function PerformanceAiProfilePage() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
+  const [editForm, setEditForm] = useState<ProfileEditForm | null>(null);
+
+  function startEditing() {
+    if (!profile) return;
+
+    setEditForm({
+      age: profile.age?.toString() ?? "",
+      gender: profile.gender ?? "",
+      height_cm: profile.height_cm?.toString() ?? "",
+      weight_kg: profile.weight_kg?.toString() ?? "",
+      goal: profile.goal ?? "",
+      goal_text: profile.goal_text ?? "",
+      goal_date: profile.goal_date?.slice(0, 10) ?? "",
+      level: profile.level ?? "",
+      days_per_week: profile.days_per_week?.toString() ?? "",
+      minutes_per_session:
+        profile.minutes_per_session?.toString() ?? "",
+      sports: Array.isArray(profile.sports)
+        ? profile.sports.join(", ")
+        : profile.sports ?? "",
+      health_notes: profile.health_notes ?? "",
+    });
+
+    setSaveMessage("");
+    setIsEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditForm(null);
+    setSaveMessage("");
+    setIsEditing(false);
+  }
+
+  async function saveProfile() {
+    if (!profile || !editForm || saving) return;
+
+    setSaving(true);
+    setSaveMessage("");
+
+    const toNumberOrNull = (value: string) => {
+      const trimmed = value.trim();
+
+      if (!trimmed) return null;
+
+      const parsed = Number(trimmed.replace(",", "."));
+
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const sportsList = editForm.sports
+      .split(",")
+      .map((sport) => sport.trim())
+      .filter(Boolean);
+
+    const updates = {
+      age: toNumberOrNull(editForm.age),
+      gender: editForm.gender.trim() || null,
+      height_cm: toNumberOrNull(editForm.height_cm),
+      weight_kg: toNumberOrNull(editForm.weight_kg),
+      goal: editForm.goal.trim() || null,
+      goal_text: editForm.goal_text.trim() || null,
+      goal_date: editForm.goal_date || null,
+      level: editForm.level.trim() || null,
+      days_per_week: toNumberOrNull(editForm.days_per_week),
+      minutes_per_session: toNumberOrNull(
+        editForm.minutes_per_session
+      ),
+      sports: Array.isArray(profile.sports)
+        ? sportsList
+        : editForm.sports.trim() || null,
+      health_notes: editForm.health_notes.trim() || null,
+    };
+
+    const { data, error } = await supabase
+      .from("performance_ai_profiles")
+      .update(updates)
+      .eq("id", profile.id)
+      .eq("user_id", profile.user_id)
+      .select(
+        "id,user_id,age,gender,height_cm,weight_kg,goal,goal_text,goal_date,level,days_per_week,minutes_per_session,sports,health_notes"
+      )
+      .single();
+
+    if (error) {
+      console.error(error);
+      setSaveMessage(
+        "Não foi possível salvar as alterações. Tente novamente."
+      );
+      setSaving(false);
+      return;
+    }
+
+    setProfile(data as PerformanceAiProfile);
+    setEditForm(null);
+    setIsEditing(false);
+    setSaving(false);
+    setSaveMessage("Perfil atualizado com sucesso.");
+  }
+
   useEffect(() => {
     let active = true;
 
@@ -230,7 +347,7 @@ export default function PerformanceAiProfilePage() {
             type="button"
             style={styles.primaryButton}
             onClick={() =>
-              router.push("/performance-ai/coach?openConversation=1")
+              router.push("/performance-ai/chat")
             }
           >
             Iniciar consulta
@@ -362,36 +479,296 @@ export default function PerformanceAiProfilePage() {
           </ProfileSection>
 
           <section style={styles.actionSection}>
-            <div style={styles.aiIcon}>AI</div>
-
             <div style={styles.actionContent}>
               <div style={styles.eyebrow}>
                 ATUALIZAÇÃO DO PERFIL
               </div>
 
               <h2 style={styles.actionTitle}>
-                Converse com o Coach IA
+                {isEditing ? "Editar perfil" : "Mantenha seus dados atualizados"}
               </h2>
 
               <p style={styles.actionText}>
-                Para corrigir ou atualizar uma informação, conte ao
-                Coach o que mudou.
+                {isEditing
+                  ? "Atualize abaixo as informações que o Coach IA usa para personalizar suas orientações."
+                  : "Você pode alterar seus dados, objetivos e disponibilidade diretamente por aqui."}
               </p>
             </div>
 
-            <button
-              type="button"
-              style={styles.primaryButton}
-              onClick={() =>
-                router.push("/performance-ai/coach?openConversation=1")
-              }
-            >
-              Atualizar meu perfil
-            </button>
+            {!isEditing ? (
+              <button
+                type="button"
+                style={styles.primaryButton}
+                onClick={startEditing}
+              >
+                Editar perfil
+              </button>
+            ) : editForm ? (
+              <div style={styles.editForm}>
+                <div style={styles.formGrid}>
+                  <EditField label="Idade">
+                    <input
+                      type="number"
+                      value={editForm.age}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          age: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Gênero">
+                    <select
+                      value={editForm.gender}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          gender: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="">Não informado</option>
+                      <option value="male">Masculino</option>
+                      <option value="female">Feminino</option>
+                      <option value="other">Outro</option>
+                    </select>
+                  </EditField>
+
+                  <EditField label="Altura (cm)">
+                    <input
+                      type="number"
+                      value={editForm.height_cm}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          height_cm: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Peso (kg)">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editForm.weight_kg}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          weight_kg: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Objetivo principal">
+                    <select
+                      value={editForm.goal}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          goal: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="">Não informado</option>
+                      <option value="performance">
+                        Melhorar a performance
+                      </option>
+                      <option value="weight_loss">
+                        Perder peso
+                      </option>
+                      <option value="conditioning">
+                        Melhorar o condicionamento
+                      </option>
+                      <option value="maintenance">
+                        Manutenção da saúde e do desempenho
+                      </option>
+                      <option value="race">
+                        Preparação para uma prova
+                      </option>
+                      <option value="competition">
+                        Preparação para uma competição
+                      </option>
+                      <option value="health">
+                        Melhorar a saúde
+                      </option>
+                    </select>
+                  </EditField>
+
+                  <EditField label="Meta">
+                    <input
+                      type="text"
+                      value={editForm.goal_text}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          goal_text: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Data da meta">
+                    <input
+                      type="date"
+                      value={editForm.goal_date}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          goal_date: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Nível">
+                    <select
+                      value={editForm.level}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          level: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    >
+                      <option value="">Não informado</option>
+                      <option value="beginner">Iniciante</option>
+                      <option value="intermediate">
+                        Intermediário
+                      </option>
+                      <option value="advanced">Avançado</option>
+                    </select>
+                  </EditField>
+
+                  <EditField label="Modalidades">
+                    <input
+                      type="text"
+                      value={editForm.sports}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          sports: e.target.value,
+                        })
+                      }
+                      placeholder="Corrida, ciclismo, natação"
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Dias por semana">
+                    <input
+                      type="number"
+                      min="1"
+                      max="7"
+                      value={editForm.days_per_week}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          days_per_week: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Minutos por treino">
+                    <input
+                      type="number"
+                      value={editForm.minutes_per_session}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          minutes_per_session: e.target.value,
+                        })
+                      }
+                      style={styles.input}
+                    />
+                  </EditField>
+
+                  <EditField label="Informações importantes" fullWidth>
+                    <textarea
+                      value={editForm.health_notes}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          health_notes: e.target.value,
+                        })
+                      }
+                      style={{
+                        ...styles.input,
+                        minHeight: 110,
+                        resize: "vertical",
+                      }}
+                    />
+                  </EditField>
+                </div>
+
+                {saveMessage ? (
+                  <p style={styles.saveMessage}>{saveMessage}</p>
+                ) : null}
+
+                <div style={styles.editActions}>
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={cancelEditing}
+                    disabled={saving}
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.primaryButton}
+                    onClick={() => void saveProfile()}
+                    disabled={saving}
+                  >
+                    {saving ? "Salvando..." : "Salvar alterações"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {!isEditing && saveMessage ? (
+              <p style={styles.saveMessage}>{saveMessage}</p>
+            ) : null}
           </section>
         </>
       )}
     </main>
+  );
+}
+
+function EditField({
+  label,
+  children,
+  fullWidth = false,
+}: {
+  label: string;
+  children: ReactNode;
+  fullWidth?: boolean;
+}) {
+  return (
+    <label
+      style={{
+        ...styles.editField,
+        ...(fullWidth ? styles.editFieldFull : {}),
+      }}
+    >
+      <span style={styles.editLabel}>{label}</span>
+      {children}
+    </label>
   );
 }
 
@@ -621,6 +998,60 @@ const styles: Record<string, CSSProperties> = {
     marginTop: 19,
   },
 
+  editForm: {
+    marginTop: 26,
+  },
+
+  formGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: 18,
+  },
+
+  editField: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+
+  editFieldFull: {
+    gridColumn: "1 / -1",
+  },
+
+  editLabel: {
+    color: "rgba(255,255,255,0.48)",
+    fontSize: 10,
+    fontWeight: 600,
+  },
+
+  input: {
+    width: "100%",
+    boxSizing: "border-box",
+    minHeight: 46,
+    padding: "11px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.045)",
+    color: "#ffffff",
+    fontFamily: "Montserrat, sans-serif",
+    fontSize: 14,
+    outline: "none",
+  },
+
+  editActions: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    marginTop: 24,
+  },
+
+  saveMessage: {
+    margin: "18px 0 0",
+    color: "#d4af37",
+    fontSize: 12,
+    lineHeight: 1.5,
+  },
+
   actionTitle: {
   margin: "8px 0 9px",
   fontSize: 24,
@@ -665,6 +1096,10 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
 };
+
+
+
+
 
 
 

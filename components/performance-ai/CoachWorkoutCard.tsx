@@ -40,7 +40,7 @@ export default function CoachWorkoutCard({
           href="/performance-ai/training"
           className={styles.actionButton}
         >
-          <span>Ver treinos e atualizar Strava</span>
+          <span>Ver treinos e sincronizar</span>
           <span aria-hidden="true">→</span>
         </Link>
       }
@@ -257,4 +257,5 @@ export default function CoachWorkoutCard({
     </CoachCard>
   );
 }
+
 

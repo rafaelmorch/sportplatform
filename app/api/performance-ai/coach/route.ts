@@ -271,7 +271,85 @@ Formato:
   }
 }
 
+3. "update_profile_and_plan"
+Use quando o atleta pedir claramente para alterar dados do próprio perfil, objetivo ou disponibilidade, por exemplo:
+- mudar objetivo principal;
+- mudar meta;
+- mudar data da meta;
+- informar novo peso;
+- alterar nível;
+- alterar modalidades;
+- alterar dias disponíveis por semana;
+- alterar tempo disponível por treino;
+- atualizar observações relevantes do perfil.
+
+Quando a alteração do perfil impactar o treinamento, atualize também o plano completo dos próximos 7 dias.
+
+Formato:
+{
+  "action": "update_profile_and_plan",
+  "answer": "Confirmação curta explicando o que foi alterado no perfil e no plano.",
+  "profileUpdates": {
+    "goal": "performance",
+    "goal_text": "Correr a Maratona de Nova York",
+    "goal_date": "2026-11-01"
+  },
+  "updatedPlan": {
+    "summary": "Resumo geral em 3 a 5 linhas.",
+    "profileSnapshot": {
+      "age": "",
+      "weight": "",
+      "height": "",
+      "goal": ""
+    },
+    "days": [
+      {
+        "day": 1,
+        "title": "Dia 1",
+        "training": {
+          "modality": "",
+          "duration": "",
+          "intensity": "",
+          "intensityExplanation": "",
+          "details": "",
+          "goal": "",
+          "caution": ""
+        },
+        "nutrition": {
+          "dailyFocus": "",
+          "breakfast": "",
+          "lunch": "",
+          "preWorkout": "",
+          "postWorkout": "",
+          "dinner": "",
+          "hydration": "",
+          "proteinTarget": "",
+          "carbTarget": ""
+        }
+      }
+    ],
+    "attentionPoints": [""],
+    "disclaimer": "Texto curto de aviso."
+  }
+}
+
+REGRAS PARA ATUALIZAÇÃO DO PERFIL:
+- retorne em profileUpdates apenas os campos que realmente devem ser alterados;
+- nunca invente valores;
+- preserve os demais campos do perfil;
+- use goal para a categoria geral do objetivo;
+- use goal_text para a meta específica escrita pelo atleta;
+- use goal_date no formato YYYY-MM-DD quando houver uma data definida;
+- se o atleta disser "maratona de Nova York em 1 de novembro", não mantenha uma meta antiga como Ironman;
+- se o atleta pedir apenas uma pergunta ou análise sem solicitar alteração, use "chat";
+- se pedir apenas mudança de treino/plano, sem mudança de perfil, use "update_plan".
+
 REGRAS DO PLANO:
+  - use athleteContext.currentDate como a data de hoje;
+  - o Dia 1 corresponde exatamente a athleteContext.currentDate;
+  - o Dia 2 corresponde ao dia seguinte;
+  - continue assim até o Dia 7;
+  - interprete "hoje", "amanhã", "depois de amanhã" e dias da semana usando athleteContext.currentDate como referência;
 - deve ter exatamente 7 dias;
 - cada dia deve conter treino e alimentação;
 - considere o pedido mais recente do atleta;
@@ -439,8 +517,8 @@ ${JSON.stringify(
 
     if (
       agentResponse.action !== "chat" &&
-      agentResponse.action !==
-        "update_plan"
+      agentResponse.action !== "update_plan" &&
+      agentResponse.action !== "update_profile_and_plan"
     ) {
       return NextResponse.json(
         {
@@ -466,14 +544,10 @@ ${JSON.stringify(
     }
 
     if (
-      agentResponse.action ===
-      "update_plan"
+      agentResponse.action === "update_plan" ||
+      agentResponse.action === "update_profile_and_plan"
     ) {
-      if (
-        !isValidPlan(
-          agentResponse.updatedPlan
-        )
-      ) {
+      if (!isValidPlan(agentResponse.updatedPlan)) {
         return NextResponse.json(
           {
             error:
@@ -483,12 +557,27 @@ ${JSON.stringify(
         );
       }
 
+      if (
+        agentResponse.action === "update_profile_and_plan" &&
+        (!agentResponse.profileUpdates ||
+          typeof agentResponse.profileUpdates !== "object")
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "O Coach não informou as alterações do perfil.",
+          },
+          { status: 500 }
+        );
+      }
+
       return NextResponse.json({
-        action: "update_plan",
-        answer:
-          agentResponse.answer.trim(),
-        updatedPlan:
-          agentResponse.updatedPlan,
+        action: agentResponse.action,
+        answer: agentResponse.answer.trim(),
+        updatedPlan: agentResponse.updatedPlan,
+        ...(agentResponse.action === "update_profile_and_plan"
+          ? { profileUpdates: agentResponse.profileUpdates }
+          : {}),
       });
     }
 
@@ -514,5 +603,10 @@ ${JSON.stringify(
     );
   }
 }
+
+
+
+
+
 
 

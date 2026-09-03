@@ -33,11 +33,6 @@ export default function PerformancePage() {
   const router = useRouter();
 
   const closePopup = () => {
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-
     router.push("/performance-ai");
   };
 
@@ -210,4 +205,5 @@ export default function PerformancePage() {
     </main>
   );
 }
+
 

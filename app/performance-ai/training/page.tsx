@@ -848,11 +848,11 @@ export default function TrainingPage() {
             </div>
 
             <h2 style={connectionTitleStyle}>
-              Conecte um app de treino
+              Conecte seu device ou app
             </h2>
 
             <p style={connectionTextStyle}>
-              Conecte Strava ou Garmin para visualizar
+              Conecte seu device ou app para visualizar
               atividades, duração, distância,
               frequência cardíaca e evolução.
             </p>
