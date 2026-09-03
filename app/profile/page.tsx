@@ -41,6 +41,27 @@ type HealthFormRow = {
   has_positive_answer: boolean;
 };
 
+type CoachSubscriptionRow = {
+  id: string;
+  status: string;
+  current_period_end: string | null;
+  health_form_completed_at: string | null;
+};
+
+function formatDate(value: string | null) {
+  if (!value) return null;
+
+  try {
+    return new Date(value).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return null;
+  }
+}
+
 export default function ProfilePage() {
   const router = useRouter();
 
@@ -53,10 +74,20 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
 
   const [userId, setUserId] = useState<string | null>(null);
+
   const [memberships, setMemberships] = useState<MembershipRow[]>([]);
   const [loadingMemberships, setLoadingMemberships] = useState(true);
+
+  const [coachSubscription, setCoachSubscription] =
+    useState<CoachSubscriptionRow | null>(null);
+  const [loadingCoachSubscription, setLoadingCoachSubscription] =
+    useState(true);
+  const [cancelingCoachSubscription, setCancelingCoachSubscription] =
+    useState(false);
+
   const [healthForms, setHealthForms] = useState<HealthFormRow[]>([]);
   const [loadingHealthForms, setLoadingHealthForms] = useState(true);
+
   const [cancelingMembershipId, setCancelingMembershipId] =
     useState<string | null>(null);
 
@@ -78,15 +109,17 @@ export default function ProfilePage() {
       }
 
       const user = session.user;
+
       setUserId(user.id);
       setEmail(user.email ?? null);
 
       try {
-        const { data: profile, error: profileError } = await supabaseBrowser
-          .from("profiles")
-          .select("full_name")
-          .eq("id", user.id)
-          .maybeSingle<ProfileRow>();
+        const { data: profile, error: profileError } =
+          await supabaseBrowser
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .maybeSingle<ProfileRow>();
 
         if (profileError) {
           console.error("Error fetching profile:", profileError);
@@ -98,6 +131,26 @@ export default function ProfilePage() {
           "";
 
         setName(profile?.full_name || fallbackName || "");
+
+        const { data: coachData, error: coachError } =
+          await supabaseBrowser
+            .from("performance_ai_subscriptions")
+            .select("id,status,current_period_end,health_form_completed_at")
+            .eq("user_id", user.id)
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle<CoachSubscriptionRow>();
+
+        if (coachError) {
+          console.error(
+            "Error fetching Coach IA subscription:",
+            coachError
+          );
+          setCoachSubscription(null);
+        } else {
+          setCoachSubscription(coachData ?? null);
+        }
 
         const { data: membershipData, error: membershipError } =
           await supabaseBrowser
@@ -139,6 +192,7 @@ export default function ProfilePage() {
       } finally {
         setLoadingProfile(false);
         setLoadingMemberships(false);
+        setLoadingCoachSubscription(false);
         setLoadingHealthForms(false);
       }
     };
@@ -148,6 +202,7 @@ export default function ProfilePage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setErrorMsg(null);
     setSuccessMsg(null);
 
@@ -176,13 +231,11 @@ export default function ProfilePage() {
         return;
       }
 
-      const user = session.user;
-
       const { error: upsertError } = await supabaseBrowser
         .from("profiles")
         .upsert(
           {
-            id: user.id,
+            id: session.user.id,
             full_name: trimmed,
           },
           { onConflict: "id" }
@@ -190,11 +243,14 @@ export default function ProfilePage() {
 
       if (upsertError) {
         console.error("Error saving profile:", upsertError);
-        setErrorMsg(upsertError.message || "Error saving profile data.");
+        setErrorMsg(
+          upsertError.message || "Error saving profile data."
+        );
         return;
       }
 
-      setSuccessMsg("Profile updated successfully!");
+      setName(trimmed);
+      setSuccessMsg("Profile updated successfully.");
     } catch (err) {
       console.error("Unexpected error saving profile:", err);
       setErrorMsg("Unexpected error while saving profile.");
@@ -275,12 +331,69 @@ export default function ProfilePage() {
       setCancelingMembershipId(null);
     }
   };
+
+  const handleCancelCoachSubscription = async () => {
+    if (!userId) {
+      setErrorMsg("You must be logged in to cancel your subscription.");
+      return;
+    }
+
+    const confirmed = confirm(
+      "Are you sure you want to cancel your Coach IA subscription? This action cannot be undone."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCancelingCoachSubscription(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const response = await fetch(
+        "/api/performance-ai/cancel-subscription",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+          }),
+        }
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error || "Failed to cancel Coach IA subscription."
+        );
+      }
+
+      setCoachSubscription(null);
+      setSuccessMsg("Coach IA subscription canceled successfully.");
+    } catch (error) {
+      console.error(
+        "Error canceling Coach IA subscription:",
+        error
+      );
+
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Unexpected error while canceling Coach IA subscription."
+      );
+    } finally {
+      setCancelingCoachSubscription(false);
+    }
+  };
   const handleSignOut = async () => {
     setErrorMsg(null);
     setSuccessMsg(null);
 
     try {
       setSigningOut(true);
+
       const { error } = await supabaseBrowser.auth.signOut();
 
       if (error) {
@@ -320,14 +433,12 @@ export default function ProfilePage() {
         return;
       }
 
-      const user = session.user;
-
       const res = await fetch("/api/delete-account", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: session.user.id }),
       });
 
       const data = await res.json();
@@ -337,6 +448,7 @@ export default function ProfilePage() {
       }
 
       await supabaseBrowser.auth.signOut();
+
       router.replace("/login");
       router.refresh();
     } catch (err) {
@@ -347,6 +459,14 @@ export default function ProfilePage() {
     }
   };
 
+  const uniqueHealthForms = healthForms.filter(
+    (form, index, forms) =>
+      index ===
+      forms.findIndex(
+        (item) => item.community_id === form.community_id
+      )
+  );
+
   return (
     <>
       <style jsx global>{`
@@ -356,37 +476,76 @@ export default function ProfilePage() {
           padding: 0 !important;
           background: #ffffff !important;
           width: 100%;
-          height: 100%;
+          min-height: 100%;
           overflow-x: hidden;
         }
       `}</style>
 
       <style jsx>{`
         .wrap {
-          max-width: 560px;
+          width: 100%;
+          max-width: 600px;
           margin: 0 auto;
         }
 
+        .section {
+          padding: 28px 0;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .section-label {
+          margin: 0 0 18px;
+          font-size: 11px;
+          line-height: 1.2;
+          font-weight: 700;
+          letter-spacing: 0.11em;
+          color: #64748b;
+          text-transform: uppercase;
+          font-family: Montserrat, sans-serif;
+        }
+
+        .row {
+          min-height: 58px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 14px 0;
+          border-bottom: 1px solid #eef2f7;
+          box-sizing: border-box;
+        }
+
+        .row:last-child {
+          border-bottom: none;
+        }
+
+        .row-title {
+          margin: 0;
+          color: #0f172a;
+          font-family: Montserrat, sans-serif;
+          font-size: 14px;
+          line-height: 1.4;
+          font-weight: 600;
+        }
+
+        .row-detail {
+          margin: 4px 0 0;
+          color: #64748b;
+          font-family: Montserrat, sans-serif;
+          font-size: 12px;
+          line-height: 1.55;
+        }
+
+        .chevron {
+          color: #94a3b8;
+          font-size: 23px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
         @media (min-width: 768px) {
-          .wrap {
-            max-width: 640px;
-          }
-          .title {
-            font-size: 22px !important;
-          }
-          .subtitle {
-            font-size: 13px !important;
-          }
-          .card {
-            padding: 18px 16px !important;
-          }
-          .input {
-            padding: 10px 12px !important;
-            font-size: 14px !important;
-          }
-          .btn {
-            padding: 10px 18px !important;
-            font-size: 14px !important;
+          .section {
+            padding: 32px 0;
           }
         }
       `}</style>
@@ -396,594 +555,654 @@ export default function ProfilePage() {
           minHeight: "100vh",
           background: "#ffffff",
           color: "#374151",
-          padding: 16,
-          paddingBottom: "calc(110px + env(safe-area-inset-bottom))",
+          padding: "30px 20px",
+          paddingBottom:
+            "calc(120px + env(safe-area-inset-bottom))",
           boxSizing: "border-box",
-          overflowX: "hidden",
         }}
       >
         <div className="wrap">
+          {/* PROFILE HERO */}
           <header
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 12,
-              marginBottom: 20,
-              flexWrap: "wrap",
+              padding: "10px 0 32px",
+              textAlign: "center",
             }}
           >
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <UserAvatar name={name} size={48} />
-
-              <div>
-                <h1 className="title" style={{ fontSize: 20, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0 }}>
-                  My Profile
-                </h1>
-                <p className="subtitle" style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0 }}>
-                  Manage the name shown in SportPlatform.
-                </p>
-              </div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: 14,
+              }}
+            >
+              <UserAvatar name={name} size={76} />
             </div>
 
-            <button
-              onClick={handleSignOut}
-              disabled={signingOut}
+            <h1
               style={{
-                borderRadius: 999,
-                padding: "9px 14px",
-                border: "1px solid #e5e7eb",
-                background: "#ffffff",
-                color: "#374151",
-                fontSize: 13, fontFamily: "Montserrat, sans-serif",
-                fontWeight: 600,
-                cursor: signingOut ? "not-allowed" : "pointer",
-                opacity: signingOut ? 0.7 : 1,
-                whiteSpace: "nowrap",
+                margin: 0,
+                fontFamily: "Montserrat, sans-serif",
+                fontSize: 22,
+                lineHeight: 1.25,
+                fontWeight: 700,
+                color: "#0f172a",
               }}
-              title="Sign out"
             >
-              {signingOut ? "Signing out..." : "Sign out"}
-            </button>
+              {loadingProfile ? "My Profile" : name || "My Profile"}
+            </h1>
+
+            <div
+              style={{
+                marginTop: 5,
+                fontFamily: "Montserrat, sans-serif",
+                fontSize: 12,
+                fontWeight: 500,
+                color: "#64748b",
+              }}
+            >
+              My Profile
+            </div>
+
+            {email && (
+              <div
+                style={{
+                  marginTop: 7,
+                  fontFamily: "Montserrat, sans-serif",
+                  fontSize: 12,
+                  color: "#94a3b8",
+                  wordBreak: "break-word",
+                }}
+              >
+                {email}
+              </div>
+            )}
           </header>
 
-
-          <section
-            className="card"
-            style={{
-              borderRadius: 18,
-              padding: "16px 14px",
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              marginBottom: 20,
-            }}
-          >
-            <h2 style={{ fontSize: 15, fontWeight: 700, fontFamily: "Montserrat, sans-serif", margin: 0, marginBottom: 10 }}>
-              Basic info
+          {/* PERSONAL INFORMATION */}
+          <section className="section">
+            <h2 className="section-label">
+              Personal information
             </h2>
 
             {loadingProfile ? (
-              <p style={{ fontSize: 13, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0 }}>Loading profile...</p>
+              <p className="row-detail">Loading profile...</p>
             ) : (
-              <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <label htmlFor="name" style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151" }}>
-                    Name
-                  </label>
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
-                    className="input"
-                    style={{
-                      borderRadius: 10,
-                      padding: "8px 10px",
-                      border: "1px solid #e5e7eb",
-                      backgroundColor: "#ffffff",
-                      color: "#374151",
-                      fontSize: 13, fontFamily: "Montserrat, sans-serif",
-                      width: "100%",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                  <p style={{ fontSize: 11, fontFamily: "Montserrat, sans-serif", color: "#374151", margin: 0, marginTop: 2 }}>
-                    This is the name that will appear in the feed, dashboard, and other areas of the app.
-                  </p>
-                </div>
-
-                {email && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <span style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#374151" }}>Email (read-only)</span>
-                    <div
-                      style={{
-                        borderRadius: 10,
-                        padding: "8px 10px",
-                        border: "1px solid rgba(31,41,55,0.9)",
-                        backgroundColor: "#ffffff",
-                        fontSize: 13, fontFamily: "Montserrat, sans-serif",
-                        color: "#374151",
-                        width: "100%",
-                        boxSizing: "border-box",
-                        wordBreak: "break-word",
-                      }}
-                    >
-                      {email}
-                    </div>
-                  </div>
-                )}
-
-                {errorMsg && (
-                  <p style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#fca5a5", margin: 0, marginTop: 4 }}>{errorMsg}</p>
-                )}
-
-                {successMsg && (
-                  <p style={{ fontSize: 12, fontFamily: "Montserrat, sans-serif", color: "#bbf7d0", margin: 0, marginTop: 4 }}>{successMsg}</p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="btn"
+              <form onSubmit={handleSave}>
+                <label
+                  htmlFor="name"
                   style={{
-                    marginTop: 8,
-                    alignSelf: "flex-start",
-                    borderRadius: 999,
-                    padding: "8px 16px",
-                    border: "none",
-                    fontSize: 13, fontFamily: "Montserrat, sans-serif",
+                    display: "block",
+                    marginBottom: 7,
+                    fontFamily: "Montserrat, sans-serif",
+                    fontSize: 12,
                     fontWeight: 600,
-                    background: "#1e3a8a",
-                    color: "#ffffff",
-                    cursor: saving ? "not-allowed" : "pointer",
-                    opacity: saving ? 0.7 : 1,
-                    transition: "opacity 0.15s ease-out",
+                    color: "#475569",
                   }}
                 >
-                  {saving ? "Saving..." : "Save changes"}
+                  Name
+                </label>
+
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  style={{
+                    width: "100%",
+                    height: 46,
+                    boxSizing: "border-box",
+                    borderRadius: 8,
+                    border: "1px solid #cbd5e1",
+                    padding: "0 13px",
+                    outline: "none",
+                    background: "#ffffff",
+                    color: "#0f172a",
+                    fontFamily: "Montserrat, sans-serif",
+                    fontSize: 14,
+                  }}
+                />
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    marginTop: 12,
+                  }}
+                >
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    style={{
+                      minHeight: 40,
+                      border: "none",
+                      borderRadius: 7,
+                      padding: "0 17px",
+                      background: "#1e3a8a",
+                      color: "#ffffff",
+                      fontFamily: "Montserrat, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: saving ? "not-allowed" : "pointer",
+                      opacity: saving ? 0.65 : 1,
+                    }}
+                  >
+                    {saving ? "Saving..." : "Save changes"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {errorMsg && (
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  fontFamily: "Montserrat, sans-serif",
+                  fontSize: 12,
+                  color: "#dc2626",
+                }}
+              >
+                {errorMsg}
+              </p>
+            )}
+
+            {successMsg && (
+              <p
+                style={{
+                  margin: "14px 0 0",
+                  fontFamily: "Montserrat, sans-serif",
+                  fontSize: 12,
+                  color: "#15803d",
+                }}
+              >
+                {successMsg}
+              </p>
+            )}
+          </section>
+
+          {/* MY PLANS */}
+          <section className="section">
+            <h2 className="section-label">My plans</h2>
+
+            <div
+              style={{
+                marginBottom: 8,
+                fontFamily: "Montserrat, sans-serif",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#1e3a8a",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              Coach IA
+            </div>
+
+            {loadingCoachSubscription ? (
+              <p className="row-detail">
+                Checking Coach IA subscription...
+              </p>
+            ) : coachSubscription ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/performance-ai")}
+                  className="row"
+                  style={{
+                    width: "100%",
+                    borderLeft: "none",
+                    borderRight: "none",
+                    borderTop: "none",
+                    background: "transparent",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div>
+                    <p className="row-title">Performance AI</p>
+
+                    <p className="row-detail">
+                      <span
+                        style={{
+                          color: "#15803d",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Active
+                      </span>
+
+                      {coachSubscription.current_period_end
+                        ? ` · Renews ${formatDate(
+                            coachSubscription.current_period_end
+                          )}`
+                        : ""}
+                    </p>
+                  </div>
+
+                  <span className="chevron">›</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleDeleteAccount}
-                  disabled={deleting}
+                  onClick={handleCancelCoachSubscription}
+                  disabled={cancelingCoachSubscription}
                   style={{
-                    marginTop: 16,
-                    alignSelf: "flex-start",
-                    borderRadius: 999,
-                    padding: "8px 16px",
-                    border: "1px solid rgba(239,68,68,0.5)",
-                    fontSize: 13, fontFamily: "Montserrat, sans-serif",
-                    fontWeight: 600,
+                    marginTop: 8,
+                    padding: 0,
+                    border: "none",
                     background: "transparent",
-                    color: "#f87171",
-                    cursor: deleting ? "not-allowed" : "pointer",
-                    opacity: deleting ? 0.7 : 1,
+                    color: "#64748b",
+                    fontFamily: "Montserrat, sans-serif",
+                    fontSize: 11,
+                    textDecoration: "underline",
+                    cursor: cancelingCoachSubscription
+                      ? "not-allowed"
+                      : "pointer",
+                    opacity: cancelingCoachSubscription ? 0.55 : 1,
                   }}
                 >
-                  {deleting ? "Processing..." : "Delete Account"}
+                  {cancelingCoachSubscription
+                    ? "Canceling..."
+                    : "Cancel subscription"}
                 </button>
-              </form>
-            )}
-          </section>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  router.push("/performance-ai/subscribe")
+                }
+                className="row"
+                style={{
+                  width: "100%",
+                  borderLeft: "none",
+                  borderRight: "none",
+                  borderTop: "none",
+                  background: "transparent",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <div>
+                  <p className="row-title">Performance AI</p>
+                  <p className="row-detail">
+                    No active subscription
+                  </p>
+                </div>
 
-          <section
-            className="card"
-            style={{
-              borderRadius: 18,
-              padding: "16px 14px",
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              marginBottom: 20,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                fontFamily: "Montserrat, sans-serif",
-                margin: "0 0 12px",
-              }}
-            >
-              Legal
-            </h2>
+                <span className="chevron">›</span>
+              </button>
+            )}
 
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <a
-                href="/terms"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderRadius: 10,
-                  padding: "11px 12px",
-                  border: "1px solid #e5e7eb",
-                  color: "#1e3a8a",
-                  textDecoration: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
-                <span>Terms & Conditions</span>
-                <span aria-hidden="true">›</span>
-              </a>
-
-              <a
-                href="/privacy"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderRadius: 10,
-                  padding: "11px 12px",
-                  border: "1px solid #e5e7eb",
-                  color: "#1e3a8a",
-                  textDecoration: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
-                <span>Privacy Policy</span>
-                <span aria-hidden="true">›</span>
-              </a>
-            </div>
-          </section>
-          <section
-            className="card"
-            style={{
-              borderRadius: 18,
-              padding: "16px 14px",
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              marginBottom: 20,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
+                marginTop: 26,
+                marginBottom: 8,
                 fontFamily: "Montserrat, sans-serif",
-                margin: "0 0 12px",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "#1e3a8a",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
               }}
             >
-              Memberships
-            </h2>
+              Communities
+            </div>
 
             {loadingMemberships ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
-                Loading memberships...
-              </p>
+              <p className="row-detail">Loading memberships...</p>
             ) : memberships.length === 0 ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
+              <p className="row-detail">
                 You do not have any memberships yet.
               </p>
             ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
-                {memberships.map((membership) => {
-                  const relation =
-                    membership.app_membership_communities;
+              memberships.map((membership) => {
+                const relation =
+                  membership.app_membership_communities;
 
-                  const community = Array.isArray(relation)
-                    ? relation[0]
-                    : relation;
+                const community = Array.isArray(relation)
+                  ? relation[0]
+                  : relation;
 
-                  const price =
-                    typeof community?.price_cents === "number"
-                      ? `$${(community.price_cents / 100).toFixed(2)}`
-                      : null;
+                const price =
+                  typeof community?.price_cents === "number"
+                    ? `$${(
+                        community.price_cents / 100
+                      ).toFixed(2)}`
+                    : null;
 
-                  return (
-                    <div
-                      key={membership.id}
-                      style={{
-                        border: "1px solid #e2e8f0",
-                        borderRadius: 14,
-                        padding: 14,
-                        background: "#f8fafc",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: "#0f172a",
-                          fontFamily: "Montserrat, sans-serif",
-                          marginBottom: 10,
-                        }}
-                      >
+                const status =
+                  membership.subscription_status ||
+                  membership.status ||
+                  "pending";
+
+                const isActive = ["active", "trialing"].includes(
+                  membership.subscription_status ?? ""
+                );
+
+                return (
+                  <div className="row" key={membership.id}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p className="row-title">
                         {community?.name || "Community"}
-                      </div>
+                      </p>
 
-                      <div
-                        style={{
-                          display: "grid",
-                          gap: 6,
-                          fontSize: 12,
-                          color: "#475569",
-                          fontFamily: "Montserrat, sans-serif",
-                        }}
-                      >
-                        <div>
-                          Status:{" "}
-                          <strong style={{ color: "#0f172a" }}>
-                            {membership.subscription_status ||
-                              membership.status ||
-                              "pending"}
-                          </strong>
-                        </div>
+                      <p className="row-detail">
+                        <span
+                          style={{
+                            color: isActive
+                              ? "#15803d"
+                              : "#64748b",
+                            fontWeight: 700,
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {status}
+                        </span>
 
-                        {membership.current_period_end && (
-                          <div>
-                            Next renewal:{" "}
-                            <strong style={{ color: "#0f172a" }}>
-                              {new Date(
-                                membership.current_period_end
-                              ).toLocaleDateString()}
-                            </strong>
-                          </div>
-                        )}
+                        {price
+                          ? ` · ${price}/${
+                              community?.billing_interval ||
+                              "month"
+                            }`
+                          : ""}
 
-                        {price && (
-                          <div>
-                            Price:{" "}
-                            <strong style={{ color: "#0f172a" }}>
-                              {price}/
-                              {community?.billing_interval || "month"}
-                            </strong>
-                          </div>
-                        )}
-                      </div>
+                        {membership.current_period_end
+                          ? ` · Renews ${formatDate(
+                              membership.current_period_end
+                            )}`
+                          : ""}
+                      </p>
 
                       {membership.stripe_subscription_id &&
-                        ["active", "trialing"].includes(
-                          membership.subscription_status ?? ""
-                        ) && (
+                        isActive && (
                           <button
                             type="button"
                             onClick={() =>
                               handleCancelMembership(membership)
                             }
                             disabled={
-                              cancelingMembershipId === membership.id
+                              cancelingMembershipId ===
+                              membership.id
                             }
                             style={{
-                              marginTop: 12,
-                              padding: "4px 0",
+                              marginTop: 8,
+                              padding: 0,
                               border: "none",
                               background: "transparent",
-                              color: "#6b7280",
-                              fontSize: 12,
-                              fontWeight: 500,
-                              fontFamily: "Montserrat, sans-serif",
+                              color: "#64748b",
+                              fontFamily:
+                                "Montserrat, sans-serif",
+                              fontSize: 11,
                               textDecoration: "underline",
                               cursor:
-                                cancelingMembershipId === membership.id
+                                cancelingMembershipId ===
+                                membership.id
                                   ? "not-allowed"
                                   : "pointer",
                               opacity:
-                                cancelingMembershipId === membership.id
-                                  ? 0.6
+                                cancelingMembershipId ===
+                                membership.id
+                                  ? 0.55
                                   : 1,
                             }}
                           >
-                            {cancelingMembershipId === membership.id
+                            {cancelingMembershipId ===
+                            membership.id
                               ? "Canceling..."
-                              : "Cancel Membership"}
+                              : "Cancel membership"}
                           </button>
                         )}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })
             )}
           </section>
-          <section
-            className="card"
-            style={{
-              borderRadius: 8,
-              padding: "16px 14px",
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              marginBottom: 20,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                fontFamily: "Montserrat, sans-serif",
-                margin: "0 0 12px",
-              }}
-            >
-              Health & Safety
-            </h2>
+
+          {/* HEALTH & SAFETY */}
+          <section className="section">
+            <h2 className="section-label">Health & Safety</h2>
+
+            {coachSubscription && (
+              <>
+                <div
+                  style={{
+                    marginTop: 18,
+                    marginBottom: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "#94a3b8",
+                    fontFamily: "Montserrat, sans-serif",
+                  }}
+                >
+                  Coach IA
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/performance-ai/health?view=1")}
+                  className="row"
+                  style={{
+                    width: "100%",
+                    borderLeft: "none",
+                    borderRight: "none",
+                    borderTop: "none",
+                    background: "transparent",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div>
+                    <p className="row-title">Performance AI</p>
+
+                    <p className="row-detail">
+                      <span
+                        style={{
+                          color: coachSubscription.health_form_completed_at
+                            ? "#15803d"
+                            : "#b45309",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {coachSubscription.health_form_completed_at
+                          ? "Completed"
+                          : "Pending"}
+                      </span>
+
+                      {coachSubscription.health_form_completed_at
+                        ? ` · ${formatDate(
+                            coachSubscription.health_form_completed_at
+                          )}`
+                        : " · Complete your Health & Safety form"}
+                    </p>
+                  </div>
+
+                  <span className="chevron">›</span>
+                </button>
+
+                <div
+                  style={{
+                    marginTop: 26,
+                    marginBottom: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: "#94a3b8",
+                    fontFamily: "Montserrat, sans-serif",
+                  }}
+                >
+                  Communities
+                </div>
+              </>
+            )}
 
             {loadingHealthForms ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
+              <p className="row-detail">
                 Loading health information...
               </p>
-            ) : healthForms.length === 0 ? (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  fontFamily: "Montserrat, sans-serif",
-                }}
-              >
+            ) : uniqueHealthForms.length === 0 ? (
+              <p className="row-detail">
                 No Health & Safety form completed yet.
               </p>
             ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
-                {healthForms
-                  .filter(
-                    (form, index, forms) =>
-                      index ===
-                      forms.findIndex(
-                        (item) =>
-                          item.community_id === form.community_id
+              uniqueHealthForms.map((form) => {
+                const membership = memberships.find(
+                  (item) =>
+                    item.community_id === form.community_id
+                );
+
+                const relation =
+                  membership?.app_membership_communities;
+
+                const community = Array.isArray(relation)
+                  ? relation[0]
+                  : relation;
+
+                return (
+                  <button
+                    key={form.id}
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/groups/${form.community_id}/health`
                       )
-                  )
-                  .map((form) => {
-                    const membership = memberships.find(
-                      (item) =>
-                        item.community_id === form.community_id
-                    );
+                    }
+                    className="row"
+                    style={{
+                      width: "100%",
+                      borderLeft: "none",
+                      borderRight: "none",
+                      borderTop: "none",
+                      background: "transparent",
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div>
+                      <p className="row-title">
+                        {community?.name || "Health form"}
+                      </p>
 
-                    const relation =
-                      membership?.app_membership_communities;
-
-                    const community = Array.isArray(relation)
-                      ? relation[0]
-                      : relation;
-
-                    return (
-                      <div
-                        key={form.id}
-                        style={{
-                          border: "1px solid #e2e8f0",
-                          borderRadius: 8,
-                          padding: 14,
-                          background: "#f8fafc",
-                        }}
-                      >
-                        <div
+                      <p className="row-detail">
+                        <span
                           style={{
-                            fontSize: 14,
+                            color: "#15803d",
                             fontWeight: 700,
-                            color: "#0f172a",
-                            fontFamily: "Montserrat, sans-serif",
-                            marginBottom: 10,
                           }}
                         >
-                          {community?.name || "Community"}
-                        </div>
+                          Completed
+                        </span>
+                        {" · "}
+                        {formatDate(form.completed_at)}
+                      </p>
+                    </div>
 
-                        <div
-                          style={{
-                            display: "grid",
-                            gap: 6,
-                            fontSize: 12,
-                            color: "#475569",
-                            fontFamily: "Montserrat, sans-serif",
-                          }}
-                        >
-                          <div>
-                            Status:{" "}
-                            <strong style={{ color: "#166534" }}>
-                              Completed
-                            </strong>
-                          </div>
-
-                          <div>
-                            Completed on:{" "}
-                            <strong style={{ color: "#0f172a" }}>
-                              {new Date(
-                                form.completed_at
-                              ).toLocaleDateString()}
-                            </strong>
-                          </div>
-
-                          <div>
-                            Version:{" "}
-                            <strong style={{ color: "#0f172a" }}>
-                              {form.form_version}
-                            </strong>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            router.push(
-                              `/groups/${form.community_id}/health`
-                            )
-                          }
-                          style={{
-                            marginTop: 12,
-                            borderRadius: 6,
-                            padding: "9px 14px",
-                            border: "none",
-                            fontSize: 13,
-                            fontFamily: "Montserrat, sans-serif",
-                            fontWeight: 600,
-                            background: "#1e3a8a",
-                            color: "#ffffff",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Update Health Form
-                        </button>
-                      </div>
-                    );
-                  })}
-              </div>
+                    <span className="chevron">›</span>
+                  </button>
+                );
+              })
             )}
+          </section>
+
+          {/* LEGAL */}
+          <section className="section">
+            <h2 className="section-label">Legal</h2>
+
+            <a
+              href="/terms"
+              className="row"
+              style={{
+                color: "inherit",
+                textDecoration: "none",
+              }}
+            >
+              <p className="row-title">Terms & Conditions</p>
+              <span className="chevron">›</span>
+            </a>
+
+            <a
+              href="/privacy"
+              className="row"
+              style={{
+                color: "inherit",
+                textDecoration: "none",
+              }}
+            >
+              <p className="row-title">Privacy Policy</p>
+              <span className="chevron">›</span>
+            </a>
+          </section>
+
+          {/* ACCOUNT */}
+          <section className="section">
+            <h2 className="section-label">Account</h2>
+
+            <button
+              type="button"
+              onClick={handleSignOut}
+              disabled={signingOut}
+              className="row"
+              style={{
+                width: "100%",
+                borderLeft: "none",
+                borderRight: "none",
+                borderTop: "none",
+                background: "transparent",
+                textAlign: "left",
+                cursor: signingOut ? "not-allowed" : "pointer",
+                opacity: signingOut ? 0.6 : 1,
+              }}
+            >
+              <p
+                className="row-title"
+                style={{ color: "#1e3a8a" }}
+              >
+                {signingOut ? "Signing out..." : "Sign out"}
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+              className="row"
+              style={{
+                width: "100%",
+                borderLeft: "none",
+                borderRight: "none",
+                borderTop: "none",
+                background: "transparent",
+                textAlign: "left",
+                cursor: deleting ? "not-allowed" : "pointer",
+                opacity: deleting ? 0.6 : 1,
+              }}
+            >
+              <div>
+                <p
+                  className="row-title"
+                  style={{ color: "#dc2626" }}
+                >
+                  {deleting
+                    ? "Processing..."
+                    : "Delete account"}
+                </p>
+
+                <p className="row-detail">
+                  Permanently delete your account and data.
+                </p>
+              </div>
+            </button>
           </section>
         </div>
       </main>
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

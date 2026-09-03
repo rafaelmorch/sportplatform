@@ -6,7 +6,7 @@ import "@fontsource/montserrat/600.css";
 import "@fontsource/montserrat/700.css";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import BackButton from "@/components/BackButton";
 
@@ -140,6 +140,8 @@ const COPY = {
 export default function HealthAndSafetyPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewOnly = searchParams.get("view") === "1";
 
   const [language, setLanguage] = useState<Language>("pt");
   const [answers, setAnswers] = useState<Answers>(INITIAL_ANSWERS);
@@ -176,7 +178,7 @@ export default function HealthAndSafetyPage() {
       } = await supabase
         .from("performance_ai_subscriptions")
         .select(
-          "id,status,answers_certified,waiver_accepted,health_form_completed_at"
+          "id,status,answers_certified,waiver_accepted,health_form_completed_at,par_q_answers"
         )
         .eq("user_id", user.id)
         .eq("status", "active")
@@ -194,11 +196,12 @@ export default function HealthAndSafetyPage() {
         return;
       }
 
-      if (
+      const alreadyCompleted =
         subscription.answers_certified === true &&
         subscription.waiver_accepted === true &&
-        subscription.health_form_completed_at
-      ) {
+        Boolean(subscription.health_form_completed_at);
+
+      if (alreadyCompleted && !viewOnly) {
         router.replace(
           "/performance-ai/coach/consultation"
         );
@@ -207,6 +210,26 @@ export default function HealthAndSafetyPage() {
 
       if (mounted) {
         setSubscriptionId(subscription.id);
+
+        if (
+          viewOnly &&
+          subscription.par_q_answers &&
+          typeof subscription.par_q_answers === "object"
+        ) {
+          setAnswers({
+            ...INITIAL_ANSWERS,
+            ...(subscription.par_q_answers as Partial<Answers>),
+          });
+
+          setAnswersCertified(
+            subscription.answers_certified === true
+          );
+
+          setWaiverAccepted(
+            subscription.waiver_accepted === true
+          );
+        }
+
         setLoading(false);
       }
     }
@@ -216,7 +239,7 @@ export default function HealthAndSafetyPage() {
     return () => {
       mounted = false;
     };
-  }, [router, supabase]);
+  }, [router, supabase, viewOnly]);
 
   function updateAnswer(key: keyof Answers, value: Answer) {
     setAnswers((current) => ({
@@ -732,6 +755,12 @@ export default function HealthAndSafetyPage() {
     </main>
   );
 }
+
+
+
+
+
+
 
 
 
