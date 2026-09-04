@@ -191,7 +191,7 @@ export default function MembershipVideosPage() {
         style={{
           minHeight: "100vh",
           background:
-            "linear-gradient(180deg, #eef1f5 0%, #e5e7eb 45%, #dfe3e8 100%)",
+            "#ffffff",
           paddingTop: "max(16px, env(safe-area-inset-top))",
           paddingRight: "max(16px, env(safe-area-inset-right))",
           paddingBottom: "max(16px, env(safe-area-inset-bottom))",
@@ -207,13 +207,7 @@ export default function MembershipVideosPage() {
           style={{
             maxWidth: 900,
             margin: "0 auto",
-            borderRadius: 28,
             padding: "clamp(18px, 3vw, 24px)",
-            border: "1px solid #d6dbe4",
-            background: "#fff",
-            boxShadow:
-              "8px 8px 24px rgba(148,163,184,0.18), -6px -6px 20px rgba(255,255,255,0.9)",
-            overflow: "hidden",
           }}
         >
           <div
@@ -285,12 +279,10 @@ export default function MembershipVideosPage() {
           {videos.length === 0 ? (
             <div
               style={{
-                marginTop: 18,
-                borderRadius: 20,
-                padding: 18,
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                color: "#475569",
+                marginTop: 24,
+                padding: "24px 0",
+                borderTop: "1px solid #e2e8f0",
+                color: "#64748b",
                 fontSize: 14,
                 lineHeight: 1.7,
               }}
@@ -301,87 +293,89 @@ export default function MembershipVideosPage() {
             <div
               style={{
                 display: "grid",
-                gap: 14,
-                marginTop: 18,
+                gap: 0,
+                marginTop: 24,
               }}
             >
-              {videos.map((video) => {
+              {videos.map((video, index) => {
                 const embedUrl = getVideoEmbedUrl(video.video_url);
 
                 return (
                   <article
                     key={video.id}
                     style={{
-                      borderRadius: 24,
-                      padding: 16,
-                      background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-                      border: "1px solid #e2e8f0",
-                      boxShadow:
-                        "6px 6px 18px rgba(148,163,184,0.10), -4px -4px 14px rgba(255,255,255,0.85)",
+                      paddingTop: index === 0 ? 0 : 28,
+                      paddingBottom: 28,
+                      borderTop:
+                        index === 0 ? "none" : "1px solid #cbd5e1",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "grid",
-                        gap: 14,
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 17,
-                            fontWeight: 800,
-                            color: "#0f172a",
-                            lineHeight: 1.3,
-                            marginBottom: 6,
-                          }}
-                        >
-                          {video.title}
-                        </div>
-
-                        {video.description && (
-                          <div
-                            style={{
-                              fontSize: 13,
-                              color: "#475569",
-                              lineHeight: 1.65,
-                            }}
-                          >
-                            {video.description}
-                          </div>
-                        )}
-                      </div>
-
-                      {embedUrl ? (
-                        <div
+                    {embedUrl ? (
+                      <div
+                        style={{
+                          width: "100%",
+                          aspectRatio: "16 / 9",
+                          borderRadius: 18,
+                          background: "#0f172a",
+                          boxShadow: "0 8px 24px rgba(15,23,42,0.10)",
+                        }}
+                      >
+                        <iframe
+                          src={embedUrl}
+                          title={video.title}
                           style={{
                             width: "100%",
-                            aspectRatio: "16 / 9",
-                            borderRadius: 18,
-                            overflow: "hidden",
-                            border: "1px solid #dbe2ea",
-                            background: "#eef2f7",
+                            height: "100%",
+                            border: 0,
+                            display: "block",
                           }}
-                        >
-                          <iframe
-                            src={embedUrl}
-                            title={video.title}
-                            style={{ width: "100%", height: "100%", border: 0 }}
-                            allow="autoplay; encrypted-media; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </div>                      ) : (
+                          allow="autoplay; encrypted-media; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          aspectRatio: "16 / 9",
+                          borderRadius: 18,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          color: "#64748b",
+                          fontSize: 13,
+                          textAlign: "center",
+                          padding: 20,
+                        }}
+                      >
+                        This video cannot be previewed inside the app.
+                      </div>
+                    )}
+
+                    <div style={{ padding: "16px 2px 0" }}>
+                      <div
+                        style={{
+                          fontSize: 17,
+                          fontWeight: 800,
+                          color: "#0f172a",
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {video.title}
+                      </div>
+
+                      {video.description && (
                         <div
                           style={{
-                            borderRadius: 16,
-                            padding: "14px",
-                            border: "1px solid #dbe2ea",
-                            background: "#f8fafc",
-                            color: "#64748b",
+                            marginTop: 5,
                             fontSize: 13,
+                            color: "#64748b",
+                            lineHeight: 1.6,
                           }}
                         >
-                          This video cannot be previewed inside the app.
+                          {video.description}
                         </div>
                       )}
                     </div>
@@ -395,10 +389,4 @@ export default function MembershipVideosPage() {
     </>
   );
 }
-
-
-
-
-
-
 
