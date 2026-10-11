@@ -49,8 +49,11 @@ export default function PerformanceAiSubscribePage() {
 
       const isNativeIos =
         Capacitor.isNativePlatform() &&
-        Capacitor.getPlatform() === "ios" &&
-        Capacitor.isPluginAvailable("NativePurchases");
+        Capacitor.getPlatform() === "ios";
+
+      if (isNativeIos && !Capacitor.isPluginAvailable("NativePurchases")) {
+        throw new Error("Apple purchases are unavailable. Please update the app.");
+      }
 
       if (isNativeIos) {
         const { NativePurchases } = await import(

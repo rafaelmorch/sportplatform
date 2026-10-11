@@ -177,36 +177,19 @@ export async function POST(req: Request) {
       );
     }
 
-    const { error: upsertError } = await supabase
-      .from("app_membership_requests")
-      .upsert(
-        [
-          {
-            community_id: communityId,
-            user_id: user.id,
-
-            payment_provider: "apple",
-
-            apple_product_id: transaction.productId,
-            apple_transaction_id: transaction.transactionId,
-            apple_original_transaction_id:
-              transaction.originalTransactionId,
-            apple_environment: environment,
-            apple_app_account_token:
-              transaction.appAccountToken,
-
-            subscription_status: "active",
-            current_period_end: new Date(
-              transaction.expiresDate
-            ).toISOString(),
-
-            status: "active",
-          },
-        ],
-        {
-          onConflict: "community_id,user_id",
-        }
-      );
+    const { error: upsertError } = await supabase.rpc(
+      "activate_apple_community_membership",
+      {
+        p_community_id: communityId,
+        p_user_id: user.id,
+        p_product_id: transaction.productId,
+        p_transaction_id: transaction.transactionId,
+        p_original_transaction_id: transaction.originalTransactionId,
+        p_environment: environment,
+        p_app_account_token: transaction.appAccountToken,
+        p_expires_at: new Date(transaction.expiresDate).toISOString(),
+      }
+    );
 
     if (upsertError) {
       console.error(

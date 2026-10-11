@@ -162,78 +162,29 @@ export async function POST(req: Request) {
       );
     }
 
-    const payload = {
-      user_id: user.id,
-      payment_provider: "apple",
+    const { error: activationError } = await supabase.rpc(
+      "activate_apple_performance_ai_subscription",
+      {
+        p_user_id: user.id,
+        p_product_id: transaction.productId,
+        p_transaction_id: transaction.transactionId,
+        p_original_transaction_id: transaction.originalTransactionId,
+        p_environment: environment,
+        p_app_account_token: transaction.appAccountToken,
+        p_expires_at: new Date(transaction.expiresDate).toISOString(),
+      }
+    );
 
-      apple_product_id:
-        transaction.productId,
-
-      apple_transaction_id:
-        transaction.transactionId,
-
-      apple_original_transaction_id:
-        transaction.originalTransactionId,
-
-      apple_environment:
-        environment,
-
-      apple_app_account_token:
-        transaction.appAccountToken,
-
-      status: "active",
-
-      current_period_end:
-        new Date(
-          transaction.expiresDate
-        ).toISOString(),
-
-      updated_at:
-        new Date().toISOString(),
-    };
-
-    const { data: existing, error: readError } =
-      await supabase
-        .from("performance_ai_subscriptions")
-        .select("id")
-        .or(
-          `apple_original_transaction_id.eq.${transaction.originalTransactionId},user_id.eq.${user.id}`
-        )
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(1)
-        .maybeSingle();
-
-    if (readError) {
-      throw new Error(
-        `Failed to find Performance AI subscription: ${readError.message}`
+    if (activationError) {
+      console.error(
+        "Apple Performance AI activation error:",
+        activationError
       );
-    }
 
-    if (existing?.id) {
-      const { error: updateError } =
-        await supabase
-          .from("performance_ai_subscriptions")
-          .update(payload)
-          .eq("id", existing.id);
-
-      if (updateError) {
-        throw new Error(
-          `Failed to update Performance AI subscription: ${updateError.message}`
-        );
-      }
-    } else {
-      const { error: insertError } =
-        await supabase
-          .from("performance_ai_subscriptions")
-          .insert(payload);
-
-      if (insertError) {
-        throw new Error(
-          `Failed to create Performance AI subscription: ${insertError.message}`
-        );
-      }
+      return NextResponse.json(
+        { error: "Failed to activate Apple Performance AI subscription." },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({

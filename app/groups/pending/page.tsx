@@ -41,17 +41,23 @@ function PendingMembershipContent() {
 
       const { data, error } = await supabase
         .from("app_membership_requests")
-        .select("status, subscription_status")
+        .select("status, subscription_status, payment_provider, current_period_end")
         .eq("community_id", communityId)
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (!isMounted || error || !data) return;
 
+      const appleSubscriptionValid =
+        data.payment_provider !== "apple" ||
+        (data.current_period_end !== null &&
+          Date.parse(data.current_period_end) > Date.now());
+
       if (
         data.status === "active" &&
         (data.subscription_status === "active" ||
-          data.subscription_status === "trialing")
+          data.subscription_status === "trialing") &&
+        appleSubscriptionValid
       ) {
         router.replace(`/groups/${communityId}/inside`);
       }
@@ -119,8 +125,11 @@ function PendingMembershipContent() {
 
       const isNativeIos =
         Capacitor.isNativePlatform() &&
-        Capacitor.getPlatform() === "ios" &&
-        Capacitor.isPluginAvailable("NativePurchases");
+        Capacitor.getPlatform() === "ios";
+
+      if (isNativeIos && !Capacitor.isPluginAvailable("NativePurchases")) {
+        throw new Error("Apple purchases are unavailable. Please update the app.");
+      }
 
       if (isNativeIos) {
         const productId = APPLE_COMMUNITY_PRODUCTS[communityId];
