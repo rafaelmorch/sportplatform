@@ -141,7 +141,7 @@ export async function POST(req: Request) {
     }
 
     // Processamento desativado ate a conclusao dos testes.
-    const PROCESSING_ENABLED = false;
+    const PROCESSING_ENABLED = true;
 
     if (!PROCESSING_ENABLED) {
       return NextResponse.json(
