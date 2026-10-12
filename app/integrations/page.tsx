@@ -31,6 +31,12 @@ import {
   syncHealthConnect,
 } from "@/lib/integrations/health-connect";
 
+import {
+  authorizeAppleHealth,
+  isIOSNative,
+  syncAppleHealth,
+} from "@/lib/integrations/apple-health";
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://sportsplatform.app";
 const stravaClientId = process.env.NEXT_PUBLIC_STRAVA_CLIENT_ID!;
 
@@ -43,6 +49,7 @@ type ConnectionStatus = {
   garminConnected: boolean;
   healthConnectAvailable: boolean;
   healthConnectConnected: boolean;
+  appleHealthConnected: boolean;
 };
 
 export default function IntegrationsPage() {
@@ -54,6 +61,8 @@ export default function IntegrationsPage() {
   const [revokingGarmin, setRevokingGarmin] = useState(false);
   const [authorizingHealthConnect, setAuthorizingHealthConnect] = useState(false);
   const [syncingHealthConnect, setSyncingHealthConnect] = useState(false);
+  const [connectingAppleHealth, setConnectingAppleHealth] = useState(false);
+  const [syncingAppleHealth, setSyncingAppleHealth] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -63,6 +72,7 @@ export default function IntegrationsPage() {
     garminConnected: false,
     healthConnectAvailable: false,
     healthConnectConnected: false,
+    appleHealthConnected: false,
   });
 
   const queryParams = useMemo(() => {
@@ -145,6 +155,8 @@ export default function IntegrationsPage() {
       healthConnectAvailable,
       healthConnectConnected:
         activitySource?.provider === "health_connect",
+      appleHealthConnected:
+        activitySource?.provider === "apple_health",
     });
   }
 
@@ -504,6 +516,133 @@ export default function IntegrationsPage() {
     }
   };
 
+  const handleConnectAppleHealth = async () => {
+    if (!isIOSNative()) return;
+
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setConnectingAppleHealth(true);
+
+      const { data, error } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+
+      if (error || !accessToken) {
+        setErrorMsg("Você precisa estar logado para conectar Apple Health.");
+        return;
+      }
+
+      await authorizeAppleHealth();
+
+      const response = await fetch("/api/apple-health/connection", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setErrorMsg(result?.error ?? "Não foi possível conectar Apple Health.");
+        return;
+      }
+
+      setStatus((current) => ({
+        ...current,
+        appleHealthConnected: true,
+      }));
+
+      setSuccessMsg(
+        "Apple Health conectado. Você já pode sincronizar seus treinos."
+      );
+    } catch (error) {
+      console.error("Erro ao conectar Apple Health:", error);
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Erro inesperado ao conectar Apple Health."
+      );
+    } finally {
+      setConnectingAppleHealth(false);
+    }
+  };
+  const handleSyncAppleHealth = async () => {
+    if (!isIOSNative()) return;
+
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setSyncingAppleHealth(true);
+
+      const { data, error } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+
+      if (error || !accessToken) {
+        setErrorMsg("Você precisa estar logado para sincronizar Apple Health.");
+        return;
+      }
+
+      const result = await syncAppleHealth(accessToken);
+
+      setSuccessMsg(
+        `Apple Health sincronizado. ${result.workoutsReadFromAppleHealth ?? 0} treinos encontrados, ${result.workoutsAccepted ?? 0} aceitos pelo filtro e ${result.workoutsSkippedAsPossibleDuplicates ?? 0} possíveis duplicações ignoradas.`
+      );
+    } catch (error) {
+      console.error("Erro ao sincronizar Apple Health:", error);
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Erro inesperado ao sincronizar Apple Health."
+      );
+    } finally {
+      setSyncingAppleHealth(false);
+    }
+  };
+  const handleDisconnectAppleHealth = async () => {
+    if (!isIOSNative()) return;
+
+    try {
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const { data, error } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+
+      if (error || !accessToken) {
+        setErrorMsg("Você precisa estar logado para desconectar Apple Health.");
+        return;
+      }
+
+      const response = await fetch("/api/apple-health/connection", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setErrorMsg(result?.error ?? "Não foi possível desconectar Apple Health.");
+        return;
+      }
+
+      setStatus((current) => ({
+        ...current,
+        appleHealthConnected: false,
+      }));
+
+      setSuccessMsg("Apple Health desconectado com sucesso.");
+    } catch (error) {
+      console.error("Erro ao desconectar Apple Health:", error);
+      setErrorMsg(
+        error instanceof Error
+          ? error.message
+          : "Erro inesperado ao desconectar Apple Health."
+      );
+    }
+  };
   const handleRevokeStrava = async () => {
     try {
       setErrorMsg(null);
@@ -660,7 +799,7 @@ export default function IntegrationsPage() {
           {/* Strava */}
           <div
             style={{
-              display: status.garminConnected || status.healthConnectConnected ? "none" : "block",
+              display: status.garminConnected || status.healthConnectConnected || status.appleHealthConnected ? "none" : "block",
               borderRadius: 18,
               padding: "14px 16px",
               border: "1px solid rgba(148,163,184,0.4)",
@@ -746,7 +885,7 @@ export default function IntegrationsPage() {
         {/* Garmin */}
         <div
           style={{
-            display: status.stravaConnected || status.healthConnectConnected ? "none" : "block",
+            display: status.stravaConnected || status.healthConnectConnected || status.appleHealthConnected ? "none" : "block",
             marginTop: 16,
             borderRadius: 18,
             padding: "14px 16px",
@@ -983,6 +1122,99 @@ export default function IntegrationsPage() {
               >
                 Desconectar
               </button>
+            )}
+          </div>
+        )}
+        {isIOSNative() && (
+          <div
+            style={{
+              marginTop: 16,
+              borderRadius: 18,
+              padding: "14px 16px",
+              border: "1px solid rgba(148,163,184,0.4)",
+              background: "#ffffff",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>
+              Apple Health
+            </div>
+
+            <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
+              Importe seus treinos do Apple Watch pelo Apple Health.
+            </div>
+
+            {status.appleHealthConnected && (
+              <div style={{ fontSize: 12, color: "#166534", marginTop: 10 }}>
+                Conectado
+              </div>
+            )}
+
+            {!status.appleHealthConnected ? (
+              <button
+                type="button"
+                onClick={handleConnectAppleHealth}
+                disabled={
+                  loading ||
+                  connectingAppleHealth ||
+                  status.stravaConnected ||
+                  status.garminConnected ||
+                  status.healthConnectConnected
+                }
+                style={{
+                  width: "100%",
+                  height: 44,
+                  marginTop: 12,
+                  borderRadius: 10,
+                  border: "1px solid #111827",
+                  background: "#111827",
+                  color: "#ffffff",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  opacity: connectingAppleHealth ? 0.7 : 1,
+                }}
+              >
+                {connectingAppleHealth ? "Conectando..." : "Conectar"}
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSyncAppleHealth}
+                  disabled={syncingAppleHealth}
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    marginTop: 12,
+                    borderRadius: 10,
+                    border: "1px solid #111827",
+                    background: "#111827",
+                    color: "#ffffff",
+                    fontSize: 16,
+                    fontWeight: 700,
+                  }}
+                >
+                  {syncingAppleHealth ? "Sincronizando..." : "Sincronizar treinos"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDisconnectAppleHealth}
+                  disabled={syncingAppleHealth}
+                  style={{
+                    width: "100%",
+                    height: 40,
+                    marginTop: 10,
+                    borderRadius: 10,
+                    border: "2px solid #111827",
+                    background: "#ffffff",
+                    color: "#111827",
+                    fontSize: 15,
+                    fontWeight: 700,
+                  }}
+                >
+                  Desconectar
+                </button>
+              </>
             )}
           </div>
         )}
