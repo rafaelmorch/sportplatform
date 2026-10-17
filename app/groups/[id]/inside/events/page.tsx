@@ -292,14 +292,20 @@ export default function MembershipEventsPage() {
         if (!creator) {
           const { data: membershipRequest } = await supabase
             .from("app_membership_requests")
-            .select("status")
+            .select("status, payment_provider, current_period_end")
             .eq("community_id", communityId)
             .eq("user_id", user.id)
             .maybeSingle();
 
+          const appleSubscriptionValid =
+            membershipRequest?.payment_provider !== "apple" ||
+            (membershipRequest?.current_period_end != null &&
+              Date.parse(membershipRequest.current_period_end) > Date.now());
+
           if (
             !membershipRequest ||
-            !["approved", "active"].includes(membershipRequest.status)
+            !["approved", "active"].includes(membershipRequest.status) ||
+            !appleSubscriptionValid
           ) {
             router.replace(`/groups/${communityId}`);
             return;

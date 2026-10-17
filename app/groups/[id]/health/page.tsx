@@ -188,10 +188,15 @@ export default function HealthAndSafetyPage() {
 
       const { data: membership, error: membershipError } = await supabase
         .from("app_membership_requests")
-        .select("id, status, subscription_status")
+        .select("id, status, subscription_status, payment_provider, current_period_end")
         .eq("community_id", communityId)
         .eq("user_id", user.id)
         .maybeSingle();
+
+      const appleSubscriptionValid =
+        membership?.payment_provider !== "apple" ||
+        (membership?.current_period_end != null &&
+          Date.parse(membership.current_period_end) > Date.now());
 
       if (
         membershipError ||
@@ -199,7 +204,8 @@ export default function HealthAndSafetyPage() {
         membership.status !== "active" ||
         !["active", "trialing"].includes(
           membership.subscription_status ?? ""
-        )
+        ) ||
+        !appleSubscriptionValid
       ) {
         router.replace(`/groups/pending?community_id=${communityId}`);
         return;

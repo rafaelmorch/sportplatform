@@ -840,7 +840,7 @@ export default function TrainingPage() {
         </p>
       </header>
 
-      {!stravaConnected && !garminConnected ? (
+      {!stravaConnected && !garminConnected && activities.length === 0 ? (
         <section style={connectionCardStyle}>
           <div>
             <div style={cardEyebrowStyle}>
@@ -1613,6 +1613,8 @@ const messageStyle: React.CSSProperties = {
   lineHeight: 1.5,
   boxShadow: "0 12px 36px rgba(0,0,0,0.42)",
 };
+
+
 
 
 

@@ -183,7 +183,7 @@ export default function IntroPage() {
         return;
       }
 
-      setCommunities((data as IntroCommunity[]) ?? []);
+      setCommunities(((data as IntroCommunity[]) ?? []).filter((community) => community.name?.toLowerCase().trim() !== "triathlon"));
     }
 
     loadCommunities();
@@ -310,16 +310,16 @@ export default function IntroPage() {
       Math.floor((Date.now() - time) / (1000 * 60 * 60 * 24))
     );
 
-    if (days === 0) return "hoje";
-    if (days === 1) return "há 1 dia";
-    return `há ${days} dias`;
+    if (days === 0) return "today";
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
   };
 
   const latestActivitySummary = latestActivity
     ? [
-        latestActivity.sport_type || latestActivity.name || "Atividade",
+        latestActivity.sport_type || latestActivity.name || "Activity",
         latestActivity.distance_m != null
-          ? `${(Number(latestActivity.distance_m) / 1000).toFixed(1).replace(".", ",")} km`
+          ? `${(Number(latestActivity.distance_m) / 1000).toFixed(1)} km`
           : null,
         formatActivityAge(latestActivity.start_date),
       ]
@@ -408,7 +408,7 @@ export default function IntroPage() {
             alt="Run Club"
             style={{
               position: "absolute",
-              top: "calc(160px + env(safe-area-inset-top))",
+              top: "calc(80px + env(safe-area-inset-top))",
               left: "50%",
               transform: "translateX(-50%)",
               width: "clamp(276px,66vw,420px)",
@@ -443,9 +443,9 @@ export default function IntroPage() {
               letterSpacing: "-0.03em",
             }}
           >
-            Transforme sua vida
+            Transform your life
             <br />
-            através do esporte.
+            through sports.
           </h1>
 
           <div
@@ -469,11 +469,11 @@ export default function IntroPage() {
               maxWidth: 450,
             }}
           >
-            Comunidade, desafios, performance e inteligência para acompanhar
-            cada etapa da sua evolução.
+            Community, challenges, performance, and smart tools to support
+            every step of your progress.
           </p>
 
-          {/* LOGIN / SAUDAÇÃO */}
+          {/* LOGIN / GREETING */}
           {userName ? (
             <div
               style={{
@@ -503,7 +503,7 @@ export default function IntroPage() {
                     fontWeight: 600,
                   }}
                 >
-                  Olá, {userName}
+                  Hello, {userName}
                 </span>
               </div>
 
@@ -522,7 +522,7 @@ export default function IntroPage() {
                 >
                   {connectedDevice && (
                     <span>
-                      Conectado ao <span style={{ color: "#2684ff", fontWeight: 500 }}>{connectedDevice}</span>
+                      Connected to <span style={{ color: "#2684ff", fontWeight: 500 }}>{connectedDevice}</span>
                     </span>
                   )}
 
@@ -543,7 +543,7 @@ export default function IntroPage() {
                         lineHeight: 1.35,
                       }}
                     >
-                      Última atividade: {latestActivitySummary}
+                      Latest activity: {latestActivitySummary}
                     </div>
                   )}
                 </div>
@@ -599,7 +599,7 @@ export default function IntroPage() {
                   strokeLinecap="round"
                 />
               </svg>
-              Entrar
+              Sign In
             </button>
           )}
 
@@ -611,7 +611,7 @@ export default function IntroPage() {
               fontSize: 9.5,
             }}
           >
-            Seus dados protegidos. Sua jornada é sua.
+            Your data stays protected. Your journey is yours.
           </p>
 
           <p
@@ -624,7 +624,7 @@ export default function IntroPage() {
               textTransform: "uppercase",
             }}
           >
-            Tudo que você precisa para evoluir
+            Everything you need to progress
           </p>
 
           <div style={{ display: "grid", gap: 10 }}>
@@ -663,7 +663,7 @@ export default function IntroPage() {
                     letterSpacing: "-0.03em",
                   }}
                 >
-                  Comunidades
+                  Communities
                 </h2>
 
                 <button
@@ -680,7 +680,7 @@ export default function IntroPage() {
                     cursor: "pointer",
                   }}
                 >
-                  Ver todas
+                  View All
                 </button>
               </div>
 
@@ -693,8 +693,8 @@ export default function IntroPage() {
                   lineHeight: 1.5,
                 }}
               >
-                Encontre pessoas que compartilham seus objetivos, sua rotina
-                e sua paixão pelo esporte.
+                Find people who share your goals, your routine,
+                and your passion for sports.
               </p>
 
               <div
@@ -743,7 +743,7 @@ export default function IntroPage() {
                       {image ? (
                         <img
                           src={image}
-                          alt={community.name || "Comunidade"}
+                          alt={community.name || "Community"}
                           style={{
                             position: "absolute",
                             inset: 0,
@@ -781,7 +781,7 @@ export default function IntroPage() {
                               "0 2px 8px rgba(0,0,0,.65)",
                           }}
                         >
-                          {community.name || "Comunidade"}
+                          {community.name || "Community"}
                         </div>
 
                         {community.short_description && (
@@ -822,18 +822,18 @@ export default function IntroPage() {
                 fontWeight: 500,
               }}
             >
-              <span>Desafios & Journey</span>
+              <span>Challenges & Journey</span>
               <span style={{ color: "#2f80ff" }}>•</span>
               <span>Performance</span>
               <span style={{ color: "#2f80ff" }}>•</span>
-              <span>Fórum</span>
+              <span>Forum</span>
               <span style={{ color: "#2f80ff" }}>•</span>
-              <span>Conteúdo Especializado</span>
+              <span>Expert Content</span>
             </div>
 
           </div>
 
-            {/* ATIVIDADES */}
+            {/* ACTIVITIES */}
             <section
               onClick={() => navigate("/activities")}
               style={{
@@ -871,7 +871,7 @@ export default function IntroPage() {
                 >
                   <img
                     src="/activities-icon.png"
-                    alt="Atividades"
+                    alt="Activities"
                     style={{
                       display: "block",
                       width: "48px",
@@ -890,7 +890,7 @@ export default function IntroPage() {
                       fontWeight: 600,
                     }}
                   >
-                    Atividades
+                    Activities
                   </h2>
 
                   <p
@@ -902,7 +902,7 @@ export default function IntroPage() {
                       lineHeight: 1.3,
                     }}
                   >
-                    Encontre atividades perto de você
+                    Find activities near you
                   </p>
 
                   <p
@@ -913,7 +913,7 @@ export default function IntroPage() {
                       lineHeight: 1.35,
                     }}
                   >
-                    Corridas, pedaladas, eventos e muito mais.
+                    Runs, bike rides, events, and more.
                   </p>
                 </div>
 
@@ -936,7 +936,7 @@ export default function IntroPage() {
 
               <img
                 src="/activities-journey.png"
-                alt="Jornada de atividades"
+                alt="Activity journey"
                 style={{
                   display: "block",
                   width: "100%",
@@ -947,7 +947,7 @@ export default function IntroPage() {
               />
             </section>
 
-            {/* COACH IA */}
+            {/* AI COACH */}
             <section
               onClick={() => navigate("/performance-ai")}
               style={{
@@ -983,7 +983,7 @@ export default function IntroPage() {
                       letterSpacing: "-0.03em",
                     }}
                   >
-                    Coach IA
+                    AI Coach
                   </h2>
 
                   <p
@@ -994,8 +994,8 @@ export default function IntroPage() {
                       lineHeight: 1.55,
                     }}
                   >
-                    Seu treinador inteligente 24/7. Planos personalizados,
-                    insights e recomendações para você evoluir todos os dias.
+                    Your smart coach, available 24/7. Personalized plans,
+                    insights, and recommendations to help you improve every day.
                   </p>
                 </div>
 
@@ -1009,7 +1009,7 @@ export default function IntroPage() {
                       fontWeight: 500,
                     }}
                   >
-                    Seu progresso
+                    Your progress
                   </p>
 
                   <div
@@ -1055,7 +1055,7 @@ export default function IntroPage() {
                           fontWeight: 500,
                         }}
                       >
-                        Excelente
+                        Excellent
                       </span>
                     </div>
                   </div>
@@ -1082,7 +1082,7 @@ export default function IntroPage() {
                   cursor: "pointer",
                 }}
               >
-                Conhecer o Coach IA
+                Explore AI Coach
               </button>
 
               <div
@@ -1097,7 +1097,7 @@ export default function IntroPage() {
               >
                 {[
                   {
-                    label: "Plano personalizado",
+                    label: "Personalized plan",
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.7" />
@@ -1106,7 +1106,7 @@ export default function IntroPage() {
                     ),
                   },
                   {
-                    label: "Treinos inteligentes",
+                    label: "Smart workouts",
                     icon: (
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                         <path d="M4 10v4M7 7v10M17 7v10M20 10v4M7 12h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1114,7 +1114,7 @@ export default function IntroPage() {
                     ),
                   },
                   {
-                    label: "Análises e insights",
+                    label: "Analysis and insights",
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <path d="M5 19v-6M10 19V9M15 19v-4M20 19V5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1122,7 +1122,7 @@ export default function IntroPage() {
                     ),
                   },
                   {
-                    label: "Recomendações diárias",
+                    label: "Daily recommendations",
                     icon: (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                         <path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-4 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />

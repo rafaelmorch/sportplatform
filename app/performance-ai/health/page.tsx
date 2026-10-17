@@ -178,7 +178,7 @@ export default function HealthAndSafetyPage() {
       } = await supabase
         .from("performance_ai_subscriptions")
         .select(
-          "id,status,answers_certified,waiver_accepted,health_form_completed_at,par_q_answers"
+          "id,status,payment_provider,current_period_end,answers_certified,waiver_accepted,health_form_completed_at,par_q_answers"
         )
         .eq("user_id", user.id)
         .eq("status", "active")
@@ -188,9 +188,15 @@ export default function HealthAndSafetyPage() {
         .limit(1)
         .maybeSingle();
 
+      const appleSubscriptionValid =
+        subscription?.payment_provider !== "apple" ||
+        (subscription?.current_period_end != null &&
+          Date.parse(subscription.current_period_end) > Date.now());
+
       if (
         subscriptionError ||
-        !subscription
+        !subscription ||
+        !appleSubscriptionValid
       ) {
         router.replace("/performance-ai/subscribe");
         return;

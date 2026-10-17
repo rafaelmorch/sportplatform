@@ -69,7 +69,7 @@ export default function GroupPerformancePage() {
 
         if (!accessToken) {
           throw new Error(
-            "Sessão não encontrada. Faça login novamente."
+            "Session not found. Please log in again."
           );
         }
 
@@ -87,7 +87,7 @@ export default function GroupPerformancePage() {
         if (!response.ok) {
           throw new Error(
             result?.error ??
-              `Erro HTTP ${response.status}`
+              `HTTP error ${response.status}`
           );
         }
 
@@ -98,14 +98,14 @@ export default function GroupPerformancePage() {
         );
       } catch (error) {
         console.error(
-          "Erro ao carregar performance do grupo:",
+          "Error loading group performance:",
           error
         );
 
         setErrorText(
           error instanceof Error
             ? error.message
-            : "Erro ao carregar performance do grupo."
+            : "Error loading group performance."
         );
       } finally {
         setLoading(false);
@@ -158,7 +158,7 @@ export default function GroupPerformancePage() {
         </div>
 
         {loading ? (
-          <div>Carregando performance...</div>
+          <div>Loading performance...</div>
         ) : errorText ? (
           <div
             style={{

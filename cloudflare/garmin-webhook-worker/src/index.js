@@ -1,3 +1,38 @@
+
+async function evaluatePlatformChallenges(env, appUserId) {
+  const baseUrl = env.PLATFORM_APP_URL?.replace(/\/+$/, "");
+  const secret = env.INTERNAL_API_SECRET;
+
+  if (!baseUrl || !secret) {
+    throw new Error(
+      "Missing PLATFORM_APP_URL or INTERNAL_API_SECRET."
+    );
+  }
+
+  const response = await fetch(
+    `${baseUrl}/api/internal/challenges/evaluate`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": secret,
+      },
+      body: JSON.stringify({
+        userId: appUserId,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      `Challenge evaluation failed (${response.status}): ${errorText}`
+    );
+  }
+
+  return response.json();
+}
 const MAX_INLINE_PROCESSING_BYTES = 8 * 1024 * 1024;
 
 function eventTypeFromKey(key) {
@@ -243,6 +278,17 @@ async function processActivityItem(
       appUserId,
       externalId,
       item
+    );
+
+    const challengeEvaluation =
+      await evaluatePlatformChallenges(
+        env,
+        appUserId
+      );
+
+    console.log(
+      "Garmin challenge evaluation:",
+      challengeEvaluation
     );
 
     await updateWebhookEvent(
@@ -1505,6 +1551,8 @@ export default {
     }
   },
 };
+
+
 
 
 

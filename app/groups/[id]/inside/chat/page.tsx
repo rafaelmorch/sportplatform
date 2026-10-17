@@ -258,7 +258,7 @@ export default function MembershipChatPage() {
         if (!isCreator) {
           const { data: request, error: requestError } = await supabase
             .from("app_membership_requests")
-            .select("status, subscription_status")
+            .select("status, subscription_status, payment_provider, current_period_end")
             .eq("community_id", communityId)
             .eq("user_id", user.id)
             .maybeSingle();
@@ -267,13 +267,19 @@ export default function MembershipChatPage() {
             console.error("Error validating chat membership:", requestError);
           }
 
+          const appleSubscriptionValid =
+            request?.payment_provider !== "apple" ||
+            (request?.current_period_end != null &&
+              Date.parse(request.current_period_end) > Date.now());
+
           const membershipAllowed =
             request &&
             ["approved", "active"].includes(request.status) &&
             (
               !request.subscription_status ||
               ["active", "trialing"].includes(request.subscription_status)
-            );
+            ) &&
+            appleSubscriptionValid;
 
           if (!membershipAllowed) {
             router.replace(`/groups/${communityId}`);

@@ -126,12 +126,21 @@ export default function MembershipVideosPage() {
       if (!isCreator && !isAdmin) {
         const { data: request } = await supabase
           .from("app_membership_requests")
-          .select("status")
+          .select("status, payment_provider, current_period_end")
           .eq("community_id", communityId)
           .eq("user_id", user.id)
           .single();
 
-        if (!request || !["approved", "active"].includes(request.status)) {
+        const appleSubscriptionValid =
+          request?.payment_provider !== "apple" ||
+          (request?.current_period_end != null &&
+            Date.parse(request.current_period_end) > Date.now());
+
+        if (
+          !request ||
+          !["approved", "active"].includes(request.status) ||
+          !appleSubscriptionValid
+        ) {
           router.push(`/memberships/${communityId}`);
           return;
         }

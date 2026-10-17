@@ -737,7 +737,7 @@ const typedCommunity = community as CommunityRow;
       if (!isCreator && profile?.is_admin !== true) {
         const { data: request } = await supabase
           .from("app_membership_requests")
-          .select("status, subscription_status, stripe_subscription_id, current_period_end")
+          .select("status, subscription_status, stripe_subscription_id, current_period_end, payment_provider")
           .eq("community_id", id)
           .eq("user_id", user.id)
           .maybeSingle();
@@ -747,10 +747,16 @@ const typedCommunity = community as CommunityRow;
         setSubscriptionStatus(request?.subscription_status ?? null);
         setCurrentPeriodEnd(request?.current_period_end ?? null);
 
+        const appleSubscriptionValid =
+          request?.payment_provider !== "apple" ||
+          (request?.current_period_end != null &&
+            Date.parse(request.current_period_end) > Date.now());
+
         const hasValidAccess =
           request &&
           request.status === "active" &&
-          ["active", "trialing"].includes(request.subscription_status ?? "");
+          ["active", "trialing"].includes(request.subscription_status ?? "") &&
+          appleSubscriptionValid;
 
         if (!hasValidAccess) {
           router.replace(`/groups/pending?community_id=${id}`);
@@ -1347,25 +1353,6 @@ fontWeight: 700,
                     background: "#facc15",
                   }}
                 />
-              </Link>
-
-              <Link
-                href={`/groups/${communityId}/inside/chat`}
-                style={{
-                  textDecoration: "none",
-                  color: "#0f172a",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  padding: "7px 8px",
-                  borderRadius: 6,
-                  background: "#ffffff",
-                  border: "1px solid #94a3b8",
-                  boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                Chat
               </Link>
               <Link
                 href={`/groups/${communityId}/inside/feed`}

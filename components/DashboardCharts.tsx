@@ -39,7 +39,7 @@ export default function DashboardCharts({
           margin: "0 0 8px 0",
         }}
       >
-        Evolução dos treinos (min)
+        Workout Progress (min)
       </h2>
       <p
         style={{
@@ -48,16 +48,16 @@ export default function DashboardCharts({
           margin: "0 0 12px 0",
         }}
       >
-        Minutos de treino por dia:{" "}
-        <span style={{ color: "#4ade80" }}>você</span>,{" "}
-        <span style={{ color: "#60a5fa" }}>média do grupo</span> e{" "}
-        <span style={{ color: "#f97316" }}>líder do ranking</span>.
+        Daily workout minutes:{" "}
+        <span style={{ color: "#4ade80" }}>you</span>,{" "}
+        <span style={{ color: "#60a5fa" }}>group average</span> e{" "}
+        <span style={{ color: "#f97316" }}>ranking leader</span>.
       </p>
 
       {!hasData ? (
         <p style={{ fontSize: 13, color: "#9ca3af", marginTop: 8 }}>
-          Ainda não há dados suficientes neste período para desenhar a evolução
-          dos treinos.
+          There is not enough data in this period to show workout
+          progress.
         </p>
       ) : (
         <div style={{ width: "100%", height: 260 }}><ResponsiveContainer width="100%" height="100%">
@@ -90,7 +90,7 @@ export default function DashboardCharts({
             <Line
               type="monotone"
               dataKey="userMinutes"
-              name="Você"
+              name="You"
               stroke="#4ade80"
               strokeWidth={2}
               dot={false}
@@ -99,7 +99,7 @@ export default function DashboardCharts({
             <Line
               type="monotone"
               dataKey="groupAvgMinutes"
-              name="Média do grupo"
+              name="Group Average"
               stroke="#60a5fa"
               strokeWidth={2}
               dot={false}
@@ -108,7 +108,7 @@ export default function DashboardCharts({
             <Line
               type="monotone"
               dataKey="leaderMinutes"
-              name="Líder do ranking"
+              name="Ranking Leader"
               stroke="#f97316"
               strokeWidth={2}
               dot={false}

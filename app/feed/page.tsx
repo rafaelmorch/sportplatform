@@ -175,7 +175,7 @@ export default function FeedPage() {
     } = await supabaseBrowser.auth.getSession();
 
     if (sessionError) {
-      console.error("Erro ao obter sessão:", sessionError);
+      console.error("Error getting session:", sessionError);
     }
 
     if (!session) {
@@ -207,7 +207,7 @@ export default function FeedPage() {
       .order("created_at", { ascending: false });
 
     if (postsError || !postsData) {
-      console.error("Erro ao carregar posts:", postsError);
+      console.error("Error loading posts:", postsError);
       setPosts([]);
       setLoading(false);
       return;
@@ -272,7 +272,7 @@ export default function FeedPage() {
   // ---------- CURTIR / DESCURTIR (1 por usuário) ----------
   async function handleLike(postId: string) {
     if (!userId) {
-      alert("Faça login para curtir as postagens.");
+      alert("Please log in to like posts.");
       return;
     }
 
@@ -288,7 +288,7 @@ export default function FeedPage() {
         .eq("user_id", userId);
 
       if (error) {
-        console.error("Erro ao remover curtida:", error);
+        console.error("Error removing like:", error);
       } else {
         setLikedPosts((prev) => {
           const copy = new Set(prev);
@@ -310,7 +310,7 @@ export default function FeedPage() {
         .insert({ post_id: postId, user_id: userId });
 
       if (error) {
-        console.error("Erro ao registrar curtida:", error);
+        console.error("Error adding like:", error);
       } else {
         setLikedPosts((prev) => {
           const copy = new Set(prev);
@@ -360,7 +360,7 @@ export default function FeedPage() {
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("Erro ao carregar comentários:", error);
+      console.error("Error loading comments:", error);
     } else if (data) {
       setPostComments((prev) => ({
         ...prev,
@@ -382,7 +382,7 @@ export default function FeedPage() {
 
     if (!text) return;
     if (!userId) {
-      alert("Faça login para comentar.");
+      alert("Please log in to comment.");
       return;
     }
 
@@ -400,7 +400,7 @@ export default function FeedPage() {
       .single();
 
     if (error) {
-      console.error("Erro ao salvar comentário:", error);
+      console.error("Error saving comment:", error);
     } else if (data) {
       const newComment = data as Comment;
 
@@ -432,7 +432,7 @@ export default function FeedPage() {
   async function handleDeletePost(postId: string) {
     if (!userId) return;
 
-    const confirmed = window.confirm("Excluir esta postagem?");
+    const confirmed = window.confirm("Delete this post?");
     if (!confirmed) return;
 
     setDeletingPostId(postId);
@@ -444,8 +444,8 @@ export default function FeedPage() {
       .eq("user_id", userId);
 
     if (error) {
-      console.error("Erro ao excluir postagem:", error);
-      alert("Não foi possível excluir a postagem.");
+      console.error("Error deleting post:", error);
+      alert("Could not delete the post.");
       setDeletingPostId(null);
       return;
     }
@@ -476,7 +476,7 @@ export default function FeedPage() {
   async function handleDeleteComment(postId: string, commentId: string) {
     if (!userId) return;
 
-    const confirmed = window.confirm("Excluir este comentário?");
+    const confirmed = window.confirm("Delete this comment?");
     if (!confirmed) return;
 
     setDeletingCommentId(commentId);
@@ -488,8 +488,8 @@ export default function FeedPage() {
       .eq("user_id", userId);
 
     if (error) {
-      console.error("Erro ao excluir comentário:", error);
-      alert("Não foi possível excluir o comentário.");
+      console.error("Error deleting comment:", error);
+      alert("Could not delete the comment.");
       setDeletingCommentId(null);
       return;
     }
@@ -677,7 +677,7 @@ export default function FeedPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Compartilhe treinos, tire dúvidas e conecte-se com a comunidade esportiva.
+                  Share workouts, ask questions, and connect with the sports community.
                 </p>
               </div>
 
@@ -694,7 +694,7 @@ export default function FeedPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Nova postagem
+                New post
               </a>
             </div>
 
@@ -706,7 +706,7 @@ export default function FeedPage() {
                   marginTop: "8px",
                 }}
               >
-                Carregando postagens…
+                Loading posts…
               </p>
             )}
 
@@ -718,7 +718,7 @@ export default function FeedPage() {
                   marginTop: "8px",
                 }}
               >
-                Nenhuma postagem ainda. Seja o primeiro a compartilhar com a comunidade.
+                No posts yet. Be the first to share with the community.
               </p>
             )}
 
@@ -771,7 +771,7 @@ export default function FeedPage() {
                             fontWeight: 600,
                           }}
                         >
-                          {post.author_name || "Atleta"}
+                          {post.author_name || "Athlete"}
                         </span>
                         <span
                           style={{
@@ -803,8 +803,8 @@ export default function FeedPage() {
                           }}
                         >
                           {deletingPostId === post.id
-                            ? "Excluindo..."
-                            : "Excluir"}
+                            ? "Deleting..."
+                            : "Delete"}
                         </button>
                       )}
                     </div>
@@ -837,7 +837,7 @@ export default function FeedPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={post.image_url}
-                          alt="Foto do treino"
+                          alt="Workout photo"
                           style={{
                             width: "100%",
                             height: "100%",
@@ -886,11 +886,11 @@ export default function FeedPage() {
                           <span style={{ fontSize: "14px", lineHeight: 1 }}>
                             {isLiked ? "💚" : "🤍"}
                           </span>
-                          <span>{isLiked ? "Você curtiu" : "Curtir"}</span>
+                          <span>{isLiked ? "Liked" : "Like"}</span>
                         </button>
 
                         <span style={{ fontSize: "12px", color: "#64748b" }}>
-                          {post.likes} curtida{post.likes === 1 ? "" : "s"}
+                          {post.likes} {post.likes === 1 ? "like" : "likes"}
                         </span>
                       </div>
 
@@ -910,10 +910,10 @@ export default function FeedPage() {
                         }}
                       >
                         {loadingCommentsPostId === post.id
-                          ? "Carregando comentários…"
+                          ? "Loading comments…"
                           : isCommentsOpen
-                          ? `Ocultar comentários (${post.comments_count})`
-                          : `Ver comentários (${post.comments_count})`}
+                          ? `Hide comments (${post.comments_count})`
+                          : `View comments (${post.comments_count})`}
                       </button>
                     </div>
 
@@ -931,7 +931,7 @@ export default function FeedPage() {
                       >
                         <input
                           type="text"
-                          placeholder="Escreva um comentário…"
+                          placeholder="Write a comment…"
                           value={commentText[post.id] ?? ""}
                           onChange={(e) =>
                             setCommentText((prev) => ({
@@ -967,8 +967,8 @@ export default function FeedPage() {
                           }}
                         >
                           {commentLoadingPostId === post.id
-                            ? "Enviando..."
-                            : "Enviar"}
+                            ? "Sending..."
+                            : "Send"}
                         </button>
                       </form>
                     </div>
@@ -991,8 +991,8 @@ export default function FeedPage() {
                               margin: 0,
                             }}
                           >
-                            Ainda não há comentários neste post. Seja o primeiro
-                            a comentar.
+                            No comments on this post yet. Be the first
+                            to comment.
                           </p>
                         ) : (
                           <ul
@@ -1031,7 +1031,7 @@ export default function FeedPage() {
                                         color: "#0f172a",
                                       }}
                                     >
-                                      {c.author_name || "Atleta"}
+                                      {c.author_name || "Athlete"}
                                     </span>
                                     <span
                                       style={{
@@ -1042,7 +1042,7 @@ export default function FeedPage() {
                                     >
                                       {new Date(
                                         c.created_at
-                                      ).toLocaleDateString("pt-BR", {
+                                      ).toLocaleDateString("en-US", {
                                         day: "2-digit",
                                         month: "2-digit",
                                       })}
@@ -1073,8 +1073,8 @@ export default function FeedPage() {
                                       }}
                                     >
                                       {deletingCommentId === c.id
-                                        ? "Excluindo..."
-                                        : "Excluir"}
+                                        ? "Deleting..."
+                                        : "Delete"}
                                     </button>
                                   )}
                                 </div>
@@ -1096,30 +1096,3 @@ export default function FeedPage() {
     </>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -51,3 +51,8 @@ Backups/
 
 # Local backup files
 *.backup-*
+
+# Apple private keys
+AuthKey_*.p8
+*.p8
+certs/

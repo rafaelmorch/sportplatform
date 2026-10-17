@@ -2,6 +2,9 @@
   "name": "garmin-webhook-receiver",
   "main": "src/index.js",
   "compatibility_date": "2026-08-17",
+  "vars": {
+    "PLATFORM_APP_URL": "https://sportsplatform.app"
+  },
   "r2_buckets": [
     {
       "binding": "GARMIN_INBOX",
@@ -18,3 +21,4 @@
     ]
   }
 }
+

@@ -108,7 +108,44 @@ export async function GET(req: NextRequest) {
 
     const athleteId = athlete.id;
 
-    // 3) Cleanup: garante 1 linha por user_id
+    // 3) Garante uma única fonte principal de atividades por usuário.
+    // Se outra fonte já estiver ativa, não salva a conexão do Strava.
+    const { data: activeSource, error: activeSourceError } =
+      await supabaseAdmin
+        .from("user_activity_source")
+        .select("provider")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (activeSourceError) {
+      console.error(
+        "Erro ao verificar fonte ativa antes de conectar Strava:",
+        activeSourceError
+      );
+
+      return NextResponse.json(
+        {
+          message: "Não foi possível verificar a fonte de atividades ativa.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (
+      activeSource?.provider &&
+      activeSource.provider !== "strava"
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Outra fonte de atividades já está conectada. Desconecte-a antes de conectar o Strava.",
+          activeProvider: activeSource.provider,
+        },
+        { status: 409 }
+      );
+    }
+
+    // 4) Cleanup: garante 1 linha por user_id
     // (se o usuário estava conectado antes a outro athlete, remove)
     const { error: delUserErr } = await supabaseAdmin
       .from("strava_tokens")
@@ -187,4 +224,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 

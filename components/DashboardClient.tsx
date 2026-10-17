@@ -103,7 +103,7 @@ function formatDate(dateStr: string | null | undefined): string {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return "-";
 
-  return d.toLocaleDateString("pt-BR", {
+  return d.toLocaleDateString("en-US", {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
@@ -191,15 +191,15 @@ export default function DashboardClient({ activities, eventsSummary, communityId
 
       const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
       if (sessionErr) {
-        console.error("Erro ao pegar sessão (sync):", sessionErr);
-        setSyncMsg("Erro ao autenticar para sincronizar. Faça login novamente.");
+        console.error("Error retrieving session (sync):", sessionErr);
+        setSyncMsg("Authentication failed during sync. Please log in again.");
         setSyncing(false);
         return;
       }
 
       const accessToken = sessionData.session?.access_token ?? null;
       if (!accessToken) {
-        setSyncMsg("Você precisa estar logado para sincronizar.");
+        setSyncMsg("You must be logged in to sync.");
         setSyncing(false);
         return;
       }
@@ -214,7 +214,7 @@ export default function DashboardClient({ activities, eventsSummary, communityId
       if (!res.ok) {
   setSyncMsg(
     (json?.message as string) ??
-      "Não foi possível sincronizar agora."
+      "Unable to sync right now."
   );
 
   if ((json?.message as string)?.toLowerCase().includes("strava")) {
@@ -227,14 +227,14 @@ export default function DashboardClient({ activities, eventsSummary, communityId
 
       setSyncMsg(
         typeof json?.fetched === "number"
-          ? `Sincronizado: ${json.fetched} atividades verificadas. Recarregando...`
-          : "Sincronizado. Recarregando..."
+          ? `Synced: ${json.fetched} activities checked. Reloading...`
+          : "Synced. Reloading..."
       );
 
       window.location.reload();
     } catch (e) {
-      console.error("Erro inesperado no sync:", e);
-      setSyncMsg("Erro inesperado ao sincronizar. Tente novamente.");
+      console.error("Unexpected sync error:", e);
+      setSyncMsg("Unexpected sync error. Please try again.");
       setSyncing(false);
     }
   };
@@ -261,7 +261,7 @@ export default function DashboardClient({ activities, eventsSummary, communityId
 
         if (profileError) {
           console.error(
-            "Erro ao carregar profile:",
+            "Error loading profile:",
             profileError
           );
         }
@@ -271,7 +271,7 @@ export default function DashboardClient({ activities, eventsSummary, communityId
         }
       } catch (err) {
         console.error(
-          "Erro inesperado ao definir usuário:",
+          "Unexpected error setting user:",
           err
         );
       }
@@ -298,7 +298,7 @@ export default function DashboardClient({ activities, eventsSummary, communityId
         .maybeSingle();
 
       if (error) {
-        console.error("Erro ao checar strava_tokens (auto sync):", error);
+        console.error("Error checking strava_tokens (auto sync):", error);
         return;
       }
       if (!row?.athlete_id) return;
@@ -343,16 +343,16 @@ export default function DashboardClient({ activities, eventsSummary, communityId
   }, [athleteActivities]);
 
   const ranges: { key: RangeKey; label: string }[] = [
-    { key: "all", label: "Tudo" },
-    { key: "today", label: "Hoje" },
-    { key: "7d", label: "7 dias" },
-    { key: "30d", label: "30 dias" },
-    { key: "6m", label: "6 meses" },
+    { key: "all", label: "All" },
+    { key: "today", label: "Today" },
+    { key: "7d", label: "7 days" },
+    { key: "30d", label: "30 days" },
+    { key: "6m", label: "6 months" },
   ];
 
   const rangeLabel = useMemo(() => {
     const r = ranges.find((x) => x.key === range);
-    return r?.label ?? "Período";
+    return r?.label ?? "Period";
   }, [range]);
 
   const ranking: RankingEntry[] = useMemo(() => {
@@ -381,7 +381,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
 
   return {
     userId,
-    label: activityWithName?.user_name ?? "Atleta",
+    label: activityWithName?.user_name ?? "Athlete",
     totalPoints: Math.round(v.points),
     totalHours: v.hours,
     isCurrent: currentUserId === userId,
@@ -469,7 +469,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
     return keys.map((key) => {
       // ✅ label no local (sem Z)
       const d = new Date(key + "T00:00:00");
-      const label = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      const label = d.toLocaleDateString("en-US", { day: "2-digit", month: "2-digit" });
 
       const userMinutes = userMap.get(key) ?? 0;
       const leaderMinutes = leaderMap.get(key) ?? 0;
@@ -517,7 +517,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
               color: "#052e16",
             }}
           >
-            SP
+            RC
           </div>
           <div>
             <p
@@ -529,16 +529,16 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
                 margin: 0,
               }}
             >
-              SportPlatform
+              Run Club
             </p>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>
-              Dashboard de Performance
+              Performance Dashboard
             </h1>
           </div>
         </div>
 <p style={{ fontSize: 13, color: "#64748b", margin: 0, marginTop: 4 }}>
-          Visão geral do ranking do grupo, meme do churrasco, evolução dos treinos (minutos) e
-          resumo das suas atividades.
+          Overview of group rankings, the barbecue meme, workout progress (minutes), and
+          a summary of your activities.
         </p>
       </header>
 
@@ -567,9 +567,9 @@ style={{
   fontWeight: 600,
   cursor: "pointer",
   transition: "all 0.2s ease",
-}}          title="Puxa atividades novas do Strava"
+}}          title="Fetch new activities from Strava"
         >
-          {syncing ? "Sincronizando..." : "Sincronizar agora"}
+          {syncing ? "Syncing..." : "Sync now"}
         </button>
 
         {ranges.map((r) => {
@@ -635,9 +635,9 @@ style={{
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, fontFamily: "Montserrat, sans-serif", letterSpacing: "-0.01em" }}>Ranking do grupo ({rangeLabel})</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, fontFamily: "Montserrat, sans-serif", letterSpacing: "-0.01em" }}>Group ranking ({rangeLabel})</h2>
           <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-            Pontuação baseada nas atividades Strava: atividades (exceto caminhada) = 100 pts/h, caminhada = 15 pts/h.
+            Points based on Strava activities: non-walking activities = 100 pts/hr, walking = 15 pts/hr.
           </p>
         </div>
 
@@ -653,15 +653,15 @@ style={{
               borderBottom: "1px solid #e2e8f0",
             }}
           >
-            <div>Pos.</div>
-            <div>Atleta</div>
-            <div style={{ textAlign: "right" }}>Pontos</div>
-            <div style={{ textAlign: "right" }}>Horas (total)</div>
+            <div>Rank</div>
+            <div>Athlete</div>
+            <div style={{ textAlign: "right" }}>Points</div>
+            <div style={{ textAlign: "right" }}>Hours (total)</div>
           </div>
 
           {ranking.length === 0 ? (
             <div style={{ padding: "12px 10px", color: "#64748b", fontSize: 13 }}>
-              Ainda não há atividades suficientes neste período.
+              Not enough activities in this period yet.
             </div>
           ) : (
             topRanking.map((r, idx) => (
@@ -704,7 +704,7 @@ style={{
                         fontWeight: 700,
                       }}
                     >
-                      Você
+                      You
                     </span>
                   )}
       {!currentUserIsTop10 && currentUserRanking && (
@@ -726,7 +726,7 @@ style={{
               letterSpacing: "0.08em",
             }}
           >
-            Sua posição
+            Your position
           </div>
 
           <div
@@ -789,25 +789,25 @@ style={{
       >
         <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
           boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Atividades</div>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Activities</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteActivitiesCount}</div>
         </div>
 
         <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
           boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Distância (km)</div>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Distance (km)</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteDistance.toFixed(1)}</div>
         </div>
 
         <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
           boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Tempo em movimento</div>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Moving time</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{formatDuration(athleteMovingTime)}</div>
         </div>
 
         <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
           boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Elevação (m)</div>
+          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Elevation (m)</div>
           <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{Math.round(athleteElevation)}</div>
         </div>
       </section>
@@ -835,17 +835,17 @@ style={{
         }}
       >
         <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
-          Últimas atividades (10)
+          Recent activities (10)
         </h2>
 
         {lastActivities.length === 0 ? (
           <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-            Ainda não há atividades neste período.
+            No activities in this period yet.
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {lastActivities.map((a) => {
-              const title = a.name ?? a.type ?? a.sport_type ?? "Atividade";
+              const title = a.name ?? a.type ?? a.sport_type ?? "Activity";
               const km = metersToKm(a.distance);
               const dur = formatDuration(a.moving_time);
               const pace = formatPace(a.moving_time, a.distance);
@@ -937,7 +937,7 @@ style={{
         letterSpacing: "-0.01em",
       }}
     >
-      Ranking completo
+      Full ranking
     </h2>
 
     <p
@@ -948,7 +948,7 @@ style={{
         fontFamily: "Montserrat, sans-serif",
       }}
     >
-      Classificação completa do grupo neste período.
+      Full group standings for this period.
     </p>
 
     <div
@@ -962,10 +962,10 @@ style={{
         borderBottom: "1px solid #e2e8f0",
       }}
     >
-      <div>Pos.</div>
-      <div>Atleta</div>
-      <div style={{ textAlign: "right" }}>Pontos</div>
-      <div style={{ textAlign: "right" }}>Horas</div>
+      <div>Rank</div>
+      <div>Athlete</div>
+      <div style={{ textAlign: "right" }}>Points</div>
+      <div style={{ textAlign: "right" }}>Hours</div>
     </div>
 
     {ranking.length === 0 ? (
@@ -976,7 +976,7 @@ style={{
           fontSize: 13,
         }}
       >
-        Ainda não há atividades suficientes neste período.
+        Not enough activities in this period yet.
       </div>
     ) : (
       ranking.map((r, idx) => (
@@ -1042,7 +1042,7 @@ style={{
                   fontFamily: "Montserrat, sans-serif",
                 }}
               >
-                Você
+                You
               </span>
             )}
           </div>

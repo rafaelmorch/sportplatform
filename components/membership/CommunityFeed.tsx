@@ -643,7 +643,7 @@ export default function CommunityFeed({
               color: "#0f172a",
             }}
           >
-            Feed do Grupo
+            Group Feed
           </h2>
 
           <div
@@ -652,7 +652,7 @@ export default function CommunityFeed({
               fontSize: 13,
             }}
           >
-            Converse, compartilhe treinos e acompanhe a comunidade.
+            Connect, share workouts, and stay up to date with the community.
           </div>
         </div>
 
@@ -669,7 +669,7 @@ export default function CommunityFeed({
             whiteSpace: "nowrap",
           }}
         >
-          Nova publicação
+          New Post
         </Link>
       </div>
 
@@ -680,7 +680,7 @@ export default function CommunityFeed({
             fontSize: 14,
           }}
         >
-          Carregando feed...
+          Loading feed...
         </div>
       ) : posts.length === 0 ? (
         <div
@@ -693,7 +693,7 @@ export default function CommunityFeed({
             lineHeight: 1.7,
           }}
         >
-          Ainda não há publicações neste grupo. Seja o primeiro a compartilhar.
+          No posts in this group yet. Be the first to share.
         </div>
       ) : (
         <div className="community-feed-shell">
@@ -879,8 +879,8 @@ export default function CommunityFeed({
                         }}
                       >
                         {isExpanded
-                          ? "Ver menos"
-                          : "Ver mais"}
+                          ? "See less"
+                          : "See more"}
                       </button>
                     )}
                   </div>
@@ -970,7 +970,7 @@ export default function CommunityFeed({
                           color: "#64748b",
                         }}
                       >
-                        {post.likes} curtida
+                        {post.likes} like
                         {post.likes === 1
                           ? ""
                           : "s"}
@@ -993,10 +993,10 @@ export default function CommunityFeed({
                     >
                       {loadingCommentsPostId ===
                       post.id
-                        ? "Carregando comentários..."
+                        ? "Loading comments..."
                         : isCommentsOpen
-                          ? `Ocultar comentários (${post.comments_count})`
-                          : `Comentários (${post.comments_count})`}
+                          ? `Hide comments (${post.comments_count})`
+                          : `Comments (${post.comments_count})`}
                     </button>
                   </div>
 
@@ -1016,7 +1016,7 @@ export default function CommunityFeed({
                     >
                       <input
                         type="text"
-                        placeholder="Escreva um comentário..."
+                        placeholder="Write a comment..."
                         value={
                           commentText[post.id] ?? ""
                         }
@@ -1061,8 +1061,8 @@ export default function CommunityFeed({
                       >
                         {commentLoadingPostId ===
                         post.id
-                          ? "Enviando..."
-                          : "Enviar"}
+                          ? "Sending..."
+                          : "Send"}
                       </button>
                     </form>
                   </div>
@@ -1086,7 +1086,7 @@ export default function CommunityFeed({
                             margin: 0,
                           }}
                         >
-                          Ainda não há comentários nesta publicação.
+                          No comments on this post yet.
                         </p>
                       ) : (
                         <ul
@@ -1187,7 +1187,7 @@ export default function CommunityFeed({
                                           {new Date(
                                             comment.created_at
                                           ).toLocaleDateString(
-                                            "pt-BR",
+                                            "en-US",
                                             {
                                               day: "2-digit",
                                               month: "2-digit",
@@ -1238,8 +1238,8 @@ export default function CommunityFeed({
                                       >
                                         {deletingCommentId ===
                                         comment.id
-                                          ? "Excluindo..."
-                                          : "Excluir"}
+                                          ? "Deleting..."
+                                          : "Delete"}
                                       </button>
                                     )}
                                   </div>
