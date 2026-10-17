@@ -404,8 +404,8 @@ export default function IntroPage() {
           />
 
           <img
-            src="/logo-sports-platform.png"
-            alt="Sports Platform"
+            src="/logo-run-club.png"
+            alt="Run Club"
             style={{
               position: "absolute",
               top: "calc(160px + env(safe-area-inset-top))",

@@ -631,8 +631,8 @@ export default function FeedPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/feed-banner.png"
-                alt="Sports Platform"
+                src="/logo-run-club.png"
+                alt="Run Club"
                 style={{
                   width: "100%",
                   maxWidth: "320px",

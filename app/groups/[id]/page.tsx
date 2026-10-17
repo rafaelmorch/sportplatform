@@ -81,7 +81,7 @@ export default function MembershipCommunityPage() {
             .maybeSingle(),
           supabase
             .from("app_membership_requests")
-            .select("status, subscription_status")
+            .select("status, subscription_status, payment_provider, current_period_end")
             .eq("community_id", id)
             .eq("user_id", user.id)
             .maybeSingle(),
@@ -89,10 +89,16 @@ export default function MembershipCommunityPage() {
 
       const isGlobalAdmin = profileData?.is_admin === true;
       const isCreator = communityData?.created_by === user.id;
+      const appleSubscriptionValid =
+        membershipData?.payment_provider !== "apple" ||
+        (membershipData?.current_period_end != null &&
+          Date.parse(membershipData.current_period_end) > Date.now());
+
       const hasApprovedAccess =
-        membershipData?.status === "approved" ||
-        membershipData?.status === "active" ||
-        membershipData?.subscription_status === "active";
+        (membershipData?.status === "approved" ||
+          membershipData?.status === "active" ||
+          membershipData?.subscription_status === "active") &&
+        appleSubscriptionValid;
 
       if (isGlobalAdmin || isCreator || hasApprovedAccess) {
         router.replace(`/groups/${id}/inside`);
@@ -228,7 +234,7 @@ export default function MembershipCommunityPage() {
         </div>
 
         <div style={{ width: "100%", maxWidth: "720px", marginBottom: "32px" }}>
-          <img src="/logo-sports-platform.png" alt="Platform Sports" style={{ width: "100%" }} />
+          <img src="/logo-run-club.png" alt="Run Club" style={{ width: "100%" }} />
         </div>
 
         <div style={{ width: "100%", maxWidth: "720px", marginBottom: "24px" }}>
@@ -272,7 +278,7 @@ export default function MembershipCommunityPage() {
             >
               {joining
                 ? "PROCESSING..."
-                : community.checkout_button_text || "JOIN MEMBERSHIP"}
+                : community.name?.toLowerCase().trim() === "run club" ? "Start 14-Day Free Trial" : (community.checkout_button_text || "JOIN MEMBERSHIP")}
             </div>
           </div>
         </button>

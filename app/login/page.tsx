@@ -186,8 +186,8 @@ const [isIOS, setIsIOS] = useState(false);
         }}
       >
         <img
-          src="/logo-sports-platform.png"
-          alt="Platform Sports"
+          src="/logo-run-club.png"
+          alt="Run Club"
           style={{ width: 520, maxWidth: "92vw", marginBottom: 24 }}
         />
 

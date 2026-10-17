@@ -89,7 +89,7 @@ export default function MembershipsPage() {
         }
 
         const rows = (communityData as MembershipCommunity[]) ?? [];
-        setCommunities(rows);
+        setCommunities(rows.filter((community) => !((community.name ?? "") + " " + (community.slug ?? "")).toLowerCase().includes("triathlon")));
 
         const {
           data: { user },
