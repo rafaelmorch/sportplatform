@@ -90,7 +90,7 @@ export default function IntegrationsPage() {
 
     if (stravaErr) {
       console.error("Erro ao checar strava_tokens:", stravaErr);
-      setErrorMsg("Erro ao verificar conexão do Strava. Tente recarregar.");
+      setErrorMsg("Unable to check your Strava connection. Please reload.");
     }
 
     const {
@@ -172,7 +172,7 @@ export default function IntegrationsPage() {
 
         if (sessionErr) {
           console.error("Erro ao carregar sessão:", sessionErr);
-          setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
+          setErrorMsg("Unable to load your account. Please sign in again.");
           setLoading(false);
           return;
         }
@@ -180,7 +180,7 @@ export default function IntegrationsPage() {
         const userId = sessionData.session?.user?.id ?? null;
 
         if (!userId) {
-          setErrorMsg("Você precisa estar logado no site para conectar integrações.");
+          setErrorMsg("You must be signed in to connect training apps.");
           setStravaUrl(null);
           setLoading(false);
           return;
@@ -206,14 +206,14 @@ export default function IntegrationsPage() {
         const provider = queryParams?.get("provider");
         const ok = queryParams?.get("status") === "success";
         if (ok && provider) {
-          setSuccessMsg(`${provider.toUpperCase()} conectado com sucesso! ✅`);
+          setSuccessMsg(`${provider.toUpperCase()} connected successfully! ✅`);
           window.history.replaceState(null, "", "/integrations");
         }
 
         setLoading(false);
       } catch (e) {
         console.error("Erro inesperado:", e);
-        setErrorMsg("Erro inesperado ao preparar as integrações.");
+        setErrorMsg("Unexpected error while loading integrations.");
         setLoading(false);
       }
     };
@@ -233,7 +233,7 @@ export default function IntegrationsPage() {
       } = await supabase.auth.getSession();
 
       if (sessionErr || !sessionData.session?.access_token) {
-        setErrorMsg("Você precisa estar logado para conectar Garmin.");
+        setErrorMsg("You must be signed in to connect Garmin.");
         setConnectingGarmin(false);
         return;
       }
@@ -249,7 +249,7 @@ export default function IntegrationsPage() {
 
       if (!resp.ok || !json?.authorizationUrl) {
         console.error("Garmin login failed:", resp.status, json);
-        setErrorMsg("Não foi possível iniciar a conexão Garmin.");
+        setErrorMsg("Unable to start the Garmin connection.");
         setConnectingGarmin(false);
         return;
       }
@@ -257,7 +257,7 @@ export default function IntegrationsPage() {
       window.location.href = json.authorizationUrl;
     } catch (error) {
       console.error("Erro ao iniciar Garmin:", error);
-      setErrorMsg("Erro inesperado ao conectar Garmin.");
+      setErrorMsg("Unexpected error connecting to Garmin.");
       setConnectingGarmin(false);
     }
   };
@@ -278,7 +278,7 @@ export default function IntegrationsPage() {
 
       if (sessionErr || !userId || !accessToken) {
         setErrorMsg(
-          "Você precisa estar logado para desconectar Garmin."
+          "You must be signed in to disconnect Garmin."
         );
         return;
       }
@@ -301,7 +301,7 @@ export default function IntegrationsPage() {
 
         setErrorMsg(
           json?.error ||
-            "Não foi possível desconectar Garmin. Tente novamente."
+            "Unable to disconnect Garmin. Please try again."
         );
         return;
       }
@@ -312,7 +312,7 @@ export default function IntegrationsPage() {
       }));
 
       setSuccessMsg(
-        "Garmin desconectado com sucesso. Seus dados Garmin serão removidos da Platform Sports."
+        "Garmin disconnected successfully. Your Garmin data will be removed from Platform Sports."
       );
 
       window.history.replaceState(
@@ -327,7 +327,7 @@ export default function IntegrationsPage() {
       );
 
       setErrorMsg(
-        "Erro inesperado ao desconectar Garmin."
+        "Unexpected error disconnecting Garmin."
       );
     } finally {
       setRevokingGarmin(false);
@@ -347,7 +347,7 @@ export default function IntegrationsPage() {
 
       if (!hasAnyPermission) {
         setErrorMsg(
-          "Nenhuma permissão do Health Connect foi autorizada."
+          "No Health Connect permissions were granted."
         );
         return;
       }
@@ -362,7 +362,7 @@ export default function IntegrationsPage() {
 
       if (sessionErr || !accessToken) {
         setErrorMsg(
-          "Você precisa estar logado para conectar Health Connect."
+          "You must be signed in to connect Health Connect."
         );
         return;
       }
@@ -383,7 +383,7 @@ export default function IntegrationsPage() {
       if (!connectionResponse.ok) {
         setErrorMsg(
           connectionData?.error ??
-            "Não foi possível conectar Health Connect."
+            "Unable to connect Health Connect."
         );
         return;
       }
@@ -394,7 +394,7 @@ export default function IntegrationsPage() {
       }));
 
       setSuccessMsg(
-        "Health Connect conectado com sucesso."
+        "Health Connect connected successfully."
       );
     } catch (error) {
       console.error(
@@ -405,7 +405,7 @@ export default function IntegrationsPage() {
       setErrorMsg(
         error instanceof Error
           ? error.message
-          : "Erro ao autorizar Health Connect."
+          : "Unable to authorize Health Connect."
       );
     } finally {
       setAuthorizingHealthConnect(false);
@@ -427,7 +427,7 @@ export default function IntegrationsPage() {
 
       if (sessionErr || !accessToken) {
         setErrorMsg(
-          "Você precisa estar logado para desconectar Health Connect."
+          "You must be signed in to disconnect Health Connect."
         );
         return;
       }
@@ -448,7 +448,7 @@ export default function IntegrationsPage() {
       if (!response.ok) {
         setErrorMsg(
           responseData?.error ??
-            "Não foi possível desconectar Health Connect."
+            "Unable to disconnect Health Connect."
         );
         return;
       }
@@ -459,7 +459,7 @@ export default function IntegrationsPage() {
       }));
 
       setSuccessMsg(
-        "Health Connect desconectado com sucesso."
+        "Health Connect disconnected successfully."
       );
     } catch (error) {
       console.error(
@@ -468,7 +468,7 @@ export default function IntegrationsPage() {
       );
 
       setErrorMsg(
-        "Erro inesperado ao desconectar Health Connect."
+        "Unexpected error disconnecting Health Connect."
       );
     }
   };
@@ -489,7 +489,7 @@ export default function IntegrationsPage() {
 
       if (sessionErr || !accessToken) {
         setErrorMsg(
-          "Você precisa estar logado para sincronizar Health Connect."
+          "You must be signed in to sync Health Connect."
         );
         return;
       }
@@ -498,7 +498,7 @@ export default function IntegrationsPage() {
         await syncHealthConnect(accessToken);
 
       setSuccessMsg(
-        `Health Connect sincronizado. ${result.workoutsReadFromHealthConnect ?? 0} atividades encontradas.`
+        `Health Connect synced. ${result.workoutsReadFromHealthConnect ?? 0} activities found.`
       );
     } catch (error) {
       console.error(
@@ -509,7 +509,7 @@ export default function IntegrationsPage() {
       setErrorMsg(
         error instanceof Error
           ? error.message
-          : "Erro ao sincronizar Health Connect."
+          : "Unable to sync Health Connect."
       );
     } finally {
       setSyncingHealthConnect(false);
@@ -528,7 +528,7 @@ export default function IntegrationsPage() {
       const accessToken = data.session?.access_token;
 
       if (error || !accessToken) {
-        setErrorMsg("Você precisa estar logado para conectar Apple Health.");
+        setErrorMsg("You must be signed in to connect Apple Health.");
         return;
       }
 
@@ -544,7 +544,7 @@ export default function IntegrationsPage() {
       const result = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setErrorMsg(result?.error ?? "Não foi possível conectar Apple Health.");
+        setErrorMsg(result?.error ?? "Unable to connect Apple Health.");
         return;
       }
 
@@ -554,14 +554,14 @@ export default function IntegrationsPage() {
       }));
 
       setSuccessMsg(
-        "Apple Health conectado. Você já pode sincronizar seus treinos."
+        "Apple Health connected. You can now sync your workouts."
       );
     } catch (error) {
       console.error("Erro ao conectar Apple Health:", error);
       setErrorMsg(
         error instanceof Error
           ? error.message
-          : "Erro inesperado ao conectar Apple Health."
+          : "Unexpected error connecting Apple Health."
       );
     } finally {
       setConnectingAppleHealth(false);
@@ -579,21 +579,21 @@ export default function IntegrationsPage() {
       const accessToken = data.session?.access_token;
 
       if (error || !accessToken) {
-        setErrorMsg("Você precisa estar logado para sincronizar Apple Health.");
+        setErrorMsg("You must be signed in to sync Apple Health.");
         return;
       }
 
       const result = await syncAppleHealth(accessToken);
 
       setSuccessMsg(
-        `Apple Health sincronizado. ${result.workoutsReadFromAppleHealth ?? 0} treinos encontrados, ${result.workoutsAccepted ?? 0} aceitos pelo filtro e ${result.workoutsSkippedAsPossibleDuplicates ?? 0} possíveis duplicações ignoradas.`
+        `Apple Health synced. ${result.workoutsReadFromAppleHealth ?? 0} workouts found, ${result.workoutsAccepted ?? 0} accepted, and ${result.workoutsSkippedAsPossibleDuplicates ?? 0} possible duplicates skipped.`
       );
     } catch (error) {
       console.error("Erro ao sincronizar Apple Health:", error);
       setErrorMsg(
         error instanceof Error
           ? error.message
-          : "Erro inesperado ao sincronizar Apple Health."
+          : "Unexpected error syncing Apple Health."
       );
     } finally {
       setSyncingAppleHealth(false);
@@ -610,7 +610,7 @@ export default function IntegrationsPage() {
       const accessToken = data.session?.access_token;
 
       if (error || !accessToken) {
-        setErrorMsg("Você precisa estar logado para desconectar Apple Health.");
+        setErrorMsg("You must be signed in to disconnect Apple Health.");
         return;
       }
 
@@ -624,7 +624,7 @@ export default function IntegrationsPage() {
       const result = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setErrorMsg(result?.error ?? "Não foi possível desconectar Apple Health.");
+        setErrorMsg(result?.error ?? "Unable to disconnect Apple Health.");
         return;
       }
 
@@ -633,13 +633,13 @@ export default function IntegrationsPage() {
         appleHealthConnected: false,
       }));
 
-      setSuccessMsg("Apple Health desconectado com sucesso.");
+      setSuccessMsg("Apple Health disconnected successfully.");
     } catch (error) {
       console.error("Erro ao desconectar Apple Health:", error);
       setErrorMsg(
         error instanceof Error
           ? error.message
-          : "Erro inesperado ao desconectar Apple Health."
+          : "Unexpected error disconnecting Apple Health."
       );
     }
   };
@@ -652,7 +652,7 @@ export default function IntegrationsPage() {
       const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
       if (sessionErr) {
         console.error("Erro ao carregar sessão:", sessionErr);
-        setErrorMsg("Erro ao carregar usuário. Faça login novamente.");
+        setErrorMsg("Unable to load your account. Please sign in again.");
         setRevokingStrava(false);
         return;
       }
@@ -662,7 +662,7 @@ export default function IntegrationsPage() {
       const accessToken = session?.access_token ?? null;
 
       if (!userId || !accessToken) {
-        setErrorMsg("Você precisa estar logado para revogar acesso.");
+        setErrorMsg("You must be signed in to revoke access.");
         setRevokingStrava(false);
         return;
       }
@@ -679,7 +679,7 @@ export default function IntegrationsPage() {
       if (!resp.ok) {
         const txt = await resp.text().catch(() => "");
         console.error("Revoke falhou:", resp.status, txt);
-        setErrorMsg("Não foi possível revogar o Strava. Tente novamente.");
+        setErrorMsg("Unable to disconnect Strava. Please try again.");
         setRevokingStrava(false);
         return;
       }
@@ -687,11 +687,11 @@ export default function IntegrationsPage() {
       // Atualiza status real pelo banco
       await refreshStatus(userId);
 
-      setSuccessMsg("Acesso ao Strava revogado com sucesso.");
+      setSuccessMsg("Strava disconnected successfully.");
       window.history.replaceState(null, "", "/integrations");
     } catch (e) {
       console.error("Erro inesperado ao revogar Strava:", e);
-      setErrorMsg("Erro inesperado ao revogar o Strava.");
+      setErrorMsg("Unexpected error disconnecting Strava.");
     } finally {
       setRevokingStrava(false);
     }
@@ -752,16 +752,16 @@ export default function IntegrationsPage() {
                 margin: 0,
               }}
             >
-              Integrações
+              Integrations
             </p>
             <h1 style={{ fontSize: "24px", margin: 0, color: "#0f172a" }}>
-              Conectar Apps de Treino
+              Connect Training Apps
             </h1>
           </div>
         </div>
 
         <p style={{ fontSize: "21px", lineHeight: 1.6, color: "#475569", marginBottom: "18px" }}>
-          Conecte seus apps de treino ao Platform Sports para centralizar atividades, métricas de saúde e desempenho em um só lugar.
+          Connect your training apps to Platform Sports to bring your activities, health metrics, and performance data together in one place.
         </p>
 
         {errorMsg && (
@@ -782,7 +782,7 @@ export default function IntegrationsPage() {
                   fontWeight: 600,
                 }}
               >
-                Ir para Login
+                Go to Login
               </Link>
             </div>
           </div>
@@ -810,7 +810,7 @@ export default function IntegrationsPage() {
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: "#0f172a" }}>Strava</div>
                 <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
-                  Importa suas corridas, pedaladas e outras atividades.
+                  Import your runs, rides, and other activities.
                 </div>
               </div>
 
@@ -827,7 +827,7 @@ export default function IntegrationsPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Conectado ✅
+                  Connected ✅
                 </div>
               )}
             </div>
@@ -853,7 +853,7 @@ export default function IntegrationsPage() {
                 pointerEvents: disabledStrava ? "none" : "auto",
               }}
             >
-              {loading ? "Preparando..." : status.stravaConnected ? "Strava Conectado" : "Conectar com Strava"}
+              {loading ? "Preparing..." : status.stravaConnected ? "Strava Connected" : "Connect with Strava"}
             </a>
 
             {/* ✅ Revoke (só aparece se conectado) */}
@@ -876,7 +876,7 @@ export default function IntegrationsPage() {
                   opacity: revokingStrava ? 0.7 : 1,
                 }}
               >
-                {revokingStrava ? "Desconectando..." : "Desconectar"}
+                {revokingStrava ? "Disconnecting..." : "Disconnect"}
               </button>
             )}
           </div>
@@ -918,7 +918,7 @@ export default function IntegrationsPage() {
                   marginTop: 6,
                 }}
               >
-                Sincroniza atividades e dados de saúde da sua conta Garmin.
+                                  Sync activities and health data from your Garmin account.
               </div>
             </div>
 
@@ -935,7 +935,7 @@ export default function IntegrationsPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Conectado ✅
+                Connected ✅
               </div>
             )}
           </div>
@@ -976,10 +976,10 @@ export default function IntegrationsPage() {
             }}
           >
             {connectingGarmin
-              ? "Conectando..."
+              ? "Connecting..."
               : status.garminConnected
-                ? "Garmin Conectado"
-                : "Conectar com Garmin"}
+                ? "Garmin Connected"
+                : "Connect with Garmin"}
           </button>
 
           {status.garminConnected && (
@@ -1004,8 +1004,8 @@ export default function IntegrationsPage() {
               }}
             >
               {revokingGarmin
-                ? "Desconectando..."
-                : "Desconectar"}
+                ? "Disconnecting..."
+                : "Disconnect"}
             </button>
           )}
         </div>
@@ -1045,7 +1045,7 @@ export default function IntegrationsPage() {
                     marginTop: 6,
                   }}
                 >
-                  Centraliza atividades e métricas de saúde dos apps conectados ao Android.
+                  Bring together activities and health metrics from your connected Android apps.
                 </div>
               </div>
 
@@ -1062,7 +1062,7 @@ export default function IntegrationsPage() {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Conectado ✅
+                  Connected ✅
                 </div>
               )}
             </div>
@@ -1098,8 +1098,8 @@ export default function IntegrationsPage() {
                 }}
               >
                 {authorizingHealthConnect
-                  ? "Conectando..."
-                  : "Conectar"}
+                  ? "Connecting..."
+                  : "Connect"}
               </button>
             )}
 
@@ -1120,7 +1120,7 @@ export default function IntegrationsPage() {
                   cursor: "pointer",
                 }}
               >
-                Desconectar
+                Disconnect
               </button>
             )}
           </div>
@@ -1140,12 +1140,12 @@ export default function IntegrationsPage() {
             </div>
 
             <div style={{ fontSize: 14, color: "#475569", marginTop: 6 }}>
-              Importe seus treinos do Apple Watch pelo Apple Health.
+              Import your Apple Watch workouts through Apple Health.
             </div>
 
             {status.appleHealthConnected && (
               <div style={{ fontSize: 12, color: "#166534", marginTop: 10 }}>
-                Conectado
+                Connected
               </div>
             )}
 
@@ -1173,7 +1173,7 @@ export default function IntegrationsPage() {
                   opacity: connectingAppleHealth ? 0.7 : 1,
                 }}
               >
-                {connectingAppleHealth ? "Conectando..." : "Conectar"}
+                {connectingAppleHealth ? "Connecting..." : "Connect"}
               </button>
             ) : (
               <>
@@ -1193,7 +1193,7 @@ export default function IntegrationsPage() {
                     fontWeight: 700,
                   }}
                 >
-                  {syncingAppleHealth ? "Sincronizando..." : "Sincronizar treinos"}
+                  {syncingAppleHealth ? "Syncing..." : "Sync Workouts"}
                 </button>
 
                 <button
@@ -1212,7 +1212,7 @@ export default function IntegrationsPage() {
                     fontWeight: 700,
                   }}
                 >
-                  Desconectar
+                  Disconnect
                 </button>
               </>
             )}
@@ -1228,7 +1228,7 @@ export default function IntegrationsPage() {
               textUnderlineOffset: 4,
             }}
           >
-            Ir para meus grupos
+                         Go to My Groups
           </Link>
         </div>
       </section>

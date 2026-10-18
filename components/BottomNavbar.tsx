@@ -54,12 +54,7 @@ const tabs: TabItem[] = [
     label: "Activities",
     icon: CalendarDays,
   },
-  {
-    href: "/performance-ai",
-    label: "Coach IA",
-    icon: CoachIcon,
-    coach: true,
-  },
+
   {
     href: "/profile",
     label: "Profile",
@@ -90,7 +85,7 @@ export default function BottomNavbar() {
           "6px 8px max(6px, env(safe-area-inset-bottom))",
 
         display: "grid",
-        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
         alignItems: "center",
 
         background: "rgba(255,255,255,0.98)",
