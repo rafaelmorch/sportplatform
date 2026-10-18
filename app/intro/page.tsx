@@ -2,14 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Montserrat } from "next/font/google";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import UserAvatar from "@/components/UserAvatar";
 
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
+
 
 function IconBox({
   children,
@@ -356,7 +355,7 @@ export default function IntroPage() {
         overflow: "hidden",
         background: "#030405",
         color: "#fff",
-        fontFamily: montserrat.style.fontFamily,
+        fontFamily: "Montserrat, Arial, sans-serif",
       }}
     >
       <div
