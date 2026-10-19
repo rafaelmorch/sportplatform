@@ -9,6 +9,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { Capacitor } from "@capacitor/core";
+import { APPLE_COMMUNITY_PRODUCTS } from "@/lib/apple-iap-products";
 
 export const dynamic = "force-dynamic";
 
@@ -39,17 +41,23 @@ function PendingMembershipContent() {
 
       const { data, error } = await supabase
         .from("app_membership_requests")
-        .select("status, subscription_status")
+        .select("status, subscription_status, payment_provider, current_period_end")
         .eq("community_id", communityId)
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (!isMounted || error || !data) return;
 
+      const appleSubscriptionValid =
+        data.payment_provider !== "apple" ||
+        (data.current_period_end !== null &&
+          Date.parse(data.current_period_end) > Date.now());
+
       if (
         data.status === "active" &&
         (data.subscription_status === "active" ||
-          data.subscription_status === "trialing")
+          data.subscription_status === "trialing") &&
+        appleSubscriptionValid
       ) {
         router.replace(`/groups/${communityId}/inside`);
       }
@@ -115,7 +123,93 @@ function PendingMembershipContent() {
         return;
       }
 
-      // Apple IAP temporarily disabled for testing.
+      const isNativeIos =
+        Capacitor.isNativePlatform() &&
+        Capacitor.getPlatform() === "ios";
+
+      if (isNativeIos && !Capacitor.isPluginAvailable("NativePurchases")) {
+        throw new Error("Apple purchases are unavailable. Please update the app.");
+      }
+
+      if (isNativeIos) {
+        const productId = APPLE_COMMUNITY_PRODUCTS[communityId];
+
+        if (!productId) {
+          setMessage(
+            "This community is not available for Apple subscription yet. | Esta comunidade ainda não está disponível para assinatura pela Apple."
+          );
+          return;
+        }
+
+        const {
+          data: sessionData,
+          error: sessionError,
+        } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        const accessToken = sessionData.session?.access_token;
+
+        if (!accessToken) {
+          router.push("/login");
+          return;
+        }
+
+        const { NativePurchases, PURCHASE_TYPE } = await import(
+          "@capgo/native-purchases"
+        );
+
+        const transaction =
+          await NativePurchases.purchaseProduct({
+            productIdentifier: productId,
+            productType: PURCHASE_TYPE.SUBS,
+            appAccountToken: user.id,
+            autoAcknowledgePurchases: false,
+          });
+
+        if (!transaction.jwsRepresentation) {
+          throw new Error(
+            "Apple did not return a StoreKit transaction for validation."
+          );
+        }
+
+        const validationResponse = await fetch(
+          "/api/apple-iap/community/validate",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              community_id: communityId,
+              jwsRepresentation:
+                transaction.jwsRepresentation,
+            }),
+          }
+        );
+
+        const validationData =
+          await validationResponse
+            .json()
+            .catch(() => null);
+
+        if (!validationResponse.ok) {
+          throw new Error(
+            validationData?.error ||
+              "Apple subscription could not be validated."
+          );
+        }
+
+        await NativePurchases.acknowledgePurchase({
+          purchaseToken: transaction.transactionId,
+        });
+
+        router.replace(`/groups/${communityId}/inside`);
+        return;
+      }
 
       const response = await fetch(
         "/api/stripe/create-subscription-checkout",
