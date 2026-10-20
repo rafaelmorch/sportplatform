@@ -78,7 +78,7 @@ function PendingMembershipContent() {
   async function handleCreateStripeCheckout() {
     if (!termsAccepted) {
       setMessage(
-        "You must accept the Terms & Conditions before continuing. | Você precisa aceitar os Termos e Condições antes de continuar."
+        "You must accept the Terms & Conditions before continuing."
       );
       return;
     }
@@ -93,12 +93,12 @@ function PendingMembershipContent() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setMessage("You must be logged in. | Você precisa estar conectado.");
+        setMessage("You must be logged in.");
         return;
       }
 
       if (!communityId) {
-        setMessage("Missing community id. | Comunidade não identificada.");
+        setMessage("Missing community id.");
         return;
       }
 
@@ -118,7 +118,7 @@ function PendingMembershipContent() {
       if (requestError) {
         setMessage(
           requestError.message ||
-            "Failed to create membership request. | Não foi possível iniciar a assinatura."
+            "Failed to create membership request."
         );
         return;
       }
@@ -136,7 +136,7 @@ function PendingMembershipContent() {
 
         if (!productId) {
           setMessage(
-            "This community is not available for Apple subscription yet. | Esta comunidade ainda não está disponível para assinatura pela Apple."
+            "This community is not available for Apple subscription yet."
           );
           return;
         }
@@ -230,7 +230,7 @@ function PendingMembershipContent() {
       if (!response.ok || !data?.url) {
         setMessage(
           data?.error ||
-            "Failed to create Stripe checkout. | Não foi possível abrir o pagamento."
+            "Failed to create Stripe checkout."
         );
         return;
       }
@@ -306,11 +306,6 @@ function PendingMembershipContent() {
             Unlock your full Platform Sports experience.
 No charge today if eligible for the free trial.
           </div>
-
-          <div>
-            Desbloqueie toda a experiência da Platform Sports.
-Nenhuma cobrança hoje se você for elegível ao período grátis.
-          </div>
         </div>
 
         <div
@@ -353,43 +348,6 @@ Nenhuma cobrança hoje se você for elegível ao período grátis.
             ✓ Challenges and rankings
             <br />
             ✓ Performance tracking
-          </div>
-
-          <div
-            style={{
-              height: 1,
-              background: "#e2e8f0",
-              margin: "20px 0",
-            }}
-          />
-
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: "#0f172a",
-              marginBottom: 12,
-            }}
-          >
-            Sua assinatura inclui
-          </div>
-
-          <div
-            style={{
-              fontSize: 14,
-              lineHeight: 1.9,
-              color: "#334155",
-            }}
-          >
-            ✓ Progressão no Runner Journey
-            <br />
-            ✓ Vídeos exclusivos de treinamento
-            <br />
-            ✓ Feed da comunidade
-            <br />
-            ✓ Desafios e ranking
-            <br />
-            ✓ Acompanhamento de desempenho
           </div>
         </div>
 
@@ -446,34 +404,6 @@ Nenhuma cobrança hoje se você for elegível ao período grátis.
               <br />
               ✓ Automatic monthly renewal
             </div>
-
-            <div
-              style={{
-                height: 1,
-                background: "#dbe2ea",
-                margin: "18px 0",
-              }}
-            />
-
-            <div
-              style={{
-                fontWeight: 700,
-                color: "#0f172a",
-                marginBottom: 8,
-              }}
-            >
-              Português
-            </div>
-
-            <div>
-              ✓ Cancele quando quiser
-              <br />
-              ✓ Sem fidelidade
-              <br />
-              ✓ Pagamento seguro
-              <br />
-              ✓ Renovação automática mensal
-            </div>
           </div>
 
           <div
@@ -517,33 +447,21 @@ Nenhuma cobrança hoje se você for elegível ao período grátis.
 
               <span>
                 I have read and agree to the{" "}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: "#1d4ed8",
-                    fontWeight: 700,
-                    textDecoration: "underline",
-                  }}
-                >
-                  Terms & Conditions
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8", fontWeight: 700, textDecoration: "underline" }}>
+                  Terms &amp; Conditions
                 </a>
-                .
-                <br />
-                Li e aceito os{" "}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    color: "#1d4ed8",
-                    fontWeight: 700,
-                    textDecoration: "underline",
-                  }}
-                >
-                  Termos e Condições
+                {", "}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8", fontWeight: 700, textDecoration: "underline" }}>
+                  Privacy Policy
                 </a>
+                {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" && (
+                  <>
+                    {", and "}
+                    <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" target="_blank" rel="noopener noreferrer" style={{ color: "#1d4ed8", fontWeight: 700, textDecoration: "underline" }}>
+                      Apple Terms of Use (EULA)
+                    </a>
+                  </>
+                )}
                 .
               </span>
             </label>
@@ -586,9 +504,8 @@ Nenhuma cobrança hoje se você for elegível ao período grátis.
             }}
           >
             🔒 14-day free trial for eligible subscribers • Secure subscription checkout.
-            <br />
-            🔒 14 dias grátis para assinantes elegíveis • Pagamento seguro da assinatura.
           </div>
+
 
           {message && (
             <div
@@ -638,24 +555,6 @@ Nenhuma cobrança hoje se você for elegível ao período grátis.
             Cancellation takes effect immediately, and access ends when you
             cancel.
           </div>
-
-          <div
-            style={{
-              fontWeight: 700,
-              color: "#334155",
-              marginBottom: 6,
-            }}
-          >
-            Português
-          </div>
-
-          <div>
-            Sua assinatura é renovada automaticamente todos os meses até o
-            cancelamento.
-            <br />
-            O cancelamento entra em vigor imediatamente, e o acesso é encerrado
-            ao cancelar.
-          </div>
         <div
           style={{
             width: "100%",
@@ -675,14 +574,6 @@ Nenhuma cobrança hoje se você for elegível ao período grátis.
           Physical activity involves inherent risks. If you have any questions
           about your health or physical condition, consult a physician before
           participating.
-          <br />
-          <br />
-          <strong style={{ color: "#475569" }}>
-            Sua saúde vem em primeiro lugar.
-          </strong>{" "}
-          A prática de atividades físicas envolve riscos inerentes. Em caso de
-          dúvida sobre sua saúde ou condição física, consulte um médico antes de
-          participar.
         </div>
 
         </div>
