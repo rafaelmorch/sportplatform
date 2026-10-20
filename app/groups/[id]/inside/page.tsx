@@ -15,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import BackArrow from "@/components/BackArrow";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { syncHealthConnect } from "@/lib/integrations/health-connect";
+import { isIOSNative, syncAppleHealth } from "@/lib/integrations/apple-health";
 
 export const dynamic = "force-dynamic";
 
@@ -328,6 +329,7 @@ export default function MembershipInsidePage() {
   const params = useParams();
   const router = useRouter();
   const carouselRef = useRef<HTMLDivElement | null>(null);
+  const appleHealthAutoSyncStartedRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
@@ -336,7 +338,7 @@ export default function MembershipInsidePage() {
   const [journeyTitle, setJourneyTitle] = useState("Runner Journey");
   const [canManageHighlights, setCanManageHighlights] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-const [activityProvider, setActivityProvider] = useState<"strava" | "garmin" | "health_connect" | null>(null);
+const [activityProvider, setActivityProvider] = useState<"strava" | "garmin" | "health_connect" | "apple_health" | null>(null);
 const [syncingActivities, setSyncingActivities] = useState(false);
   const [hasVideos, setHasVideos] = useState(false);
   const [stripeSubscriptionId, setStripeSubscriptionId] = useState<string | null>(null);
@@ -710,6 +712,27 @@ setCompletedChallengeIds(completedIds);
       setUserId(user.id);
       await loadActivityProvider(user.id);
 
+      // Synchronize Apple Health automatically when entering the Run Club.
+      if (isIOSNative()) {
+        const { data: source, error: sourceError } = await supabase
+          .from("user_activity_source")
+          .select("provider")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (!sourceError && source?.provider === "apple_health") {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+
+          if (accessToken && !appleHealthAutoSyncStartedRef.current) {
+            appleHealthAutoSyncStartedRef.current = true;
+            void syncAppleHealth(accessToken).catch((error) => {
+              console.error("Automatic Apple Health sync failed:", error);
+            });
+          }
+        }
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, is_admin")
@@ -874,6 +897,11 @@ async function loadActivityProvider(targetUserId: string) {
       console.error("Error checking activity source:", activitySourceError);
     }
 
+    if (activitySource?.provider === "apple_health") {
+      setActivityProvider("apple_health");
+      return;
+    }
+
     if (activitySource?.provider === "health_connect") {
       setActivityProvider("health_connect");
       return;
@@ -960,6 +988,10 @@ async function handleSyncActivities() {
 
     if (activityProvider === "health_connect") {
       await syncHealthConnect(accessToken);
+    }
+
+    if (activityProvider === "apple_health") {
+      await syncAppleHealth(accessToken);
     }
 
     window.location.reload();
@@ -1195,13 +1227,16 @@ return (
       ? "Garmin Connected"
       : activityProvider === "strava"
         ? "Strava Connected"
+        : activityProvider === "apple_health"
+          ? "Apple Health Connected"
         : activityProvider === "health_connect"
           ? "Health Connect Connected"
           : "Connect Device"}
   </a>
 
   {(activityProvider === "strava" ||
-    activityProvider === "health_connect") && (
+    activityProvider === "health_connect" ||
+    activityProvider === "apple_health") && (
     <button
       type="button"
       onClick={handleSyncActivities}
