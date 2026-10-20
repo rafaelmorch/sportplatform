@@ -117,7 +117,11 @@ export default function PerformanceAiSubscriptionGate({
             throw subscriptionError;
           }
 
-          if (subscription?.status === "active") {
+          if (
+            subscription?.status === "active" &&
+            subscription.current_period_end != null &&
+            Date.parse(subscription.current_period_end) > Date.now()
+          ) {
             const healthCompleted =
               subscription.answers_certified === true &&
               subscription.waiver_accepted === true &&

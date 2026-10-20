@@ -149,7 +149,13 @@ export default function ProfilePage() {
           );
           setCoachSubscription(null);
         } else {
-          setCoachSubscription(coachData ?? null);
+          setCoachSubscription(
+            coachData?.status === "active" &&
+              coachData.current_period_end != null &&
+              Date.parse(coachData.current_period_end) > Date.now()
+              ? coachData
+              : null
+          );
         }
 
         const { data: membershipData, error: membershipError } =
@@ -165,7 +171,16 @@ export default function ProfilePage() {
           console.error("Error fetching memberships:", membershipError);
           setMemberships([]);
         } else {
-          setMemberships((membershipData as MembershipRow[]) ?? []);
+          setMemberships(
+            ((membershipData as MembershipRow[]) ?? []).filter(
+              (membership) =>
+                ["active", "trialing"].includes(
+                  membership.subscription_status ?? ""
+                ) &&
+                membership.current_period_end != null &&
+                Date.parse(membership.current_period_end) > Date.now()
+            )
+          );
         }
 
         const { data: healthFormData, error: healthFormError } =
@@ -807,33 +822,7 @@ export default function ProfilePage() {
                     : "Cancel subscription"}
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  router.push("/performance-ai/subscribe")
-                }
-                className="row"
-                style={{
-                  width: "100%",
-                  borderLeft: "none",
-                  borderRight: "none",
-                  borderTop: "none",
-                  background: "transparent",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-              >
-                <div>
-                  <p className="row-title">Performance AI</p>
-                  <p className="row-detail">
-                    No active subscription
-                  </p>
-                </div>
-
-                <span className="chevron">›</span>
-              </button>
-            )}
+            ) : null}
 
             <div
               style={{
