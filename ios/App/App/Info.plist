@@ -41,6 +41,8 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
         <string>Platform Sports reads your Apple Health workouts to track your training, rankings, and challenges.</string>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>Run Club uses your location to show nearby activities and events.</string>
         <key>NSCameraUsageDescription</key>
 	<string>Platform Sports needs access to your camera to take profile photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
