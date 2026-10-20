@@ -143,7 +143,7 @@ export default function HealthAndSafetyPage() {
   const searchParams = useSearchParams();
   const viewOnly = searchParams.get("view") === "1";
 
-  const [language, setLanguage] = useState<Language>("pt");
+  const [language] = useState<Language>("en");
   const [answers, setAnswers] = useState<Answers>(INITIAL_ANSWERS);
   const [subscriptionId, setSubscriptionId] =
     useState<string | null>(null);
@@ -384,46 +384,6 @@ export default function HealthAndSafetyPage() {
           }}
         >
           <BackButton />
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              width: "100%",
-              maxWidth: 260,
-              border: "1px solid #d1d5db",
-              borderRadius: 10,
-              padding: 4,
-              background: "#e5e7eb",
-            }}
-          >
-            {(["pt", "en"] as const).map((option) => {
-              const selected = language === option;
-
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  onClick={() => {
-                    setLanguage(option);
-                    setMessage(null);
-                  }}
-                  style={{
-                    minHeight: 42,
-                    border: 0,
-                    borderRadius: 6,
-                    background: selected ? "#111827" : "transparent",
-                    color: selected ? "#ffffff" : "#4b5563",
-                    fontFamily: "Montserrat, sans-serif",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  {option === "pt" ? "Português" : "English"}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         <header style={{ textAlign: "center", marginBottom: 24 }}>
