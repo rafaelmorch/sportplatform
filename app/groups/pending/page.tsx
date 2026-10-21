@@ -24,6 +24,52 @@ function PendingMembershipContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [creatingCheckout, setCreatingCheckout] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [appleMonthlyPrice, setAppleMonthlyPrice] = useState<string | null>(null);
+  const [applePriceError, setApplePriceError] = useState(false);
+  const [restoringPurchases, setRestoringPurchases] = useState(false);
+
+  useEffect(() => {
+    if (
+      !communityId ||
+      !Capacitor.isNativePlatform() ||
+      Capacitor.getPlatform() !== "ios"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadApplePrice() {
+      const productId = APPLE_COMMUNITY_PRODUCTS[communityId!];
+      if (!productId) return;
+
+      try {
+        const { NativePurchases, PURCHASE_TYPE } = await import(
+          "@capgo/native-purchases"
+        );
+
+        const { product } = await NativePurchases.getProduct({
+          productIdentifier: productId,
+          productType: PURCHASE_TYPE.SUBS,
+        });
+
+        if (!cancelled) {
+          setAppleMonthlyPrice(product.priceString);
+        }
+      } catch (error) {
+        console.error("Unable to load Apple subscription price:", error);
+        if (!cancelled) {
+          setApplePriceError(true);
+        }
+      }
+    }
+
+    void loadApplePrice();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [communityId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -75,6 +121,109 @@ function PendingMembershipContent() {
     };
   }, [communityId, router, supabase]);
 
+  async function handleRestorePurchases() {
+    if (restoringPurchases) return;
+
+    setRestoringPurchases(true);
+    setMessage(null);
+
+    try {
+      if (
+        !Capacitor.isNativePlatform() ||
+        Capacitor.getPlatform() !== "ios"
+      ) {
+        throw new Error("Restore Purchases is available in the iOS app.");
+      }
+
+      if (!communityId) {
+        throw new Error("Missing community id.");
+      }
+
+      const productId = APPLE_COMMUNITY_PRODUCTS[communityId];
+
+      if (!productId) {
+        throw new Error("No Apple subscription is configured for this community.");
+      }
+
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+      if (userError || !userData.user) {
+        throw new Error("Please sign in before restoring purchases.");
+      }
+
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError || !sessionData.session?.access_token) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
+      const { NativePurchases, PURCHASE_TYPE } = await import(
+        "@capgo/native-purchases"
+      );
+
+      await NativePurchases.restorePurchases();
+
+      const { purchases } = await NativePurchases.getPurchases({
+        productType: PURCHASE_TYPE.SUBS,
+        appAccountToken: userData.user.id,
+        onlyCurrentEntitlements: true,
+      });
+
+      const matchingPurchases = purchases.filter(
+        (purchase) =>
+          purchase.productIdentifier === productId &&
+          purchase.jwsRepresentation &&
+          purchase.isActive !== false
+      );
+
+      if (matchingPurchases.length === 0) {
+        throw new Error(
+          "No active Run Club subscription was found in your Apple account."
+        );
+      }
+
+      let lastError = "Unable to validate the restored subscription.";
+
+      for (const purchase of matchingPurchases) {
+        const response = await fetch(
+          "/api/apple-iap/community/validate",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionData.session.access_token}`,
+            },
+            body: JSON.stringify({
+              community_id: communityId,
+              jwsRepresentation: purchase.jwsRepresentation,
+            }),
+          }
+        );
+
+        const result = await response.json().catch(() => null);
+
+        if (response.ok) {
+          router.replace(`/groups/${communityId}/inside`);
+          return;
+        }
+
+        lastError =
+          result?.error || "Unable to validate the restored subscription.";
+      }
+
+      throw new Error(lastError);
+    } catch (error: unknown) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to restore purchases. Please try again."
+      );
+    } finally {
+      setRestoringPurchases(false);
+    }
+  }
   async function handleCreateStripeCheckout() {
     if (!termsAccepted) {
       setMessage(
@@ -291,7 +440,7 @@ function PendingMembershipContent() {
             color: "#0f172a",
           }}
         >
-          Start Your Free Trial
+          Run Club Membership
         </h1>
 
         <div
@@ -303,8 +452,8 @@ function PendingMembershipContent() {
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: 6 }}>
-            Unlock your full Platform Sports experience.
-No charge today if eligible for the free trial.
+            Unlock your full Run Club experience.
+
           </div>
         </div>
 
@@ -375,9 +524,35 @@ No charge today if eligible for the free trial.
               color: "#0f172a",
             }}
           >
-            14-Day Free Trial for Eligible Subscribers
+            Monthly Subscription
           </h2>
 
+          <div
+            style={{
+              fontSize: 34,
+              fontWeight: 800,
+              color: "#0f172a",
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" ? (appleMonthlyPrice ? `${appleMonthlyPrice} / month` : applePriceError ? "Price unavailable. Please try again later." : "Loading price...") : "$9.99 / month"}
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              color: "#475569",
+              textAlign: "center",
+              lineHeight: 1.7,
+              marginBottom: 18,
+            }}
+          >
+            Eligible new subscribers may receive a 14-day free trial.
+            After the trial, the subscription automatically renews at
+            the monthly price shown above unless canceled.
+            Cancel anytime in your account subscription settings.
+          </div>
           <div
             style={{
               fontSize: 14,
@@ -471,7 +646,7 @@ No charge today if eligible for the free trial.
           <button
             type="button"
             onClick={handleCreateStripeCheckout}
-            disabled={creatingCheckout || !termsAccepted}
+            disabled={creatingCheckout || !termsAccepted || (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" && !appleMonthlyPrice)}
             style={{
               width: "100%",
               border: "1px solid #cbd5e1",
@@ -491,8 +666,32 @@ No charge today if eligible for the free trial.
               opacity: creatingCheckout || !termsAccepted ? 0.55 : 1,
             }}
           >
-            {creatingCheckout ? "Processing..." : "Start 14-Day Free Trial"}
+            {creatingCheckout ? "Processing..." : "Continue with Subscription"}
           </button>
+
+          {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" && (
+            <button
+              type="button"
+              onClick={handleRestorePurchases}
+              disabled={restoringPurchases || creatingCheckout}
+              style={{
+                display: "block",
+                width: "100%",
+                marginTop: 14,
+                padding: "12px 18px",
+                border: "1px solid #94a3b8",
+                borderRadius: 999,
+                background: "transparent",
+                color: "#0f172a",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: restoringPurchases ? "wait" : "pointer",
+                opacity: restoringPurchases || creatingCheckout ? 0.55 : 1,
+              }}
+            >
+              {restoringPurchases ? "Restoring Purchases..." : "Restore Purchases"}
+            </button>
+          )}
 
           <div
             style={{
@@ -503,7 +702,7 @@ No charge today if eligible for the free trial.
               lineHeight: 1.8,
             }}
           >
-            🔒 14-day free trial for eligible subscribers • Secure subscription checkout.
+            Subscription renews automatically every month unless canceled.
           </div>
 
 
@@ -607,4 +806,3 @@ export default function PendingMembershipPage() {
     </>
   );
 }
-

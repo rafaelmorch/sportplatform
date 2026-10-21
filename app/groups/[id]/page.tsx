@@ -198,6 +198,27 @@ export default function MembershipCommunityPage() {
   return (
     <>
       <style jsx global>{`
+        .community-rich-description,
+        .community-rich-description * {
+          color: #ffffff !important;
+        }
+
+        .community-rich-description {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow-wrap: break-word;
+          word-break: normal;
+        }
+
+        .community-rich-description * {
+          max-width: 100%;
+          white-space: normal !important;
+          overflow-wrap: break-word !important;
+          word-break: normal !important;
+          box-sizing: border-box;
+        }
+
         .community-rich-description p {
           margin: 0 0 12px;
         }
@@ -278,7 +299,7 @@ export default function MembershipCommunityPage() {
             >
               {joining
                 ? "PROCESSING..."
-                : community.name?.toLowerCase().trim() === "run club" ? "Start 14-Day Free Trial" : (community.checkout_button_text || "JOIN MEMBERSHIP")}
+                : community.name?.toLowerCase().trim() === "run club" ? "Join Run Club →" : (community.checkout_button_text || "JOIN MEMBERSHIP")}
             </div>
           </div>
         </button>
@@ -307,20 +328,16 @@ export default function MembershipCommunityPage() {
           style={{
             maxWidth: "720px",
             width: "100%",
-            background: "#ffffff",
-            color: "#0f172a",
-            padding: "28px",
-            borderRadius: "4px",
+            boxSizing: "border-box",
+            minWidth: 0,
+            background: "transparent",
+            color: "#ffffff",
+            padding: "0",
             lineHeight: "1.8",
-            borderTop: "3px solid #ffffff",
-            borderLeft: "3px solid #ffffff",
-            borderRight: "3px solid #5a5a5a",
-            borderBottom: "3px solid #5a5a5a",
-            boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
             fontFamily: "Montserrat, Arial, sans-serif",
           }}
         >
-          <h2 style={{ color: "#0f172a", marginTop: 0 }}>{community.name}</h2>
+          <h2 style={{ color: "#ffffff", marginTop: 0 }}>{community.name}</h2>
           <p style={{ fontWeight: 700, marginBottom: "18px" }}>{priceLabel}</p>
           {community.full_description_rich?.html ? (
             <div
@@ -329,19 +346,19 @@ export default function MembershipCommunityPage() {
                 fontSize: "15px",
                 lineHeight: 1.8,
                 color: "#334155",
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
+                wordBreak: "normal",
+                overflowWrap: "normal",
               }}
               dangerouslySetInnerHTML={{
-                __html: community.full_description_rich.html,
+                __html: community.full_description_rich.html.replace(/&nbsp;|&#160;|&#xA0;/gi, " "),
               }}
             />
           ) : (
             <div
               style={{
                 whiteSpace: "pre-line",
-                wordBreak: "break-word",
-                overflowWrap: "break-word",
+                wordBreak: "normal",
+                overflowWrap: "normal",
                 fontSize: "15px",
                 lineHeight: 1.8,
                 color: "#334155",
