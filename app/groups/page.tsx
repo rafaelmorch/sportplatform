@@ -8,6 +8,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import BottomNavbar from "@/components/BottomNavbar";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { Capacitor } from "@capacitor/core";
+import { APPLE_COMMUNITY_PRODUCTS } from "@/lib/apple-iap-products";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +61,51 @@ export default function MembershipsPage() {
   const [warning, setWarning] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [applePrices, setApplePrices] = useState<Record<string, string>>({});
+
+  const isNativeIOS =
+    Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+
+  useEffect(() => {
+    if (!isNativeIOS || communities.length === 0) return;
+
+    let cancelled = false;
+
+    async function loadApplePrices() {
+      try {
+        const { NativePurchases, PURCHASE_TYPE } = await import("@capgo/native-purchases");
+
+        for (const community of communities) {
+          const productId = APPLE_COMMUNITY_PRODUCTS[community.id];
+          if (!productId) continue;
+
+          try {
+            const { product } = await NativePurchases.getProduct({
+              productIdentifier: productId,
+              productType: PURCHASE_TYPE.SUBS,
+            });
+
+            if (!cancelled && product.priceString) {
+              setApplePrices((previous) => ({
+                ...previous,
+                [community.id]: product.priceString,
+              }));
+            }
+          } catch (error) {
+            console.error("Unable to load Apple community price:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Unable to initialize Apple product prices:", error);
+      }
+    }
+
+    void loadApplePrices();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isNativeIOS, communities]);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,7 +373,7 @@ export default function MembershipsPage() {
             ) : (
               communities.map((community) => {
                 const image = community.cover_image_url || community.banner_image_url || null;
-                const priceLabel = formatPrice(community.price_cents, community.billing_interval);
+                const priceLabel = isNativeIOS ? applePrices[community.id] : undefined;
                 const isApproved = approvedIds.includes(community.id);
                 const href = isApproved
                   ? `/groups/${community.id}/inside`
@@ -402,6 +449,7 @@ export default function MembershipsPage() {
                             {isApproved ? "MEMBER AREA" : "MEMBERSHIP"}
                           </div>
 
+                          {priceLabel && (
                           <div
                             style={{
                               position: "absolute",
@@ -420,6 +468,7 @@ export default function MembershipsPage() {
                           >
                             {priceLabel}
                           </div>
+                          )}
 
                           {community.card_highlight && (
                             <div

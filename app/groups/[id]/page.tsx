@@ -338,7 +338,7 @@ export default function MembershipCommunityPage() {
           }}
         >
           <h2 style={{ color: "#ffffff", marginTop: 0 }}>{community.name}</h2>
-          <p style={{ fontWeight: 700, marginBottom: "18px" }}>{priceLabel}</p>
+
           {community.full_description_rich?.html ? (
             <div
               className="community-rich-description"
