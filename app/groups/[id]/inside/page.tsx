@@ -1202,11 +1202,12 @@ return (
     paddingLeft: 18,
     paddingRight: 18,
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
   }}
 >
   <BackArrow href="/groups" />
+  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
   {paymentProvider === "apple" && isIOSNative() && (
     <a
       href="https://apps.apple.com/account/subscriptions"
@@ -1234,7 +1235,7 @@ return (
 
 
 
-  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+
   <a
     href="/integrations"
     style={{
