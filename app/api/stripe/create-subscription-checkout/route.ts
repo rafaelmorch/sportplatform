@@ -31,7 +31,30 @@ export async function POST(req: Request) {
   const stripe = new Stripe(stripeSecretKey);
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+  const authorization = req.headers.get("authorization");
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return NextResponse.json(
+      { error: "Unauthorized." },
+      { status: 401 }
+    );
+  }
+
+  const accessToken = authorization.slice("Bearer ".length).trim();
+
   try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(accessToken);
+
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: "Invalid user session." },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { community_id, user_id } = body;
 
@@ -39,6 +62,13 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Missing data" },
         { status: 400 }
+      );
+    }
+
+    if (user.id !== user_id) {
+      return NextResponse.json(
+        { error: "User identity mismatch." },
+        { status: 403 }
       );
     }
 

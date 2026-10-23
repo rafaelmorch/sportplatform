@@ -9,7 +9,7 @@ function mapSubscriptionStatusToMembershipStatus(subscriptionStatus?: string | n
     return "active";
   }
 
-  return "active";
+  return "pending";
 }
 
 function toIsoDate(unixSeconds?: number | null) {
@@ -117,9 +117,10 @@ export async function POST(req: Request) {
           billing_cycle_anchor: subscription.billing_cycle_anchor,
         });
 
-        const { error: updateError } = await supabase
+        const { data: updatedMemberships, error: updateError } = await supabase
           .from("app_membership_requests")
           .update({
+            payment_provider: "stripe",
             stripe_customer_id: stripeCustomerId,
             stripe_subscription_id: stripeSubscriptionId,
             subscription_status: subscription.status,
@@ -127,13 +128,48 @@ export async function POST(req: Request) {
             status: mapSubscriptionStatusToMembershipStatus(subscription.status),
           })
           .eq("community_id", communityId)
-          .eq("user_id", userId);
+          .eq("user_id", userId)
+          .or("payment_provider.is.null,payment_provider.eq.stripe").select("id");
 
         if (updateError) {
           console.error("Supabase update error on checkout.session.completed:", updateError);
 
           return NextResponse.json(
             { error: "Failed to update membership after checkout." },
+            { status: 500 }
+          );
+        }
+
+        if (!updatedMemberships?.length) {
+          const { data: existingMembership, error: lookupError } = await supabase
+            .from("app_membership_requests")
+            .select("payment_provider")
+            .eq("community_id", communityId)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (lookupError) {
+            console.error("Failed to inspect membership provider.", lookupError);
+            return NextResponse.json({ error: "Membership lookup failed." }, { status: 500 });
+          }
+
+          if (existingMembership?.payment_provider === "apple") {
+            console.warn("Stripe event ignored: Apple membership protected.", {
+              eventType: event.type,
+              communityId,
+              userId,
+            });
+            return NextResponse.json({ received: true });
+          }
+          console.error("Stripe checkout did not update any membership.", {
+            sessionId: session.id,
+            communityId,
+            userId,
+            stripeSubscriptionId,
+          });
+
+          return NextResponse.json(
+            { error: "No eligible membership found for Stripe checkout." },
             { status: 500 }
           );
         }
@@ -173,9 +209,10 @@ export async function POST(req: Request) {
           ? subscription.customer
           : subscription.customer?.id || null;
 
-      const { error: updateError } = await supabase
+      const { data: updatedMemberships, error: updateError } = await supabase
         .from("app_membership_requests")
         .update({
+          payment_provider: "stripe",
           stripe_customer_id: stripeCustomerId,
           stripe_subscription_id: subscription.id,
           subscription_status: subscription.status,
@@ -183,13 +220,48 @@ export async function POST(req: Request) {
           status: mapSubscriptionStatusToMembershipStatus(subscription.status),
         })
         .eq("community_id", communityId)
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .or("payment_provider.is.null,payment_provider.eq.stripe").select("id");
 
       if (updateError) {
         console.error("Supabase update error on subscription event:", updateError);
 
         return NextResponse.json(
           { error: "Failed to sync subscription status." },
+          { status: 500 }
+        );
+      }
+
+      if (!updatedMemberships?.length) {
+          const { data: existingMembership, error: lookupError } = await supabase
+            .from("app_membership_requests")
+            .select("payment_provider")
+            .eq("community_id", communityId)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (lookupError) {
+            console.error("Failed to inspect membership provider.", lookupError);
+            return NextResponse.json({ error: "Membership lookup failed." }, { status: 500 });
+          }
+
+          if (existingMembership?.payment_provider === "apple") {
+            console.warn("Stripe event ignored: Apple membership protected.", {
+              eventType: event.type,
+              communityId,
+              userId,
+            });
+            return NextResponse.json({ received: true });
+          }
+        console.error("Stripe subscription did not update any membership.", {
+          eventType: event.type,
+          subscriptionId: subscription.id,
+          communityId,
+          userId,
+        });
+
+        return NextResponse.json(
+          { error: "No eligible membership found for Stripe subscription." },
           { status: 500 }
         );
       }
@@ -231,10 +303,14 @@ export async function POST(req: Request) {
 
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object as any;
+      const invoiceSubscription =
+        invoice.parent?.subscription_details?.subscription ??
+        invoice.subscription;
+
       const stripeSubscriptionId =
-        typeof invoice.subscription === "string"
-          ? invoice.subscription
-          : invoice.subscription?.id || null;
+        typeof invoiceSubscription === "string"
+          ? invoiceSubscription
+          : invoiceSubscription?.id || null;
 
       if (stripeSubscriptionId) {
         const { error: updateError } = await supabase
@@ -263,10 +339,14 @@ export async function POST(req: Request) {
 
     if (event.type === "invoice.paid") {
       const invoice = event.data.object as any;
+      const invoiceSubscription =
+        invoice.parent?.subscription_details?.subscription ??
+        invoice.subscription;
+
       const stripeSubscriptionId =
-        typeof invoice.subscription === "string"
-          ? invoice.subscription
-          : invoice.subscription?.id || null;
+        typeof invoiceSubscription === "string"
+          ? invoiceSubscription
+          : invoiceSubscription?.id || null;
 
       if (stripeSubscriptionId) {
         const subscription = (await stripe.subscriptions.retrieve(

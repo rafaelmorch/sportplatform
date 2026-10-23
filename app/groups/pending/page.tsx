@@ -274,7 +274,7 @@ function PendingMembershipContent() {
               status: "pending",
             },
           ],
-          { onConflict: "community_id,user_id" }
+          { onConflict: "community_id,user_id", ignoreDuplicates: true }
         );
 
       if (requestError) {
@@ -372,6 +372,13 @@ function PendingMembershipContent() {
         router.replace(`/groups/${communityId}/inside`);
         return;
       }
+      const { data: stripeSessionData, error: stripeSessionError } =
+        await supabase.auth.getSession();
+
+      if (stripeSessionError || !stripeSessionData.session?.access_token) {
+        router.push("/login");
+        return;
+      }
 
       const response = await fetch(
         "/api/stripe/create-subscription-checkout",
@@ -379,6 +386,7 @@ function PendingMembershipContent() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${stripeSessionData.session.access_token}`,
           },
           body: JSON.stringify({
             community_id: communityId,

@@ -1021,10 +1021,18 @@ async function handleCancelSubscription() {
     setCancelingSubscription(true);
 
     try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError || !sessionData.session?.access_token) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
+
       const response = await fetch("/api/stripe/cancel-subscription", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionData.session.access_token}`,
         },
         body: JSON.stringify({
           community_id: communityId,
