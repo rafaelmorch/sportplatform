@@ -557,7 +557,7 @@ function PendingMembershipContent() {
               marginBottom: 8,
             }}
           >
-            {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" ? (appleMonthlyPrice ? `${appleMonthlyPrice} / month` : applePriceError ? "Price unavailable. Please try again later." : "Loading price...") : "Price shown at checkout"}
+            {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" ? (appleMonthlyPrice ? `${appleMonthlyPrice} / month` : applePriceError ? "Price unavailable. Please try again later." : "Loading price...") : "$9.99/month"}
           </div>
 
           <div

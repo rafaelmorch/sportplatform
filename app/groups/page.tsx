@@ -373,7 +373,7 @@ export default function MembershipsPage() {
             ) : (
               communities.map((community) => {
                 const image = community.cover_image_url || community.banner_image_url || null;
-                const priceLabel = isNativeIOS ? applePrices[community.id] : undefined;
+                const priceLabel = isNativeIOS ? applePrices[community.id] : "$9.99/month";
                 const isApproved = approvedIds.includes(community.id);
                 const href = isApproved
                   ? `/groups/${community.id}/inside`
