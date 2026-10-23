@@ -1201,14 +1201,17 @@ return (
       target="_blank"
       rel="noopener noreferrer"
       style={{
-        display: "block",
-        width: "100%",
-        padding: "14px 18px",
-        background: "#0f172a",
-        color: "#ffffff",
+        display: "table",
+        width: "auto",
+        margin: "4px 18px 12px auto",
+        padding: "7px 12px",
+        background: "#ffffff",
+        color: "#475569",
+        border: "1px solid #cbd5e1",
+        borderRadius: 8,
         textAlign: "center",
-        fontSize: 13,
-        fontWeight: 700,
+        fontSize: 11,
+        fontWeight: 600,
         textDecoration: "none",
       }}
     >
