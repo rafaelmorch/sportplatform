@@ -1195,6 +1195,18 @@ return (
           overflowX: "hidden",
         } as React.CSSProperties & { "--group-header-image": string }}
       >
+<div
+  style={{
+    width: "100%",
+    margin: "0 0 16px 0",
+    paddingLeft: 18,
+    paddingRight: 18,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  }}
+>
+  <BackArrow href="/groups" />
   {paymentProvider === "apple" && isIOSNative() && (
     <a
       href="https://apps.apple.com/account/subscriptions"
@@ -1203,7 +1215,7 @@ return (
       style={{
         display: "table",
         width: "auto",
-        margin: "4px 18px 12px auto",
+        margin: 0,
         padding: "7px 12px",
         background: "#ffffff",
         color: "#475569",
@@ -1220,18 +1232,7 @@ return (
   )}
 
 
-<div
-  style={{
-    width: "100%",
-    margin: "0 0 16px 0",
-    paddingLeft: 18,
-    paddingRight: 18,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  }}
->
-  <BackArrow href="/groups" />
+
 
   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
   <a
@@ -2564,33 +2565,6 @@ fontWeight: 700,
               </div>
             )}
           </div> */}
-          {!canManageHighlights && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                marginTop: 24,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => router.push("/profile")}
-                style={{
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#334155",
-                  borderRadius: 999,
-                  padding: "10px 16px",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  boxShadow: "0 6px 16px rgba(15,23,42,0.08)",
-                }}
-              >
-                Manage Subscription
-              </button>
-            </div>
-          )}
         </div>
       </main>
     </>
