@@ -343,6 +343,7 @@ const [syncingActivities, setSyncingActivities] = useState(false);
   const [hasVideos, setHasVideos] = useState(false);
   const [stripeSubscriptionId, setStripeSubscriptionId] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [paymentProvider, setPaymentProvider] = useState<string | null>(null);
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<string | null>(null);
   const [cancelingSubscription, setCancelingSubscription] = useState(false);
 
@@ -768,6 +769,7 @@ const typedCommunity = community as CommunityRow;
 
         setStripeSubscriptionId(request?.stripe_subscription_id ?? null);
         setSubscriptionStatus(request?.subscription_status ?? null);
+        setPaymentProvider(request?.payment_provider ?? null);
         setCurrentPeriodEnd(request?.current_period_end ?? null);
 
         const appleSubscriptionValid =
@@ -1193,6 +1195,28 @@ return (
           overflowX: "hidden",
         } as React.CSSProperties & { "--group-header-image": string }}
       >
+  {paymentProvider === "apple" && isIOSNative() && (
+    <a
+      href="https://apps.apple.com/account/subscriptions"
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: "block",
+        width: "100%",
+        padding: "14px 18px",
+        background: "#0f172a",
+        color: "#ffffff",
+        textAlign: "center",
+        fontSize: 13,
+        fontWeight: 700,
+        textDecoration: "none",
+      }}
+    >
+      MANAGE SUBSCRIPTION
+    </a>
+  )}
+
+
 <div
   style={{
     width: "100%",

@@ -27,6 +27,7 @@ function PendingMembershipContent() {
   const [appleMonthlyPrice, setAppleMonthlyPrice] = useState<string | null>(null);
   const [applePriceError, setApplePriceError] = useState(false);
   const [restoringPurchases, setRestoringPurchases] = useState(false);
+  const [appleSubscriptionExpired, setAppleSubscriptionExpired] = useState(false);
 
   useEffect(() => {
     if (
@@ -93,6 +94,18 @@ function PendingMembershipContent() {
         .maybeSingle();
 
       if (!isMounted || error || !data) return;
+
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") {
+        setAppleSubscriptionExpired(
+          data.payment_provider === "apple" &&
+          (
+            data.subscription_status === "expired" ||
+            data.status === "expired" ||
+            (data.current_period_end != null &&
+              Date.parse(data.current_period_end) <= Date.now())
+          )
+        );
+      }
 
       const appleSubscriptionValid =
         data.payment_provider !== "apple" ||
@@ -657,7 +670,7 @@ function PendingMembershipContent() {
               opacity: creatingCheckout || !termsAccepted ? 0.55 : 1,
             }}
           >
-            {creatingCheckout ? "Processing..." : "Continue with Subscription"}
+            {creatingCheckout ? "Processing..." : Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" ? (appleSubscriptionExpired ? "RESUBSCRIBE" : "SUBSCRIBE") : "Continue with Subscription"}
           </button>
 
           {Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios" && (
