@@ -89,7 +89,8 @@ export default function AuthSessionRecovery() {
     } = supabaseBrowser.auth.onAuthStateChange((event) => {
       if (
         event === "SIGNED_OUT" &&
-        window.location.pathname !== "/login"
+        window.location.pathname !== "/login" &&
+        window.location.pathname !== "/reset-password"
       ) {
         clearSupabaseAuthStorage();
         window.location.replace("/login");

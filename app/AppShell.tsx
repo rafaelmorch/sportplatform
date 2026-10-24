@@ -41,6 +41,7 @@ export default function AppShell({
     pathname.startsWith("/login") ||
     pathname.startsWith("/signup") ||
     pathname.startsWith("/register") ||
+    pathname.startsWith("/reset-password") ||
     pathname.startsWith("/contact") ||
     pathname.startsWith("/beachtennis") ||
     pathname.startsWith("/groups/") ||

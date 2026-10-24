@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
     setSuccessMsg(null);
 
     if (!email) {
-      setErrorMsg("Informe um e-mail válido.");
+      setErrorMsg("Please enter a valid email address.");
       return;
     }
 
@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://sportplatform.app/login",
+        redirectTo: "https://www.sportsplatform.app/reset-password",
       });
 
       if (error) {
@@ -39,12 +39,12 @@ export default function ForgotPasswordPage() {
       }
 
       setSuccessMsg(
-        "Se este e-mail estiver cadastrado, você receberá um link para redefinir a senha."
+        "If this email is registered, you will receive a password reset link."
       );
       setEmail("");
     } catch (err) {
       console.error(err);
-      setErrorMsg("Erro inesperado ao solicitar redefinição de senha.");
+      setErrorMsg("An unexpected error occurred while requesting a password reset.");
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
             marginBottom: "6px",
           }}
         >
-          Recuperar senha
+          Forgot Password
         </h1>
         <p
           style={{
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
             marginBottom: "16px",
           }}
         >
-          Informe o e-mail cadastrado para receber um link de redefinição.
+          Enter your registered email address to receive a password reset link.
         </p>
 
         {errorMsg && (
@@ -141,13 +141,13 @@ export default function ForgotPasswordPage() {
               htmlFor="email"
               style={{ fontSize: "13px", color: "#d1d5db" }}
             >
-              E-mail cadastrado
+              Email Address
             </label>
             <input
               id="email"
               type="email"
               required
-              placeholder="voce@exemplo.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{
@@ -181,7 +181,7 @@ export default function ForgotPasswordPage() {
               boxShadow: "0 14px 40px rgba(34,197,94,0.45)",
             }}
           >
-            {loading ? "Enviando..." : "Enviar link de redefinição"}
+            {loading ? "Sending..." : "Send Reset Link"}
           </button>
         </form>
 
@@ -192,7 +192,7 @@ export default function ForgotPasswordPage() {
             textAlign: "center",
           }}
         >
-          Lembrou a senha?{" "}
+          Remember your password?{" "}
           <button
             type="button"
             onClick={() => router.push("/login")}
@@ -206,7 +206,7 @@ export default function ForgotPasswordPage() {
               cursor: "pointer",
             }}
           >
-            Voltar ao login
+            Back to Sign In
           </button>
         </div>
       </div>

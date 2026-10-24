@@ -43,22 +43,22 @@ export default function SignUpPage() {
     setSuccessMsg(null);
 
     if (!name.trim()) {
-      setErrorMsg("Informe seu nome.");
+      setErrorMsg("Please enter your name.");
       return;
     }
 
     if (!email.trim()) {
-      setErrorMsg("Informe um e-mail válido.");
+      setErrorMsg("Please enter a valid email address.");
       return;
     }
 
     if (password.length < 6) {
-      setErrorMsg("A senha deve ter pelo menos 6 caracteres.");
+      setErrorMsg("Password must be at least 6 characters long.");
       return;
     }
 
     if (password !== password2) {
-      setErrorMsg("As senhas não coincidem.");
+      setErrorMsg("Passwords do not match.");
       return;
     }
 
@@ -80,7 +80,7 @@ export default function SignUpPage() {
       }
 
       setSuccessMsg(
-        "Conta criada! Verifique seu e-mail para confirmar e fazer login."
+        "Account created! Please check your email to confirm your account before signing in."
       );
 
       setName("");
@@ -89,7 +89,7 @@ export default function SignUpPage() {
       setPassword2("");
     } catch (err) {
       console.error(err);
-      setErrorMsg("Erro inesperado ao criar conta.");
+      setErrorMsg("An unexpected error occurred while creating your account.");
     } finally {
       setLoading(false);
     }
@@ -134,7 +134,7 @@ export default function SignUpPage() {
             marginBottom: "6px",
           }}
         >
-          Criar conta
+          Create Account
         </h1>
         <p
           style={{
@@ -143,7 +143,7 @@ export default function SignUpPage() {
             marginBottom: "16px",
           }}
         >
-          Comece sua jornada no SportPlatform.
+          Start your journey with Run Club.
         </p>
 
         {errorMsg && (
@@ -189,16 +189,16 @@ export default function SignUpPage() {
             marginBottom: "14px",
           }}
         >
-          {/* Nome */}
+          {/* Full Name */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label htmlFor="name" style={{ fontSize: "13px", color: "#d1d5db" }}>
-              Nome
+              Full Name
             </label>
             <input
               id="name"
               type="text"
               required
-              placeholder="Seu nome completo"
+              placeholder="Your full name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               style={inputStyle}
@@ -211,26 +211,26 @@ export default function SignUpPage() {
               htmlFor="email"
               style={{ fontSize: "13px", color: "#d1d5db" }}
             >
-              E-mail
+              Email
             </label>
             <input
               id="email"
               type="email"
               required
-              placeholder="voce@exemplo.com"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={inputStyle}
             />
           </div>
 
-          {/* Senha */}
+          {/* Password */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label
               htmlFor="password"
               style={{ fontSize: "13px", color: "#d1d5db" }}
             >
-              Senha
+              Password
             </label>
 
             <div style={{ position: "relative", width: "100%", boxSizing: "border-box" }}>
@@ -238,7 +238,7 @@ export default function SignUpPage() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 required
-                placeholder="Crie uma senha"
+                placeholder="Create a password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={{
@@ -262,27 +262,27 @@ export default function SignUpPage() {
                   padding: 0,
                   lineHeight: 0,
                 }}
-                aria-label={showPassword ? "Esconder senha" : "Mostrar senha"}
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
-          {/* Confirmar senha */}
+          {/* Confirm Password */}
           <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             <label
               htmlFor="password2"
               style={{ fontSize: "13px", color: "#d1d5db" }}
             >
-              Confirmar senha
+              Confirm Password
             </label>
 
             <input
               id="password2"
               type={showPassword ? "text" : "password"}
               required
-              placeholder="Confirme sua senha"
+              placeholder="Confirm your password"
               value={password2}
               onChange={(e) => setPassword2(e.target.value)}
               style={inputStyle}
@@ -308,7 +308,7 @@ export default function SignUpPage() {
               boxShadow: "0 14px 40px rgba(34,197,94,0.45)",
             }}
           >
-            {loading ? "Criando conta..." : "Criar conta"}
+            {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
 
@@ -319,7 +319,7 @@ export default function SignUpPage() {
             textAlign: "center",
           }}
         >
-          Já tem uma conta?{" "}
+          Already have an account?{" "}
           <button
             type="button"
             onClick={() => router.push("/login")}
@@ -333,7 +333,7 @@ export default function SignUpPage() {
               cursor: "pointer",
             }}
           >
-            Fazer login
+            Sign In
           </button>
         </div>
       </div>
