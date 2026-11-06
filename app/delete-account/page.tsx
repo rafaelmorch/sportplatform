@@ -1,6 +1,16 @@
+import { Montserrat } from "next/font/google";
+
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export default function DeleteAccountPage() {
   return (
-    <main style={{ maxWidth: 720, margin: "60px auto", padding: 24, lineHeight: 1.7 }}>
+    <main
+      className={montserrat.className}
+      style={{ maxWidth: 720, margin: "60px auto", padding: 24, lineHeight: 1.7 }}
+    >
       <h1>Run Club Community - Account Deletion</h1>
 
       <p>

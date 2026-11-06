@@ -155,8 +155,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Platform Sports respects your privacy and is committed to protecting your personal data. This policy explains how we collect, use, and safeguard your information."
-            : "A Platform Sports respeita sua privacidade e está comprometida com a proteção de seus dados pessoais. Esta política explica como coletamos, utilizamos e protegemos suas informações."}
+            ? "Run Club Community respects your privacy and is committed to protecting your personal data. This policy explains how we collect, use, and safeguard your information."
+            : "A Run Club Community respeita sua privacidade e está comprometida com a proteção de seus dados pessoais. Esta política explica como coletamos, utilizamos e protegemos suas informações."}
         </p>
 
         <h2 style={sectionTitleStyle}>
@@ -187,8 +187,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Payments may be processed by third-party payment providers such as Stripe, Apple App Store or Google Play, depending on where you purchase your subscription. Platform Sports does not directly store your full payment card details."
-            : "Os pagamentos podem ser processados por provedores terceiros, como Stripe, Apple App Store ou Google Play, dependendo de onde sua assinatura for adquirida. A Platform Sports não armazena diretamente os dados completos do seu cartão de pagamento."}
+            ? "Payments may be processed by third-party payment providers such as Stripe, Apple App Store or Google Play, depending on where you purchase your subscription. Run Club Community does not directly store your full payment card details."
+            : "Os pagamentos podem ser processados por provedores terceiros, como Stripe, Apple App Store ou Google Play, dependendo de onde sua assinatura for adquirida. A Run Club Community não armazena diretamente os dados completos do seu cartão de pagamento."}
         </p>
 
         <h2 style={sectionTitleStyle}>
@@ -197,8 +197,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "We do not sell your personal data. We only share information when necessary to operate the platform, provide integrated services, process payments or comply with legal obligations. Service providers may process information only as necessary to provide services to Platform Sports and subject to applicable privacy, security and contractual obligations. We do not permit service providers to sell Garmin or Strava data."
-            : "Não vendemos seus dados pessoais. Compartilhamos informações apenas quando necessário para operar a plataforma, fornecer serviços integrados, processar pagamentos ou cumprir obrigações legais. Prestadores de serviço poderão processar informações somente quando necessário para prestar serviços à Platform Sports e sujeitos às obrigações aplicáveis de privacidade, segurança e contrato. Não permitimos que prestadores de serviço vendam dados provenientes do Garmin ou Strava."}
+            ? "We do not sell your personal data. We only share information when necessary to operate the platform, provide integrated services, process payments or comply with legal obligations. Service providers may process information only as necessary to provide services to Run Club Community and subject to applicable privacy, security and contractual obligations. We do not permit service providers to sell Garmin or Strava data."
+            : "Não vendemos seus dados pessoais. Compartilhamos informações apenas quando necessário para operar a plataforma, fornecer serviços integrados, processar pagamentos ou cumprir obrigações legais. Prestadores de serviço poderão processar informações somente quando necessário para prestar serviços à Run Club Community e sujeitos às obrigações aplicáveis de privacidade, segurança e contrato. Não permitimos que prestadores de serviço vendam dados provenientes do Garmin ou Strava."}
         </p>
 
         <h2 style={sectionTitleStyle}>
@@ -217,8 +217,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Platform Sports may connect to your Strava account only with your permission. When you connect Strava, we may access activity data such as activity type, distance, duration, elevation, pace, start date and related workout information."
-            : "A Platform Sports poderá conectar-se à sua conta Strava somente com sua autorização. Ao conectar o Strava, poderemos acessar dados de atividades como tipo de atividade, distância, duração, elevação, ritmo, data de início e outras informações relacionadas ao treino."}
+            ? "Run Club Community may connect to your Strava account only with your permission. When you connect Strava, we may access activity data such as activity type, distance, duration, elevation, pace, start date and related workout information."
+            : "A Run Club Community poderá conectar-se à sua conta Strava somente com sua autorização. Ao conectar o Strava, poderemos acessar dados de atividades como tipo de atividade, distância, duração, elevação, ritmo, data de início e outras informações relacionadas ao treino."}
         </p>
 
         <p style={paragraphStyle}>
@@ -250,8 +250,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Platform Sports may connect to your Garmin Connect account only with your authorization. When you connect Garmin Connect, Platform Sports may receive activity and health information that you authorize Garmin to share, including activity type, distance, duration, pace, heart rate, steps, calories, sleep, stress, body composition and other fitness or wellness metrics made available through the Garmin Connect APIs."
-            : "A Platform Sports poderá conectar-se à sua conta Garmin Connect somente com sua autorização. Ao conectar o Garmin Connect, a Platform Sports poderá receber informações de atividade e saúde que você autorizar a Garmin a compartilhar, incluindo tipo de atividade, distância, duração, ritmo, frequência cardíaca, passos, calorias, sono, estresse, composição corporal e outras métricas de condicionamento físico ou bem-estar disponibilizadas pelas APIs do Garmin Connect."}
+            ? "Run Club Community may connect to your Garmin Connect account only with your authorization. When you connect Garmin Connect, Run Club Community may receive activity and health information that you authorize Garmin to share, including activity type, distance, duration, pace, heart rate, steps, calories, sleep, stress, body composition and other fitness or wellness metrics made available through the Garmin Connect APIs."
+            : "A Run Club Community poderá conectar-se à sua conta Garmin Connect somente com sua autorização. Ao conectar o Garmin Connect, a Run Club Community poderá receber informações de atividade e saúde que você autorizar a Garmin a compartilhar, incluindo tipo de atividade, distância, duração, ritmo, frequência cardíaca, passos, calorias, sono, estresse, composição corporal e outras métricas de condicionamento físico ou bem-estar disponibilizadas pelas APIs do Garmin Connect."}
         </p>
 
         <p style={paragraphStyle}>
@@ -262,14 +262,14 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Platform Sports does not sell or rent Garmin user, activity or health data. Garmin data is not used for advertising. Any processing by service providers is limited to what is necessary to provide Platform Sports services and is subject to the safeguards described in this Privacy Policy."
-            : "A Platform Sports não vende nem aluga dados de usuários, atividades ou saúde provenientes do Garmin. Os dados Garmin não são utilizados para publicidade. Qualquer processamento realizado por prestadores de serviço é limitado ao necessário para fornecer os serviços da Platform Sports e está sujeito às proteções descritas nesta Política de Privacidade."}
+            ? "Run Club Community does not sell or rent Garmin user, activity or health data. Garmin data is not used for advertising. Any processing by service providers is limited to what is necessary to provide Run Club Community services and is subject to the safeguards described in this Privacy Policy."
+            : "A Run Club Community não vende nem aluga dados de usuários, atividades ou saúde provenientes do Garmin. Os dados Garmin não são utilizados para publicidade. Qualquer processamento realizado por prestadores de serviço é limitado ao necessário para fornecer os serviços da Run Club Community e está sujeito às proteções descritas nesta Política de Privacidade."}
         </p>
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "You may revoke Platform Sports' access to your Garmin data through Garmin Connect or disconnect Garmin from Platform Sports. When you revoke authorization or request deletion of your Garmin-related data, Platform Sports will delete Garmin data associated with your account, except where retention is required by applicable law."
-            : "Você poderá revogar o acesso da Platform Sports aos seus dados Garmin por meio do Garmin Connect ou desconectar o Garmin da Platform Sports. Quando você revogar a autorização ou solicitar a exclusão dos seus dados relacionados ao Garmin, a Platform Sports excluirá os dados Garmin associados à sua conta, exceto quando a retenção for exigida pela legislação aplicável."}
+            ? "You may revoke Run Club Community's access to your Garmin data through Garmin Connect or disconnect Garmin from Run Club Community. When you revoke authorization or request deletion of your Garmin-related data, Run Club Community will delete Garmin data associated with your account, except where retention is required by applicable law."
+            : "Você poderá revogar o acesso da Run Club Community aos seus dados Garmin por meio do Garmin Connect ou desconectar o Garmin da Run Club Community. Quando você revogar a autorização ou solicitar a exclusão dos seus dados relacionados ao Garmin, a Run Club Community excluirá os dados Garmin associados à sua conta, exceto quando a retenção for exigida pela legislação aplicável."}
         </p>
 
         <p style={paragraphStyle}>
@@ -280,8 +280,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Garmin data may be processed by service providers used by Platform Sports solely as necessary to provide the requested services. These providers may include infrastructure, database and artificial intelligence providers such as Supabase and OpenAI. Such providers process information on behalf of Platform Sports subject to applicable contractual, privacy and security obligations. Platform Sports does not permit these providers to sell Garmin data or use it for advertising."
-            : "Os dados Garmin poderão ser processados por prestadores de serviço utilizados pela Platform Sports exclusivamente quando necessário para fornecer os serviços solicitados. Esses prestadores poderão incluir fornecedores de infraestrutura, banco de dados e inteligência artificial, como Supabase e OpenAI. Esses fornecedores processam informações em nome da Platform Sports e estão sujeitos às obrigações aplicáveis de contrato, privacidade e segurança. A Platform Sports não permite que esses fornecedores vendam dados Garmin ou os utilizem para publicidade."}
+            ? "Garmin data may be processed by service providers used by Run Club Community solely as necessary to provide the requested services. These providers may include infrastructure, database and artificial intelligence providers such as Supabase and OpenAI. Such providers process information on behalf of Run Club Community subject to applicable contractual, privacy and security obligations. Run Club Community does not permit these providers to sell Garmin data or use it for advertising."
+            : "Os dados Garmin poderão ser processados por prestadores de serviço utilizados pela Run Club Community exclusivamente quando necessário para fornecer os serviços solicitados. Esses prestadores poderão incluir fornecedores de infraestrutura, banco de dados e inteligência artificial, como Supabase e OpenAI. Esses fornecedores processam informações em nome da Run Club Community e estão sujeitos às obrigações aplicáveis de contrato, privacidade e segurança. A Run Club Community não permite que esses fornecedores vendam dados Garmin ou os utilizem para publicidade."}
         </p>
 
         <h2 style={sectionTitleStyle}>
@@ -292,14 +292,14 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "When you use Performance AI, relevant account, training, nutrition, body, health and conversation data may be processed to generate personalized plans, summaries, insights and responses. This may include fitness and health information obtained from connected services such as Garmin Connect and Strava when you have authorized Platform Sports to access that information. Only information reasonably necessary to provide the requested feature should be sent for AI processing."
-            : "Ao utilizar o Performance AI, dados relevantes de conta, treinamentos, alimentação, corpo, saúde e conversas poderão ser processados para gerar planos, resumos, análises e respostas personalizadas. Isso poderá incluir informações de condicionamento físico e saúde obtidas de serviços conectados como Garmin Connect e Strava quando você tiver autorizado a Platform Sports a acessar essas informações. Apenas informações razoavelmente necessárias para oferecer o recurso solicitado deverão ser enviadas para processamento por inteligência artificial."}
+            ? "When you use Performance AI, relevant account, training, nutrition, body, health and conversation data may be processed to generate personalized plans, summaries, insights and responses. This may include fitness and health information obtained from connected services such as Garmin Connect and Strava when you have authorized Run Club Community to access that information. Only information reasonably necessary to provide the requested feature should be sent for AI processing."
+            : "Ao utilizar o Performance AI, dados relevantes de conta, treinamentos, alimentação, corpo, saúde e conversas poderão ser processados para gerar planos, resumos, análises e respostas personalizadas. Isso poderá incluir informações de condicionamento físico e saúde obtidas de serviços conectados como Garmin Connect e Strava quando você tiver autorizado a Run Club Community a acessar essas informações. Apenas informações razoavelmente necessárias para oferecer o recurso solicitado deverão ser enviadas para processamento por inteligência artificial."}
         </p>
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Platform Sports may use artificial intelligence service providers, including OpenAI, to process prompts and generate responses. These providers process information according to their applicable terms, privacy policies and data-processing commitments."
-            : "A Platform Sports poderá utilizar prestadores de serviços de inteligência artificial, incluindo a OpenAI, para processar solicitações e gerar respostas. Esses fornecedores processam as informações de acordo com seus termos aplicáveis, políticas de privacidade e compromissos de processamento de dados."}
+            ? "Run Club Community may use artificial intelligence service providers, including OpenAI, to process prompts and generate responses. These providers process information according to their applicable terms, privacy policies and data-processing commitments."
+            : "A Run Club Community poderá utilizar prestadores de serviços de inteligência artificial, incluindo a OpenAI, para processar solicitações e gerar respostas. Esses fornecedores processam as informações de acordo com seus termos aplicáveis, políticas de privacidade e compromissos de processamento de dados."}
         </p>
 
         <p style={paragraphStyle}>
@@ -334,10 +334,19 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "We retain personal information only for as long as necessary to provide the platform, comply with legal obligations, resolve disputes and enforce our agreements. You may request deletion of your account and associated personal data. If you disconnect Garmin Connect, revoke Platform Sports' authorization or request deletion of Garmin-related data, we will delete Garmin user, activity and health data associated with your account, except where retention is required by applicable law."
-            : "Mantemos informações pessoais apenas pelo tempo necessário para fornecer a plataforma, cumprir obrigações legais, resolver disputas e fazer cumprir nossos acordos. Você poderá solicitar a exclusão da sua conta e dos dados pessoais associados. Se você desconectar o Garmin Connect, revogar a autorização da Platform Sports ou solicitar a exclusão dos dados relacionados ao Garmin, excluiremos os dados de usuário, atividade e saúde provenientes do Garmin associados à sua conta, exceto quando a retenção for exigida pela legislação aplicável."}
+            ? "We retain personal information only for as long as necessary to provide the platform, comply with legal obligations, resolve disputes and enforce our agreements. You may request deletion of your account and associated personal data. If you disconnect Garmin Connect, revoke Run Club Community's authorization or request deletion of Garmin-related data, we will delete Garmin user, activity and health data associated with your account, except where retention is required by applicable law."
+            : "Mantemos informações pessoais apenas pelo tempo necessário para fornecer a plataforma, cumprir obrigações legais, resolver disputas e fazer cumprir nossos acordos. Você poderá solicitar a exclusão da sua conta e dos dados pessoais associados. Se você desconectar o Garmin Connect, revogar a autorização da Run Club Community ou solicitar a exclusão dos dados relacionados ao Garmin, excluiremos os dados de usuário, atividade e saúde provenientes do Garmin associados à sua conta, exceto quando a retenção for exigida pela legislação aplicável."}
         </p>
 
+        <p style={paragraphStyle}>
+          {isEnglish
+            ? "To request account deletion, visit:"
+            : "Para solicitar a exclusão da sua conta, acesse:"}{" "}
+          <a href="/delete-account">
+            {isEnglish ? "Account Deletion" : "Exclusão de Conta"}
+          </a>
+          .
+        </p>
         <h2 style={sectionTitleStyle}>
           {isEnglish ? "Your Rights" : "Seus Direitos"}
         </h2>
@@ -354,8 +363,8 @@ export default function PrivacyPage() {
 
         <p style={paragraphStyle}>
           {isEnglish
-            ? "Platform Sports may use services such as Garmin Connect, Strava, Stripe, Apple, Google, Supabase, OpenAI and other service providers. Their handling of information may also be governed by their own privacy policies and applicable data-processing commitments."
-            : "A Platform Sports poderá utilizar serviços como Garmin Connect, Strava, Stripe, Apple, Google, Supabase, OpenAI e outros prestadores. O tratamento das informações por esses serviços também poderá ser regido por suas próprias políticas de privacidade e compromissos aplicáveis de processamento de dados."}
+            ? "Run Club Community may use services such as Garmin Connect, Strava, Stripe, Apple, Google, Supabase, OpenAI and other service providers. Their handling of information may also be governed by their own privacy policies and applicable data-processing commitments."
+            : "A Run Club Community poderá utilizar serviços como Garmin Connect, Strava, Stripe, Apple, Google, Supabase, OpenAI e outros prestadores. O tratamento das informações por esses serviços também poderá ser regido por suas próprias políticas de privacidade e compromissos aplicáveis de processamento de dados."}
         </p>
 
         <h2 style={sectionTitleStyle}>
@@ -377,7 +386,7 @@ export default function PrivacyPage() {
             ? "If you have questions about this Privacy Policy or wish to exercise your privacy rights, contact us at:"
             : "Se você tiver dúvidas sobre esta Política de Privacidade ou desejar exercer seus direitos relacionados à privacidade, entre em contato conosco pelo e-mail:"}
           <br />
-          support@platformsports.app
+          contact@sportsplatform.app
         </p>
       </article>
     </main>
