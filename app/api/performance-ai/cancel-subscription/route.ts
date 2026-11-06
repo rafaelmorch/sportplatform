@@ -22,7 +22,37 @@ export async function POST(req: Request) {
   );
 
   try {
+    const authorization = req.headers.get("authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Unauthorized." },
+        { status: 401 }
+      );
+    }
+
+    const accessToken = authorization.slice(7).trim();
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser(accessToken);
+
+    if (userError || !user) {
+      return NextResponse.json(
+        { error: "Invalid user session." },
+        { status: 401 }
+      );
+    }
+
     const { user_id } = await req.json();
+
+    if (user.id !== user_id) {
+      return NextResponse.json(
+        { error: "User identity mismatch." },
+        { status: 403 }
+      );
+    }
 
     if (!user_id) {
       return NextResponse.json(

@@ -372,12 +372,18 @@ export default function ProfilePage() {
       setErrorMsg(null);
       setSuccessMsg(null);
 
+      const { data: { session } } = await supabaseBrowser.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
+
       const response = await fetch(
         "/api/performance-ai/cancel-subscription",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
             user_id: userId,
@@ -437,9 +443,11 @@ export default function ProfilePage() {
 
   const handleDeleteAccount = async () => {
     const confirmDelete = confirm(
-      "Are you sure you want to delete your account? This action is permanent and cannot be undone."
+      "Delete Account\n\n" +
+      "Before deleting your account, please cancel all active subscriptions!\n\n" +
+      "Deleting your account does not automatically cancel your subscriptions, and you may continue to be charged.\n\n" +
+      "Once your subscriptions are canceled, you can request account deletion. Your personal data will be processed for deletion."
     );
-
     if (!confirmDelete) return;
 
     try {
@@ -460,8 +468,8 @@ export default function ProfilePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ userId: session.user.id }),
       });
 
       const data = await res.json();
@@ -469,6 +477,10 @@ export default function ProfilePage() {
       if (!res.ok) {
         throw new Error(data?.error || "Error deleting account.");
       }
+
+      alert(
+        "Your account deletion request has been submitted successfully.\n\nYour personal data will be processed for deletion."
+      );
 
       await supabaseBrowser.auth.signOut();
 
