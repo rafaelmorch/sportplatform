@@ -780,8 +780,9 @@ const typedCommunity = community as CommunityRow;
         const hasValidAccess =
           request &&
           request.status === "active" &&
-          ["active", "trialing"].includes(request.subscription_status ?? "") &&
-          appleSubscriptionValid;
+          (id === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" ||
+            (["active", "trialing"].includes(request.subscription_status ?? "") &&
+              appleSubscriptionValid));
 
         if (!hasValidAccess) {
           router.replace(`/groups/pending?community_id=${id}`);
@@ -1216,7 +1217,7 @@ return (
 >
   <BackArrow href="/groups" />
   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
-  {paymentProvider === "apple" && isIOSNative() && (
+  {communityId !== "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" && paymentProvider === "apple" && isIOSNative() && (
     <a
       href="https://apps.apple.com/account/subscriptions"
       target="_blank"

@@ -373,11 +373,14 @@ export default function MembershipsPage() {
             ) : (
               communities.map((community) => {
                 const image = community.cover_image_url || community.banner_image_url || null;
-                const priceLabel = isNativeIOS ? applePrices[community.id] : "$9.99/month";
+                const priceLabel = community.id === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" ? null : (isNativeIOS ? applePrices[community.id] : "$9.99/month");
                 const isApproved = approvedIds.includes(community.id);
-                const href = isApproved
-                  ? `/groups/${community.id}/inside`
-                  : `/groups/${community.id}`;
+                const isFreeRunClub = community.id === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1";
+                const href = isFreeRunClub
+                  ? `/groups/${community.id}`
+                  : isApproved
+                    ? `/groups/${community.id}/inside`
+                    : `/groups/${community.id}`;
                 const canEdit = isAdmin || (!!userId && community.created_by === userId);
 
                 return (

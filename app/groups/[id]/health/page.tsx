@@ -202,10 +202,10 @@ export default function HealthAndSafetyPage() {
         membershipError ||
         !membership ||
         membership.status !== "active" ||
-        !["active", "trialing"].includes(
-          membership.subscription_status ?? ""
-        ) ||
-        !appleSubscriptionValid
+        (communityId !== "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" &&
+          (!["active", "trialing"].includes(
+            membership.subscription_status ?? ""
+          ) || !appleSubscriptionValid))
       ) {
         router.replace(`/groups/pending?community_id=${communityId}`);
         return;
@@ -295,7 +295,11 @@ export default function HealthAndSafetyPage() {
         return;
       }
 
-      router.replace(`/groups/${communityId}/inside`);
+      router.replace(
+        communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1"
+          ? `/groups/${communityId}`
+          : `/groups/${communityId}/inside`
+      );
     } catch (error) {
       console.error("Error saving health form:", error);
       setMessage(text.unexpected);
