@@ -305,7 +305,7 @@ export default function CoachPlanPage() {
                 styles.eyebrow
               }
             >
-              Coach IA
+              ASHLAI Coach
             </p>
 
             <h1
@@ -313,7 +313,7 @@ export default function CoachPlanPage() {
                 styles.title
               }
             >
-              Meu plano
+              My Plan
             </h1>
 
             <p
@@ -321,7 +321,7 @@ export default function CoachPlanPage() {
                 styles.description
               }
             >
-              Escolha uma data para visualizar o treino, a alimentação e as orientações do Coach para aquele dia.
+              Select a date to view your workout, nutrition, and coaching guidance for that day.
             </p>
           </div>
         </header>
