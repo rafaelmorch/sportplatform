@@ -248,7 +248,7 @@ export default function PerformanceAiSubscribePage() {
       `}</style>
       <div style={{ maxWidth:600,margin:"0 auto",position:"relative",zIndex:1 }}>
         <header style={{ textAlign:"center",marginBottom:28 }}>
-          <img src="/performance-ai/subscribe/maia-logo.png" alt="MAIA Fitness" style={{display:"block",width:180,maxWidth:"65%",height:"auto",margin:"0 auto 8px"}} />
+          <img src="/performance-ai/subscribe/maia-heart.png" alt="MAIA Fitness" style={{display:"block",width:82,maxWidth:"25%",height:"auto",margin:"0 auto 8px"}} />
           <p style={{fontSize:10,letterSpacing:".2em",color:"#d4af37",margin:"9px 0 24px"}}>{t.subtitle}</p>
           <h1 style={{fontSize:"clamp(29px,7vw,42px)",lineHeight:1.12,letterSpacing:"-.04em",margin:"0 0 12px",fontWeight:650}}>{t.headline}</h1>
           <p style={{fontSize:14,color:"#bdbdc4",lineHeight:1.6,margin:0}}>{t.intro}</p>
