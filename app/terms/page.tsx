@@ -55,7 +55,7 @@ export default function TermsPage() {
         </h1>
 
         <div style={{ color: "#64748b", fontSize: 13 }}>
-          Last updated: August 17, 2026
+          Last updated: November 17, 2026
         </div>
 
         <h2 style={sectionTitleStyle}>English</h2>
@@ -63,7 +63,7 @@ export default function TermsPage() {
         <h3 style={sectionTitleStyle}>1. Acceptance</h3>
         <p style={paragraphStyle}>
           By creating an account, joining a community, starting a free trial or
-          using Platform Sports, you confirm that you have read and accepted
+          using Platform Sports, including MAIA Fitness, you confirm that you have read and accepted
           these Terms & Conditions and our Privacy Policy.
         </p>
 
@@ -87,12 +87,14 @@ export default function TermsPage() {
 
         <h3 style={sectionTitleStyle}>4. Cancellation</h3>
         <p style={paragraphStyle}>
-          You may cancel your membership at any time through the membership
-          area of the Platform Sports app. If you cancel during the free trial,
-          you will not be charged. If you cancel after the trial has converted
-          into a paid subscription, your cancellation will prevent future
-          renewals. Any remaining access will follow the cancellation
-          information displayed inside the app.
+          You may cancel your subscription through the platform where it was
+          purchased. For Apple App Store subscriptions, manage or cancel your
+          subscription in your Apple Account subscription settings. For other
+          purchases, follow the cancellation instructions provided at checkout
+          or in the applicable membership area. Cancel before a trial ends to
+          avoid renewal charges. Cancellation prevents future renewals, and
+          access generally continues until the end of the paid billing period,
+          subject to the applicable store terms and subscription status.
         </p>
 
         <h3 style={sectionTitleStyle}>5. Physical activities and health</h3>
@@ -112,9 +114,12 @@ export default function TermsPage() {
         <h3 style={sectionTitleStyle}>6. PAR-Q</h3>
         <p style={paragraphStyle}>
           Members may be required to complete a Physical Activity Readiness
-          Questionnaire before participating in community activities. The
-          PAR-Q is a screening tool and does not replace medical evaluation,
-          diagnosis or professional advice.
+          Questionnaire before participating in community activities. MAIA
+          Fitness requires completion of the PAR-Q and applicable health and
+          safety acknowledgments before accessing its AI coaching features.
+          If your answers raise health concerns, consult a qualified healthcare
+          professional before exercising. The PAR-Q is a screening tool and
+          does not replace medical evaluation, diagnosis or professional advice.
         </p>
 
         <h3 style={sectionTitleStyle}>
@@ -153,7 +158,7 @@ export default function TermsPage() {
           authorized by you, including workouts, distance, duration, heart
           rate, steps, sleep and other available metrics. This information is
           used to provide features such as activity history, performance
-          analysis, community features and personalized Performance AI
+          analysis, community features and personalized MAIA Fitness (formerly Performance AI)
           insights. Platform Sports does not sell Garmin or Strava activity or
           health data to third parties. Additional information about
           collection, use, retention and deletion is provided in our Privacy
@@ -161,22 +166,22 @@ export default function TermsPage() {
         </p>
 
         <h3 style={sectionTitleStyle}>
-          11. Performance AI and artificial intelligence
+          11. MAIA Fitness and artificial intelligence
         </h3>
 
         <p style={paragraphStyle}>
-          Performance AI, including the Coach AI, provides automated
+          MAIA Fitness, formerly Performance AI and Coach AI, provides automated
           information, suggestions and personalized plans based on the
           information available in your account. This may include profile
           information, training history, connected activity and health data
           from services such as Garmin Connect and Strava when authorized by
           you, nutrition records, body measurements, laboratory information,
           PAR-Q responses and information provided during conversations with
-          the Coach AI.
+          the AI coach.
         </p>
 
         <p style={paragraphStyle}>
-          Performance AI is an informational and wellness-support tool. It does
+          MAIA Fitness is an informational and wellness-support tool. It does
           not provide medical diagnosis, treatment, emergency assistance or
           professional medical, nutritional, physical therapy or psychological
           services. It does not replace consultation with a physician,
@@ -188,29 +193,33 @@ export default function TermsPage() {
           Artificial intelligence may produce incomplete, inaccurate,
           inappropriate or outdated information. You must review recommendations
           carefully, respect your physical limits and seek professional advice
-          whenever appropriate. Do not rely on Performance AI in an emergency
+          whenever appropriate. Do not rely on MAIA Fitness in an emergency
           or when experiencing pain, chest discomfort, fainting, severe
           shortness of breath or other concerning symptoms.
         </p>
 
         <h3 style={sectionTitleStyle}>
-          12. Performance AI subscription
+          12. MAIA Fitness subscription
         </h3>
 
         <p style={paragraphStyle}>
-          Performance AI is offered as a separate paid subscription. Unless
-          otherwise displayed before checkout, the Performance AI subscription
-          has no free trial and renews automatically until canceled. Payment
-          may be processed through Stripe, Apple App Store or Google Play,
-          depending on where the subscription is purchased. The price and
-          billing frequency are displayed before payment.
+          MAIA Fitness is offered as a separate monthly auto-renewable paid
+          subscription, independent of Run Club community memberships. The
+          MAIA Fitness subscription has no free trial unless one is explicitly
+          displayed before checkout. On iOS, purchases are processed through
+          Apple's In-App Purchase system. The subscription is configured at
+          US$9.99 per month in the United States; the actual localized price,
+          billing period and any applicable offer are displayed by Apple before
+          confirmation. Subscriptions automatically renew unless canceled in
+          accordance with the applicable App Store terms.
         </p>
 
         <p style={paragraphStyle}>
-          Canceling prevents future renewals but does not ordinarily create a
-          refund for amounts already charged, except where required by law or
-          expressly stated by Platform Sports. Access after cancellation will
-          follow the subscription status and period displayed in the app.
+          Canceling prevents future renewals but does not automatically refund
+          previous charges. Refund requests for Apple purchases are handled
+          under Apple's refund policies and applicable law. Access after
+          cancellation generally remains available through the current paid
+          billing period, subject to the subscription status and store terms.
         </p>
 
         <h3 style={sectionTitleStyle}>13. Changes and contact</h3>
