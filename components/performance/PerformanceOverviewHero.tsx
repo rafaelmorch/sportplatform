@@ -32,7 +32,7 @@ export default function PerformanceOverviewHero({
       <div className={styles.intro}>
         <div className={styles.brand}>
           <span className={styles.brandLine} />
-          <span>ASHLAI Coach</span>
+          <span>Your Personal Trainer</span>
         </div>
 
         <h1 className={styles.title}>
