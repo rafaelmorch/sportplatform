@@ -13,14 +13,14 @@ export default function PerformanceAiBackButton({
   return (
     <Link
       href={href}
-      aria-label="Voltar para Performance AI"
+      aria-label="Back to ASHLAI Coach"
       style={styles.button}
     >
       <span aria-hidden="true" style={styles.arrow}>
         ←
       </span>
 
-      <span>Performance AI</span>
+      <span>ASHLAI Coach</span>
     </Link>
   );
 }
