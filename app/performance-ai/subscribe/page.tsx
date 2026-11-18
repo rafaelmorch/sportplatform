@@ -228,6 +228,23 @@ export default function PerformanceAiSubscribePage() {
           {paymentState === "cancelled" && <p role="status" style={noticeStyle}>{t.cancelled}</p>}
           {paymentState === "processing" && <p role="status" style={noticeStyle}>{t.processing}</p>}
         </header>
+        <section aria-label={t.benefits} style={{margin:"14px 0 26px"}}>
+          <h2 style={{fontSize:12,fontWeight:800,letterSpacing:".15em",color:"#ff536a",margin:"0 0 16px"}}>{t.benefits}</h2>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:"18px 14px",alignItems:"start"}}>
+            {highlights.map((src,index)=>(
+              <article key={src} style={{minWidth:0,gridColumn:index===highlights.length-1?"1 / -1":undefined,maxWidth:index===highlights.length-1?240:undefined,justifySelf:index===highlights.length-1?"center":undefined}}>
+                <div style={{padding:"10px 8px 14px",background:"radial-gradient(ellipse at 50% 70%,rgba(225,16,58,.22),transparent 75%)"}}>
+                  <div style={{width:"100%",maxWidth:190,aspectRatio:"9 / 17",margin:"0 auto",padding:5,boxSizing:"border-box",border:"4px solid #38383d",borderRadius:26,background:"#050505",boxShadow:"0 12px 30px rgba(0,0,0,.65),0 0 18px rgba(222,22,60,.2)",transform:index%2===0?"rotate(-6deg)":"rotate(6deg)",position:"relative"}}>
+                    <div aria-hidden="true" style={{position:"absolute",top:8,left:"36%",width:"28%",height:9,background:"#050505",borderRadius:12,zIndex:2}} />
+                    <img src={src} alt={t.items[index][0]} style={{width:"100%",height:"100%",display:"block",objectFit:"cover",objectPosition:"top",borderRadius:18}} />
+                  </div>
+                </div>
+                <h3 style={{fontSize:14,fontWeight:750,margin:"8px 0 5px"}}>{t.items[index][0]}</h3>
+                <p style={{fontSize:12,lineHeight:1.5,color:"#bdbdc5",margin:0}}>{t.items[index][1]}</p>
+              </article>
+            ))}
+          </div>
+        </section>
         <section style={{background:"#151519",border:"1px solid #303036",borderRadius:18,padding:"23px 20px",margin:"12px 0 20px"}}>
           <h2 style={{fontSize:16,margin:"0 0 15px",fontWeight:700}}>{t.membership}</h2>
           <div style={{fontSize:30,fontWeight:800,letterSpacing:"-.03em"}}>
