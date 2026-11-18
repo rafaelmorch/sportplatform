@@ -218,8 +218,35 @@ export default function PerformanceAiSubscribePage() {
   };
 
   return (
-    <main style={{ minHeight:"100dvh", background:"radial-gradient(circle at 50% -80px,rgba(200,16,46,.16),transparent 40%),#080808",color:"#fff",fontFamily:"Montserrat,sans-serif",padding:"max(24px,env(safe-area-inset-top)) 18px calc(88px + env(safe-area-inset-bottom))",boxSizing:"border-box" }}>
-      <div style={{ maxWidth:600,margin:"0 auto" }}>
+    <main className="maia-paywall" style={{ minHeight:"100dvh", position:"relative", isolation:"isolate", overflow:"hidden", background:"#070707",color:"#fff",fontFamily:"Montserrat,sans-serif",padding:"max(24px,env(safe-area-inset-top)) 18px calc(88px + env(safe-area-inset-bottom))",boxSizing:"border-box" }}>
+      <style>{`
+        .maia-paywall::before {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          pointer-events: none;
+          inset: 0;
+          background:
+            radial-gradient(ellipse 65% 15% at 112% 12%, rgba(244,14,48,.27), transparent 75%),
+            radial-gradient(ellipse 65% 13% at -18% 65%, rgba(188,0,37,.22), transparent 80%),
+            radial-gradient(ellipse 75% 12% at 88% 100%, rgba(210,0,36,.28), transparent 80%);
+        }
+        .maia-paywall::after {
+          content: "";
+          position: absolute;
+          z-index: -1;
+          pointer-events: none;
+          left: -25%;
+          right: -25%;
+          bottom: 2%;
+          height: 26%;
+          border-top: 2px solid rgba(255,25,58,.62);
+          border-radius: 55% 80% 0 0 / 35% 45% 0 0;
+          transform: rotate(-7deg);
+          box-shadow: 0 -7px 26px rgba(255,0,46,.28), 0 -24px 85px rgba(190,0,34,.12);
+        }
+      `}</style>
+      <div style={{ maxWidth:600,margin:"0 auto",position:"relative",zIndex:1 }}>
         <header style={{ textAlign:"center",marginBottom:28 }}>
           <div style={{ fontSize:13,fontWeight:800,letterSpacing:".15em",color:"#fff" }}><span style={{color:"#e22a43"}}>♥</span> MAIA <span style={{color:"#e22a43"}}>FITNESS</span></div>
           <p style={{fontSize:10,letterSpacing:".2em",color:"#d4af37",margin:"9px 0 24px"}}>{t.subtitle}</p>
