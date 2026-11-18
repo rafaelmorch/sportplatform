@@ -32,23 +32,22 @@ export default function PerformanceOverviewHero({
       <div className={styles.intro}>
         <div className={styles.brand}>
           <span className={styles.brandLine} />
-          <span>Sports Platform</span>
+          <span>ASHLAI Coach</span>
         </div>
 
         <h1 className={styles.title}>
-          Coach <span>IA</span>
+          ASHLAI <span>Coach</span>
         </h1>
 
         <p className={styles.subtitle}>
-          Sua performance hoje, suas orientações e seu plano em
-          um único lugar.
+          Your performance, guidance and plan in one place.
         </p>
       </div>
 
       <div className={styles.dashboard}>
         <div className={styles.scoreColumn}>
           <div className={styles.scoreLabel}>
-            Score de performance
+            Performance Score
           </div>
 
           <div
@@ -85,14 +84,13 @@ export default function PerformanceOverviewHero({
 
         <div className={styles.coachColumn}>
           <div className={styles.coachEyebrow}>
-            Orientação do Coach
+            Coach Guidance
           </div>
 
           <p className={styles.insight}>{insight}</p>
 
           <p className={styles.disclaimer}>
-            Orientação baseada nos dados disponíveis na Sports
-            Platform.
+            Guidance based on the data available in ASHLAI Coach.
           </p>
 
           <div className={styles.actions}>
@@ -100,14 +98,14 @@ export default function PerformanceOverviewHero({
               href="/performance-ai/coach/plan"
               className={styles.primaryButton}
             >
-              Abrir meu plano
+              Open My Plan
             </Link>
 
             <Link
               href="/performance-ai/chat"
               className={styles.secondaryButton}
             >
-              Falar com o Coach
+              Chat with My Coach
             </Link>
           </div>
         </div>
