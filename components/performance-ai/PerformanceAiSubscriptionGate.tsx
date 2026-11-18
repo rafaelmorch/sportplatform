@@ -43,17 +43,19 @@ export default function PerformanceAiSubscriptionGate({
   const isSubscriptionPage =
     pathname === "/performance-ai/subscribe";
 
+  const isIntroPage = pathname === "/performance-ai/intro";
+
   const isHealthPage =
     pathname === "/performance-ai/health";
 
   const isPublicPerformanceAiPage =
-    isSubscriptionPage || isHealthPage;
+    isSubscriptionPage || isHealthPage || isIntroPage;
 
   useEffect(() => {
     let cancelled = false;
 
     const checkSubscription = async () => {
-      if (isSubscriptionPage) {
+      if (isSubscriptionPage || isIntroPage) {
         if (!cancelled) {
           setAllowed(true);
           setChecking(false);
@@ -160,7 +162,7 @@ export default function PerformanceAiSubscriptionGate({
           router.replace(
             paymentSucceeded
               ? "/performance-ai/subscribe?payment=processing"
-              : "/performance-ai/subscribe"
+              : "/performance-ai/intro"
           );
         }
       } catch (error: unknown) {
@@ -184,6 +186,7 @@ export default function PerformanceAiSubscriptionGate({
   }, [
     isHealthPage,
     isSubscriptionPage,
+    isIntroPage,
     pathname,
     router,
     searchParams,
