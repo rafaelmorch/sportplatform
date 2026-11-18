@@ -248,7 +248,7 @@ export default function PerformanceAiSubscribePage() {
       `}</style>
       <div style={{ maxWidth:600,margin:"0 auto",position:"relative",zIndex:1 }}>
         <header style={{ textAlign:"center",marginBottom:28 }}>
-          <div style={{ fontSize:13,fontWeight:800,letterSpacing:".15em",color:"#fff" }}><span style={{color:"#e22a43"}}>♥</span> MAIA <span style={{color:"#e22a43"}}>FITNESS</span></div>
+          <img src="/performance-ai/subscribe/maia-logo.png" alt="MAIA Fitness" style={{display:"block",width:180,maxWidth:"65%",height:"auto",margin:"0 auto 8px"}} />
           <p style={{fontSize:10,letterSpacing:".2em",color:"#d4af37",margin:"9px 0 24px"}}>{t.subtitle}</p>
           <h1 style={{fontSize:"clamp(29px,7vw,42px)",lineHeight:1.12,letterSpacing:"-.04em",margin:"0 0 12px",fontWeight:650}}>{t.headline}</h1>
           <p style={{fontSize:14,color:"#bdbdc4",lineHeight:1.6,margin:0}}>{t.intro}</p>
@@ -260,8 +260,13 @@ export default function PerformanceAiSubscribePage() {
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:12}}>
             {highlights.map((image,index)=>(
               <article key={image} style={{background:"#131316",border:"1px solid rgba(212,175,55,.22)",borderRadius:15,overflow:"hidden"}}>
-                <div style={{aspectRatio:"4 / 5",background:"#09090b",overflow:"hidden"}}>
-                  <img src={image} alt={t.items[index][0]} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top",display:"block"}} />
+                <div style={{padding:"18px 14px 8px",background:"radial-gradient(ellipse at 50% 90%,rgba(190,0,38,.14),transparent 72%)"}}>
+                  <div style={{position:"relative",maxWidth:210,margin:"0 auto",aspectRatio:"9 / 17",border:"4px solid #36363a",borderRadius:25,background:"#050505",padding:4,boxShadow:"0 8px 28px rgba(0,0,0,.65),inset 0 0 0 1px #777",overflow:"hidden"}}>
+                    <div aria-hidden="true" style={{position:"absolute",top:7,left:"50%",transform:"translateX(-50%)",width:"31%",height:9,borderRadius:10,background:"#030303",zIndex:2}} />
+                    <div style={{width:"100%",height:"100%",borderRadius:18,overflow:"hidden",background:"#050505"}}>
+                      <img src={image} alt={t.items[index][0]} style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"top",display:"block"}} />
+                    </div>
+                  </div>
                 </div>
                 <div style={{padding:"12px 11px 15px"}}>
                   <div style={{fontSize:10,color:"#d4af37",marginBottom:6}}>0{index+1}</div>
