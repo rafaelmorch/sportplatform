@@ -56,6 +56,12 @@ const tabs: TabItem[] = [
   },
 
   {
+    href: "/performance-ai",
+    label: "MAIA",
+    icon: CoachIcon,
+    coach: true,
+  },
+  {
     href: "/profile",
     label: "Profile",
     icon: CircleUserRound,
@@ -85,7 +91,7 @@ export default function BottomNavbar() {
           "6px 8px max(6px, env(safe-area-inset-bottom))",
 
         display: "grid",
-        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
         alignItems: "center",
 
         background: "rgba(255,255,255,0.98)",
@@ -193,10 +199,3 @@ export default function BottomNavbar() {
     </nav>
   );
 }
-
-
-
-
-
-
-
