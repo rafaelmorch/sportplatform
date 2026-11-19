@@ -233,8 +233,10 @@ export default function PerformanceAiSubscribePage() {
           <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:"24px 12px",alignItems:"start"}}>
             {showcaseImages.map((item,index)=>(
               <article key={item.src} style={{minWidth:0,marginTop:index%2===1?24:0}}>
-                <div style={{borderRadius:16,overflow:"hidden",background:"radial-gradient(ellipse at 50% 35%,rgba(220,15,49,.20),#101014 70%)",border:"1px solid rgba(255,255,255,.10)",boxShadow:"0 16px 32px rgba(0,0,0,.40)"}}>
-                  <img src={item.src} alt={t.showcase[index][0]} style={{display:"block",width:"100%",height:"auto",aspectRatio:"9 / 16",objectFit:"contain"}} />
+                <div style={{padding:"12px 7px 15px",background:"radial-gradient(ellipse at 50% 50%,rgba(220,15,49,.16),transparent 72%)"}}>
+                  <div style={{position:"relative",width:"100%",maxWidth:215,aspectRatio:"9 / 17",margin:"0 auto",padding:5,border:"4px solid #38383f",borderRadius:25,background:"#050505",boxShadow:"0 18px 34px rgba(0,0,0,.75),0 0 15px rgba(225,16,58,.16)",transform:index%2===0?"perspective(900px) rotateY(-7deg) rotate(-3deg)":"perspective(900px) rotateY(7deg) rotate(3deg)",boxSizing:"border-box",overflow:"hidden"}}>
+                    <img src={item.src} alt={t.showcase[index][0]} style={{display:"block",width:"100%",height:"100%",objectFit:"contain",borderRadius:16,background:"#000"}} />
+                  </div>
                 </div>
                 <h3 style={{fontSize:14,lineHeight:1.35,fontWeight:800,margin:"13px 0 5px"}}>{t.showcase[index][0]}</h3>
                 <p style={{fontSize:12,lineHeight:1.55,color:"#bdbdc5",margin:0}}>{t.showcase[index][1]}</p>
