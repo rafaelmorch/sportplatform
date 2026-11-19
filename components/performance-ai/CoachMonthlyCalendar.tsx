@@ -19,13 +19,13 @@ type CoachMonthlyCalendarProps = {
 };
 
 const WEEKDAYS = [
-  "Dom",
-  "Seg",
-  "Ter",
-  "Qua",
-  "Qui",
-  "Sex",
-  "Sáb",
+  "SUN",
+  "MON",
+  "TUE",
+  "WED",
+  "THU",
+  "FRI",
+  "SAT",
 ];
 
 function isSameDay(
@@ -133,7 +133,7 @@ export default function CoachMonthlyCalendar({
     useMemo(
       () =>
         new Intl.DateTimeFormat(
-          "pt-BR",
+          "en-US",
           {
             month: "long",
             year: "numeric",
@@ -179,7 +179,7 @@ export default function CoachMonthlyCalendar({
           onClick={() =>
             changeMonth(-1)
           }
-          aria-label="Mês anterior"
+          aria-label="Previous month"
         >
           ‹
         </button>
@@ -200,7 +200,7 @@ export default function CoachMonthlyCalendar({
           onClick={() =>
             changeMonth(1)
           }
-          aria-label="Próximo mês"
+          aria-label="Next month"
         >
           ›
         </button>
@@ -282,7 +282,7 @@ export default function CoachMonthlyCalendar({
                 }
                 aria-label={
                   new Intl.DateTimeFormat(
-                    "pt-BR",
+                    "en-US",
                     {
                       weekday: "long",
                       day: "numeric",
@@ -375,7 +375,7 @@ export default function CoachMonthlyCalendar({
               background: "#D4AF37",
             }}
           />
-          Treino planejado
+          Planned workout
         </span>
 
         <span
@@ -393,7 +393,7 @@ export default function CoachMonthlyCalendar({
               background: "#4ade80",
             }}
           />
-          Alimentação registrada
+          Nutrition logged
         </span>
       </div>
     </section>
