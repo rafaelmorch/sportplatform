@@ -228,39 +228,45 @@ export default function PerformanceAiSubscribePage() {
           {paymentState === "cancelled" && <p role="status" style={noticeStyle}>{t.cancelled}</p>}
           {paymentState === "processing" && <p role="status" style={noticeStyle}>{t.processing}</p>}
         </header>
-        <section aria-label={t.benefits} style={{margin:"14px 0 25px"}}>
-          <div style={{position:"relative",margin:"0 auto 20px",width:"min(72%,260px)",filter:"drop-shadow(0 12px 35px rgba(220,20,48,.17))"}}>
-            <img src={showcaseImages[0].src} alt="ASHLAI Coach performance screen" style={{display:"block",width:"100%",height:"auto",borderRadius:14}} />
-          </div>
-          <div style={{borderTop:"1px solid #ffffff1c",paddingTop:19}}>
-            <p style={{fontSize:10,letterSpacing:".18em",fontWeight:800,color:"#f52a36",margin:"0 0 12px"}}>{t.differenceTitle}</p>
-            {t.differences.slice(0,2).map((feature,index)=>(
-              <div key={index} style={{display:"flex",gap:13,padding:"14px 0",borderBottom:"1px solid #ffffff12"}}>
-                <span style={{color:"#f52a36",fontSize:19,fontWeight:900,flexShrink:0}}>{index===0?"↗":"✦"}</span>
-                <div><h3 style={{fontSize:15,fontWeight:800,margin:"0 0 5px"}}>{feature[0]}</h3><p style={{fontSize:12,color:"#a9a9b3",lineHeight:1.6,margin:0}}>{feature[1]}</p></div>
+        <section aria-label={t.benefits} style={{margin:"18px 0 27px"}}>
+          <div style={{display:"flex",justifyContent:"center",gap:14,alignItems:"center",height:270,overflow:"hidden",background:"radial-gradient(ellipse at center,rgba(193,24,45,.18),transparent 67%)",margin:"0 -18px 20px"}}>
+            {[showcaseImages[0],showcaseImages[1]].map((item,index)=>(
+              <div key={item.src} style={{width:"39%",maxWidth:150,height:220,flexShrink:0,transform:index===0?"perspective(700px) rotateY(-14deg) rotate(-7deg) translateY(9px)":"perspective(700px) rotateY(14deg) rotate(7deg) translateY(-9px)",border:"4px solid #35353b",borderRadius:22,padding:3,background:"#050506",boxShadow:"0 16px 30px #000b",overflow:"hidden"}}>
+                <img src={item.src} alt={index===0?"ASHLAI performance screen":"ASHLAI workout screen"} style={{display:"block",width:"100%",height:"100%",objectFit:"contain",borderRadius:15}} />
               </div>
             ))}
           </div>
-          <div style={{display:"flex",justifyContent:"center",margin:"24px 0"}}>
-            <img src={showcaseImages[1].src} alt="ASHLAI Coach training plan screen" loading="lazy" style={{display:"block",width:"min(69%,250px)",height:"auto",borderRadius:14,boxShadow:"0 16px 38px #000b"}} />
+          <p style={{fontSize:10,letterSpacing:".18em",fontWeight:800,color:"#f52a36",margin:"0 0 13px"}}>{t.differenceTitle}</p>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
+            {t.differences.slice(0,4).map((feature,index)=>(
+              <article key={index} style={{minWidth:0,minHeight:160,padding:"17px 13px",border:"1px solid #ffffff22",background:"linear-gradient(145deg,#1b1b21,#101014)",display:"flex",flexDirection:"column",gap:11}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:23,color:"#f52a36",fontWeight:800}}>{["⌁","✧","♡","◉"][index]}</span>
+                  <span style={{fontSize:9,color:"#74747e",letterSpacing:".14em"}}>{String(index+1).padStart(2,"0")} / 06</span>
+                </div>
+                <h3 style={{fontSize:14,lineHeight:1.3,fontWeight:800,margin:0}}>{feature[0]}</h3>
+                <p style={{fontSize:11,color:"#a9a9b3",lineHeight:1.6,margin:0}}>{feature[1]}</p>
+              </article>
+            ))}
           </div>
-          {t.differences.slice(2,4).map((feature,index)=>(
-            <div key={index} style={{display:"flex",gap:13,padding:"14px 0",borderBottom:"1px solid #ffffff12"}}>
-              <span style={{color:"#f52a36",fontSize:19,fontWeight:900,flexShrink:0}}>{index===0?"◉":"◎"}</span>
-              <div><h3 style={{fontSize:15,fontWeight:800,margin:"0 0 5px"}}>{feature[0]}</h3><p style={{fontSize:12,color:"#a9a9b3",lineHeight:1.6,margin:0}}>{feature[1]}</p></div>
-            </div>
-          ))}
-          <div style={{display:"flex",justifyContent:"center",margin:"24px 0"}}>
-            <img src={showcaseImages[2].src} alt="ASHLAI Coach nutrition screen" loading="lazy" style={{display:"block",width:"min(69%,250px)",height:"auto",borderRadius:14,boxShadow:"0 16px 38px #000b"}} />
+          <div style={{display:"flex",justifyContent:"center",gap:14,alignItems:"center",height:250,overflow:"hidden",background:"radial-gradient(ellipse at center,rgba(193,24,45,.14),transparent 67%)",margin:"18px -18px"}}>
+            {[showcaseImages[2],showcaseImages[3]].map((item,index)=>(
+              <div key={item.src} style={{width:"38%",maxWidth:145,height:205,flexShrink:0,transform:index===0?"perspective(700px) rotateY(-12deg) rotate(-6deg) translateY(9px)":"perspective(700px) rotateY(12deg) rotate(6deg) translateY(-9px)",border:"4px solid #35353b",borderRadius:22,padding:3,background:"#050506",boxShadow:"0 16px 30px #000b",overflow:"hidden"}}>
+                <img src={item.src} alt={index===0?"ASHLAI nutrition screen":"ASHLAI daily workout screen"} loading="lazy" style={{display:"block",width:"100%",height:"100%",objectFit:"contain",borderRadius:15}} />
+              </div>
+            ))}
           </div>
-          {t.differences.slice(4,6).map((feature,index)=>(
-            <div key={index} style={{display:"flex",gap:13,padding:"14px 0",borderBottom:"1px solid #ffffff12"}}>
-              <span style={{color:"#f52a36",fontSize:19,fontWeight:900,flexShrink:0}}>{index===0?"♡":"✧"}</span>
-              <div><h3 style={{fontSize:15,fontWeight:800,margin:"0 0 5px"}}>{feature[0]}</h3><p style={{fontSize:12,color:"#a9a9b3",lineHeight:1.6,margin:0}}>{feature[1]}</p></div>
-            </div>
-          ))}
-          <div style={{display:"flex",justifyContent:"center",margin:"24px 0 8px"}}>
-            <img src={showcaseImages[3].src} alt="ASHLAI Coach daily workout screen" loading="lazy" style={{display:"block",width:"min(69%,250px)",height:"auto",borderRadius:14,boxShadow:"0 16px 38px #000b"}} />
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:10}}>
+            {t.differences.slice(4,6).map((feature,index)=>(
+              <article key={index} style={{minWidth:0,minHeight:160,padding:"17px 13px",border:"1px solid #ffffff22",background:"linear-gradient(145deg,#211b20,#101014)",display:"flex",flexDirection:"column",gap:11}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:23,color:"#f52a36",fontWeight:800}}>{index===0?"♡":"✚"}</span>
+                  <span style={{fontSize:9,color:"#74747e",letterSpacing:".14em"}}>{String(index+5).padStart(2,"0")} / 06</span>
+                </div>
+                <h3 style={{fontSize:14,lineHeight:1.3,fontWeight:800,margin:0}}>{feature[0]}</h3>
+                <p style={{fontSize:11,color:"#a9a9b3",lineHeight:1.6,margin:0}}>{feature[1]}</p>
+              </article>
+            ))}
           </div>
         </section>
         <section style={{background:"linear-gradient(125deg,#231a20,#111217 80%)",border:"1px solid #f52a3655",borderRadius:14,padding:"19px 18px",margin:"8px 0 18px"}}>
