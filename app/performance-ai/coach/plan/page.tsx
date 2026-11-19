@@ -305,7 +305,7 @@ export default function CoachPlanPage() {
                 styles.eyebrow
               }
             >
-              ASHLAI Coach
+              YOUR AI PERSONAL TRAINER
             </p>
 
             <h1
