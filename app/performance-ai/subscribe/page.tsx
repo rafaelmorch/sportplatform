@@ -228,18 +228,21 @@ export default function PerformanceAiSubscribePage() {
           {paymentState === "cancelled" && <p role="status" style={noticeStyle}>{t.cancelled}</p>}
           {paymentState === "processing" && <p role="status" style={noticeStyle}>{t.processing}</p>}
         </header>
-        <section aria-label={t.benefits} style={{margin:"24px 0 34px"}}>
-          <h2 style={{fontSize:12,fontWeight:800,letterSpacing:".15em",color:"#ff536a",margin:"0 0 20px",textAlign:"center"}}>{t.benefits}</h2>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:"24px 12px",alignItems:"start"}}>
+        <section aria-label={t.benefits} style={{margin:"22px 0 36px"}}>
+          <h2 style={{fontSize:11,fontWeight:800,letterSpacing:".18em",color:"#ff536a",margin:"0 0 18px",textAlign:"center"}}>{t.benefits}</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:32}}>
             {showcaseImages.map((item,index)=>(
-              <article key={item.src} style={{minWidth:0,marginTop:index%2===1?24:0}}>
-                <div style={{padding:"12px 7px 15px",background:"radial-gradient(ellipse at 50% 50%,rgba(220,15,49,.16),transparent 72%)"}}>
-                  <div style={{position:"relative",width:"100%",maxWidth:215,aspectRatio:"9 / 17",margin:"0 auto",padding:5,border:"4px solid #38383f",borderRadius:25,background:"#050505",boxShadow:"0 18px 34px rgba(0,0,0,.75),0 0 15px rgba(225,16,58,.16)",transform:index%2===0?"perspective(900px) rotateY(-7deg) rotate(-3deg)":"perspective(900px) rotateY(7deg) rotate(3deg)",boxSizing:"border-box",overflow:"hidden"}}>
-                    <img src={item.src} alt={t.showcase[index][0]} style={{display:"block",width:"100%",height:"100%",objectFit:"contain",borderRadius:16,background:"#000"}} />
+              <article key={item.src} style={{padding:"22px 18px 20px",borderRadius:24,background:"linear-gradient(160deg,#17171d 0%,#0d0d11 68%)",border:"1px solid rgba(255,255,255,.10)",boxShadow:"0 14px 36px rgba(0,0,0,.26)",overflow:"hidden"}}>
+                <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:18}}>
+                  <span aria-hidden="true" style={{display:"grid",placeItems:"center",flexShrink:0,width:32,height:32,borderRadius:10,background:"rgba(230,25,58,.14)",color:"#ff506a",fontSize:13,fontWeight:800}}>{String(index+1).padStart(2,"0")}</span>
+                  <div>
+                    <h3 style={{fontSize:19,lineHeight:1.25,fontWeight:800,margin:0}}>{t.showcase[index][0]}</h3>
+                    <p style={{fontSize:12,lineHeight:1.55,color:"#bdbdc5",margin:"5px 0 0"}}>{t.showcase[index][1]}</p>
                   </div>
                 </div>
-                <h3 style={{fontSize:14,lineHeight:1.35,fontWeight:800,margin:"13px 0 5px"}}>{t.showcase[index][0]}</h3>
-                <p style={{fontSize:12,lineHeight:1.55,color:"#bdbdc5",margin:0}}>{t.showcase[index][1]}</p>
+                <div style={{width:"100%",maxWidth:340,margin:"0 auto",borderRadius:19,overflow:"hidden",background:"#000",boxShadow:"0 15px 35px rgba(0,0,0,.45)"}}>
+                  <img src={item.src} alt={t.showcase[index][0]} loading={index===0?"eager":"lazy"} style={{display:"block",width:"100%",height:"auto"}} />
+                </div>
               </article>
             ))}
           </div>
