@@ -11,6 +11,7 @@ type Session={title:string;duration:string;steps:string[]};
 // Optional video URLs keyed by program:week:day:step (all numbers are 1-based).
 const stepVideos:Record<string,string>=Object.fromEntries(Array.from({length:8},(_,w)=>Array.from({length:3},(_,d)=>["5k:"+(w+1)+":"+(d+1)+":1","https://www.youtube.com/watch?v=y-CTIys2HPc"])).flat());
 for(let w=1;w<=2;w++)for(let d=1;d<=3;d++)stepVideos["5k:"+w+":"+d+":2"]="https://www.youtube.com/watch?v=LsvhNS4w8zc";
+for(let w=5;w<=8;w++)for(let d=1;d<=3;d++)stepVideos["5k:"+w+":"+d+":2"]="https://www.youtube.com/watch?v=bQVFd9gA7w8";
 function displaySteps(p:Plan,s:Session){return p.id==='mobility'?s.steps:[...s.steps,p.id==='5k'||p.id==='10k'?'Post-workout stretching (optional, 3–5 min): gently stretch calves, quadriceps and hip flexors for 15–20 seconds per side, without bouncing or pain.':'Post-workout stretching (optional, 3–5 min): gently stretch the muscles used today for 15–20 seconds, without bouncing or pain.'];}
 type Plan={id:string;name:string;title:string;weeks:number;days:number;description:string;sessions:Session[]};
 const plans:Plan[]=[
