@@ -1386,7 +1386,8 @@ fontWeight: 700,
           {communityId && (
             <div
               style={{
-                display: "flex",
+                display: "grid",
+                gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                 justifyContent: "flex-start",
                 alignItems: "center",
                 gap: 4,
@@ -1411,8 +1412,10 @@ fontWeight: 700,
                   background: "#ffffff",
                   border: "1px solid #94a3b8",
                   boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
+                  textAlign: "center",
+                  minWidth: 0,
+                  paddingInline: 2,
+                  overflowWrap: "anywhere",
                 }}
               >
                 Feed
@@ -1430,8 +1433,10 @@ fontWeight: 700,
                   background: "#ffffff",
                   border: "1px solid #94a3b8",
                   boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
+                  textAlign: "center",
+                  minWidth: 0,
+                  paddingInline: 2,
+                  overflowWrap: "anywhere",
                 }}
               >
                 Performance
@@ -1449,12 +1454,16 @@ fontWeight: 700,
                   background: "#ffffff",
                   border: "1px solid #94a3b8",
                   boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
+                  textAlign: "center",
+                  minWidth: 0,
+                  paddingInline: 2,
+                  overflowWrap: "anywhere",
                 }}
               >
                 My Trainings
               </Link>
+
+              <Link href={`/groups/${communityId}/inside/training-plans`} style={{textDecoration:"none",color:"#0f172a",fontSize:11,fontWeight:600,padding:"7px 2px",borderRadius:6,background:"#ffffff",border:"1px solid #94a3b8",boxShadow:"0 2px 6px rgba(15,23,42,0.16)",textAlign:"center",minWidth:0,overflowWrap:"anywhere"}}>Training Plans</Link>
 
               <Link
                 href={`/groups/${communityId}/inside/events`}
@@ -1468,8 +1477,10 @@ fontWeight: 700,
                   background: "#ffffff",
                   border: "1px solid #94a3b8",
                   boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
+                  textAlign: "center",
+                  minWidth: 0,
+                  paddingInline: 2,
+                  overflowWrap: "anywhere",
                 }}
               >
                 Events
@@ -1488,8 +1499,10 @@ fontWeight: 700,
                     background: "#ffffff",
                     border: "1px solid #94a3b8",
                     boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
+                    textAlign: "center",
+                  minWidth: 0,
+                  paddingInline: 2,
+                  overflowWrap: "anywhere",
                   }}
                 >
                   Videos
