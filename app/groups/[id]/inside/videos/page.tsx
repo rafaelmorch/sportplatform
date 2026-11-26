@@ -72,6 +72,7 @@ function getVideoEmbedUrl(url: string | null): string | null {
   }
 }
 
+const demoSeries = [{"title":"Força e mobilidade","urls":["https://www.instagram.com/reel/DfZv7DKipfT/embed/","https://www.instagram.com/reel/DgLI_tRB4YZ/embed/","https://www.instagram.com/reel/DdjboqshZ_E/embed/"]},{"title":"Penteados","urls":["https://www.instagram.com/reel/Dfr4sruRJr_/embed/","https://www.instagram.com/reel/DgKtC6ABu3q/embed/","https://www.instagram.com/reel/DcmJRqEia8d/embed/"]},{"title":"42 aprendizados para 42km","urls":["https://www.instagram.com/reel/DaAaSyvxwV2/embed/","https://www.instagram.com/reel/DaDaisExnlp/embed/","https://www.instagram.com/reel/DaKtds7R9Kk/embed/"]}];
 export default function MembershipVideosPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
@@ -79,6 +80,8 @@ export default function MembershipVideosPage() {
 
   const communityId = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
+  const [selectedSeries, setSelectedSeries] = useState<number | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [communityName, setCommunityName] = useState<string | null>(null);
@@ -285,6 +288,7 @@ export default function MembershipVideosPage() {
             </div>
           </div>
 
+          {communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" && <section style={{margin:"24px 0",display:"grid",gap:12}}>{selectedSeries===null ? demoSeries.map((series,i)=><button key={series.title} onClick={()=>{setSelectedSeries(i);setSelectedEpisode(null);}} style={{textAlign:"left",padding:20,border:"1px solid #cbd5e1",borderRadius:16,background:"#0f172a",color:"white",cursor:"pointer"}}><strong>{series.title}</strong><div style={{marginTop:8,fontSize:13,color:"#cbd5e1"}}>3 episódios · @diariodacorredora</div></button>):<><button onClick={()=>{setSelectedSeries(null);setSelectedEpisode(null);}} style={{padding:12}}>‹ Todas as séries</button><h3>{demoSeries[selectedSeries].title}</h3>{demoSeries[selectedSeries].urls.map((url,i)=><article key={url}><button onClick={()=>setSelectedEpisode(selectedEpisode===i?null:i)} style={{width:"100%",padding:16,textAlign:"left"}}>Episódio {i+1} · {selectedEpisode===i?"Fechar":"Assistir"}</button>{selectedEpisode===i&&<iframe src={url} title={"Episódio "+(i+1)} style={{width:"100%",maxWidth:420,height:640,border:0,display:"block",margin:"auto"}} allow="autoplay; encrypted-media; fullscreen" allowFullScreen/>}</article>)}</>}</section>}
           {videos.length === 0 ? (
             <div
               style={{
