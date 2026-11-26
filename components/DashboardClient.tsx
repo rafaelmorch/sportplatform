@@ -481,25 +481,6 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
           alignItems: "center",
         }}
       >
-        <button
-          type="button"
-          onClick={handleSync}
-          disabled={syncing}
-style={{
-  fontSize: 12,
-  padding: "6px 14px",
-  borderRadius: 999,
-  border: "1px solid #16a34a",
-  background: syncing ? "#e2e8f0" : "#16a34a",
-  color: syncing ? "#64748b" : "#ffffff",
-  fontWeight: 600,
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-}}          title="Fetch new activities from Strava"
-        >
-          {syncing ? "Syncing..." : "Sync now"}
-        </button>
-
         {ranges.map((r) => {
           const active = range === r.key;
           return (
@@ -523,33 +504,6 @@ style={{
           );
         })}
       </div>
-
-      {syncMsg && !isStravaConnected && (
-  <div style={{ marginTop: -6, marginBottom: 12 }}>
-    <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 8px" }}>
-      {syncMsg}
-    </p>
-
-    <a
-      href="/integrations"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "7px 14px",
-        borderRadius: 999,
-        background: "#fc4c02",
-        color: "#ffffff",
-        fontSize: 12,
-        fontWeight: 700,
-        textDecoration: "none",
-      }}
-    >
-      Connect Strava
-    </a>
-  </div>
-)}
-
 
       {/* RANKING */}
       <section
