@@ -145,23 +145,23 @@ function getCoachInsight(params: {
   }
 
   if (weeklyDistanceKm >= 25 && meals.length <= 2) {
-    return "Seu volume de treino está alto para poucas refeições registradas. Vale reforçar alimentação e hidratação ao longo do dia.";
+    return "Your training volume is high relative to logged meals. Prioritize nutrition and hydration throughout the day.";
   }
 
   if (avgHeartRate && avgHeartRate >= 155 && lowQualityMeals >= 1) {
-    return "Seu treino mostra esforço elevado e sua alimentação pode melhorar. Hoje vale focar em comida de verdade, hidratação e recuperação.";
+    return "Your training shows high effort, and your nutrition could improve. Focus on balanced meals, hydration and recovery today.";
   }
 
   if (lowQualityMeals >= 2) {
-    return "Hoje sua alimentação teve qualidade baixa. Tente reduzir ultraprocessados e incluir uma refeição mais completa com proteína e carboidrato de melhor qualidade.";
+    return "Your logged meals could be more balanced. Try reducing ultra-processed foods and including protein and quality carbohydrates.";
   }
 
   if (weeklyActivitiesCount === 0 && meals.length > 0) {
-    return "Você registrou alimentação, mas não há treinos recentes sincronizados. Se hoje for dia de descanso, foque em recuperação e consistência.";
+    return "You logged meals, but no recent workouts are synced. If today is a rest day, focus on recovery and consistency.";
   }
 
   if (totalTrainingHours >= 3 && highProteinMeals >= 2) {
-    return "Bom equilíbrio entre treino e alimentação. Você está sustentando bem a recuperação nesta fase.";
+    return "Good balance between training and nutrition. You are supporting recovery well at this stage.";
   }
 
   if (
@@ -169,17 +169,17 @@ function getCoachInsight(params: {
     Math.abs(weightDiff) < 0.3 &&
     weeklyActivitiesCount >= 3
   ) {
-    return "Seu peso está estável e sua rotina de treino segue ativa. Isso sugere boa consistência nesta fase.";
+    return "Your weight is stable and your training routine remains active, suggesting good consistency.";
   }
 
-  return "Seu quadro está relativamente equilibrado. Continue registrando refeições, peso e treinos para receber orientações mais precisas.";
+  return "Your overall status is fairly balanced. Keep logging meals, weight and workouts for more precise guidance.";
 }
 
 function scoreLabel(score: number) {
-  if (score >= 85) return "Excelente";
-  if (score >= 70) return "Muito bom";
-  if (score >= 55) return "Em evolução";
-  return "Precisa de atenção";
+  if (score >= 85) return "Excellent";
+  if (score >= 70) return "Very Good";
+  if (score >= 55) return "Improving";
+  return "Needs Attention";
 }
 
 function PerformanceCenter({
@@ -878,12 +878,12 @@ function PerformanceAIPage() {
 
   const statusDescription =
     performanceScore >= 85
-      ? "Seus registros mostram uma rotina muito consistente."
+      ? "Your records show a highly consistent routine."
       : performanceScore >= 70
-        ? "Você está construindo uma boa base de desempenho."
+        ? "You are building a solid performance foundation."
         : performanceScore >= 55
-          ? "Existem bons sinais, mas ainda há espaço para maior consistência."
-          : "Complete seus dados e retome a regularidade para receber orientações melhores.";
+          ? "There are positive signs, with room for greater consistency."
+          : "Complete your data and build a consistent routine for better guidance.";
 
   const coachInsight = getCoachInsight({
     meals,

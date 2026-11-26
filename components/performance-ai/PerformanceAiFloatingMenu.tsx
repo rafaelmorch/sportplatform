@@ -17,7 +17,7 @@ export default function PerformanceAiFloatingMenu() {
       {menuOpen && (
         <button
           type="button"
-          aria-label="Fechar menu"
+          aria-label="Close menu"
           onClick={() => setMenuOpen(false)}
           style={{
             position: "fixed",
@@ -35,7 +35,7 @@ export default function PerformanceAiFloatingMenu() {
         <section
           role="dialog"
           aria-modal="true"
-          aria-label="Menu do Performance AI"
+          aria-label="ASHLAI Coach menu"
           style={sheetStyle}
         >
           <button
@@ -43,7 +43,7 @@ export default function PerformanceAiFloatingMenu() {
             onClick={() => openPage("/performance-ai/chat")}
             style={sheetOptionStyle}
           >
-            Conversar com o Coach
+            Chat with Coach
           </button>
 
           <button
@@ -51,14 +51,14 @@ export default function PerformanceAiFloatingMenu() {
             onClick={() => openPage("/performance-ai/performance")}
             style={sheetOptionStyle}
           >
-            Minha Performance
+            My Performance
           </button>
         </section>
       )}
 
       <button
         type="button"
-        aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
+        aria-label={menuOpen ? "Close menu" : "Open menu"}
         onClick={() => setMenuOpen((current) => !current)}
         style={{
           position: "fixed",
@@ -71,8 +71,8 @@ export default function PerformanceAiFloatingMenu() {
           alignItems: "center",
           justifyContent: "center",
           borderRadius: "50%",
-          border: "1px solid #15803d",
-          background: "#16a34a",
+          border: "1px solid #b90e2b",
+          background: "#e0183c",
           boxShadow: "0 14px 32px rgba(0,0,0,0.42)",
           color: "#ffffff",
           fontFamily: "Montserrat, sans-serif",
