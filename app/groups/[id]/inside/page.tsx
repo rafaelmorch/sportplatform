@@ -1398,36 +1398,7 @@ fontWeight: 700,
                 padding: "6px 0 8px 0",
               }}
             >
-              <Link
-                href="/intro"
-                style={{
-                  textDecoration: "none",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "7px 8px 9px",
-                  borderRadius: 6,
-                  background: "#0f172a",
-                  color: "#ffffff",
-                  border: "1px solid #0f172a",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  position: "relative",
-                  boxShadow: "0 2px 6px rgba(15,23,42,0.18)",
-                }}
-              >
-                Home
-                <span
-                  style={{
-                    position: "absolute",
-                    left: "28%",
-                    right: "28%",
-                    bottom: 5,
-                    height: 3,
-                    borderRadius: 999,
-                    background: "#facc15",
-                  }}
-                />
-              </Link>
+              
               <Link
                 href={`/groups/${communityId}/inside/feed`}
                 style={{
