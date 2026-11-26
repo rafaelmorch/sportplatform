@@ -81,7 +81,6 @@ export default function MembershipVideosPage() {
   const communityId = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
   const [selectedSeries, setSelectedSeries] = useState<number | null>(null);
-  const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [communityName, setCommunityName] = useState<string | null>(null);
@@ -288,7 +287,7 @@ export default function MembershipVideosPage() {
             </div>
           </div>
 
-          {communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" && <section style={{margin:"24px 0",display:"grid",gap:12}}>{selectedSeries===null ? demoSeries.map((series,i)=><button key={series.title} onClick={()=>{setSelectedSeries(i);setSelectedEpisode(null);}} style={{textAlign:"left",padding:20,border:"1px solid #cbd5e1",borderRadius:16,background:"#0f172a",color:"white",cursor:"pointer"}}><strong>{series.title}</strong><div style={{marginTop:8,fontSize:13,color:"#cbd5e1"}}>3 episódios · @diariodacorredora</div></button>):<><button onClick={()=>{setSelectedSeries(null);setSelectedEpisode(null);}} style={{padding:12}}>‹ Todas as séries</button><h3>{demoSeries[selectedSeries].title}</h3>{demoSeries[selectedSeries].urls.map((url,i)=><article key={url}><button onClick={()=>setSelectedEpisode(selectedEpisode===i?null:i)} style={{width:"100%",padding:16,textAlign:"left"}}>Episódio {i+1} · {selectedEpisode===i?"Fechar":"Assistir"}</button>{selectedEpisode===i&&<iframe src={url} title={"Episódio "+(i+1)} style={{width:"100%",maxWidth:420,height:640,border:0,display:"block",margin:"auto"}} allow="autoplay; encrypted-media; fullscreen" allowFullScreen/>}</article>)}</>}</section>}
+          {communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" && <section style={{margin:"24px 0",display:"grid",gap:12}}>{selectedSeries===null ? demoSeries.map((series,i)=><button key={series.title} onClick={()=>{setSelectedSeries(i);}} style={{textAlign:"left",padding:20,border:"1px solid #cbd5e1",borderRadius:16,background:"#0f172a",color:"white",cursor:"pointer"}}><strong>{series.title}</strong><div style={{marginTop:8,fontSize:13,color:"#cbd5e1"}}>3 episódios · @diariodacorredora</div></button>):<><button onClick={()=>{setSelectedSeries(null);}} style={{padding:12}}>‹ Todas as séries</button><h3>{demoSeries[selectedSeries].title}</h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:16}}>{demoSeries[selectedSeries].urls.map((url,i)=><article key={url} style={{border:"1px solid #e2e8f0",borderRadius:16,overflow:"hidden",background:"#f8fafc"}}><iframe src={url} title={"Episódio "+(i+1)} loading="lazy" style={{width:"100%",height:560,border:0,display:"block"}} allow="autoplay; encrypted-media; fullscreen" allowFullScreen/><div style={{padding:12,fontWeight:700,fontSize:13}}>Episódio {i+1}</div></article>)}</div></>}</section>}
           {communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" ? null : videos.length === 0 ? (
             <div
               style={{
