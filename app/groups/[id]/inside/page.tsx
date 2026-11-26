@@ -1466,6 +1466,25 @@ fontWeight: 700,
               </Link>
 
               <Link
+                href={`/groups/${communityId}/inside/my-trainings`}
+                style={{
+                  textDecoration: "none",
+                  color: "#0f172a",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "7px 8px",
+                  borderRadius: 6,
+                  background: "#ffffff",
+                  border: "1px solid #94a3b8",
+                  boxShadow: "0 2px 6px rgba(15,23,42,0.16)",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                My Trainings
+              </Link>
+
+              <Link
                 href={`/groups/${communityId}/inside/events`}
                 style={{
                   textDecoration: "none",
