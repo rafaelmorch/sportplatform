@@ -62,54 +62,6 @@ export type EvolutionPoint = {
 const AUTO_SYNC_KEY = "sp_autosync_ran_at";
 const AUTO_SYNC_COOLDOWN_MS = 10 * 60 * 1000;
 
-function metersToKm(distance: number | null | undefined): number {
-  if (!distance || distance <= 0) return 0;
-  return distance / 1000;
-}
-
-function formatDuration(seconds: number | null | undefined): string {
-  if (!seconds || seconds <= 0) return "0:00:00";
-
-  const total = Math.floor(seconds);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-
-  const hh = h.toString();
-  const mm = m.toString().padStart(2, "0");
-  const ss = s.toString().padStart(2, "0");
-
-  return `${hh}:${mm}:${ss}`;
-}
-
-function formatPace(
-  movingTime: number | null | undefined,
-  distance: number | null | undefined
-): string {
-  if (!movingTime || !distance || distance <= 0) return "-";
-
-  const km = distance / 1000;
-  if (km <= 0) return "-";
-
-  const paceSeconds = movingTime / km;
-  const min = Math.floor(paceSeconds / 60);
-  const sec = Math.round(paceSeconds % 60);
-
-  return `${min}:${sec.toString().padStart(2, "0")} /km`;
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return "-";
-
-  return d.toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "2-digit",
-  });
-}
-
 /** Dia local (sem UTC) */
 function startOfDayLocal(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -319,29 +271,6 @@ export default function DashboardClient({ activities, eventsSummary, communityId
   const groupActivities = activitiesInRange;
 
 
-  const athleteActivities =
-    currentUserId != null
-      ? groupActivities.filter((a) => a.user_id === currentUserId)
-      : groupActivities;
-
-  const athleteDistance = athleteActivities.reduce((sum, a) => sum + metersToKm(a.distance), 0);
-  const athleteMovingTime = athleteActivities.reduce((sum, a) => sum + (a.moving_time ?? 0), 0);
-  const athleteElevation = athleteActivities.reduce(
-    (sum, a) => sum + (a.total_elevation_gain ?? 0),
-    0
-  );
-  const athleteActivitiesCount = athleteActivities.length;
-
-  const lastActivities = useMemo(() => {
-    return [...athleteActivities]
-      .sort((a, b) => {
-        const da = a.start_date ? new Date(a.start_date).getTime() : 0;
-        const db = b.start_date ? new Date(b.start_date).getTime() : 0;
-        return db - da;
-      })
-      .slice(0, 10);
-  }, [athleteActivities]);
-
   const ranges: { key: RangeKey; label: string }[] = [
     { key: "all", label: "All" },
     { key: "today", label: "Today" },
@@ -537,8 +466,7 @@ const entries: RankingEntry[] = Array.from(map.entries()).map(([userId, v]) => {
           </div>
         </div>
 <p style={{ fontSize: 13, color: "#64748b", margin: 0, marginTop: 4 }}>
-          Overview of group rankings, the barbecue meme, workout progress (minutes), and
-          a summary of your activities.
+          Overview of group rankings and workout progress (minutes).
         </p>
       </header>
 
@@ -778,40 +706,6 @@ style={{
         </div>
       </section>
 
-      {/* CARDS */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: 12,
-          marginBottom: 18,
-        }}
-      >
-        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Activities</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteActivitiesCount}</div>
-        </div>
-
-        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Distance (km)</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{athleteDistance.toFixed(1)}</div>
-        </div>
-
-        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Moving time</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{formatDuration(athleteMovingTime)}</div>
-        </div>
-
-        <div style={{ padding: 14, borderRadius: 6, border: "1px solid #e2e8f0",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)", background: "#ffffff" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>Elevation (m)</div>
-          <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{Math.round(athleteElevation)}</div>
-        </div>
-      </section>
-
       {/* GRÁFICO (✅ com espaço garantido embaixo) */}
       <section
         style={{
@@ -822,99 +716,6 @@ style={{
         <DashboardCharts evolutionData={evolutionData} />
       </section>
 
-      {/* ✅ ÚLTIMAS 10 ATIVIDADES (depois do gráfico) */}
-      <section
-        style={{
-          marginTop: 0, // ✅ não precisa mais, já tem espaço garantido no gráfico
-          marginBottom: 18,
-          padding: "14px 14px",
-          borderRadius: 6,
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
-          background: "#ffffff",
-        }}
-      >
-        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, marginBottom: 10 }}>
-          Recent activities (10)
-        </h2>
-
-        {lastActivities.length === 0 ? (
-          <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>
-            No activities in this period yet.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {lastActivities.map((a) => {
-              const title = a.name ?? a.type ?? a.sport_type ?? "Activity";
-              const km = metersToKm(a.distance);
-              const dur = formatDuration(a.moving_time);
-              const pace = formatPace(a.moving_time, a.distance);
-              const elev = Math.round(a.total_elevation_gain ?? 0);
-
-              return (
-                <div
-                  key={a.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    padding: "10px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #e2e8f0",
-          boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
-                    background: "#f8fafc",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 800,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        maxWidth: 520,
-                      }}
-                    >
-                      {title}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                      {formatDate(a.start_date)}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 14,
-                      alignItems: "center",
-                      fontSize: 12,
-                      color: "#0f172a",
-                      flexWrap: "wrap",
-                      justifyContent: "flex-end",
-                    }}
-                  >
-                    <span>
-                      <b>{km.toFixed(1)}</b> km
-                    </span>
-                    <span>
-                      <b>{dur}</b>
-                    </span>
-                    <span>
-                      <b>{pace}</b>
-                    </span>
-                    <span>
-                      <b>{elev}</b> m
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-    
   {/* RANKING COMPLETO */}
   <section
     style={{
