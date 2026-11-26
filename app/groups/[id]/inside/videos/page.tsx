@@ -72,6 +72,7 @@ function getVideoEmbedUrl(url: string | null): string | null {
   }
 }
 
+const demoSeries = [{"title":"Força e mobilidade","urls":["https://www.instagram.com/reel/DfZv7DKipfT/embed/","https://www.instagram.com/reel/DgLI_tRB4YZ/embed/","https://www.instagram.com/reel/DdjboqshZ_E/embed/"]},{"title":"Penteados","urls":["https://www.instagram.com/reel/Dfr4sruRJr_/embed/","https://www.instagram.com/reel/DgKtC6ABu3q/embed/","https://www.instagram.com/reel/DcmJRqEia8d/embed/"]},{"title":"42 aprendizados para 42km","urls":["https://www.instagram.com/reel/DaAaSyvxwV2/embed/","https://www.instagram.com/reel/DaDaisExnlp/embed/","https://www.instagram.com/reel/DaKtds7R9Kk/embed/"]}];
 export default function MembershipVideosPage() {
   const supabase = useMemo(() => supabaseBrowser, []);
   const router = useRouter();
@@ -79,6 +80,7 @@ export default function MembershipVideosPage() {
 
   const communityId = Array.isArray(params?.id) ? params.id[0] : params?.id;
 
+  const [selectedSeries, setSelectedSeries] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [communityName, setCommunityName] = useState<string | null>(null);
@@ -190,6 +192,17 @@ export default function MembershipVideosPage() {
           box-sizing: border-box;
         }
 
+        .series-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+        .series-card {display:flex;flex-direction:column;position:relative;overflow:hidden;text-align:left;min-height:240px;padding:20px;border:0;border-radius:20px;color:white;cursor:pointer;box-shadow:0 8px 24px #0f172a18}
+        .series-index {font-size:10px;letter-spacing:1.5px;font-weight:700;color:#cbd5e1}
+        .series-art {font-size:76px;font-weight:800;line-height:1.1;color:#ffffff35;margin:12px 0}
+        .series-title {font-size:19px;font-weight:700;line-height:1.25;margin-top:auto}
+        .series-meta {display:flex;justify-content:space-between;align-items:center;width:100%;font-size:12px;color:#dbeafe;margin-top:16px}
+        .series-back {background:#eff6ff;color:#1d4ed8;border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer}
+        .episode-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+        .episode-card {border:1px solid #e2e8f0;border-radius:20px;overflow:hidden;background:white;box-shadow:0 6px 20px #0f172a0c}
+        .episode-label {display:flex;justify-content:space-between;gap:8px;padding:14px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:.6px}
+        @media(max-width:600px){.series-grid{grid-template-columns:1fr}.series-card{min-height:160px}.series-art{position:absolute;right:18px;top:12px;font-size:90px}.series-title{max-width:75%;margin-top:32px}}
         .page * {
           font-family: "Montserrat", Arial, sans-serif;
         }
@@ -285,7 +298,24 @@ export default function MembershipVideosPage() {
             </div>
           </div>
 
-          {videos.length === 0 ? (
+          {communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" && (
+<section style={{margin:"24px 0"}}>
+{selectedSeries===null ? <>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><strong style={{fontSize:17,color:"#0f172a"}}>Séries da Giovanna</strong><span style={{fontSize:12,color:"#64748b"}}>3 séries · 9 vídeos</span></div>
+<div className="series-grid">{demoSeries.map((series,i)=><button key={series.title} onClick={()=>setSelectedSeries(i)} className="series-card" style={{background:["linear-gradient(145deg,#0f172a,#164e63)","linear-gradient(145deg,#172554,#4338ca)","linear-gradient(145deg,#0f172a,#1d4ed8)"][i]}}>
+<span className="series-index">0{i+1} / SÉRIE</span>
+<span className="series-art" aria-hidden="true">{["↗","✦","42"][i]}</span>
+<span className="series-title">{series.title}</span>
+<span className="series-meta">3 episódios <span aria-hidden="true">→</span></span>
+</button>)}</div>
+</> : <>
+<button className="series-back" onClick={()=>setSelectedSeries(null)}>‹ Todas as séries</button>
+<div style={{margin:"20px 0"}}><div style={{fontSize:12,fontWeight:700,color:"#2563eb",letterSpacing:1}}>DIÁRIO DA CORREDORA</div><h2 style={{fontSize:24,color:"#0f172a",margin:"8px 0"}}>{demoSeries[selectedSeries].title}</h2><span style={{fontSize:13,color:"#64748b"}}>3 episódios</span></div>
+<div className="episode-grid">{demoSeries[selectedSeries].urls.map((url,i)=><article key={url} className="episode-card"><div className="episode-label"><span>EPISÓDIO {String(i+1).padStart(2,"0")}</span><span>Instagram</span></div><iframe src={url} title={"Episódio "+(i+1)} loading="lazy" style={{width:"100%",height:560,border:0,display:"block"}} allow="autoplay; encrypted-media; fullscreen" allowFullScreen/></article>)}</div>
+</>}
+</section>
+)}
+          {communityId === "a6dcbf1d-b7d3-4f70-a048-6f73bb46d1a1" ? null : videos.length === 0 ? (
             <div
               style={{
                 marginTop: 24,

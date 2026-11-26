@@ -17,27 +17,6 @@ type TabItem = {
   coach?: boolean;
 };
 
-function CoachIcon() {
-  return (
-    <svg
-      width="21"
-      height="21"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M12 3.5c.5 3.2 2.3 5 5.5 5.5-3.2.5-5 2.3-5.5 5.5-.5-3.2-2.3-5-5.5-5.5 3.2-.5 5-2.3 5.5-5.5Z"
-        fill="currentColor"
-      />
-      <path
-        d="M18.3 14.3c.25 1.65 1.15 2.55 2.8 2.8-1.65.25-2.55 1.15-2.8 2.8-.25-1.65-1.15-2.55-2.8-2.8 1.65-.25 2.55-1.15 2.8-2.8Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 const tabs: TabItem[] = [
   {
     href: "/feed",
@@ -55,12 +34,6 @@ const tabs: TabItem[] = [
     icon: CalendarDays,
   },
 
-  {
-    href: "/performance-ai",
-    label: "MAIA",
-    icon: CoachIcon,
-    coach: true,
-  },
   {
     href: "/profile",
     label: "Profile",
@@ -91,7 +64,7 @@ export default function BottomNavbar() {
           "6px 8px max(6px, env(safe-area-inset-bottom))",
 
         display: "grid",
-        gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+        gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
         alignItems: "center",
 
         background: "rgba(255,255,255,0.98)",
